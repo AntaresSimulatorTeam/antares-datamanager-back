@@ -1,0 +1,22 @@
+version: '3.5'
+
+services:
+  postgres:
+    container_name: postgres_container_pegase_back
+    hostname: postgres_pegase
+    image: postgres:13.1
+    shm_size: 1g
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      APP_DB_NAME: ${APP_DB_NAME:-pegase_local_db}
+      APP_DB_USER: ${APP_DB_USER:-postgres}
+      POSTGRES_SCHEMA: ${APP_SCHEMA_NAME:-pegase_local_db_schema}
+    volumes:
+      - ./create-db.sh:/docker-entrypoint-initdb.d/create-db.sh
+    ports:
+      - "5434:5432"
+    restart: unless-stopped
+
+volumes:
+  postgres:

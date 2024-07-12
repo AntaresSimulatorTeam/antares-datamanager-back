@@ -1,0 +1,8 @@
+- start conception of the pegase data model
+- create spring boot application with jdk21 & spring boot 3.2.x
+- add swagger config
+- add log config to parse on json using logback
+- dockerize the application with a dockerfile and docker-compose
+- add liquibase script to init the postgres database
+- run and test application in : local env , docker env
+

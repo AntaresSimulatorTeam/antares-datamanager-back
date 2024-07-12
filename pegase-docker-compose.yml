@@ -1,0 +1,41 @@
+version: '3.7'
+
+services:
+  pegase-back:
+    image: 'pegase-back:latest'
+    build:
+      context: .
+    container_name: pegase-back
+
+    ports:
+     - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://pegase_db:5432/pegase_local_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_PROFILES_ACTIVE: localhost
+    networks:
+      - network_pegase
+
+  pegase_db:
+    image: postgres
+    container_name: pegase_db
+    hostname: postgres_host
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      APP_DB_NAME: ${APP_DB_NAME:-pegase_local_db}
+      APP_DB_USER: ${APP_DB_USER:-postgres}
+      POSTGRES_SCHEMA: ${APP_SCHEMA_NAME:-pegase_local_db_schema}
+    volumes:
+      - ./create-db.sh:/docker-entrypoint-initdb.d/create-db.sh
+
+    ports:
+      - "5434:5432"
+    networks:
+      - network_pegase
+
+networks:
+  network_pegase:
+    driver: bridge

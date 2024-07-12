@@ -1,0 +1,4 @@
+databaseChangeLog:
+  ######################################### version 1.0.0 ##########################################
+  - include:
+      file: classpath*:db/changelog/1.0.0/V01-schema-initialization.sql
