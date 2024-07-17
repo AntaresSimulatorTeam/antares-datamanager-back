@@ -21,8 +21,6 @@ public class TrajectoryEntity {
 
     private String fileName;
 
-    private String path;
-
     private Long fileSize;
 
     private String checksum;
@@ -40,5 +38,8 @@ public class TrajectoryEntity {
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AreaConfigEntity> areaConfigEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<LinkEntity> linkEntities;
 
 }

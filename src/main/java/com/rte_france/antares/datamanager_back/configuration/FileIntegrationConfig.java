@@ -1,6 +1,8 @@
 package com.rte_france.antares.datamanager_back.configuration;
 
 import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.channel.DirectChannel;
@@ -17,8 +19,12 @@ import java.io.File;
 @EnableIntegration
 public class FileIntegrationConfig {
 
-    private static final String AREA_INPUT_DIR = "src/main/resources/INPUT/areas";
+    private static final String AREA_INPUT_DIR = "src/main/resources/INPUT/area";
     private static final String AREA_FILE_NAME_PATTERN = "areas_BP*.xlsx";
+    private static final String LINK_INPUT_DIR = "src/main/resources/INPUT/link";
+    private static final String LINK_FILE_NAME_PATTERN = "links_BP*.xlsx";
+
+
 
     @Bean
     public MessageChannel fileInputChannel() {
@@ -29,7 +35,7 @@ public class FileIntegrationConfig {
     public MessageChannel fileOutputChannel() {
         return new DirectChannel();
     }
-
+/*
     @Bean
     public FileReadingMessageSource areaReadingFile() {
         FileReadingMessageSource source = new FileReadingMessageSource();
@@ -46,4 +52,22 @@ public class FileIntegrationConfig {
                 .get();
     }
 
+
+
+    @Bean
+    public FileReadingMessageSource linkReadingFile() {
+        FileReadingMessageSource source = new FileReadingMessageSource();
+        source.setDirectory(new File(LINK_INPUT_DIR));
+        source.setFilter(new SimplePatternFileListFilter(LINK_FILE_NAME_PATTERN));
+        return source;
+    }
+
+    @Bean
+    public IntegrationFlow linkIntegration( LinkFileProcessorService linkFileProcessorService) {
+        return IntegrationFlow.from(linkReadingFile(), configurer -> configurer.poller(Pollers.fixedDelay(2000)))
+                .channel(fileInputChannel())
+                .handle(linkFileProcessorService, "processLinkFile")
+                .get();
+    }
+ */
 }

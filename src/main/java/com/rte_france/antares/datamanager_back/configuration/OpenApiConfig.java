@@ -12,9 +12,9 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
-                .info(new Info().title("Pegase Back")
+                .info(new Info().title("Antares datamanager Back")
                         .version("1.0")
-                        .description("UI for PEGASE back-end")
+                        .description("UI for Antares datamanager back-end")
                         .contact(new Contact().name("ANTARES TEAM").email("antares-pegase@rte-france.com")));
     }
 }

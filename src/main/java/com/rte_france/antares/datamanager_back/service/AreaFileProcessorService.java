@@ -18,9 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -137,44 +135,5 @@ private void processNewTrajectory(File file) {
             return areaRepository.save(areaEntity);
 
         });
-    }
-
-    /**
-     * Builds a trajectory from the given file.
-     *
-     * @param file the file to process
-     * @return the built trajectory
-     * @throws IOException if an I/O error occurs
-     */
-    public TrajectoryEntity buildTrajectory(File file, TrajectoryEntity existingTrajectory) throws IOException {
-        return TrajectoryEntity.builder()
-                .path(file.getPath())
-                .fileName(file.getName())
-                .fileSize(file.length())
-                .creationDate(LocalDateTime.now())
-                .type(getFileExtension(file.toPath()))
-                .version(existingTrajectory == null  ? 1: existingTrajectory.getVersion()+1)
-                .checksum(getFileChecksum(file.getPath()))
-                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(file.lastModified()), ZoneId.systemDefault()))
-                .build();
-    }
-
-    /**
-     * Checks the version of a trajectory by comparing the file name, file size, and checksum with a given TrajectoryEntity.
-     * If the file has already been processed, a warning is logged and a RuntimeException is thrown.
-     *
-     * @param file             The file to check the version of.
-     * @param trajectoryEntity The TrajectoryEntity to compare the file to.
-     * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
-     */
-    public static boolean checkTrajectoryVersion(File file, TrajectoryEntity trajectoryEntity) throws IOException {
-        if (isSameFileWithDifferentContent(file, trajectoryEntity)) {
-            log.info("File already processed but with different content : " + file.getName());
-            return true;
-        } else if (isSameFileWithSameContent(file, trajectoryEntity)) {
-            log.warn("File already processed : " + file.getName());
-            throw new IOException("File already processed : " + file.getName());
-        }
-        return false;
     }
 }
