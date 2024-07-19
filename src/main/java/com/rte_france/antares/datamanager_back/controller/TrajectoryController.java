@@ -2,8 +2,6 @@ package com.rte_france.antares.datamanager_back.controller;
 
 
 import com.rte_france.antares.datamanager_back.dto.Type;
-import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryProcessorService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TrajectoryController {
 
-    private final AreaFileProcessorService areaFileProcessorService;
-
-    private final LinkFileProcessorService linkFileProcessorService;
 
     private final TrajectoryProcessorService trajectoryProcessorService;
 
@@ -42,8 +37,8 @@ public class TrajectoryController {
     public ResponseEntity<List<String>> findTrajectoriesByType(@RequestParam("trajectoryType") Type trajectoryType)
 
     {
+        //TODO
         //check if trajectory exist in DB else scan appropriate directory
-
         return new ResponseEntity<>(trajectoryProcessorService.findTrajectoriesByType(trajectoryType), HttpStatus.OK);
     }
 
