@@ -10,12 +10,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 
 
 @Slf4j
@@ -32,10 +30,21 @@ public class TrajectoryController {
 
     @Operation(summary = "import Trajectory file to database ")
     @PostMapping
-    public ResponseEntity uploadArea(@RequestParam("trajectoryType") Type trajectoryType,
-                                     @RequestParam("trajectoryToUse") String trajectoryToUse) throws IOException {
+    public ResponseEntity uploadTrajectory(@RequestParam("trajectoryType") Type trajectoryType,
+                                           @RequestParam("trajectoryToUse") String trajectoryToUse) throws IOException {
         trajectoryProcessorService.processTrajectory(trajectoryType, trajectoryToUse);
         return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+
+    @Operation(summary = "Get Trajectories by type ")
+    @GetMapping
+    public ResponseEntity<List<String>> findTrajectoriesByType(@RequestParam("trajectoryType") Type trajectoryType)
+
+    {
+        //check if trajectory exist in DB else scan appropriate directory
+
+        return new ResponseEntity<>(trajectoryProcessorService.findTrajectoriesByType(trajectoryType), HttpStatus.OK);
     }
 
 

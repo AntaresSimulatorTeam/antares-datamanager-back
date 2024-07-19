@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.Type;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -83,6 +84,7 @@ private void processNewTrajectory(File file) {
     public void saveTrajectoryWithListOfAreaConfig(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
         trajectoryRepository.save(trajectory);
         trajectory.setAreaConfigEntities(areaConfigEntities);
+        trajectory.setType(Type.AREA.name());
         areaConfigEntities.forEach(areaConfig -> areaConfig.setTrajectory(trajectory));
         areaConfigRepository.saveAll(areaConfigEntities);
     }

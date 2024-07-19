@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 
+import com.rte_france.antares.datamanager_back.dto.Type;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
@@ -76,6 +77,7 @@ public class LinkFileProcessorService {
     public void saveTrajectoryWithListOfAreaConfig(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
         trajectoryRepository.save(trajectory);
         trajectory.setLinkEntities(linkEntities);
+        trajectory.setType(Type.LINK.name());
         linkEntities.forEach(link -> link.setTrajectory(trajectory));
         linkRepository.saveAll(linkEntities);
     }

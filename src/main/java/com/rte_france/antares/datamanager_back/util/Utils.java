@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -98,10 +99,10 @@ public class Utils {
         return false;
     }
 
-    public static File getFile(String path, String fileName) throws IOException {
+    public static File getFile(String path, String fileName) {
         File file = new File(path, fileName);
         if (!file.exists()) {
-            throw new IOException("FILE NOT FOUND");
+            throw new ResourceNotFoundException("File not found with file name  : "+ fileName );
         }
         return file;
     }
