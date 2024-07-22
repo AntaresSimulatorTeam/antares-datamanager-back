@@ -4,13 +4,12 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +33,7 @@ class TrajectoryRepositoryTest {
 
         assertThat(foundEntity).isPresent();
         assertThat(foundEntity.get().getFileName()).isEqualTo("testFile.txt");
+        assertThat(foundEntity.get().getVersion()).isEqualTo(2);
     }
 
     @Test
@@ -41,4 +41,36 @@ class TrajectoryRepositoryTest {
         Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc("nonExistentFile.txt");
         assertThat(foundEntity).isNotPresent();
     }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentType() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("nonExistentType", "test");
+        assertThat(trajectoryEntities).isEmpty();
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentFileNameStartsWith() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("AREA", "nonExistentStart");
+        assertThat(trajectoryEntities).isEmpty();
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameStartsWith_returnsNonEmptyListForExistentTypeAndFileNameStartsWith() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("AREA", "test");
+        assertThat(trajectoryEntities).isNotEmpty();
+        assertThat(trajectoryEntities.get(0).getFileName()).startsWith("test");
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNullType() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith(null, "test");
+        assertThat(trajectoryEntities).isEmpty();
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNullFileNameStartsWith() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("AREA", null);
+        assertThat(trajectoryEntities).isEmpty();
+    }
+
 }

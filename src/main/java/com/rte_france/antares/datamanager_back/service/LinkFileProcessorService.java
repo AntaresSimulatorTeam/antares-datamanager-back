@@ -1,11 +1,11 @@
 package com.rte_france.antares.datamanager_back.service;
 
-
 import com.rte_france.antares.datamanager_back.dto.Type;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -18,11 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
+import static com.rte_france.antares.datamanager_back.util.Utils.checkTrajectoryVersion;
 
 
 /**
@@ -43,43 +44,24 @@ public class LinkFileProcessorService {
      *
      * @param file the file to process
      */
+    @ExecutionTime
     @Transactional
-    public void processLinkFile(File file) {
-        var startProcessing = LocalDateTime.now();
-        log.info("START processing file : " + file.getName() + " at " + LocalDateTime.now());
-        trajectoryRepository.findFirstByFileNameOrderByVersionDesc(file.getName()).ifPresentOrElse(
-                trajectoryEntity -> processTrajectory(file, trajectoryEntity),
-                () -> processNewTrajectory(file)
-        );
-        var endProcessing = LocalDateTime.now();
-        log.info("Time spend to process area file : " + file.getName() + " is " + endProcessing.minusNanos(startProcessing.getNano()).getNano() + " nanoSeconds");
-    }
+    public TrajectoryEntity processLinkFile(File file) throws IOException {
 
-    private void processTrajectory(File file, TrajectoryEntity trajectoryEntity) {
-        try {
-            if (checkTrajectoryVersion(file, trajectoryEntity)) {
-                saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, trajectoryEntity), buildLinkList(file));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(file.getName());
+        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
+            return saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, trajectoryEntity.get()), buildLinkList(file));
         }
+        return saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, null), buildLinkList(file));
     }
 
-    private void processNewTrajectory(File file) {
-        try {
-            saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, null), buildLinkList(file));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    public void saveTrajectoryWithListOfAreaConfig(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
-        trajectoryRepository.save(trajectory);
+    public TrajectoryEntity saveTrajectoryWithListOfAreaConfig(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
+        TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setLinkEntities(linkEntities);
         trajectory.setType(Type.LINK.name());
         linkEntities.forEach(link -> link.setTrajectory(trajectory));
         linkRepository.saveAll(linkEntities);
+        return trajectoryEntity;
     }
 
     /**
@@ -88,7 +70,7 @@ public class LinkFileProcessorService {
      * @param file the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(File file) {
+    private List<LinkEntity> buildLinkList(File file) throws IOException {
         List<LinkEntity> linkEntities = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(file);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -118,7 +100,7 @@ public class LinkFileProcessorService {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
     }

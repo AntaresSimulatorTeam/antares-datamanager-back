@@ -9,7 +9,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -33,31 +32,20 @@ public class Utils {
         try (FileInputStream fis = new FileInputStream(filePath)) {
             return DigestUtils.sha256Hex(fis);
         } catch (IOException e) {
-            throw new IOException(e);
+            throw new IOException("could not get file checksum : " + e.getMessage());
         }
     }
 
-    /**
-     * Returns the file extension of a file.
-     *
-     * @param filePath The path of the file to get the extension for.
-     * @return The file extension, or an empty string if the file has no extension.
-     */
-    public static String getFileExtension(Path filePath) {
-        String fileName = filePath.getFileName().toString();
-        int dotIndex = fileName.lastIndexOf('.');
-        return (dotIndex == -1) ? "" : fileName.substring(dotIndex + 1);
-    }
 
 
     public static boolean isSameFileWithSameContent(File file, TrajectoryEntity trajectoryEntity) throws IOException {
-        return file.getName().equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtension(file.getName()).equals(trajectoryEntity.getFileName())
                 && trajectoryEntity.getFileSize() == file.length()
                 && trajectoryEntity.getChecksum().equals(getFileChecksum(file.getPath()));
     }
 
     public static boolean isSameFileWithDifferentContent(File file, TrajectoryEntity trajectoryEntity) throws IOException {
-        return file.getName().equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtension(file.getName()).equals(trajectoryEntity.getFileName())
                 && (trajectoryEntity.getFileSize() != file.length() || !trajectoryEntity.getChecksum().equals(getFileChecksum(file.getPath())));
     }
 
@@ -68,12 +56,11 @@ public class Utils {
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity buildTrajectory(File file, TrajectoryEntity existingTrajectory) throws IOException {
+    public static TrajectoryEntity buildTrajectory(File file, TrajectoryEntity existingTrajectory) throws IOException {
         return TrajectoryEntity.builder()
-                .fileName(file.getName())
+                .fileName(getFileNameWithoutExtension(file.getName()))// file name without extension
                 .fileSize(file.length())
                 .creationDate(LocalDateTime.now())
-                .type(getFileExtension(file.toPath()))
                 .version(existingTrajectory == null ? 1 : existingTrajectory.getVersion() + 1)
                 .checksum(getFileChecksum(file.getPath()))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(file.lastModified()), ZoneId.systemDefault()))
@@ -102,8 +89,12 @@ public class Utils {
     public static File getFile(String path, String fileName) {
         File file = new File(path, fileName);
         if (!file.exists()) {
-            throw new ResourceNotFoundException("File not found with file name  : "+ fileName );
+            throw new ResourceNotFoundException("Trajectory not found with file name  : " + fileName);
         }
         return file;
+    }
+
+    public static String getFileNameWithoutExtension(String fileName) {
+        return fileName.substring(0, fileName.lastIndexOf('.'));
     }
 }

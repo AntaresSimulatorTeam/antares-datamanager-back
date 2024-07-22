@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -19,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -45,35 +46,15 @@ public class AreaFileProcessorService {
      *
      * @param file the file to process
      */
-@Transactional
-public void processAreaFile(File file) {
-    var startProcessing = LocalDateTime.now();
-    log.info("START processing file : " + file.getName() + " at " + LocalDateTime.now());
-    trajectoryRepository.findFirstByFileNameOrderByVersionDesc(file.getName()).ifPresentOrElse(
-            trajectoryEntity -> processTrajectory(file, trajectoryEntity),
-            () -> processNewTrajectory(file)
-    );
-    var endProcessing = LocalDateTime.now();
-    log.info("Time spend to process area file : " + file.getName() + " is " + endProcessing.minusNanos(startProcessing.getNano()).getNano() + " nanoSeconds");
-}
-
-private void processTrajectory(File file, TrajectoryEntity trajectoryEntity) {
-    try {
-      if(checkTrajectoryVersion(file, trajectoryEntity)) {
-          saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, trajectoryEntity), buildAreaConfigList(file));
-      }
-    } catch (IOException e) {
-        throw new RuntimeException(e);
+    @ExecutionTime
+    @Transactional
+    public TrajectoryEntity processAreaFile(File file) throws IOException {
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
+        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
+            return saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, trajectoryEntity.get()), buildAreaConfigList(file));
+        }
+        return saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, null), buildAreaConfigList(file));
     }
-}
-
-private void processNewTrajectory(File file) {
-    try {
-        saveTrajectoryWithListOfAreaConfig(buildTrajectory(file, null), buildAreaConfigList(file));
-    } catch (IOException e) {
-        throw new RuntimeException(e);
-    }
-}
 
     /**
      * Saves the given trajectory and its associated area configurations.
@@ -81,12 +62,13 @@ private void processNewTrajectory(File file) {
      * @param trajectory         the trajectory to save
      * @param areaConfigEntities the area configurations to save
      */
-    public void saveTrajectoryWithListOfAreaConfig(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
-        trajectoryRepository.save(trajectory);
+    public TrajectoryEntity saveTrajectoryWithListOfAreaConfig(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
+        TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setAreaConfigEntities(areaConfigEntities);
         trajectory.setType(Type.AREA.name());
         areaConfigEntities.forEach(areaConfig -> areaConfig.setTrajectory(trajectory));
         areaConfigRepository.saveAll(areaConfigEntities);
+        return trajectoryEntity;
     }
 
     /**
@@ -95,7 +77,7 @@ private void processNewTrajectory(File file) {
      * @param file the file to process
      * @return a list of area configurations
      */
-    private List<AreaConfigEntity> buildAreaConfigList(File file) {
+    private List<AreaConfigEntity> buildAreaConfigList(File file) throws IOException {
         List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(file);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -113,7 +95,7 @@ private void processNewTrajectory(File file) {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IOException("could not build area config list : " + e.getMessage());
         }
         return areaConfigEntities;
     }

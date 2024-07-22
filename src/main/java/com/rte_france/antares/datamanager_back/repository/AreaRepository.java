@@ -8,5 +8,6 @@ import java.util.Optional;
 
 @Repository
 public interface AreaRepository extends JpaRepository<AreaEntity, String> {
+
     Optional<AreaEntity> findAreaByName(String name);
 }
