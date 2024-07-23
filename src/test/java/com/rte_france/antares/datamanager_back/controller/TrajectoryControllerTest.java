@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     protected MockMvc mockMvc;
 
     @MockBean
-    TrajectoryService trajectoryService;
+    TrajectoryServiceImpl trajectoryServiceImpl;
 
     @BeforeEach
     public void setup() {
@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
     @Test
     void uploadTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryService.processTrajectory(any(),any())).thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryServiceImpl.processTrajectory(any(),any())).thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -57,12 +57,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryService, times(1)).processTrajectory(any(), any());
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any());
     }
 
     @Test
     void findTrajectoriesByTypeFromDb_returnsTrajectories() throws Exception {
-        when(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(),any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(),any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
 
         this.mockMvc.perform(get("/v1/trajectory/db")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -74,12 +74,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryService, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any());
+        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any());
     }
 
     @Test
     void findTrajectoriesByTypeFromFileSystem_returnsFileNames() throws Exception {
-        when(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(any())).thenReturn(List.of("test"));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromFS(any())).thenReturn(List.of("test"));
         this.mockMvc.perform(get("/v1/trajectory/fs")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
@@ -89,7 +89,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryService, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromFS(any());
+        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromFS(any());
     }
 
 }

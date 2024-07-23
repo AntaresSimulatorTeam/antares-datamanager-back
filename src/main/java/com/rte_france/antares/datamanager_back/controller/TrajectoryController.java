@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.Type;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
