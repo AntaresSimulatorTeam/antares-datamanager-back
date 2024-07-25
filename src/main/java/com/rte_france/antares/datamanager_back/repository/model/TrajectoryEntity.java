@@ -4,9 +4,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
-@Data
+@Getter
+@Setter
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
@@ -41,5 +44,9 @@ public class TrajectoryEntity {
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<LinkEntity> linkEntities;
-
+    @ManyToMany
+    @JoinTable(name = "scenario_trajectory",
+            joinColumns = @JoinColumn(name = "trajectory_id"),
+            inverseJoinColumns = @JoinColumn(name = "scenario_id"))
+    private Set<StudyEntity> scenarioEntities = new LinkedHashSet<>();
 }

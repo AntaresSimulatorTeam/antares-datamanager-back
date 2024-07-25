@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.Type;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
-import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.List;
 
-import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
-import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDtos;
+import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.*;
 
 
 @Slf4j

@@ -16,10 +16,22 @@ CREATE TABLE scenario
     id            INTEGER,
     name          VARCHAR(255),
     created_by    VARCHAR(255),
+    status       VARCHAR(255),
+    horizon      VARCHAR(255),
     creation_date timestamp,
+    project_id INTEGER,
     PRIMARY KEY (id)
 );
 
+ALTER TABLE scenario
+    ADD CONSTRAINT "scenario_fk1" FOREIGN KEY (project_id) REFERENCES project (id);
+
+
+CREATE TABLE scenario_tags (
+                            scenario_id INT NOT NULL,
+                            tag VARCHAR(255),
+                            FOREIGN KEY (scenario_id) REFERENCES scenario(id)
+);
 -- changeset elazaarmou:100V1-3
 CREATE TABLE trajectory
 (
@@ -35,19 +47,6 @@ CREATE TABLE trajectory
     PRIMARY KEY (id)
 );
 
--- changeset elazaarmou:100V1-4
-CREATE TABLE project_scenario
-(
-    scenario_id INTEGER NOT NULL,
-    project_id  INTEGER NOT NULL,
-    CONSTRAINT "project_scenario_PK" PRIMARY KEY (scenario_id, project_id)
-);
-
-ALTER TABLE project_scenario
-    ADD CONSTRAINT "scenario_fk" FOREIGN KEY (scenario_id) REFERENCES scenario (id);
-
-ALTER TABLE project_scenario
-    ADD CONSTRAINT "project_fk" FOREIGN KEY (project_id) REFERENCES project (id);
 
 -- changeset elazaarmou:100V1-5
 CREATE TABLE scenario_trajectory

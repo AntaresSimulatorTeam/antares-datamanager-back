@@ -9,6 +9,9 @@ import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -68,5 +71,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
         return Collections.emptyList();
     }
+
 
 }

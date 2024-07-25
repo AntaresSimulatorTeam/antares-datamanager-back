@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.springframework.data.domain.Page;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,5 +48,8 @@ public class TrajectoryMapper {
                 .toList();
     }
 
+    public static Page<TrajectoryDTO> toTrajectoryPage(Page<TrajectoryEntity> page) {
+        return page.map(TrajectoryMapper::toTrajectoryDTO);
+    }
 
 }

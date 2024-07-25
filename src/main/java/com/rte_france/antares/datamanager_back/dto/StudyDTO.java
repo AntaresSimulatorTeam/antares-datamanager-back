@@ -13,19 +13,13 @@ import java.util.List;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
-public class TrajectoryDTO {
+public class StudyDTO {
 
     @JsonProperty("id")
     Integer id;
 
-    @JsonProperty("trajectory_name")
-    String fileName;
-
-    @JsonProperty("type")
-    String type;
-
-    @JsonProperty("version")
-    int version;
+    @JsonProperty("study_name")
+    String name;
 
     @JsonProperty("user_name")
     String createdBy;
@@ -35,5 +29,12 @@ public class TrajectoryDTO {
 
     List<String> tags;
 
+    @JsonProperty("project")
     String projet;
+
+    @JsonProperty("status")
+    String status;
+
+    @JsonProperty("horizon")
+    String horizon;
 }
