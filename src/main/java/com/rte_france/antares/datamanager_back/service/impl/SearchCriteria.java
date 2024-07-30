@@ -13,6 +13,4 @@ public class SearchCriteria {
         this.operation = operation;
         this.value = value;
     }
-
-    // getters and setters
 }
