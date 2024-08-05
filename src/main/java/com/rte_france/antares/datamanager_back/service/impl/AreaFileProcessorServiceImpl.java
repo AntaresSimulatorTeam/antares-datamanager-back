@@ -51,7 +51,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @Transactional
     public TrajectoryEntity processAreaFile(File file) throws IOException {
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
+        if (trajectoryEntity.isPresent() && isNewTrajectoryVersionOfSameFile(file, trajectoryEntity.get())) {
             return saveTrajectory(buildTrajectory(file, trajectoryEntity.get()), buildAreaConfigList(file));
         }
         return saveTrajectory(buildTrajectory(file, null), buildAreaConfigList(file));

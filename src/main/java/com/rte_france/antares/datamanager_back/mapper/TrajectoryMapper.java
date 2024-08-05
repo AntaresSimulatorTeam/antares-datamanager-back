@@ -48,8 +48,4 @@ public class TrajectoryMapper {
                 .toList();
     }
 
-    public static Page<TrajectoryDTO> toTrajectoryPage(Page<TrajectoryEntity> page) {
-        return page.map(TrajectoryMapper::toTrajectoryDTO);
-    }
-
 }

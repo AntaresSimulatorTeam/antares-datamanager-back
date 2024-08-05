@@ -75,7 +75,7 @@ public class Utils {
      * @param trajectoryEntity The TrajectoryEntity to compare the file to.
      * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
      */
-    public static boolean checkTrajectoryVersion(File file, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean isNewTrajectoryVersionOfSameFile(File file, TrajectoryEntity trajectoryEntity) throws IOException {
         if (isSameFileWithDifferentContent(file, trajectoryEntity)) {
             log.info("File already processed but with different content : " + file.getName());
             return true;
