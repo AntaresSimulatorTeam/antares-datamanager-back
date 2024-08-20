@@ -1,16 +1,23 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Year;
 import java.time.ZoneId;
 
 
@@ -37,7 +44,6 @@ public class Utils {
     }
 
 
-
     public static boolean isSameFileWithSameContent(File file, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtension(file.getName()).equals(trajectoryEntity.getFileName())
                 && trajectoryEntity.getFileSize() == file.length()
@@ -56,6 +62,7 @@ public class Utils {
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
+    @ExecutionTime
     public static TrajectoryEntity buildTrajectory(File file, TrajectoryEntity existingTrajectory) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtension(file.getName()))// file name without extension
@@ -80,8 +87,7 @@ public class Utils {
             log.info("File already processed but with different content : " + file.getName());
             return true;
         } else if (isSameFileWithSameContent(file, trajectoryEntity)) {
-            log.warn("File already processed : " + file.getName());
-            throw new IOException("File already processed : " + file.getName());
+            throw new AlreadyProcessedException("File already processed : " + file.getName());
         }
         return false;
     }
@@ -96,5 +102,38 @@ public class Utils {
 
     public static String getFileNameWithoutExtension(String fileName) {
         return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
+    public static boolean isSheetNameYearNumber(Sheet sheet) {
+        String sheetName = sheet.getSheetName();
+        try {
+            int year = Integer.parseInt(sheetName);
+            int currentYear = Year.now().getValue();
+            return year >= currentYear;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    public static boolean eliminateCharacters(String input) {
+        return input != null && input.matches("[10]*");
+    }
+
+
+    public Object getCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex);
+        if (cell == null) {
+            return null;
+        }
+
+        if (cell.getCellType() == CellType.STRING) {
+            return cell.getStringCellValue();
+        } else if (cell.getCellType() == CellType.NUMERIC) {
+            return cell.getNumericCellValue();
+        }else if (cell.getCellType() == CellType.BOOLEAN) {
+            return cell.getBooleanCellValue();
+        }
+
+        return null;
     }
 }

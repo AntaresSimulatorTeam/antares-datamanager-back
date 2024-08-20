@@ -38,7 +38,6 @@ public class TrajectoryMapper {
         return entity;
     }
 
-
     public static List<TrajectoryDTO> toTrajectoryDtos(List<TrajectoryEntity> trajectoryEntities) {
         if (trajectoryEntities == null) {
             return Collections.emptyList();
@@ -46,10 +45,6 @@ public class TrajectoryMapper {
         return trajectoryEntities.stream()
                 .map(TrajectoryMapper::toTrajectoryDTO)
                 .toList();
-    }
-
-    public static Page<TrajectoryDTO> toTrajectoryPage(Page<TrajectoryEntity> page) {
-        return page.map(TrajectoryMapper::toTrajectoryDTO);
     }
 
 }

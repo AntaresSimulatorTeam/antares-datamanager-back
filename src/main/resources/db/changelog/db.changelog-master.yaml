@@ -2,3 +2,9 @@ databaseChangeLog:
   ######################################### version 1.0.0 ##########################################
   - include:
       file: classpath*:db/changelog/1.0.0/V01-schema-initialization.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V02-create-areas-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V03-create-loads-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V04-create-thermal-tables.sql

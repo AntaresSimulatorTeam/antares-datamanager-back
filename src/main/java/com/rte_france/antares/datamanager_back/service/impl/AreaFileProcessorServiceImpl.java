@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
-import com.rte_france.antares.datamanager_back.dto.Type;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -66,7 +66,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setAreaConfigEntities(areaConfigEntities);
-        trajectory.setType(Type.AREA.name());
+        trajectory.setType(TrajectoryType.AREA.name());
         areaConfigEntities.forEach(areaConfig -> areaConfig.setTrajectory(trajectory));
         areaConfigRepository.saveAll(areaConfigEntities);
         return trajectoryEntity;

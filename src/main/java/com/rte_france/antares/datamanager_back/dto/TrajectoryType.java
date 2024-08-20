@@ -1,9 +1,11 @@
 package com.rte_france.antares.datamanager_back.dto;
 
-public enum Type {
+public enum TrajectoryType {
     AREA,
     LINK,
     LOAD,
     MISC,
-    THERMAL
+    THERMAL_CAPACITY,
+    THERMAL_PARAMETER,
+    THERMAL_COST
 }
