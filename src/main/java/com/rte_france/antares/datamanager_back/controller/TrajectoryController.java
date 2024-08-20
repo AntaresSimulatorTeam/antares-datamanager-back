@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.Type;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.List;
 
-import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.*;
+import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
+import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDtos;
 
 
 @Slf4j
@@ -26,14 +27,14 @@ public class TrajectoryController {
 
     @Operation(summary = "import Trajectory file to database ")
     @PostMapping
-    public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") Type trajectoryType,
+    public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                           @RequestParam("trajectoryToUse") String trajectoryToUse) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse)), HttpStatus.CREATED);
     }
 
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from Database ")
     @GetMapping(value = "/db")
-    public ResponseEntity<List<TrajectoryDTO>> findTrajectoriesByTypeFromDb(@RequestParam("trajectoryType") Type trajectoryType,
+    public ResponseEntity<List<TrajectoryDTO>> findTrajectoriesByTypeFromDb(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                                             @RequestParam("fileNameStartsWith") String fileNameStartsWith) {
         return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(trajectoryType, fileNameStartsWith)), HttpStatus.OK);
     }
@@ -41,7 +42,7 @@ public class TrajectoryController {
 
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from File System")
     @GetMapping(value = "/fs")
-    public ResponseEntity<List<String>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") Type trajectoryType) {
+    public ResponseEntity<List<String>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") TrajectoryType trajectoryType) {
         return new ResponseEntity<>(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(trajectoryType), HttpStatus.OK);
     }
 

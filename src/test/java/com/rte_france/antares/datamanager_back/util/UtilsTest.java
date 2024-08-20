@@ -12,7 +12,7 @@ class UtilsTest {
 
     @Test
     void getFileChecksum_returnsCorrectChecksum() throws IOException {
-        String filePath = "src/test/resources/testFile.xlsx";
+        String filePath = "src/test/resources/area/testFile.xlsx";
         String expectedChecksum = "ddcf3b936326b35bf74caaecb2cb24cfd96f49b6472d1e6bc19c8eccb7a5c51b"; // pre-calculated checksum for "hello" text
 
         String actualChecksum = Utils.getFileChecksum(filePath);
@@ -22,7 +22,7 @@ class UtilsTest {
 
     @Test
     void getFileChecksum_throwsExceptionForNonExistentFile() {
-        String filePath = "src/test/resources/nonExistentFile.txt";
+        String filePath = "src/test/resources/area/nonExistentFile.txt";
 
         assertThrows(IOException.class, () -> Utils.getFileChecksum(filePath));
     }
@@ -30,7 +30,7 @@ class UtilsTest {
 
     @Test
     void isSameFileWithSameContent_returnsTrueForIdenticalFile() throws IOException {
-        File file = new File("src/test/resources/testFile.xlsx");
+        File file = new File("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(file.length());
@@ -43,7 +43,7 @@ class UtilsTest {
 
     @Test
     void isSameFileWithSameContent_returnsFalseForDifferentFile() throws IOException {
-        File file = new File("src/test/resources/testFile.xlsx");
+        File file = new File("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("differentFile");
         trajectoryEntity.setFileSize(file.length());
@@ -56,7 +56,7 @@ class UtilsTest {
 
     @Test
     void isSameFileWithDifferentContent_returnsTrueForDifferentContent() throws IOException {
-        File file = new File("src/test/resources/testFile.xlsx");
+        File file = new File("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(file.length());
@@ -69,7 +69,7 @@ class UtilsTest {
 
     @Test
     void isSameFileWithDifferentContent_returnsFalseForIdenticalFile() throws IOException {
-        File file = new File("src/test/resources/testFile.xlsx");
+        File file = new File("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(file.length());

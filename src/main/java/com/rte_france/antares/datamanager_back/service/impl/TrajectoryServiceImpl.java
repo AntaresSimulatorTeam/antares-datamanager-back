@@ -1,17 +1,15 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.dto.Type;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -37,8 +35,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final TrajectoryRepository trajectoryRepository;
 
+    private final ThermalFileProcessorService thermalFileProcessorService;
 
-    public TrajectoryEntity processTrajectory(Type trajectoryType, String trajectoryToUse) throws IOException {
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
         File trajectoryFile = getFile(antaressDataManagerProperties.getTrajectoryFilePath() + trajectoryType.name().toLowerCase(), trajectoryToUse + ".xlsx");
         switch (trajectoryType) {
             case AREA -> {
@@ -47,17 +46,25 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> {
                 return linkFileProcessorService.processLinkFile(trajectoryFile);
             }
-            case LOAD -> log.info("not implemented yet");
+            case THERMAL_CAPACITY -> {
+                return thermalFileProcessorService.processThermalCapacityFile(trajectoryFile);
+            }
+            case THERMAL_PARAMETER -> {
+                return thermalFileProcessorService.processThermalParameterFile(trajectoryFile);
+            }
+            case THERMAL_COST -> {
+                return thermalFileProcessorService.processThermalCostFile(trajectoryFile);
+            }
             // Handle default case
         }
         return null;
     }
 
-    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(Type trajectoryType, String fileNameStartsWith) {
+    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String fileNameStartsWith) {
         return trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith(trajectoryType.name(), fileNameStartsWith);
     }
 
-    public List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(Type trajectoryType) {
+    public List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType) {
         File directory = new File(antaressDataManagerProperties.getTrajectoryFilePath() + trajectoryType.name().toLowerCase());
         if (directory.exists() && directory.isDirectory()) {
             if (directory.listFiles() != null && Objects.requireNonNull(directory.listFiles()).length > 0) {

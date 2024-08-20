@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
-import com.rte_france.antares.datamanager_back.dto.Type;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
@@ -59,7 +59,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setLinkEntities(linkEntities);
-        trajectory.setType(Type.LINK.name());
+        trajectory.setType(TrajectoryType.LINK.name());
         linkEntities.forEach(link -> link.setTrajectory(trajectory));
         linkRepository.saveAll(linkEntities);
         return trajectoryEntity;
