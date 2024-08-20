@@ -28,7 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<open-api.version>1.6.15</open-api.version>
+		<open-api-doc.version>2.0.3</open-api-doc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -120,9 +120,13 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.0.3</version>
+			<version>${open-api-doc.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>7.4</version>
+		</dependency>
 	</dependencies>
 
 	<build>
