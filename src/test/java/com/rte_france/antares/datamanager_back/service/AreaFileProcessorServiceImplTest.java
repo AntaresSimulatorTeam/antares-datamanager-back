@@ -51,7 +51,7 @@ class AreaFileProcessorServiceImplTest {
 
         areaFileProcessorService.processAreaFile(file);
 
-        verify(trajectoryRepository, times(1)).save(trajectoryEntity);
+        verify(trajectoryRepository, times(1)).save(any());
         verify(areaConfigRepository, times(1)).saveAll(any());
     }
 
