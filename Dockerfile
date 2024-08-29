@@ -1,4 +1,4 @@
-FROM openjdk:21-jdk
+FROM inca.rte-france.com/rtsi/openjdk:21-alpine3201.5-apm
 
 MAINTAINER ANTARES
 
