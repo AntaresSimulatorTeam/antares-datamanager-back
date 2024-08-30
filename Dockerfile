@@ -1,4 +1,4 @@
-FROM inca.rte-france.com/apsu/envoy-openjdk21-alpine:v1.27.0-apm
+FROM  inca.rte-france.com/antares/jdk21:latest
 
 MAINTAINER ANTARES
 
