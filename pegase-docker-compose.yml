@@ -19,9 +19,9 @@ services:
       - network_pegase
 
   pegase_db:
-    image: postgres
+    hostname: postgres_pegase
+    image: postgres:13.1
     container_name: pegase_db
-    hostname: postgres_host
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
