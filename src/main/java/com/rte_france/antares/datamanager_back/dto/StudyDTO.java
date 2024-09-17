@@ -27,6 +27,7 @@ public class StudyDTO {
     @JsonProperty("creation_date")
     LocalDateTime creationDate;
 
+    @JsonProperty("keywords")
     List<String> tags;
 
     @JsonProperty("project")
