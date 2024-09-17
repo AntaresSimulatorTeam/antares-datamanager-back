@@ -94,6 +94,8 @@ public class Utils {
 
     public static File getFile(String path, String fileName) {
         File file = new File(path, fileName);
+        log.info("File path : " + file.getPath());
+        log.info("File name : " + file.getName());
         if (!file.exists()) {
             throw new ResourceNotFoundException("Trajectory not found with file name  : " + fileName);
         }
