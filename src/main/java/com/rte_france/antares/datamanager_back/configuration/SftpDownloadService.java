@@ -13,7 +13,11 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Configuration
@@ -31,9 +35,47 @@ public class SftpDownloadService {
         this.antaressDataManagerProperties = antaressDataManagerProperties;
     }
 
-    @Scheduled(fixedDelayString = "${antares.datamanager.synchronize.data.scheduler_delay.in.milliseconds}")
+    public File downloadFile(String remoteFilePath) {
+        // Extract the filename from the remote file path
+        String filename = Paths.get(remoteFilePath).getFileName().toString();
+
+        // Construct the local file path using the extracted filename
+        String localFilePath = "localDirectoryPath" + File.separator + filename; // replace "localDirectoryPath" with your local directory path
+
+        File localFile = new File(localFilePath);
+        try (OutputStream outputStream = new FileOutputStream(localFile)) {
+            this.sftpRemoteFileTemplate.execute(session -> {
+                session.read(remoteFilePath, outputStream);
+                return null;
+            });
+        } catch (IOException e) {
+            log.error("Error while retrieving the file: " + remoteFilePath, e);
+        }
+        return localFile;
+    }
+
+    public List<File> listFile(String remoteDir) {
+        return this.sftpRemoteFileTemplate.execute(session -> {
+            List<File> files = new ArrayList<>();
+            SftpClient.DirEntry[] entries = session.list(remoteDir);
+            for (SftpClient.DirEntry entry : entries) {
+                String filename = entry.getFilename();
+                if (!entry.getAttributes().isDirectory()) {
+                    File localFile = new File("localDirectoryPath" + File.separator + filename); // replace "localDirectoryPath" with your local directory path
+                    try (OutputStream outputStream = new FileOutputStream(localFile)) {
+                        session.read(remoteDir + "/" + filename, outputStream);
+                        files.add(localFile);
+                    } catch (IOException e) {
+                        log.error("Error while retrieving the file: " + filename, e);
+                    }
+                }
+            }
+            return files;
+        });
+    }
+
+    @Scheduled(cron = "0 0 6 * * *")
     public void downloadDirectoryRecursively() {
-        log.info("Vérification des potentiels modifications du répertoire distant : " + antaressDataManagerProperties.getDataRemoteDirectory());
         this.sftpRemoteFileTemplate.execute(session -> {
             try {
                 downloadRecursive(session, antaressDataManagerProperties.getDataRemoteDirectory(), antaressDataManagerProperties.getDataLocalDirectoryStorage());
