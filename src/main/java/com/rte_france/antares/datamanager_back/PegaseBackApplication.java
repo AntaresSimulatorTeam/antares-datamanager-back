@@ -4,7 +4,9 @@ import com.rte_france.antares.datamanager_back.configuration.OpenApiConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @Import({OpenApiConfig.class})
 @SpringBootApplication
 public class PegaseBackApplication {
