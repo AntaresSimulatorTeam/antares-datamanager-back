@@ -33,7 +33,7 @@ public class SftpDownloadService {
 
     @Scheduled(fixedDelayString = "${antares.datamanager.synchronize.data.scheduler_delay.in.milliseconds}")
     public void downloadDirectoryRecursively() {
-        log.info("Téléchargement du répertoire distant : " + antaressDataManagerProperties.getDataRemoteDirectory());
+        log.info("Vérification des potentiels modifications du répertoire distant : " + antaressDataManagerProperties.getDataRemoteDirectory());
         this.sftpRemoteFileTemplate.execute(session -> {
             try {
                 downloadRecursive(session, antaressDataManagerProperties.getDataRemoteDirectory(), antaressDataManagerProperties.getDataLocalDirectoryStorage());
@@ -62,13 +62,12 @@ public class SftpDownloadService {
 
             String remoteFilePath = remoteDir + antaressDataManagerProperties.getPathDelimiter() + filename;
             File localFile = new File(localDir + antaressDataManagerProperties.getPathDelimiter() + filename);
-
             if (entry.getAttributes().isDirectory()) {
                 // Si c'est un répertoire, parcourir récursivement
                 downloadRecursive(session, remoteFilePath, localFile.getAbsolutePath());
             } else {
                 // Si c'est un fichier, le télécharger
-                log.info("Téléchargement du fichier : " + remoteFilePath);
+                log.info("Téléchargement du fichier : " + remoteFilePath + " derniere modification : " + entry.getAttributes().getModifyTime().toInstant());
                 try (OutputStream os = new FileOutputStream(localFile)) {
                     session.read(remoteFilePath, os);
                 }
