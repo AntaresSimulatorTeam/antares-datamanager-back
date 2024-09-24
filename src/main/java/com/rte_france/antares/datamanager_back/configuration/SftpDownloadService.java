@@ -74,7 +74,7 @@ public class SftpDownloadService {
         });
     }
 
-    @Scheduled(cron = "0 0 6 * * *")
+    //@Scheduled(cron = "0 0 6 * * *")
     public void downloadDirectoryRecursively() {
         this.sftpRemoteFileTemplate.execute(session -> {
             try {
