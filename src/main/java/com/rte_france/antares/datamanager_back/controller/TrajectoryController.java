@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.configuration.SftpDownloadService;
+import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
@@ -25,6 +27,8 @@ public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
 
+    private final SftpDownloadService sftpDownloadService;
+
     @Operation(summary = "import Trajectory file to database ")
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
@@ -35,15 +39,17 @@ public class TrajectoryController {
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from Database ")
     @GetMapping(value = "/db")
     public ResponseEntity<List<TrajectoryDTO>> findTrajectoriesByTypeFromDb(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
-                                                                            @RequestParam("fileNameStartsWith") String fileNameStartsWith) {
-        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(trajectoryType, fileNameStartsWith)), HttpStatus.OK);
+                                                                            @RequestParam("horizon") String horizon,
+                                                                            @RequestParam(value = "fileNameStartsWith", required = false) String fileNameStartsWith) {
+        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(trajectoryType, horizon, fileNameStartsWith)), HttpStatus.OK);
     }
 
 
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from File System")
     @GetMapping(value = "/fs")
-    public ResponseEntity<List<String>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") TrajectoryType trajectoryType) {
-        return new ResponseEntity<>(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(trajectoryType), HttpStatus.OK);
+    public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
+                                                                                       @RequestParam(value = "area", required = false) String area) {
+        return new ResponseEntity<>(sftpDownloadService.listFsTrajectoryByType(trajectoryType, area), HttpStatus.OK);
     }
 
 }

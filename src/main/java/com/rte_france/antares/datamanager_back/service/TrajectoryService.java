@@ -10,7 +10,7 @@ public interface TrajectoryService {
 
      TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException;
 
-     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String fileNameStartsWith);
+     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType,String horizon, String fileNameStartsWith);
 
      List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType);
 

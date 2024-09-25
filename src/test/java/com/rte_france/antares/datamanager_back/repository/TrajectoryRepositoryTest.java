@@ -44,32 +44,26 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("nonExistentType", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith("nonExistentType", "2023-2024","test");
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("AREA", "nonExistentStart");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith("AREA", "2023-2024","nonExistentStart");
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsNonEmptyListForExistentTypeAndFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("AREA", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith("AREA","2023-2024", "test");
         assertThat(trajectoryEntities).isNotEmpty();
         assertThat(trajectoryEntities.get(0).getFileName()).startsWith("test");
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNullType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith(null, "test");
-        assertThat(trajectoryEntities).isEmpty();
-    }
-
-    @Test
-    void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNullFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndFileNameStartsWith("AREA", null);
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(null, "2023-2024","test");
         assertThat(trajectoryEntities).isEmpty();
     }
 

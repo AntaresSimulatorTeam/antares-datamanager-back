@@ -29,7 +29,19 @@ public class AntaressDataManagerProperties {
     public String dataLocalDirectoryStorage;
 
 
-    @Value("${antares.datamanager.data.path.delimiter}")
-    public String pathDelimiter;
+    @Value("${antares.datamanager.area.directory}")
+    public String areaDirectory;
+
+    @Value("${antares.datamanager.link.directory}")
+    public String linkDirectory;
+
+    @Value("${antares.datamanager.thermal.cost.directory}")
+    public String thermalCostDirectory;
+
+    @Value("${antares.datamanager.thermal.capacity.directory}")
+    public String thermalCapacityDirectory;
+
+    @Value("${antares.datamanager.thermal.parameter.directory}")
+    public String thermalParameterDirectory;
 
 }

@@ -39,6 +39,7 @@ public class TrajectoryEntity {
 
     private LocalDateTime lastModificationContentDate;
 
+    private String horizon;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AreaConfigEntity> areaConfigEntities;

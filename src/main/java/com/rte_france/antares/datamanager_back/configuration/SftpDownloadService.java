@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.configuration;
 
+import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -8,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.sftp.session.SftpRemoteFileTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -16,7 +17,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -40,7 +44,7 @@ public class SftpDownloadService {
         String filename = Paths.get(remoteFilePath).getFileName().toString();
 
         // Construct the local file path using the extracted filename
-        String localFilePath = "localDirectoryPath" + File.separator + filename; // replace "localDirectoryPath" with your local directory path
+        String localFilePath = "/home/elazaarmou/pegase_data_2" + File.separator + filename; // replace "localDirectoryPath" with your local directory path
 
         File localFile = new File(localFilePath);
         try (OutputStream outputStream = new FileOutputStream(localFile)) {
@@ -54,24 +58,23 @@ public class SftpDownloadService {
         return localFile;
     }
 
-    public List<File> listFile(String remoteDir) {
-        return this.sftpRemoteFileTemplate.execute(session -> {
-            List<File> files = new ArrayList<>();
-            SftpClient.DirEntry[] entries = session.list(remoteDir);
-            for (SftpClient.DirEntry entry : entries) {
-                String filename = entry.getFilename();
-                if (!entry.getAttributes().isDirectory()) {
-                    File localFile = new File("localDirectoryPath" + File.separator + filename); // replace "localDirectoryPath" with your local directory path
-                    try (OutputStream outputStream = new FileOutputStream(localFile)) {
-                        session.read(remoteDir + "/" + filename, outputStream);
-                        files.add(localFile);
-                    } catch (IOException e) {
-                        log.error("Error while retrieving the file: " + filename, e);
-                    }
-                }
-            }
-            return files;
-        });
+    public List<FsTrajectoryDTO> listFsTrajectoryByType(TrajectoryType trajectoryType, String area) {
+        try {
+            return this.sftpRemoteFileTemplate.execute(session -> {
+                SftpClient.DirEntry[] entries = session.list(antaressDataManagerProperties.getDataRemoteDirectory() + getDirectoryByTrajectoryType(trajectoryType, area));
+                return Arrays.stream(entries)
+                        .filter(dirEntry -> !dirEntry.getAttributes().isDirectory())
+                        .map(file -> FsTrajectoryDTO.builder()
+                                .fileName(file.getFilename())
+                                .lastModifiedDate(LocalDateTime.ofInstant(file.getAttributes().getModifyTime().toInstant(), ZoneId.systemDefault()))
+                                .type(trajectoryType.name())
+                                .build())
+                        .toList();
+            });
+        } catch (Exception e) {
+            throw new TechnicalAntaresDataMangerException("Erreur lors de la récupération des fichiers PEGASE :  " + e.getMessage());
+        }
+
     }
 
     //@Scheduled(cron = "0 0 6 * * *")
@@ -102,8 +105,8 @@ public class SftpDownloadService {
                 continue; // Ignorer les répertoires "." et ".."
             }
 
-            String remoteFilePath = remoteDir + antaressDataManagerProperties.getPathDelimiter() + filename;
-            File localFile = new File(localDir + antaressDataManagerProperties.getPathDelimiter() + filename);
+            String remoteFilePath = remoteDir + File.separator + filename;
+            File localFile = new File(localDir + File.separator + filename);
             if (entry.getAttributes().isDirectory()) {
                 // Si c'est un répertoire, parcourir récursivement
                 downloadRecursive(session, remoteFilePath, localFile.getAbsolutePath());
@@ -115,5 +118,19 @@ public class SftpDownloadService {
                 }
             }
         }
+    }
+
+    private String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area) {
+        return switch (trajectoryType) {
+            case AREA -> antaressDataManagerProperties.getAreaDirectory();
+            case LINK -> antaressDataManagerProperties.getLinkDirectory();
+            case THERMAL_COST -> antaressDataManagerProperties.getThermalCostDirectory();
+            case THERMAL_CAPACITY ->
+                    antaressDataManagerProperties.getThermalCapacityDirectory() + File.separator + area;
+            case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
+            case LOAD, MISC ->
+                    throw new IllegalArgumentException("No directory defined for TrajectoryType: " + trajectoryType);
+            default -> throw new IllegalArgumentException("Invalid TrajectoryType: " + trajectoryType);
+        };
     }
 }

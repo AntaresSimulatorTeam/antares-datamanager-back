@@ -20,8 +20,8 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, St
     Optional<TrajectoryEntity> findFirstByFileNameOrderByVersionDesc(String fileName);
 
 
-    @Query("SELECT t FROM Trajectory t WHERE t.type = :type AND t.fileName LIKE CONCAT('%', CONCAT(:fileNameStartsWith, '%'))")
-    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndFileNameStartsWith(@Param("type") String type, @Param("fileNameStartsWith") String fileNameStartsWith);
+    @Query("SELECT t FROM Trajectory t WHERE t.type = :type AND t.horizon= :horizon AND (t.fileName LIKE CONCAT('%', CONCAT(:fileNameStartsWith, '%')) OR :fileNameStartsWith IS NULL)")
+    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(@Param("type") String type,@Param("horizon") String horizon, @Param("fileNameStartsWith") String fileNameStartsWith);
 
 }
 
