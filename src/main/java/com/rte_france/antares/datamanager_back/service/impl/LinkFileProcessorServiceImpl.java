@@ -23,8 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
-import static com.rte_france.antares.datamanager_back.util.Utils.checkTrajectoryVersion;
+import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
 /**
@@ -47,13 +46,14 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processLinkFile(File file) throws IOException {
+    public TrajectoryEntity processLinkFile(File file, String horizon) throws IOException {
+        checkIfHorizonExist(file, horizon);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(file.getName());
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(file, trajectoryEntity.get()), buildLinkList(file));
+            return saveTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(),horizon), buildLinkList(file));
         }
-        return saveTrajectory(buildTrajectory(file, null), buildLinkList(file));
+        return saveTrajectory(buildTrajectory(file, 0,horizon), buildLinkList(file));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {

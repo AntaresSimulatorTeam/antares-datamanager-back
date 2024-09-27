@@ -41,7 +41,7 @@ class ThermalFileProcessorServiceImplTest {
         when(file.getName()).thenReturn("thermal_BE_PEMMDB23_26avril.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
-        thermalFileProcessorService.processThermalCapacityFile(file);
+        thermalFileProcessorService.processThermalCapacityFile(file,"2023-2024");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -53,7 +53,7 @@ class ThermalFileProcessorServiceImplTest {
         when(file.getName()).thenReturn("thermal_BE_PEMMDB23_26avril.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
-        thermalFileProcessorService.processThermalCapacityFile(file);
+        thermalFileProcessorService.processThermalCapacityFile(file,"2023-2024");
 
         verify(trajectoryRepository, times(1)).save(any());
     }

@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -49,7 +50,7 @@ class AreaFileProcessorServiceImplTest {
         when(file.getName()).thenReturn("testFile.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
-        areaFileProcessorService.processAreaFile(file);
+        areaFileProcessorService.processAreaFile(file, "2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
         verify(areaConfigRepository, times(1)).saveAll(any());
@@ -63,7 +64,7 @@ class AreaFileProcessorServiceImplTest {
         when(file.getName()).thenReturn("testFile.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
-        areaFileProcessorService.processAreaFile(file);
+        areaFileProcessorService.processAreaFile(file, "2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
         verify(areaConfigRepository, times(1)).saveAll(any());

@@ -44,7 +44,7 @@ class LinkFileProcessorServiceImplTest {
         when(file.getName()).thenReturn("links_BP23_A_ref.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
-        linkFileProcessorService.processLinkFile(file);
+        linkFileProcessorService.processLinkFile(file,"2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -56,7 +56,7 @@ class LinkFileProcessorServiceImplTest {
         when(file.getName()).thenReturn("links_BP23_A_ref.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
-        linkFileProcessorService.processLinkFile(file);
+        linkFileProcessorService.processLinkFile(file,"2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
     }

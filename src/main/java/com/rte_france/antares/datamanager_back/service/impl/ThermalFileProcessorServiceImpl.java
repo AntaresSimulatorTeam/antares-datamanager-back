@@ -35,30 +35,30 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
 
     @Transactional
-    public TrajectoryEntity processThermalCapacityFile(File file) throws IOException {
+    public TrajectoryEntity processThermalCapacityFile(File file, String horizon) throws IOException {
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveThermalCapacitiesTrajectory(buildTrajectory(file, trajectoryEntity.get()), buildThermalClusterCapacityValuesList(file));
+            return saveThermalCapacitiesTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(),horizon), buildThermalClusterCapacityValuesList(file));
         }
-        return saveThermalCapacitiesTrajectory(buildTrajectory(file, null), buildThermalClusterCapacityValuesList(file));
+        return saveThermalCapacitiesTrajectory(buildTrajectory(file, 0, horizon), buildThermalClusterCapacityValuesList(file));
     }
 
     @Override
-    public TrajectoryEntity processThermalParameterFile(File file) throws IOException {
+    public TrajectoryEntity processThermalParameterFile(File file, String horizon) throws IOException {
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveThermalParametersTrajectory(buildTrajectory(file, trajectoryEntity.get()), buildThermalParameters(file));
+            return saveThermalParametersTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(),horizon), buildThermalParameters(file));
         }
-        return saveThermalParametersTrajectory(buildTrajectory(file, null), buildThermalParameters(file));
+        return saveThermalParametersTrajectory(buildTrajectory(file, 0, horizon), buildThermalParameters(file));
     }
 
     @Override
-    public TrajectoryEntity processThermalCostFile(File file) throws IOException {
+    public TrajectoryEntity processThermalCostFile(File file,String horizon) throws IOException {
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveThermalCostTrajectory(buildTrajectory(file, trajectoryEntity.get()), buildThermalCosts(file));
+            return saveThermalCostTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(), horizon), buildThermalCosts(file));
         }
-        return saveThermalCostTrajectory(buildTrajectory(file, null), buildThermalCosts(file));
+        return saveThermalCostTrajectory(buildTrajectory(file, 0,horizon), buildThermalCosts(file));
     }
 
     @Override

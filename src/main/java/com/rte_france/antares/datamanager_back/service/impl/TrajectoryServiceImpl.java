@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -10,6 +11,7 @@ import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorServi
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -18,8 +20,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
-import static com.rte_france.antares.datamanager_back.util.Utils.getFile;
 
 
 @Slf4j
@@ -37,31 +37,36 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalFileProcessorService thermalFileProcessorService;
 
-    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
-        File trajectoryFile = getFile(antaressDataManagerProperties.getTrajectoryFilePath() + trajectoryType.name().toLowerCase(), trajectoryToUse + ".xlsx");
+    private final SftpDownloadService sftpDownloadService;
+
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
+        //build the file path
+        String filePath = antaressDataManagerProperties.getDataRemoteDirectory() + sftpDownloadService.getDirectoryByTrajectoryType(trajectoryType, null)+ File.separator;
+        //download the file
+        File trajectoryFile = sftpDownloadService.downloadFile(filePath + trajectoryToUse + ".xlsx");
         switch (trajectoryType) {
             case AREA -> {
-                return areaFileProcessorService.processAreaFile(trajectoryFile);
+                return areaFileProcessorService.processAreaFile(trajectoryFile,horizon);
             }
             case LINK -> {
-                return linkFileProcessorService.processLinkFile(trajectoryFile);
+                return linkFileProcessorService.processLinkFile(trajectoryFile, horizon);
             }
             case THERMAL_CAPACITY -> {
-                return thermalFileProcessorService.processThermalCapacityFile(trajectoryFile);
+                return thermalFileProcessorService.processThermalCapacityFile(trajectoryFile, horizon);
             }
             case THERMAL_PARAMETER -> {
-                return thermalFileProcessorService.processThermalParameterFile(trajectoryFile);
+                return thermalFileProcessorService.processThermalParameterFile(trajectoryFile,horizon);
             }
             case THERMAL_COST -> {
-                return thermalFileProcessorService.processThermalCostFile(trajectoryFile);
+                return thermalFileProcessorService.processThermalCostFile(trajectoryFile,horizon);
             }
             // Handle default case
         }
         return null;
     }
 
-    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType,String horizon, String fileNameStartsWith) {
-        return trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(trajectoryType.name(),horizon, fileNameStartsWith);
+    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith) {
+        return trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(trajectoryType.name(), horizon, fileNameStartsWith);
     }
 
     public List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType) {

@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -11,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,6 +38,10 @@ class TrajectoryServiceImplTest {
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
 
+    @Mock
+    private SftpDownloadService sftpDownloadService;
+
+
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -50,9 +56,9 @@ class TrajectoryServiceImplTest {
         Mockito.when(file.getPath()).thenReturn("src/test/resources/area/testFile.xlsx");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
 
-        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile");
+        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile","2023-2024");
 
-        verify(areaFileProcessorService, times(1)).processAreaFile(any());
+        verify(areaFileProcessorService, times(1)).processAreaFile(any(),any());
     }
 
     @Test
@@ -61,9 +67,9 @@ class TrajectoryServiceImplTest {
         Mockito.when(file.getPath()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
 
-        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref");
+        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref","2023-2024");
 
-        verify(linkFileProcessorService, times(1)).processLinkFile(any());
+        verify(linkFileProcessorService, times(1)).processLinkFile(any(),any());
     }
 
     @Test
@@ -72,9 +78,9 @@ class TrajectoryServiceImplTest {
         Mockito.when(file.getPath()).thenReturn("src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril");
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril","2023-2024");
 
-        verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any());
+        verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any(),any());
     }
 
     @Test
