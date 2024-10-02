@@ -1,9 +1,8 @@
-FROM openjdk:21-jdk
+FROM  inca.rte-france.com/antares/jdk21:latest
 
 MAINTAINER ANTARES
 
-COPY target/*.jar app.jar
-
+COPY ./target/*.jar /app.jar
 # Set the active Spring profile
-ENV SPRING_PROFILES_ACTIVE=localhost
+#ENV SPRING_PROFILES_ACTIVE=localhost
 ENTRYPOINT ["java","-jar","/app.jar"]

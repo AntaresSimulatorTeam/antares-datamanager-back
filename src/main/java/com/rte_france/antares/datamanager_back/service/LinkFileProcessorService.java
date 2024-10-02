@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface LinkFileProcessorService {
 
-     TrajectoryEntity processLinkFile(File file) throws IOException ;
+     TrajectoryEntity processLinkFile(File file, String horizon) throws IOException ;
 
      TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities);
 

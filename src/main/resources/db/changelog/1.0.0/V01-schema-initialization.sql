@@ -45,6 +45,7 @@ CREATE TABLE trajectory
     created_by                     VARCHAR(255),
     creation_date                  timestamp,
     last_modification_content_date timestamp,
+    horizon                        VARCHAR(9),
     PRIMARY KEY (id)
 );
 

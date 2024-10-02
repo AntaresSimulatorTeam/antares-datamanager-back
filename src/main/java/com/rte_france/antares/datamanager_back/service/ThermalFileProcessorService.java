@@ -11,10 +11,11 @@ import java.util.List;
 
 public interface ThermalFileProcessorService {
 
-     TrajectoryEntity processThermalCapacityFile(File file) throws IOException ;
-     TrajectoryEntity processThermalParameterFile(File file) throws IOException ;
+     TrajectoryEntity processThermalCapacityFile(File file,String horizon) throws IOException ;
 
-     TrajectoryEntity processThermalCostFile(File file) throws IOException ;
+     TrajectoryEntity processThermalParameterFile(File file,String horizon) throws IOException ;
+
+     TrajectoryEntity processThermalCostFile(File file, String horizon) throws IOException ;
      TrajectoryEntity saveThermalCapacitiesTrajectory(TrajectoryEntity trajectory, List<ThermalClusterCapacityEntity> thermalClusterCapacities);
      TrajectoryEntity saveThermalParametersTrajectory(TrajectoryEntity trajectory, List<ThermalParameterEntity> thermalParameterEntities);
 

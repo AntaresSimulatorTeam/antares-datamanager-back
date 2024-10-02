@@ -2,14 +2,12 @@ package com.rte_france.antares.datamanager_back.util;
 
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -63,14 +61,15 @@ public class Utils {
      * @throws IOException if an I/O error occurs
      */
     @ExecutionTime
-    public static TrajectoryEntity buildTrajectory(File file, TrajectoryEntity existingTrajectory) throws IOException {
+    public static TrajectoryEntity buildTrajectory(File file, int versionTrajectory, String horizon) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtension(file.getName()))// file name without extension
                 .fileSize(file.length())
                 .creationDate(LocalDateTime.now())
-                .version(existingTrajectory == null ? 1 : existingTrajectory.getVersion() + 1)
+                .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
                 .checksum(getFileChecksum(file.getPath()))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(file.lastModified()), ZoneId.systemDefault()))
+                .horizon(horizon)
                 .build();
     }
 
@@ -94,6 +93,8 @@ public class Utils {
 
     public static File getFile(String path, String fileName) {
         File file = new File(path, fileName);
+        log.info("File path : " + file.getPath());
+        log.info("File name : " + file.getName());
         if (!file.exists()) {
             throw new ResourceNotFoundException("Trajectory not found with file name  : " + fileName);
         }
@@ -135,5 +136,15 @@ public class Utils {
         }
 
         return null;
+    }
+
+    public void checkIfHorizonExist(File file, String horizon) {
+        try (FileInputStream fis = new FileInputStream(file);
+             Workbook workbook = WorkbookFactory.create(fis)) {
+            if (workbook.getSheet(horizon) == null)
+                throw new TechnicalAntaresDataMangerException("The horizon " + horizon + " does not exist in the file :" + file.getName());
+        } catch (IOException e) {
+            throw new TechnicalAntaresDataMangerException("could not check if horizon exist : " + e.getMessage());
+        }
     }
 }

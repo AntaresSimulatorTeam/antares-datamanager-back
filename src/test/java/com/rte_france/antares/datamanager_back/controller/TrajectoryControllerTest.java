@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 
+import com.rte_france.antares.datamanager_back.configuration.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     @MockBean
     TrajectoryServiceImpl trajectoryServiceImpl;
 
+    @MockBean
+    SftpDownloadService sftpDownloadService;
+
     @BeforeEach
     public void setup() {
         this.mockMvc = MockMvcBuilders
@@ -45,36 +49,38 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
     @Test
     void uploadTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryServiceImpl.processTrajectory(any(),any())).thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryServiceImpl.processTrajectory(any(),any(), any())).thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
                         .param("trajectoryToUse", "test")
+                        .param("horizon", "2023-2024")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
 
                 //Then
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any());
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(),any());
     }
 
     @Test
     void findTrajectoriesByTypeFromDb_returnsTrajectories() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(),any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(),any(),any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
 
         this.mockMvc.perform(get("/v1/trajectory/db")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
                         .param("fileNameStartsWith", "test")
+                        .param("horizon", "2023-2024")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
 
                 //Then
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any());
+        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any(),any());
     }
 
     @Test
@@ -83,13 +89,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         this.mockMvc.perform(get("/v1/trajectory/fs")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
+                        .param("horizon", "2023-2024")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
 
                 //Then
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromFS(any());
+        verify(sftpDownloadService, times(1)).listFsTrajectoryByType(any(), any());
     }
 
 }

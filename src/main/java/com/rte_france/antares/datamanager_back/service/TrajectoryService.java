@@ -8,9 +8,9 @@ import java.util.List;
 
 public interface TrajectoryService {
 
-     TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException;
+     TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException;
 
-     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String fileNameStartsWith);
+     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType,String horizon, String fileNameStartsWith);
 
      List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType);
 

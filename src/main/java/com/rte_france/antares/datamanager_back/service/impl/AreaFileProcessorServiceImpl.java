@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -49,13 +50,16 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processAreaFile(File file) throws IOException {
+    public TrajectoryEntity processAreaFile(File file, String horizon) throws IOException {
+        checkIfHorizonExist(file, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(file, trajectoryEntity.get()), buildAreaConfigList(file));
+            return saveTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(),horizon), buildAreaConfigList(file));
         }
-        return saveTrajectory(buildTrajectory(file, null), buildAreaConfigList(file));
+        return saveTrajectory(buildTrajectory(file, 0,horizon), buildAreaConfigList(file));
     }
+
+
 
     /**
      * Saves the given trajectory and its associated area configurations.
