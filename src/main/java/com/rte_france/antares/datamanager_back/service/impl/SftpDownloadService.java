@@ -1,5 +1,6 @@
-package com.rte_france.antares.datamanager_back.configuration;
+package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -100,49 +101,6 @@ public class SftpDownloadService {
             throw new TechnicalAntaresDataMangerException("Erreur lors de la récupération des fichiers PEGASE :  " + e.getMessage());
         }
 
-    }
-
-    //@Scheduled(cron = "0 0 6 * * *")
-    public void downloadDirectoryRecursively() {
-        this.sftpRemoteFileTemplate.execute(session -> {
-            try {
-                downloadRecursive(session, antaressDataManagerProperties.getDataRemoteDirectory(), antaressDataManagerProperties.getDataLocalDirectoryStorage());
-            } catch (Exception e) {
-                throw new TechnicalAntaresDataMangerException("Erreur lors de la synchronisation des données PEGASE " + e.getMessage());
-            }
-            return null;
-        });
-    }
-
-    private void downloadRecursive(Session<SftpClient.DirEntry> session, String remoteDir, String localDir) throws Exception {
-        // Créer le répertoire local s'il n'existe pas
-        File localDirectory = new File(localDir);
-        if (!localDirectory.exists()) {
-            localDirectory.mkdirs();
-        }
-
-        // Lister les fichiers et répertoires distants
-        SftpClient.DirEntry[] files = session.list(remoteDir);
-
-        for (SftpClient.DirEntry entry : files) {
-            String filename = entry.getFilename();
-            if (".".equals(filename) || "..".equals(filename)) {
-                continue; // Ignorer les répertoires "." et ".."
-            }
-
-            String remoteFilePath = remoteDir + File.separator + filename;
-            File localFile = new File(localDir + File.separator + filename);
-            if (entry.getAttributes().isDirectory()) {
-                // Si c'est un répertoire, parcourir récursivement
-                downloadRecursive(session, remoteFilePath, localFile.getAbsolutePath());
-            } else {
-                // Si c'est un fichier, le télécharger
-                log.info("Téléchargement du fichier : " + remoteFilePath + " derniere modification : " + entry.getAttributes().getModifyTime().toInstant());
-                try (OutputStream os = new FileOutputStream(localFile)) {
-                    session.read(remoteFilePath, os);
-                }
-            }
-        }
     }
 
     public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String thermalCapacityArea) {
