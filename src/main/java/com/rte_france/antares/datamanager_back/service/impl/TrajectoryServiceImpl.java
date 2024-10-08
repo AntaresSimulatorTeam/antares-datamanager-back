@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.configuration.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -11,7 +10,6 @@ import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorServi
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -41,12 +39,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
         //build the file path
-        String filePath = antaressDataManagerProperties.getDataRemoteDirectory() + sftpDownloadService.getDirectoryByTrajectoryType(trajectoryType, null)+ File.separator;
+        String filePath = antaressDataManagerProperties.getDataRemoteDirectory() + sftpDownloadService.getDirectoryByTrajectoryType(trajectoryType, null) + File.separator;
         //download the file
         File trajectoryFile = sftpDownloadService.downloadFile(filePath + trajectoryToUse + ".xlsx");
         switch (trajectoryType) {
             case AREA -> {
-                return areaFileProcessorService.processAreaFile(trajectoryFile,horizon);
+                return areaFileProcessorService.processAreaFile(trajectoryFile, horizon);
             }
             case LINK -> {
                 return linkFileProcessorService.processLinkFile(trajectoryFile, horizon);
@@ -55,14 +53,15 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 return thermalFileProcessorService.processThermalCapacityFile(trajectoryFile, horizon);
             }
             case THERMAL_PARAMETER -> {
-                return thermalFileProcessorService.processThermalParameterFile(trajectoryFile,horizon);
+                return thermalFileProcessorService.processThermalParameterFile(trajectoryFile, horizon);
             }
             case THERMAL_COST -> {
-                return thermalFileProcessorService.processThermalCostFile(trajectoryFile,horizon);
+                return thermalFileProcessorService.processThermalCostFile(trajectoryFile, horizon);
             }
             // Handle default case
+            default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
+
         }
-        return null;
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith) {

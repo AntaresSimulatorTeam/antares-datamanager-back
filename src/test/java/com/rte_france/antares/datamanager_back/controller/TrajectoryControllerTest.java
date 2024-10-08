@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 
-import com.rte_france.antares.datamanager_back.configuration.SftpDownloadService;
+import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;

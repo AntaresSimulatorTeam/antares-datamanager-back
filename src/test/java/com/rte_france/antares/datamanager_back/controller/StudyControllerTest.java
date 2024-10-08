@@ -55,7 +55,7 @@ class StudyControllerTest {
        this.mockMvc.perform(get("/v1/study/search")
                        .contentType(MediaType.APPLICATION_JSON_VALUE)
                        .param("search", "toto")
-                       .param("page", "0")
+                       .param("page", "1")
                        .param("size", "2")
                        .accept(MediaType.APPLICATION_JSON_VALUE))
 
@@ -72,7 +72,7 @@ class StudyControllerTest {
         this.mockMvc.perform(get("/v1/study/search")
                        .contentType(MediaType.APPLICATION_JSON_VALUE)
                        .param("search", "toto")
-                       .param("page", "0")
+                       .param("page", "1")
                        .param("size", "2")
                        .accept(MediaType.APPLICATION_JSON_VALUE))
 
