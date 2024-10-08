@@ -1,8 +1,12 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +26,6 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.Collections;
 import java.util.List;
 
-import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.toProjectDto;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -211,5 +214,37 @@ void deleteProject_returnsBadRequestWhenProjectContainsStudies() throws Exceptio
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void createProject_returnsProjectDto_whenValidInputProvided() throws Exception {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("testProject");
+
+        when(projectService.createProject(any(ProjectInputDto.class))).thenReturn(new ProjectEntity());
+
+        this.mockMvc.perform(post("/v1/project")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(new ObjectMapper().writeValueAsString(projectInputDto))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                .andExpect(status().isOk())
+                .andReturn();
+
+        verify(projectService, times(1)).createProject(any(ProjectInputDto.class));
+    }
+
+    @Test
+    void createProject_returnsBadRequest_whenInvalidInputProvided() throws Exception {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("test");
+
+        this.mockMvc.perform(post("/v1/project")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(new ObjectMapper().writeValueAsString(projectInputDto))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                .andExpect(status().isInternalServerError())
+                .andReturn();
     }
 }

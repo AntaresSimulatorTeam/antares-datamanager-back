@@ -1,10 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -41,6 +43,8 @@ class ProjectServiceImplTest {
     @Mock
     private ProjectRepository projectRepository;
 
+    @Mock
+    private StudyRepository studyRepository;
 
     @Test
     void findProjectsByCriteria_returnsAllProjectsWhenSearchIsNull() {
@@ -292,4 +296,39 @@ void searchProjectsByNameHandlesNullInput() {
     assertEquals(0, result.size());
     verify(projectRepository, times(1)).findByNameContainingIgnoreCase(null);
 }
+    @Test
+    void createProject_returnsProjectEntity_whenProjectDoesNotExistAndAllStudiesExist() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("testProject");
+
+        when(projectRepository.findByName(any(String.class))).thenReturn(Optional.empty());
+        when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        ProjectEntity projectEntity = projectService.createProject(projectInputDto);
+
+        assertEquals(projectInputDto.getName(), projectEntity.getName());
+    }
+
+    @Test
+    void createProject_throwsException_whenProjectExists() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("testProject");
+
+        when(projectRepository.findByName(any(String.class))).thenReturn(Optional.of(new ProjectEntity()));
+
+        assertThrows(IllegalArgumentException.class, () -> projectService.createProject(projectInputDto));
+    }
+
+    @Test
+    void createProject_createsProject_whenOneStudyProvided() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("testProject");
+
+        when(projectRepository.findByName(any(String.class))).thenReturn(Optional.empty());
+        when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        ProjectEntity projectEntity = projectService.createProject(projectInputDto);
+
+        assertEquals(projectInputDto.getName(), projectEntity.getName());
+    }
 }
