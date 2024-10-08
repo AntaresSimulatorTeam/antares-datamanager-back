@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository;
 
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,26 +19,26 @@ import static org.assertj.core.api.Assertions.assertThat;
         @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql"),
         @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql"),
 })
-class AreaRepositoryTest {
+class ProjectRepositoryTest {
 
     @Autowired
-    private AreaRepository areaRepository;
+    private ProjectRepository projectRepository;
 
     @Test
-    void findAreaByName_returnsEntityWhenExists() {
-        String name = "area1";
+    void findByName_returnsEntityWhenExists() {
+        String name = "PROJECT1";
 
-        Optional<AreaEntity> result = areaRepository.findAreaByName(name);
+        Optional<ProjectEntity> result = projectRepository.findByName(name);
 
         assertThat(result).isNotEmpty();
         assertThat(result.get().getName()).isEqualTo(name);
     }
 
     @Test
-    void findAreaByName_returnsEmptyWhenDoesNotExist() {
-        String name = "nonExistentArea";
+    void findByName_returnsEmptyWhenDoesNotExist() {
+        String name = "nonExistentProject";
 
-        Optional<AreaEntity> result = areaRepository.findAreaByName(name);
+        Optional<ProjectEntity> result = projectRepository.findByName(name);
 
         assertThat(result).isEmpty();
     }
