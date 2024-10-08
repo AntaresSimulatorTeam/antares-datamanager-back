@@ -1,11 +1,13 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.mapper.ProjectMapper;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -37,7 +39,7 @@ import java.util.stream.Collectors;
 public class ProjectServiceImpl implements ProjectService {
 
     private final PinnedProjectRepository pinnedProjectRepository;
-
+    private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
 
     public List<ProjectEntity> getPinnedProjectsByUser(String userId) {
@@ -120,10 +122,9 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ProjectEntity findProjectById(Integer projectId) {
         Optional<ProjectEntity> projectDetails = projectRepository.findById(projectId);
-        if (projectDetails.isPresent()){
+        if (projectDetails.isPresent()) {
             return projectDetails.get();
-        }
-        else
+        } else
             throw new ResourceNotFoundException("Project with ID: " + projectId + " not found");
     }
 
@@ -173,6 +174,22 @@ public class ProjectServiceImpl implements ProjectService {
         if (pinnedProjects.size() >= 3) {
             throw new BadRequestException("You have already 3 pinned projects , please unpin one before pinning another one.");
         }
+    }
+
+    @Override
+    public ProjectEntity createProject(ProjectInputDto projectInputDto) {
+        Optional<ProjectEntity> existingProject = projectRepository.findByName(projectInputDto.getName());
+
+        if (existingProject.isPresent()) {
+            throw new IllegalArgumentException("A project with the same name already exists.");
+        }
+
+        ProjectEntity newProject = new ProjectEntity();
+        newProject.setName(projectInputDto.getName());
+        newProject.setCreationDate(LocalDateTime.now());
+        newProject.setCreatedBy("pegase");
+        newProject.setDescription(projectInputDto.getDescription());
+        return projectRepository.save(newProject);
     }
 
 }
