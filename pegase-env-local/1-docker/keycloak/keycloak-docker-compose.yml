@@ -1,0 +1,27 @@
+version: '3'
+
+volumes:
+  postgres_data:
+    driver: local
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:11.0.2
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres_privileges_local
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_SCHEMA: public
+      DB_PASSWORD: password
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+    volumes:
+    - ./pegase_realm_export_01.json:/tmp/pegase_realm_export.json
+    - ./cacerts:/etc/pki/ca-trust/extracted/java/cacerts
+      # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
+      #JDBC_PARAMS: "ssl=true"
+    ports:
+      - 8090:8080
+    #depends_on:
+    #  - postgres

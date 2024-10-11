@@ -1,0 +1,3 @@
+docker exec -it keycloak_keycloak_1 /opt/jboss/keycloak/bin/standalone.sh -Djboss.socket.binding.port-offset=200 -Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile -Dkeycloak.migration.file=/tmp/pegase_realm_export.json -Dkeycloak.profile.feature.upload_scripts=enabled  -Dkeycloak.migration.strategy=OVERWRITE_EXISTING
+#Realm Settings => Cache => clear
+#Add role CEX: Roles => add role => pu_cex
