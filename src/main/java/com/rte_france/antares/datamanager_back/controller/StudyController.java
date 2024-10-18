@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.service.StudyService;
+import jakarta.annotation.security.RolesAllowed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ public class StudyController {
     private static final String SORTING_CRITERION = "creationDate";
     private final StudyService studyService;
 
+    @RolesAllowed("pegase-user")
     @GetMapping("/search")
     public ResponseEntity<Page<StudyDTO>> getTrajectories(
             @RequestParam(value = "search", required = false, defaultValue = "") String search,
