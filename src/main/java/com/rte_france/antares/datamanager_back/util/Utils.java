@@ -17,6 +17,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+import static org.hibernate.type.descriptor.java.JdbcDateJavaType.DATE_FORMAT;
 
 
 /**
@@ -25,6 +29,7 @@ import java.time.ZoneId;
 @Slf4j
 @UtilityClass
 public class Utils {
+
 
     /**
      * Calculates and returns the SHA-256 checksum of a file.
@@ -147,4 +152,41 @@ public class Utils {
             throw new TechnicalAntaresDataMangerException("could not check if horizon exist : " + e.getMessage());
         }
     }
+
+    /**
+     * Parses a date string to a LocalDateTime object.
+     *
+     * @param dateStr the string to be parsed, expected in the format "yyyy-MM-dd'T'HH:mm:ss"
+     * @return a LocalDateTime object representing the parsed date and time
+     * @throws TechnicalAntaresDataMangerException if the dateStr does not match the expected format
+     */
+    public static LocalDateTime parseToLocalDateTime(String dateStr) {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+            return LocalDateTime.parse(dateStr, formatter);
+        } catch (DateTimeParseException e) {
+            throw new TechnicalAntaresDataMangerException("Invalid date format: " + e.getMessage());
+        }
+    }
+
+
+    /**
+     * Verifies if the provided string is in the expected date format.
+     *
+     * @param dateStr the string to verify, expected in the format "yyyy-MM-dd'T'HH:mm:ss"
+     * @return true if dateStr can be parsed to LocalDateTime in the specified format; false otherwise
+     *
+     * TODO: Confirm the date format "yyyy-MM-dd'T'HH:mm:ss" with functional team.
+     */
+    public static boolean hasValidDateFormat(String dateStr) {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+            LocalDateTime.parse(dateStr, formatter);
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+
 }

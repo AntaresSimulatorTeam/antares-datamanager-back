@@ -31,7 +31,7 @@ public class StudyDTO {
     List<String> tags;
 
     @JsonProperty("project")
-    String projet;
+    String project;
 
     @JsonProperty("status")
     String status;
