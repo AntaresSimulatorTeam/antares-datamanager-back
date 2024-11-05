@@ -1,4 +1,4 @@
-
+delete from public.pinned_project;
 delete from public.thermal_cost_type;
 delete from public.area;
 delete from public.trajectory;

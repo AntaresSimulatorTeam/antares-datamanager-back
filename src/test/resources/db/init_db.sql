@@ -26,12 +26,17 @@ values (1,'Morocco','GAS','etude1','comment1','MWh','modulation1',1.1),
        (8,'SPAIN','GAS','etude8','comment8','MWh','modulation8',1.8);
 
 insert into public.area(id,name,x,y,r,g,b)
- values (1,'area1',1,2,3,4,5),
-        (2,'area2',1,2,3,4,5),
-        (3,'area3',1,2,3,4,5),
+ values
         (4,'area4',1,2,3,4,5),
         (5,'area5',1,2,3,4,5),
         (6,'area6',1,2,3,4,5),
         (7,'area7',1,2,3,4,5),
         (8,'area8',1,2,3,4,5);
+
+insert into public.pinned_project (nni,project_id)
+values  ('me00247', 1),
+        ('me00247', 2),
+        ('me00247', 3),
+        ('no0099', 1),
+        ('no0099', 2);
 
