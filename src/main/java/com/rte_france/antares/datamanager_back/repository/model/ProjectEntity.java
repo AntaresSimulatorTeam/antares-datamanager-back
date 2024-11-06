@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -29,9 +29,13 @@ public class ProjectEntity {
     private String createdBy;
 
     @Column(name = "creation_date")
-    private Instant creationDate;
+    private LocalDateTime creationDate;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "project", cascade = {CascadeType.ALL})
     List<StudyEntity> studies;
 
+    @ElementCollection
+    @CollectionTable(name = "project_tags", joinColumns = @JoinColumn(name = "project_id"))
+    @Column(name = "tag")
+    private List<String> tags;
 }
