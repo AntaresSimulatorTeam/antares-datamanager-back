@@ -8,7 +8,6 @@ import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,21 +42,16 @@ public class StudyServiceImpl implements StudyService {
                 SearchCriteria searchCriteriaWithTag = new SearchCriteria("tags", "in", search);
                 SearchCriteria searchCriteriaWithUser = new SearchCriteria("createdBy", ":", search);
 
-                Specification<StudyEntity> projectNameSpec = (root, query, cb) -> {
-                    Join<StudyEntity, ProjectEntity> projectJoin = root.join("project");
-                    return cb.equal(projectJoin.get("name"), search);
-                };
+
                 SearchCriteria searchCriteriaWithStatus = new SearchCriteria("status", ":", search);
 
                 SearchCriteria searchCriteriaWithHorizon = new SearchCriteria("horizon", ":", search);
                 spec = spec.and(new StudySpecification(searchCriteriaWithFileName))
                         .or(new StudySpecification(searchCriteriaWithTag))
-                        .or(new StudySpecification(searchCriteriaWithUser))
-                        .or(projectNameSpec)
                         .or(new StudySpecification(searchCriteriaWithStatus))
-                        .or(new StudySpecification(searchCriteriaWithCreationDate))
+                        .or(new StudySpecification(searchCriteriaWithUser))
                         .or(new StudySpecification(searchCriteriaWithHorizon))
-                        .or(hasProjectName(search));
+                        .or(hasProjectName(search))
                         .or(creationDateSpec)
                         .or(new StudySpecification(searchCriteriaWithHorizon));
                 return studyRepository.findAll(spec, pageable);
