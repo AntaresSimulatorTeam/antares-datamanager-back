@@ -35,9 +35,15 @@ public class StudyServiceImpl implements StudyService {
                 SearchCriteria searchCriteriaWithFileName = new SearchCriteria("name", ":", search);
                 SearchCriteria searchCriteriaWithTag = new SearchCriteria("tags", "in", search);
                 SearchCriteria searchCriteriaWithUser = new SearchCriteria("createdBy", ":", search);
+                SearchCriteria searchCriteriaWithStatus = new SearchCriteria("status", ":", search);
+                SearchCriteria searchCriteriaWithCreationDate = new SearchCriteria("creationDate", ":", search);
+                SearchCriteria searchCriteriaWithHorizon = new SearchCriteria("horizon", ":", search);
                 spec = spec.and(new StudySpecification(searchCriteriaWithFileName))
                         .or(new StudySpecification(searchCriteriaWithTag))
                         .or(new StudySpecification(searchCriteriaWithUser))
+                        .or(new StudySpecification(searchCriteriaWithStatus))
+                        .or(new StudySpecification(searchCriteriaWithCreationDate))
+                        .or(new StudySpecification(searchCriteriaWithHorizon))
                         .or(hasProjectName(search));
                 return studyRepository.findAll(spec, pageable);
             }
