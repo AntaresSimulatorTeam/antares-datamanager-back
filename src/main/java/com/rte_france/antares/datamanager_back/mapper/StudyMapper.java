@@ -20,7 +20,7 @@ public class StudyMapper {
                 .name(entity.getName())
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
-                .projet(entity.getProject().getName())
+                .project(entity.getProject().getName())
                 .tags(entity.getTags())
                 .horizon(entity.getHorizon())
                 .status(entity.getStatus().name())

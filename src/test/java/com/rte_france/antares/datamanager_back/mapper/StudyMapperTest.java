@@ -34,7 +34,7 @@ void toStudyDTO_returnsCorrectDTO() {
     assertEquals(entity.getName(), dto.getName());
     assertEquals(entity.getCreatedBy(), dto.getCreatedBy());
     assertEquals(entity.getCreationDate(), dto.getCreationDate());
-    assertEquals(entity.getProject().getName(), dto.getProjet());
+    assertEquals(entity.getProject().getName(), dto.getProject());
     assertEquals(entity.getTags(), dto.getTags());
     assertEquals(entity.getHorizon(), dto.getHorizon());
     assertEquals(entity.getStatus().name(), dto.getStatus());
@@ -72,7 +72,7 @@ void toStudyPage_returnsCorrectPage() {
     assertEquals(entity1.getName(), pageDto.getContent().get(0).getName());
     assertEquals(entity1.getCreatedBy(), pageDto.getContent().get(0).getCreatedBy());
     assertEquals(entity1.getCreationDate(), pageDto.getContent().get(0).getCreationDate());
-    assertEquals(entity1.getProject().getName(), pageDto.getContent().get(0).getProjet());
+    assertEquals(entity1.getProject().getName(), pageDto.getContent().get(0).getProject());
     assertEquals(entity1.getTags(), pageDto.getContent().get(0).getTags());
     assertEquals(entity1.getHorizon(), pageDto.getContent().get(0).getHorizon());
     assertEquals(entity1.getStatus().name(), pageDto.getContent().get(0).getStatus());
@@ -80,7 +80,7 @@ void toStudyPage_returnsCorrectPage() {
     assertEquals(entity2.getName(), pageDto.getContent().get(1).getName());
     assertEquals(entity2.getCreatedBy(), pageDto.getContent().get(1).getCreatedBy());
     assertEquals(entity2.getCreationDate(), pageDto.getContent().get(1).getCreationDate());
-    assertEquals(entity2.getProject().getName(), pageDto.getContent().get(1).getProjet());
+    assertEquals(entity2.getProject().getName(), pageDto.getContent().get(1).getProject());
     assertEquals(entity2.getTags(), pageDto.getContent().get(1).getTags());
     assertEquals(entity2.getHorizon(), pageDto.getContent().get(1).getHorizon());
     assertEquals(entity2.getStatus().name(), pageDto.getContent().get(1).getStatus());
