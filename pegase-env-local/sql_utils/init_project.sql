@@ -1,17 +1,17 @@
 insert into pegase_local_db_schema.project (id, name, created_by, creation_date)
-values  (1, 'Bilan Prévisionnel 2030-2031', 'Leonnel Messi barcelone', '2024-07-25 10:09:41.000000'),
-        (2, 'Bilan Prévisionnel 2031-2032', 'xavi hernandes  teo', '2024-07-25 10:09:41.000000'),
-        (3, 'Bilan Prévisionnel 2032-2033', 'Meknes rex hamria', '2024-07-25 10:09:41.000000');
+values  (2, 'Bilan previsionnel 2023', 'Taher benjelloun amine', '2024-07-25 10:09:41.000000'),
+        (1, 'Bilan previsionnel 2027', 'MOUAD Paris test', '2024-07-25 10:09:41.000000'),
+        (3, 'Bilan previsionnel 2025', 'zayd guillaume pegase', '2024-07-25 10:09:41.000000');
 
-insert into pegase_local_db_schema.scenario (id, name, created_by, creation_date,status,horizon,project_id)
-values  (1, 'etude1', 'mouad', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',1),
-        (2, 'etude2', 'mouad', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',1),
-        (3, 'etude3', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',1),
-        (4, 'etude4', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
-        (5, 'etude5', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
-        (6, 'etude6', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
-        (7, 'etude7', 'ghita', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',3),
-        (8, 'etude8', 'ghita', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',3);
+insert into pegase_local_db_schema.scenario (id, name, created_by,status,horizon,creation_date,project_id)
+values  (1, 'BP23A_LIVV4_2023_REF', 'Guillaume arthrotomies', 'IN_PROGRESS', '2030-2031', '2024-07-25 10:07:21.000000', 1),
+        (4, 'BP23A_LIVV4_2030_REF', 'mouad boukabba', 'IN_PROGRESS', '2030-2031', '2024-07-25 10:07:21.000000', 2),
+        (2, 'BP23A_LIVV4_2026_REF', 'Hamid belmhdi', 'IN_PROGRESS', '2030-2031', '2024-07-25 10:07:21.000000', 1),
+        (7, 'BP23A_LIVV4_2033_REF', 'Jawad reporting', 'IN_PROGRESS', '2030-2031', '2024-07-25 10:07:21.000000', 3),
+        (3, 'BP23A_LIVV4_2021_REF', 'jamal eddine reda', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 1),
+        (8, 'BP23A_LIVV4_2029_REF', 'Khalil reporting', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 3),
+        (6, 'BP23A_LIVV4_2022_REF', 'Jabrane SEER', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 2),
+        (5, 'BP23A_LIVV4_2032_REF', 'Cedric mco', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 2);
 
 insert into pegase_local_db_schema.trajectory (id, file_name, file_size, checksum, type, version, created_by, creation_date, last_modification_content_date, horizon)
 values  (3, 'areas_BP23_A_ref_v2', 6822, 'd73a71ca53c7952eb99ab46eec3aeb24fda4d109652f0f539581227124c25010', 'AREA', 1, 'zayd', '2024-07-22 15:13:56.860045', '2024-07-09 10:55:27.467000','2023-2024'),
@@ -26,39 +26,24 @@ values  (1, 4),
         (3, 2);
 
 INSERT INTO pegase_local_db_schema.scenario_tags (scenario_id, tag)
-VALUES
-    (1, 'tag1'),
-    (1, 'tag2'),
-    (2, 'tag3'),
-    (3, 'tag1'),
-    (3, 'tag2'),
-    (3, 'tag3');
-
-INSERT INTO pegase_local_db_schema.scenario_tags (scenario_id, tag)
-VALUES
-    (1, 'tag1'),
-    (1, 'tag2'),
-    (2, 'tag3'),
-    (3, 'tag1'),
-    (3, 'tag2'),
-    (3, 'tag3');
+values  (3, 'config'),
+        (1, 'elec'),
+        (3, 'antares'),
+        (3, 'bilan 22'),
+        (1, 'gaz'),
+        (2, 'figma');
 
 INSERT INTO pegase_local_db_schema.project_tags (project_id, tag)
-VALUES
-    (1, 'tag1'),
-    (1, 'tag2'),
-    (1, 'tag2'),
-    (1, 'tag2'),
-    (1, 'tag2'),
-    (1, 'tag1'),
-    (1, 'tag2'),
-    (1, 'tag2'),
-    (1, 'tag2'),
-    (1, 'tag2'),
-    (2, 'tag3'),
-    (3, 'tag1'),
-    (3, 'tag2'),
-    (3, 'tag3');
+values  (1, 'gaz'),
+        (1, 'elec'),
+        (3, 'figma'),
+        (1, 'antares'),
+        (3, 'config'),
+        (2, 'bilan 22'),
+        (3, 'modal'),
+        (1, 'misc'),
+        (1, 'tag2 antares'),
+        (1, ' area link');
 
 insert into pegase_local_db_schema.pinned_project (nni,project_id)
 values  ('me00247', 1),

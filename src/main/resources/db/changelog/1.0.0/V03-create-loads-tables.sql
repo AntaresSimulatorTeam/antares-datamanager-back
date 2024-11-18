@@ -4,7 +4,7 @@
 CREATE TABLE link
 (
     id                    INTEGER,
-    name                  VARCHAR(255),
+    name                  VARCHAR(20),
     winter_hp_direct_mw   INTEGER,
     winter_hp_Indirect_mw INTEGER,
     winter_hc_direct_mw   INTEGER,
