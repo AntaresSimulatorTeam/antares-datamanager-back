@@ -3,6 +3,6 @@
 CREATE TABLE project_tags
 (
     project_id INT NOT NULL,
-    tag         VARCHAR(255),
+    tag         VARCHAR(15),
     FOREIGN KEY (project_id) REFERENCES project (id)
 );
