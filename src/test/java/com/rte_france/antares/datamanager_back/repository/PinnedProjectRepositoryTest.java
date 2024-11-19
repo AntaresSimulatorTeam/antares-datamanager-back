@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.repository;
 
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
+import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -40,5 +42,28 @@ class PinnedProjectRepositoryTest {
         List<PinnedProjectEntity> result = pinnedProjectRepository.findById_Nni(nni);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void deletePinnedProjectByPinnedProjectEntityIdTest(){
+        //Given
+        String nni = "me00247";
+        Integer projectId = 1;
+        List<PinnedProjectEntity> resultBefore = pinnedProjectRepository.findById_Nni(nni);
+        assertThat(resultBefore.size()).isEqualTo(3);
+
+        //When
+        PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(nni,projectId);
+        pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
+
+        //Then
+        List<PinnedProjectEntity> resultAfter = pinnedProjectRepository.findById_Nni(nni);
+        assertThat(resultAfter.size()).isEqualTo(2);
+
+        assertTrue(resultAfter.stream()
+                .noneMatch(entity -> entity.getId().equals(pinnedProjectEntityId)));
+
+
+
     }
 }

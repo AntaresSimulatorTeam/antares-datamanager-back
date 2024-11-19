@@ -8,4 +8,7 @@ public interface ProjectService {
 
     List<ProjectEntity> getPinnedProjectsByUser(String userId);
 
+    void deletePinnedProjectForGivenUser(String userId, Integer projectId);
+
 }
+

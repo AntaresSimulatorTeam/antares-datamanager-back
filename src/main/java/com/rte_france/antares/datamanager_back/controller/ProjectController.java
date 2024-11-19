@@ -28,4 +28,13 @@ public class ProjectController {
     public ResponseEntity<List<ProjectDto>> getProjectsByUser(@RequestParam String userId) {
         return new ResponseEntity<>(toProjectDtos(projectService.getPinnedProjectsByUser(userId)), HttpStatus.OK);
     }
+
+    @Operation(summary = "Unpin project for user")
+    @PutMapping("/unpin")
+    public void removePinnedProjectToUser(@RequestParam String userId, @RequestParam Integer projectId) {
+
+        projectService.deletePinnedProjectForGivenUser(userId, projectId);
+
+    }
+
 }

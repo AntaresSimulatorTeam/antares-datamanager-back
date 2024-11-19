@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
+import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import lombok.RequiredArgsConstructor;
@@ -25,4 +26,12 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(PinnedProjectEntity::getProject)
                 .toList();
     }
+
+    @Override
+    public void deletePinnedProjectForGivenUser(String userId, Integer projectId) {
+                PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
+                pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
+    }
+
+
 }

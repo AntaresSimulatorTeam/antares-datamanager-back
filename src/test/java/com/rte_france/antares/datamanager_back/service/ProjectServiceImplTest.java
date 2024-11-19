@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
+import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.impl.ProjectServiceImpl;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceImplTest {
 
@@ -46,4 +48,20 @@ class ProjectServiceImplTest {
 
         assertEquals(0, result.size());
     }
+
+    @Test
+    public void deletePinnedProjectToUser_shouldCallDeleteMethod() {
+        // Given
+        String userId = "userId";
+        Integer projectId = 1;
+        PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
+
+        // When
+        projectService.deletePinnedProjectForGivenUser(userId, projectId);
+
+        // Then
+        verify(pinnedProjectRepository, times(1)).deletePinnedProjectEntityById(pinnedProjectEntityId);
+    }
+
+
 }
