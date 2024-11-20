@@ -56,7 +56,7 @@ public class StudyServiceImpl implements StudyService {
     public static Specification<StudyEntity> hasProjectName(String projectName) {
         return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
             Join<StudyEntity, ProjectEntity> project = root.join("project");
-            return criteriaBuilder.equal(project.get("name"), projectName);
+            return criteriaBuilder.like(project.get("name"), "%" + projectName + "%");
         };
     }
     /**

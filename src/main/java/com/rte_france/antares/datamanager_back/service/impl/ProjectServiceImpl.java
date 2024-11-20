@@ -67,9 +67,10 @@ public class ProjectServiceImpl implements ProjectService {
     public static Specification<ProjectEntity> hasStudyName(String studyName) {
         return (Root<ProjectEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
             Join<ProjectEntity, StudyEntity> studies = root.join("studies");
-            return criteriaBuilder.equal(studies.get("name"), studyName);
+            return criteriaBuilder.like(studies.get("name"), "%" + studyName + "%");
         };
     }
+
     /**
      * @param search if it is a LocalDateTime in format "yyyy-MM-dd'T'HH:mm:ss" the return is a Specification
      * @return Specification to look by StudyEntity creation date
@@ -99,7 +100,6 @@ public class ProjectServiceImpl implements ProjectService {
         if (!exists) {
             throw new ResourceNotFoundException("Pinned project not found for user: " + userId + ", project ID: " + projectId);
         }
-
         pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
     }
 
