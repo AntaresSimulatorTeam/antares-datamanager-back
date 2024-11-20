@@ -3,11 +3,13 @@ package com.rte_france.antares.datamanager_back.util;
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,7 +31,6 @@ import static org.hibernate.type.descriptor.java.JdbcDateJavaType.DATE_FORMAT;
 @Slf4j
 @UtilityClass
 public class Utils {
-
 
     /**
      * Calculates and returns the SHA-256 checksum of a file.

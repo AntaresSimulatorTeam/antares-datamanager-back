@@ -1,7 +1,22 @@
 insert into pegase_local_db_schema.project (id, name, created_by, creation_date)
-values  (2, 'Bilan previsionnel 2023', 'Taher benjelloun amine', '2024-07-25 10:09:41.000000'),
+values
+    (2, 'Bilan previsionnel 2023', 'Taher benjelloun amine', '2024-07-25 10:09:41.000000'),
         (1, 'Bilan previsionnel 2027', 'MOUAD Paris test', '2024-07-25 10:09:41.000000'),
-        (3, 'Bilan previsionnel 2025', 'zayd guillaume pegase', '2024-07-25 10:09:41.000000');
+        (3, 'Bilan previsionnel 2025', 'zayd guillaume pegase', '2024-07-25 10:09:41.000000'),
+        (4, 'Bilan previsionnel 2029', 'Khalil reporting', '2024-07-25 10:09:41.000000'),
+        (5, 'Bilan previsionnel 2030', 'Cedric mco', '2024-07-25 10:09:41.000000'),
+        (6, 'Bilan previsionnel 2022', 'Jabrane SEER', '2024-07-25 10:09:41.000000'),
+        (7, 'Bilan previsionnel 2033', 'Jawad reporting', '2024-07-25 10:09:41.000000'),
+        (8, 'Bilan previsionnel 2029', 'Khalil reporting', '2024-07-25 10:09:41.000000'),
+        (9, 'Bilan previsionnel 2029', 'Khalil reporting', '2024-07-25 10:09:41.000000'),
+        (10, 'Bilan previsionnel 2030', 'Cedric mco', '2024-07-25 10:09:41.000000'),
+        (11, 'Bilan previsionnel 2022', 'Jabrane SEER', '2024-07-25 10:09:41.000000'),
+        (12 ,'Bilan previsionnel 2033', 'Jawad reporting', '2024-07-25 10:09:41.000000'),
+        (14, 'Bilan previsionnel 2029', 'Khalil reporting', '2024-07-25 10:09:41.000000'),
+        (16, 'Bilan previsionnel 2022', 'Jabrane SEER', '2024-07-25 10:09:41.000000'),
+        (15 ,'Bilan previsionnel 2033', 'Jawad reporting', '2024-07-25 10:09:41.000000'),
+        (13, 'Bilan previsionnel 2029', 'Khalil reporting', '2024-07-25 10:09:41.000000')
+;
 
 insert into pegase_local_db_schema.scenario (id, name, created_by,status,horizon,creation_date,project_id)
 values  (1, 'BP23A_LIVV4_2023_REF', 'Guillaume arthrotomies', 'IN_PROGRESS', '2030-2031', '2024-07-25 10:07:21.000000', 1),

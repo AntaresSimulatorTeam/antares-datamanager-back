@@ -47,7 +47,7 @@ class StudyControllerTest {
    }
 
     @Test
-     void getTrajectoriesReturnsPageOfStudies() throws Exception {
+     void getStudiesReturnsPageOfStudies() throws Exception {
        StudyEntity studyEntity = StudyEntity.builder().id(1).name("name").status(StudyStatus.IN_PROGRESS)
                .project(ProjectEntity.builder().name("project").build())
                .build();
@@ -67,7 +67,7 @@ class StudyControllerTest {
     }
 
     @Test
-     void getTrajectoriesReturnsEmptyPageWhenNoStudiesFound() throws Exception {
+     void getStudiesReturnsEmptyPageWhenNoStudiesFound() throws Exception {
         when(studyService.findStudiesByCriteria(any(),any())).thenReturn(Page.empty());
         this.mockMvc.perform(get("/v1/study/search")
                        .contentType(MediaType.APPLICATION_JSON_VALUE)

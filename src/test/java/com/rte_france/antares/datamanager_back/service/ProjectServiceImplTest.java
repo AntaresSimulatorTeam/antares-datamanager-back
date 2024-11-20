@@ -2,21 +2,30 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
+import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.service.impl.ProjectServiceImpl;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceImplTest {
@@ -26,6 +35,41 @@ class ProjectServiceImplTest {
 
     @InjectMocks
     private ProjectServiceImpl projectService;
+
+    @Mock
+    private ProjectRepository projectRepository;
+
+
+    @Test
+    void findProjectsByCriteria_returnsAllProjectsWhenSearchIsNull() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(ProjectEntity.builder().name("project1").build()), pageable, 1);
+
+        when(projectRepository.findAll(pageable)).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(null, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(pageable);
+    }
+
+    @Test
+    void findProjectsByCriteria_returnsProjectsByStudyName() {
+        String studyName = "study1";
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = ProjectEntity.builder()
+                .name("project1")
+                .studies(Collections.singletonList(StudyEntity.builder().name(studyName).build()))
+                .build();
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(project), pageable, 1);
+
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(studyName, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
+    }
 
     @Test
     void getProjectsByUser_returnsProjectsWhenExist() {

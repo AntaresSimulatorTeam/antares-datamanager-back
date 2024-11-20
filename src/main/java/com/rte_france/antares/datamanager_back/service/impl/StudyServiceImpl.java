@@ -25,12 +25,8 @@ public class StudyServiceImpl implements StudyService {
 
     private final StudyRepository studyRepository;
 
-
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Pageable pageable) {
-
-
-
 
             Specification<StudyEntity> spec = Specification.where(null);
 
@@ -41,19 +37,17 @@ public class StudyServiceImpl implements StudyService {
                 SearchCriteria searchCriteriaWithFileName = new SearchCriteria("name", ":", search);
                 SearchCriteria searchCriteriaWithTag = new SearchCriteria("tags", "in", search);
                 SearchCriteria searchCriteriaWithUser = new SearchCriteria("createdBy", ":", search);
-
-
                 SearchCriteria searchCriteriaWithStatus = new SearchCriteria("status", ":", search);
-
                 SearchCriteria searchCriteriaWithHorizon = new SearchCriteria("horizon", ":", search);
-                spec = spec.and(new StudySpecification(searchCriteriaWithFileName))
-                        .or(new StudySpecification(searchCriteriaWithTag))
-                        .or(new StudySpecification(searchCriteriaWithStatus))
-                        .or(new StudySpecification(searchCriteriaWithUser))
-                        .or(new StudySpecification(searchCriteriaWithHorizon))
+
+                spec = spec.and(new PegaseSpecification(searchCriteriaWithFileName))
+                        .or(new PegaseSpecification(searchCriteriaWithTag))
+                        .or(new PegaseSpecification(searchCriteriaWithStatus))
+                        .or(new PegaseSpecification(searchCriteriaWithUser))
+                        .or(new PegaseSpecification(searchCriteriaWithHorizon))
                         .or(hasProjectName(search))
                         .or(creationDateSpec)
-                        .or(new StudySpecification(searchCriteriaWithHorizon));
+                        .or(new PegaseSpecification(searchCriteriaWithHorizon));
                 return studyRepository.findAll(spec, pageable);
             }
             return studyRepository.findAll(pageable);

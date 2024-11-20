@@ -24,7 +24,7 @@ public class StudyController {
     private final StudyService studyService;
 
     @GetMapping("/search")
-    public ResponseEntity<Page<StudyDTO>> getTrajectories(
+    public ResponseEntity<Page<StudyDTO>> searchStudies(
             @RequestParam(value = "search", required = false, defaultValue = "") String search,
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {

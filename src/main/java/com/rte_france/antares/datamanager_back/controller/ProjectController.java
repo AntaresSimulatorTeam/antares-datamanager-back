@@ -7,6 +7,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,12 +18,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.toProjectDtos;
+import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.toProjectPage;
 
 @Slf4j
 @RestController
 @RequestMapping("/v1/project")
 @RequiredArgsConstructor
 public class ProjectController {
+
+    private static final String SORTING_CRITERION = "creationDate";
 
     private final ProjectService projectService;
 
@@ -35,6 +42,19 @@ public class ProjectController {
 
         projectService.deletePinnedProjectForGivenUser(userId, projectId);
 
+    }
+
+
+
+    @Operation(summary = "Search projects by criteria")
+    @GetMapping("/search")
+    public ResponseEntity<Page<ProjectDto>> searchProjects(
+            @RequestParam(value = "search", required = false, defaultValue = "") String search,
+            @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(value = "size", required = false, defaultValue = "12") Integer size) {
+
+        Pageable paging = PageRequest.of(page-1, size, Sort.by(SORTING_CRITERION));
+        return new ResponseEntity<>(toProjectPage(projectService.findProjectsByCriteria(search, paging)), HttpStatus.OK);
     }
 
 }

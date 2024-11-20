@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -31,4 +32,9 @@ public class ProjectMapper {
                 .map(ProjectMapper::toProjectDto)
                 .toList();
     }
+
+    public static Page<ProjectDto> toProjectPage(Page<ProjectEntity> page) {
+        return page.map(ProjectMapper::toProjectDto);
+    }
+
 }
