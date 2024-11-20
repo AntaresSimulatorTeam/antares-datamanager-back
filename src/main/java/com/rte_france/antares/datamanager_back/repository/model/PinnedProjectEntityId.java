@@ -4,8 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.Hibernate;
 
 import java.io.Serializable;
@@ -14,6 +13,9 @@ import java.util.Objects;
 @Getter
 @Setter
 @Embeddable
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor
 public class PinnedProjectEntityId implements Serializable {
     private static final long serialVersionUID = -3813678937923547138L;
     @Size(max = 10)
@@ -24,6 +26,7 @@ public class PinnedProjectEntityId implements Serializable {
     @NotNull
     @Column(name = "project_id", nullable = false)
     private Integer projectId;
+
 
     @Override
     public boolean equals(Object o) {

@@ -16,8 +16,9 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
 
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,4 +67,22 @@ class ProjectControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
+
+    @Test
+    public void removePinnedProjectToUser_shouldCallServiceMethod() throws Exception {
+        // Given
+        String userId = "testUser";
+        Integer projectId = 1;
+
+        // When
+        mockMvc.perform(put("/v1/project/unpin")
+                        .param("userId", userId)
+                        .param("projectId", projectId.toString()))
+                .andExpect(status().isOk()); // Verifies the HTTP status
+
+        // Then
+        verify(projectService, times(1)).deletePinnedProjectForGivenUser(userId, projectId);
+    }
+
+
 }

@@ -1,7 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
+import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import lombok.RequiredArgsConstructor;
@@ -25,4 +27,17 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(PinnedProjectEntity::getProject)
                 .toList();
     }
+
+    @Override
+    public void deletePinnedProjectForGivenUser(String userId, Integer projectId) {
+        PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
+
+        boolean exists = pinnedProjectRepository.existsById(pinnedProjectEntityId);
+        if (!exists) {
+            throw new ResourceNotFoundException("Pinned project not found for user: " + userId + ", project ID: " + projectId);
+        }
+
+        pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
+    }
+
 }
