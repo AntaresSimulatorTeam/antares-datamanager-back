@@ -1,12 +1,10 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
-
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,12 +37,15 @@ public class ProjectController {
     @Operation(summary = "Unpin project for user")
     @PutMapping("/unpin")
     public void removePinnedProjectToUser(@RequestParam String userId, @RequestParam Integer projectId) {
-
         projectService.deletePinnedProjectForGivenUser(userId, projectId);
-
     }
 
-
+    @Operation(summary = "Pin project for user")
+    @PostMapping("/pin")
+    public ResponseEntity<Void> pinProjectForUser(@RequestParam String userId, @RequestParam Integer projectId) {
+        projectService.pinProjectForUser(userId, projectId);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
 
     @Operation(summary = "Search projects by criteria")
     @GetMapping("/search")
@@ -53,7 +54,7 @@ public class ProjectController {
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "12") Integer size) {
 
-        Pageable paging = PageRequest.of(page-1, size, Sort.by(SORTING_CRITERION));
+        Pageable paging = PageRequest.of(page - 1, size, Sort.by(SORTING_CRITERION));
         return new ResponseEntity<>(toProjectPage(projectService.findProjectsByCriteria(search, paging)), HttpStatus.OK);
     }
 

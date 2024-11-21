@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -101,6 +103,25 @@ public class ProjectServiceImpl implements ProjectService {
             throw new ResourceNotFoundException("Pinned project not found for user: " + userId + ", project ID: " + projectId);
         }
         pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
+    }
+
+    @Transactional
+    public void pinProjectForUser(String userId, Integer projectId) {
+        PinnedProjectEntityId pinnedProjectEntityId = PinnedProjectEntityId.builder()
+                .projectId(projectId)
+                .nni(userId)
+                .build();
+        pinnedProjectRepository.findById(pinnedProjectEntityId).ifPresentOrElse(
+                pinnedProject -> {
+                    throw new BadRequestException("Project already pinned for user: " + userId + ", project ID: " + projectId);
+                },
+                () -> {
+                    PinnedProjectEntity pinnedProjectEntity = new PinnedProjectEntity();
+                    pinnedProjectEntity.setId(pinnedProjectEntityId);
+                    pinnedProjectEntity.setProject(projectRepository.findById(projectId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId)));
+                    pinnedProjectRepository.save(pinnedProjectEntity);
+                });
     }
 
 }

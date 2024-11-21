@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
@@ -21,11 +22,11 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
-
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceImplTest {
@@ -128,5 +129,54 @@ class ProjectServiceImplTest {
         verify(pinnedProjectRepository, never()).deletePinnedProjectEntityById(pinnedProjectEntityId);
     }
 
+    @Test
+    void pinProjectForUser_pinsProjectWhenNotAlreadyPinned() {
+        String userId = "user1";
+        Integer projectId = 1;
+        PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
+        ProjectEntity projectEntity = new ProjectEntity();
 
+        when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.empty());
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(projectEntity));
+
+        projectService.pinProjectForUser(userId, projectId);
+
+        verify(pinnedProjectRepository, times(1)).save(any(PinnedProjectEntity.class));
+    }
+
+    @Test
+    void pinProjectForUser_throwsExceptionWhenProjectAlreadyPinned() {
+        String userId = "user1";
+        Integer projectId = 1;
+        PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
+        PinnedProjectEntity pinnedProjectEntity = new PinnedProjectEntity();
+
+        when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.of(pinnedProjectEntity));
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> projectService.pinProjectForUser(userId, projectId)
+        );
+
+        assertEquals("Project already pinned for user: user1, project ID: 1", exception.getMessage());
+        verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
+    }
+
+    @Test
+    void pinProjectForUser_throwsExceptionWhenProjectNotFound() {
+        String userId = "user1";
+        Integer projectId = 1;
+        PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
+
+        when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.empty());
+        when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> projectService.pinProjectForUser(userId, projectId)
+        );
+
+        assertEquals("Project not found with ID: 1", exception.getMessage());
+        verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
+    }
 }
