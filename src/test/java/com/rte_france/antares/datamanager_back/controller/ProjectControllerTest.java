@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
+
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,14 +9,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.Collections;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -85,4 +90,22 @@ class ProjectControllerTest {
     }
 
 
+
+    @Test
+    void getStudiesReturnsPageOfStudies() throws Exception {
+        ProjectEntity projectEntity = ProjectEntity.builder().id(1).name("name").createdBy("user1").build();
+        when(projectService.findProjectsByCriteria(any(),any())).thenReturn(new PageImpl<>(Collections.singletonList(projectEntity)));
+        this.mockMvc.perform(get("/v1/project/search")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("search", "toto")
+                        .param("page", "1")
+                        .param("size", "2")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                //Then
+                .andExpect(status().isOk())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(projectService, times(1)).findProjectsByCriteria(any(), any());
+    }
 }

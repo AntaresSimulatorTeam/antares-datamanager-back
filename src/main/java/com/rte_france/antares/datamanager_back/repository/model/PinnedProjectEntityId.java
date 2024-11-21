@@ -27,7 +27,6 @@ public class PinnedProjectEntityId implements Serializable {
     @Column(name = "project_id", nullable = false)
     private Integer projectId;
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
