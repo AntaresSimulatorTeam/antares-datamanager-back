@@ -179,4 +179,21 @@ class ProjectServiceImplTest {
         assertEquals("Project not found with ID: 1", exception.getMessage());
         verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
     }
+
+    @Test
+    void pinProjectForUser_throwsExceptionWhenUserHasMaxPinnedProjects() {
+        String userId = "user1";
+        Integer projectId = 1;
+        List<PinnedProjectEntity> pinnedProjects = List.of(new PinnedProjectEntity(), new PinnedProjectEntity(), new PinnedProjectEntity());
+
+        when(pinnedProjectRepository.findById_Nni(userId)).thenReturn(pinnedProjects);
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> projectService.pinProjectForUser(userId, projectId)
+        );
+
+        assertEquals("You have already 3 pinned projects , please unpin one before pinning another one.", exception.getMessage());
+        verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
+    }
 }

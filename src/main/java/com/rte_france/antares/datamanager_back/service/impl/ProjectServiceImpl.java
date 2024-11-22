@@ -107,6 +107,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Transactional
     public void pinProjectForUser(String userId, Integer projectId) {
+        checkIfUserHasALreadyMaxPinnedProjects(userId);
         PinnedProjectEntityId pinnedProjectEntityId = PinnedProjectEntityId.builder()
                 .projectId(projectId)
                 .nni(userId)
@@ -122,6 +123,13 @@ public class ProjectServiceImpl implements ProjectService {
                             .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId)));
                     pinnedProjectRepository.save(pinnedProjectEntity);
                 });
+    }
+
+    private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
+        List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findById_Nni(userId);
+        if (pinnedProjects.size() >= 3) {
+            throw new BadRequestException("You have already 3 pinned projects , please unpin one before pinning another one.");
+        }
     }
 
 }
