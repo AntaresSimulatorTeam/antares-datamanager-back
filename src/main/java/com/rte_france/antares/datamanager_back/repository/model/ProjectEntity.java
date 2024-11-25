@@ -31,6 +31,10 @@ public class ProjectEntity {
     @Column(name = "creation_date")
     private LocalDateTime creationDate;
 
+    @Size(max = 500)
+    @Column(name = "description")
+    private String description;
+
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "project", cascade = {CascadeType.ALL})
     List<StudyEntity> studies;
 

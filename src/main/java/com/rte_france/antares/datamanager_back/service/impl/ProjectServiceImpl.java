@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 
 @Slf4j
@@ -103,6 +104,16 @@ public class ProjectServiceImpl implements ProjectService {
             throw new ResourceNotFoundException("Pinned project not found for user: " + userId + ", project ID: " + projectId);
         }
         pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
+    }
+
+    @Override
+    public ProjectEntity findProjectById(Integer projectId) {
+        Optional<ProjectEntity> projectDetails = projectRepository.findById(projectId);
+        if (projectDetails.isPresent()){
+            return projectDetails.get();
+        }
+        else
+            throw new ResourceNotFoundException("Project with ID: " + projectId + " not found");
     }
 
     @Transactional

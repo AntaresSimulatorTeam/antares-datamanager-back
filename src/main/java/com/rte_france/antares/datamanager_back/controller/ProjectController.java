@@ -56,4 +56,11 @@ public class ProjectController {
         return new ResponseEntity<>(toProjectPage(projectService.findProjectsByCriteria(search, paging)), HttpStatus.OK);
     }
 
+    @Operation(summary = "Find project by Id")
+    @GetMapping("/findProjectById")
+    public ResponseEntity<ProjectDto> findProjectById(@RequestParam Integer projectId) {
+
+        return new ResponseEntity<>(toProjectDto(projectService.findProjectById(projectId)), HttpStatus.OK);
+    }
+
 }

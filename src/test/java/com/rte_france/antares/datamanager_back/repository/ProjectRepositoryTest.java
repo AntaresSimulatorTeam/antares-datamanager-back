@@ -13,6 +13,8 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 
@@ -47,5 +49,13 @@ class ProjectRepositoryTest {
 
         assertThat(page).isNotNull();
         assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void getProjectDetails_byProjectId_returnsProjectDetails() {
+
+        Optional<ProjectEntity> projectEntity = projectRepository.findById(1);
+
+        assertThat(projectEntity).isNotNull();
     }
 }
