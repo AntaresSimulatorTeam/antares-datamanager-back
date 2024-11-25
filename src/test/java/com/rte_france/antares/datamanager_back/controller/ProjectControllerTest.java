@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
-
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,8 +22,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,8 +52,8 @@ class ProjectControllerTest {
         when(projectService.getPinnedProjectsByUser(userId)).thenReturn(List.of(projectEntity));
 
         mockMvc.perform(get("/v1/project/pinned")
-                .param("userId", userId)
-                .contentType(MediaType.APPLICATION_JSON))
+                        .param("userId", userId)
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("Project 1"))
@@ -67,8 +66,8 @@ class ProjectControllerTest {
         when(projectService.getPinnedProjectsByUser(userId)).thenReturn(List.of());
 
         mockMvc.perform(get("/v1/project/pinned")
-                .param("userId", userId)
-                .contentType(MediaType.APPLICATION_JSON))
+                        .param("userId", userId)
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
@@ -90,11 +89,10 @@ class ProjectControllerTest {
     }
 
 
-
     @Test
     void getStudiesReturnsPageOfStudies() throws Exception {
         ProjectEntity projectEntity = ProjectEntity.builder().id(1).name("name").createdBy("user1").build();
-        when(projectService.findProjectsByCriteria(any(),any())).thenReturn(new PageImpl<>(Collections.singletonList(projectEntity)));
+        when(projectService.findProjectsByCriteria(any(), any())).thenReturn(new PageImpl<>(Collections.singletonList(projectEntity)));
         this.mockMvc.perform(get("/v1/project/search")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("search", "toto")
@@ -107,5 +105,33 @@ class ProjectControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
         verify(projectService, times(1)).findProjectsByCriteria(any(), any());
+    }
+
+    @Test
+    void pinProjectForUser_returnsOkWhenProjectPinnedSuccessfully() throws Exception {
+        String userId = "user1";
+        Integer projectId = 1;
+
+        when(projectService.pinProjectForUser(any(), any())).thenReturn(new ProjectEntity());
+
+        mockMvc.perform(post("/v1/project/pin")
+                        .param("userId", userId)
+                        .param("projectId", projectId.toString())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void pinProjectForUser_returnsConflictWhenProjectAlreadyPinned() throws Exception {
+        String userId = "user1";
+        Integer projectId = 1;
+
+        doThrow(new BadRequestException("Project already pinned for user")).when(projectService).pinProjectForUser(userId, projectId);
+
+        mockMvc.perform(post("/v1/project/pin")
+                        .param("userId", userId)
+                        .param("projectId", projectId.toString())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
     }
 }
