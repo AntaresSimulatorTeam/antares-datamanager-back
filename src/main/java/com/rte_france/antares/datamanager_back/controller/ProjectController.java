@@ -15,8 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.toProjectDtos;
-import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.toProjectPage;
+import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.*;
 
 @Slf4j
 @RestController
@@ -42,9 +41,8 @@ public class ProjectController {
 
     @Operation(summary = "Pin project for user")
     @PostMapping("/pin")
-    public ResponseEntity<Void> pinProjectForUser(@RequestParam String userId, @RequestParam Integer projectId) {
-        projectService.pinProjectForUser(userId, projectId);
-        return new ResponseEntity<>(HttpStatus.OK);
+    public ResponseEntity<ProjectDto> pinProjectForUser(@RequestParam String userId, @RequestParam Integer projectId) {
+        return new ResponseEntity<>(toProjectDto(projectService.pinProjectForUser(userId, projectId)), HttpStatus.OK);
     }
 
     @Operation(summary = "Search projects by criteria")

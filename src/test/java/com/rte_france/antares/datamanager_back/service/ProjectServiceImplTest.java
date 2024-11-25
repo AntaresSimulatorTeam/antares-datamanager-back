@@ -158,7 +158,7 @@ class ProjectServiceImplTest {
                 () -> projectService.pinProjectForUser(userId, projectId)
         );
 
-        assertEquals("Project already pinned for user: user1, project ID: 1", exception.getMessage());
+        assertEquals("Project already pinned", exception.getMessage());
         verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
     }
 

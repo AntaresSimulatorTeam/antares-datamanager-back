@@ -14,7 +14,7 @@ public interface ProjectService {
 
     void deletePinnedProjectForGivenUser(String userId, Integer projectId);
 
-    void pinProjectForUser(String userId, Integer projectId);
+    ProjectEntity pinProjectForUser(String userId, Integer projectId);
 
 
 }

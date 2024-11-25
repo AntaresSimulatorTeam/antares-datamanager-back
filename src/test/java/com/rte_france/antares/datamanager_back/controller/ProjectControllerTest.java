@@ -112,7 +112,7 @@ class ProjectControllerTest {
         String userId = "user1";
         Integer projectId = 1;
 
-        doNothing().when(projectService).pinProjectForUser(userId, projectId);
+        when(projectService.pinProjectForUser(any(), any())).thenReturn(new ProjectEntity());
 
         mockMvc.perform(post("/v1/project/pin")
                         .param("userId", userId)

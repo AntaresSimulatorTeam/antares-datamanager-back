@@ -106,23 +106,34 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Transactional
-    public void pinProjectForUser(String userId, Integer projectId) {
+    public ProjectEntity pinProjectForUser(String userId, Integer projectId) {
         checkIfUserHasALreadyMaxPinnedProjects(userId);
+        // Build the composite key for the PinnedProjectEntity
         PinnedProjectEntityId pinnedProjectEntityId = PinnedProjectEntityId.builder()
                 .projectId(projectId)
                 .nni(userId)
                 .build();
-        pinnedProjectRepository.findById(pinnedProjectEntityId).ifPresentOrElse(
-                pinnedProject -> {
-                    throw new BadRequestException("Project already pinned for user: " + userId + ", project ID: " + projectId);
-                },
-                () -> {
-                    PinnedProjectEntity pinnedProjectEntity = new PinnedProjectEntity();
-                    pinnedProjectEntity.setId(pinnedProjectEntityId);
-                    pinnedProjectEntity.setProject(projectRepository.findById(projectId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId)));
-                    pinnedProjectRepository.save(pinnedProjectEntity);
-                });
+
+        // Check if the project is already pinned for the user
+        pinnedProjectRepository.findById(pinnedProjectEntityId).ifPresent(pinnedProject -> {
+            throw new BadRequestException(
+                    "Project already pinned"
+            );
+        });
+
+        // Fetch the project entity or throw an exception if not found
+        ProjectEntity project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId));
+
+        // Create and save the pinned project entity
+        PinnedProjectEntity pinnedProjectEntity = new PinnedProjectEntity();
+        pinnedProjectEntity.setId(pinnedProjectEntityId);
+        pinnedProjectEntity.setProject(project);
+
+        pinnedProjectRepository.save(pinnedProjectEntity);
+
+        // Return the project associated with the pinned entity
+        return project;
     }
 
     private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
