@@ -1,7 +1,9 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
+import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
+import com.rte_france.antares.datamanager_back.service.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.*;
+import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudiesDto;
 
 @Slf4j
 @RestController
@@ -26,6 +29,8 @@ public class ProjectController {
     private static final String SORTING_CRITERION = "creationDate";
 
     private final ProjectService projectService;
+
+    private final StudyService studyService;
 
     @Operation(summary = "Get pinned projects by user")
     @GetMapping("/pinned")
@@ -54,6 +59,12 @@ public class ProjectController {
 
         Pageable paging = PageRequest.of(page - 1, size, Sort.by(SORTING_CRITERION));
         return new ResponseEntity<>(toProjectPage(projectService.findProjectsByCriteria(search, paging)), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get studies by project id")
+    @GetMapping("/{id}/studies")
+    public ResponseEntity<List<StudyDTO>> getProjectStudies(@PathVariable Integer id) {
+        return new ResponseEntity<>(toStudiesDto(studyService.getStudiesByProjectId(id)), HttpStatus.OK);
     }
 
     @Operation(summary = "Find project by Id")

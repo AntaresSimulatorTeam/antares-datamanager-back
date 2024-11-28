@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository;
 
+import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,5 +50,25 @@ class StudyRepositoryTest {
 
         assertThat(page).isNotNull();
         assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void findStudyEntitiesByProjectId_returnsListOfStudyEntities() {
+        Integer projectId = 1;
+
+        List<StudyEntity> studies = studyRepository.findStudyEntitiesByProjectId(projectId);
+
+        assertThat(studies).isNotNull().isNotEmpty();
+        assertThat(studies).extracting(StudyEntity::getProject).extracting(ProjectEntity::getId).containsOnly(projectId);
+        assertThat(studies).extracting(StudyEntity::getName).containsExactlyInAnyOrder("etude1", "etude2", "etude3"); // Example assertion for content
+    }
+
+    @Test
+    void findStudyEntitiesByProjectId_returnsEmptyListForNonExistentProjectId() {
+        Integer projectId = -1;
+
+        List<StudyEntity> studies = studyRepository.findStudyEntitiesByProjectId(projectId);
+
+        assertThat(studies).isNotNull().isEmpty();
     }
 }

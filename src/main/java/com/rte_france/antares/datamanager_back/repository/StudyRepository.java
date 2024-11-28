@@ -5,10 +5,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.web.bind.annotation.RequestParam;
 
-public interface StudyRepository extends JpaRepository<StudyEntity, String> {
+import java.util.List;
+
+public interface StudyRepository extends JpaRepository<StudyEntity, Integer> {
 
     Page<StudyEntity> findAll(Specification<StudyEntity> spec, Pageable pageable);
+
+    List<StudyEntity> findStudyEntitiesByProjectId(@RequestParam Integer projectId);
 
 
 }
