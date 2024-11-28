@@ -24,6 +24,7 @@ public class ProjectMapper {
                 .createdBy(projectEntity.getCreatedBy())
                 .studies(projectEntity.getStudies() == null ? List.of() : projectEntity.getStudies().stream().map(StudyEntity::getId).toList())
                 .tags(projectEntity.getTags())
+                .description(projectEntity.getDescription())
                 .build();
     }
 

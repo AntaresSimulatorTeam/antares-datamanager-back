@@ -20,4 +20,5 @@ public class ProjectDto {
     LocalDateTime creationDate;
     List<Integer> studies;
     List<String> tags;
+    String description;
 }

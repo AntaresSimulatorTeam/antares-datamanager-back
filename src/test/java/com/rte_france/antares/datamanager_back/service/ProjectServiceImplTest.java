@@ -130,6 +130,23 @@ class ProjectServiceImplTest {
     }
 
     @Test
+    void getProjectDetailsById(){
+        //Given
+        Integer projectId = 1;
+        ProjectEntity expectedProject= new ProjectEntity();
+        expectedProject.setId(1);
+        expectedProject.setCreatedBy("User1");
+        expectedProject.setName("BP 2050");
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(expectedProject));
+        ProjectEntity projectResult =projectService.findProjectById(projectId);
+        //Then
+        assertEquals(projectResult, expectedProject);
+
+
+    }
+
+    @Test
     void pinProjectForUser_pinsProjectWhenNotAlreadyPinned() {
         String userId = "user1";
         Integer projectId = 1;

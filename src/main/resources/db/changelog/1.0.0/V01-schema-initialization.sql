@@ -7,6 +7,7 @@ CREATE TABLE project
     name          VARCHAR(40),
     created_by    VARCHAR(40),
     creation_date timestamp,
+    description   VARCHAR(500),
     PRIMARY KEY (id)
 );
 

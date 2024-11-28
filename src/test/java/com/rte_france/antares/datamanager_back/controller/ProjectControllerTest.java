@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
@@ -20,6 +21,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.Collections;
 import java.util.List;
 
+import static com.rte_france.antares.datamanager_back.mapper.ProjectMapper.toProjectDto;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -134,4 +136,24 @@ class ProjectControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError());
     }
+
+    @Test
+    void findProjectById_returnsProjectDtoWhenProjectExists() throws Exception {
+        // Given
+        Integer projectId = 1;
+        ProjectEntity projectEntity = ProjectEntity.builder().id(1).name("name2050").createdBy("user1").description("project2050").build();
+
+
+        when(projectService.findProjectById(projectId)).thenReturn(projectEntity);
+
+
+        // When & Then
+        mockMvc.perform(get("/v1/project/{id}", projectId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(projectId))
+                .andExpect(jsonPath("$.name").value("name2050"))
+                .andExpect(jsonPath("$.description").value("project2050"));
+    }
+
 }
