@@ -57,10 +57,10 @@ public class ProjectController {
     }
 
     @Operation(summary = "Find project by Id")
-    @GetMapping("/findProjectById")
-    public ResponseEntity<ProjectDto> findProjectById(@RequestParam Integer projectId) {
+    @GetMapping("/{id}")
+    public ResponseEntity<ProjectDto> findProjectById(@PathVariable Integer id) {
 
-        return new ResponseEntity<>(toProjectDto(projectService.findProjectById(projectId)), HttpStatus.OK);
+        return new ResponseEntity<>(toProjectDto(projectService.findProjectById(id)), HttpStatus.OK);
     }
 
 }
