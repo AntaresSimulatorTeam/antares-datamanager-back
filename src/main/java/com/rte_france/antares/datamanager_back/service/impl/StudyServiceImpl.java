@@ -17,7 +17,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -53,11 +52,6 @@ public class StudyServiceImpl implements StudyService {
             }
             return studyRepository.findAll(pageable);
         }
-
-    @Override
-    public List<StudyEntity> getStudiesByProjectId(Integer projectId) {
-        return studyRepository.findStudyEntitiesByProjectId(projectId);
-    }
 
     public static Specification<StudyEntity> hasProjectName(String projectName) {
         return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {

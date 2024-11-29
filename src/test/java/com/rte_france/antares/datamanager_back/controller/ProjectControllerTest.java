@@ -3,10 +3,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
-import com.rte_france.antares.datamanager_back.service.StudyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,9 +39,6 @@ class ProjectControllerTest {
 
     @MockBean
     ProjectService projectService;
-
-    @MockBean
-    StudyService studyService;
 
     @BeforeEach
     public void setup() {
@@ -141,30 +135,6 @@ class ProjectControllerTest {
                         .param("projectId", projectId.toString())
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError());
-    }
-
-    @Test
-    void getProjectStudies_returnsStudiesWhenExist() throws Exception {
-        Integer projectId = 1;
-        ProjectEntity projectEntity = ProjectEntity.builder().id(projectId).name("Project 1").createdBy("user1").build();
-        StudyEntity studyEntity = StudyEntity.builder().id(1).name("Study 1").status(StudyStatus.IN_PROGRESS).project(projectEntity).build();
-        StudyEntity studyEntity2 = StudyEntity.builder().id(2).name("Study 2").status(StudyStatus.IN_PROGRESS).project(projectEntity).build();
-        when(studyService.getStudiesByProjectId(projectId)).thenReturn(List.of(studyEntity, studyEntity2));
-
-        mockMvc.perform(get("/v1/project/{id}/studies", projectId)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void getProjectStudies_returnsEmptyWhenNoneExist() throws Exception {
-        Integer projectId = 1;
-        when(studyService.getStudiesByProjectId(projectId)).thenReturn(List.of());
-
-        mockMvc.perform(get("/v1/project/{id}/studies", projectId)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
