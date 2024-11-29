@@ -7,6 +7,6 @@ import org.springframework.data.domain.Pageable;
 public interface StudyService {
 
 
-    Page<StudyEntity> findStudiesByCriteria(String search, Pageable pageable);
+    Page<StudyEntity> findStudiesByCriteria(String search,Integer idProject, Pageable pageable);
 
 }

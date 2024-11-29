@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
@@ -25,18 +26,52 @@ class StudyServiceImplTest {
     private StudyRepository studyRepository;
 
     @InjectMocks
-    private StudyServiceImpl studyService;
+    private StudyServiceImpl studyServiceImpl;
+
 
     @Test
-    void findStudiesByCriteria_returnsAllStudiesWhenSearchIsNull() {
+    void findStudiesByCriteria_returnsFilteredStudiesWhenSearchIsNotNull() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<StudyEntity> expectedPage = new PageImpl<>(List.of(StudyEntity.builder().name("study1").build()), pageable, 1);
+        List<StudyEntity> studies = List.of(new StudyEntity());
+        Page<StudyEntity> studyPage = new PageImpl<>(studies);
+        String search = "test";
 
-        when(studyRepository.findAll(pageable)).thenReturn(expectedPage);
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
 
-        Page<StudyEntity> result = studyService.findStudiesByCriteria(null, pageable);
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
 
-        assertEquals(expectedPage, result);
-        verify(studyRepository, times(1)).findAll(pageable);
+        assertEquals(studyPage, result);
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_returnsFilteredStudiesWhenIdProjectIsNotNull() {
+        Pageable pageable = PageRequest.of(0, 10);
+        List<StudyEntity> studies = List.of(new StudyEntity());
+        Page<StudyEntity> studyPage = new PageImpl<>(studies);
+        Integer idProject = 1;
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(null, idProject, pageable);
+
+        assertEquals(studyPage, result);
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_returnsFilteredStudiesWhenSearchAndIdProjectAreNotNull() {
+        Pageable pageable = PageRequest.of(0, 10);
+        List<StudyEntity> studies = List.of(new StudyEntity());
+        Page<StudyEntity> studyPage = new PageImpl<>(studies);
+        String search = "test";
+        Integer idProject = 1;
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, idProject, pageable);
+
+        assertEquals(studyPage, result);
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
     }
 }

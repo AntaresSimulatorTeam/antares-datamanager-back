@@ -75,7 +75,7 @@ class ProjectControllerTest {
     }
 
     @Test
-    public void removePinnedProjectToUser_shouldCallServiceMethod() throws Exception {
+     void removePinnedProjectToUser_shouldCallServiceMethod() throws Exception {
         // Given
         String userId = "testUser";
         Integer projectId = 1;

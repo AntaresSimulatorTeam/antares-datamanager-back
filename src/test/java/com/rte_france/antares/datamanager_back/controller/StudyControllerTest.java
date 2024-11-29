@@ -51,7 +51,7 @@ class StudyControllerTest {
        StudyEntity studyEntity = StudyEntity.builder().id(1).name("name").status(StudyStatus.IN_PROGRESS)
                .project(ProjectEntity.builder().name("project").build())
                .build();
-        when(studyService.findStudiesByCriteria(any(),any())).thenReturn(new PageImpl<>(Collections.singletonList(studyEntity)));
+        when(studyService.findStudiesByCriteria(any(),any(), any())).thenReturn(new PageImpl<>(Collections.singletonList(studyEntity)));
        this.mockMvc.perform(get("/v1/study/search")
                        .contentType(MediaType.APPLICATION_JSON_VALUE)
                        .param("search", "toto")
@@ -63,12 +63,12 @@ class StudyControllerTest {
                .andExpect(status().isOk())
                .andDo(MockMvcResultHandlers.print())
                .andReturn();
-       verify(studyService, times(1)).findStudiesByCriteria(any(), any());
+       verify(studyService, times(1)).findStudiesByCriteria(any(), any(), any());
     }
 
     @Test
      void getStudiesReturnsEmptyPageWhenNoStudiesFound() throws Exception {
-        when(studyService.findStudiesByCriteria(any(),any())).thenReturn(Page.empty());
+        when(studyService.findStudiesByCriteria(any(),any(), any())).thenReturn(Page.empty());
         this.mockMvc.perform(get("/v1/study/search")
                        .contentType(MediaType.APPLICATION_JSON_VALUE)
                        .param("search", "toto")
@@ -80,6 +80,6 @@ class StudyControllerTest {
                .andExpect(status().isOk())
                .andDo(MockMvcResultHandlers.print())
                .andReturn();
-       verify(studyService, times(1)).findStudiesByCriteria(any(), any());
+       verify(studyService, times(1)).findStudiesByCriteria(any(), any(), any());
     }
 }
