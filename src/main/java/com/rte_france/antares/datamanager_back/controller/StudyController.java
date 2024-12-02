@@ -25,12 +25,13 @@ public class StudyController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<StudyDTO>> searchStudies(
+            @RequestParam(value = "projectId", required = false, defaultValue = "") Integer projectId,
             @RequestParam(value = "search", required = false, defaultValue = "") String search,
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
 
         Pageable paging = PageRequest.of(page-1, size, Sort.by(SORTING_CRITERION));
 
-        return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search, paging)), HttpStatus.OK);
+        return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search,projectId, paging)), HttpStatus.OK);
     }
 }

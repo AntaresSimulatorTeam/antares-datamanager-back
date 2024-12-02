@@ -97,7 +97,7 @@ class ProjectServiceImplTest {
     }
 
     @Test
-    public void deletePinnedProjectToUser_shouldCallDeleteMethod() {
+     void deletePinnedProjectToUser_shouldCallDeleteMethod() {
         // Given
         String userId = "userId";
         Integer projectId = 1;

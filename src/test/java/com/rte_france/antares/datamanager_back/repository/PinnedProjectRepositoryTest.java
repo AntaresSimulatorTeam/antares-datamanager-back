@@ -50,7 +50,7 @@ class PinnedProjectRepositoryTest {
         String nni = "me00247";
         Integer projectId = 1;
         List<PinnedProjectEntity> resultBefore = pinnedProjectRepository.findById_Nni(nni);
-        assertThat(resultBefore.size()).isEqualTo(3);
+        assertThat(resultBefore).hasSize(3);
 
         //When
         PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(nni,projectId);
@@ -58,7 +58,7 @@ class PinnedProjectRepositoryTest {
 
         //Then
         List<PinnedProjectEntity> resultAfter = pinnedProjectRepository.findById_Nni(nni);
-        assertThat(resultAfter.size()).isEqualTo(2);
+        assertThat(resultAfter).hasSize(2);
 
         assertTrue(resultAfter.stream()
                 .noneMatch(entity -> entity.getId().equals(pinnedProjectEntityId)));
