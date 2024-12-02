@@ -9,7 +9,7 @@ on:
 
 jobs:
   sonarcloud:
-    name: SonarCloud Scan
+    name: SonarCloud Scan Mouad
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,5 +32,8 @@ jobs:
       - name: Build project
         run: mvn clean install
 
-      - name: Run SonarCloud Scan
-        run: mvn sonar:sonar -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+      - name: Run SonarCloud Scan Mouad
+        run: mvn sonar:sonar \
+                -Dsonar.projectKey=AntaresSimulatorTeam_antares-datamanager-back \
+                -Dsonar.organization=antaressimulatorteam \
+                -Dsonar.login=${{ secrets.SONAR_TOKEN }}
