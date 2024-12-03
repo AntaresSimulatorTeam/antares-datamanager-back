@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - tech/ANT-2504_add_sonar_conf
-  pull_request:
-    types: [opened, synchronize, reopened]
-
 jobs:
   sonarcloud:
     name: SonarCloud Scan
