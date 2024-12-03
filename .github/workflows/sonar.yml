@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - tech/ANT-2504_add_sonar_conf
+
 jobs:
   sonarcloud:
     name: SonarCloud Scan
@@ -16,7 +17,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '21' # Ou la version Java utilisée dans votre projet
+          java-version: '21' # Or the version used in your project
 
       - name: Cache Maven repository
         uses: actions/cache@v3
@@ -29,11 +30,8 @@ jobs:
       - name: Build project
         run: mvn clean install
 
-      - name: Test Covrage
+      - name: SonarQube Cloud Scan (with coverage)
         run: mvn sonar:sonar -Pcoverage
-
-      - name: SonarQube Cloud Scan
-        run: mvn sonar:sonar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
