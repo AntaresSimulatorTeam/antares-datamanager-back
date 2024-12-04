@@ -28,7 +28,7 @@ jobs:
             ${{ runner.os }}-m2-
 
       - name: Build project
-        run: mvn clean install
+        run: mvn clean install -Pcoverage -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
       - name: SonarQube Cloud Scan (with coverage)
         run: mvn sonar:sonar -Pcoverage -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
