@@ -1,37 +1,37 @@
-name: SonarCloud Analysis
-
+name: SonarQube Cloud
 on:
   push:
     branches:
-      - tech/ANT-2504_add_sonar_conf
-
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened]
 jobs:
-  sonarcloud:
-    name: SonarCloud Scan
+  build:
+    name: Build and analyze
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
         with:
-          distribution: 'temurin'
-          java-version: '21' # Or the version used in your project
-
-      - name: Cache Maven repository
-        uses: actions/cache@v3
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu' # Alternative distribution options are available.
+      - name: Cache SonarQube Cloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Maven packages
+        uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-
-
-      - name: Build project
-        run: mvn clean install -Pcoverage -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-
-      - name: SonarQube Cloud Scan (with coverage)
-        run: mvn sonar:sonar -Pcoverage -X -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build and analyze
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=AntaresSimulatorTeam_antares-datamanager-back
