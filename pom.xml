@@ -31,7 +31,8 @@
         <open-api-doc.version>2.0.3</open-api-doc.version>
         <sonar.organization>antaressimulatorteam</sonar.organization>
         <sonar.projectKey>AntaresSimulatorTeam_antares-datamanager-back</sonar.projectKey>
-	</properties>
+        <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
