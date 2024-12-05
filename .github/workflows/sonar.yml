@@ -2,7 +2,7 @@ name: SonarQube Cloud
 on:
   push:
     branches:
-      - tech/ANT-2504_add_sonar_conf
+      - develop
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
