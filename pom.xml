@@ -35,6 +35,13 @@
         <sonar.coverage.jacoco.xmlReportPaths>
             ../antares-datamanager-back/target/site/jacoco/jacoco.xml
         </sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.exclusions>
+            **com/rte_france/plasma/pu/pu_dashboard_api/repository/model/**,
+            **com/rte_france/antares/datamanager_back/exception/**,
+            **com/rte_france/antares/datamanager_back/configuration/**,
+            **com/rte_france/antares/datamanager_back/repository/model/**,
+            **com/rte_france/antares/datamanager_back/dto/**,
+        </sonar.exclusions>
     </properties>
     <dependencies>
         <dependency>
@@ -180,6 +187,14 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.10</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/rte_france/antares/datamanager_back/exception/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/configuration/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/repository/model/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/dto/**</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
