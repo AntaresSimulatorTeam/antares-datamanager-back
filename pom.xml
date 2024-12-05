@@ -35,6 +35,14 @@
         <sonar.coverage.jacoco.xmlReportPaths>
             ../antares-datamanager-back/target/site/jacoco/jacoco.xml
         </sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.exclusions>
+            **com/rte_france/plasma/pu/pu_dashboard_api/repository/model/**,
+            **com/rte_france/antares/datamanager_back/exception/**,
+            **com/rte_france/antares/datamanager_back/configuration/**,
+            **com/rte_france/antares/datamanager_back/repository/model/**,
+            **com/rte_france/antares/datamanager_back/dto/**,
+            **com/rte_france/antares/datamanager_back/PegaseBackApplication.java
+        </sonar.exclusions>
     </properties>
     <dependencies>
         <dependency>
@@ -148,6 +156,11 @@
             <artifactId>jsch</artifactId>
             <version>0.1.55</version>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -175,6 +188,15 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.10</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/rte_france/antares/datamanager_back/exception/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/configuration/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/repository/model/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/dto/**</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/PegaseBackApplication.java</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
@@ -194,7 +216,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.12.4</version>
+                <version>3.0.0-M9</version>
             </plugin>
         </plugins>
     </build>
