@@ -35,3 +35,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=AntaresSimulatorTeam_antares-datamanager-back -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+      - name: Check if JaCoCo report is generated
+        run: |
+          if [ -f target/site/jacoco/jacoco.xml ]; then
+            echo "JaCoCo report generated successfully."
+          else
+          echo "JaCoCo report not found."
+         fi
