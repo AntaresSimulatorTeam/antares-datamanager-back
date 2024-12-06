@@ -41,7 +41,8 @@
             **com/rte_france/antares/datamanager_back/configuration/**,
             **com/rte_france/antares/datamanager_back/repository/model/**,
             **com/rte_france/antares/datamanager_back/dto/**,
-            **com/rte_france/antares/datamanager_back/PegaseBackApplication.java
+            **com/rte_france/antares/datamanager_back/PegaseBackApplication.java,
+            **/com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java
         </sonar.exclusions>
     </properties>
     <dependencies>
@@ -195,6 +196,7 @@
                         <exclude>com/rte_france/antares/datamanager_back/repository/model/**</exclude>
                         <exclude>com/rte_france/antares/datamanager_back/dto/**</exclude>
                         <exclude>com/rte_france/antares/datamanager_back/PegaseBackApplication.java</exclude>
+                        <exclude>com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java</exclude>
                     </excludes>
                 </configuration>
                 <executions>

@@ -1,0 +1,80 @@
+package com.rte_france.antares.datamanager_back.service;
+
+import com.rte_france.antares.datamanager_back.service.impl.PegaseSpecification;
+import com.rte_france.antares.datamanager_back.service.impl.SearchCriteria;
+import jakarta.persistence.criteria.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class PegaseSpecificationTest {
+
+    @Mock
+    private Root<Object> root;
+
+    @Mock
+    private CriteriaQuery<?> query;
+
+    @Mock
+    private CriteriaBuilder builder;
+
+    @Mock
+    private Path<Object> path;
+
+    private PegaseSpecification<Object> specification;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        when(root.get(anyString())).thenReturn(path);
+    }
+
+    @Test
+    void toPredicate_Equal() {
+        when(root.get("id")).thenReturn(path);
+
+        SearchCriteria criteria = new SearchCriteria("id", ":", 100);
+        specification = new PegaseSpecification<>(criteria);
+
+        Predicate mockPredicate = mock(Predicate.class);
+        when(builder.equal(path, 100)).thenReturn(mockPredicate);
+
+        Predicate predicate = specification.toPredicate(root, query, builder);
+
+        assertNotNull(predicate);
+        verify(builder).equal(path, 100);
+    }
+
+    @Test
+    void toPredicate_InvalidOperation() {
+        when(root.get("name")).thenReturn(path);
+
+        SearchCriteria criteria = new SearchCriteria("name", "invalid", "John");
+        specification = new PegaseSpecification<>(criteria);
+
+        Predicate predicate = specification.toPredicate(root, query, builder);
+
+        assertNull(predicate);
+    }
+
+
+    @Test
+    void inOperation() {
+        when(root.get("roles")).thenReturn(path);
+
+        SearchCriteria criteria = new SearchCriteria("roles", "in", "admin");
+        specification = new PegaseSpecification<>(criteria);
+
+        Predicate mockPredicate = mock(Predicate.class);
+        when(builder.isMember(eq("admin"), any(Expression.class))).thenReturn(mockPredicate);
+
+        Predicate predicate = specification.toPredicate(root, query, builder);
+
+        assertNotNull(predicate);
+        verify(builder).isMember(eq("admin"), any(Expression.class));
+    }
+}
