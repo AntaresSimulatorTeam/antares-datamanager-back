@@ -18,13 +18,10 @@ public class StudyDTO {
     @JsonProperty("id")
     Integer id;
 
-    @JsonProperty("study_name")
     String name;
 
-    @JsonProperty("user_name")
     String createdBy;
 
-    @JsonProperty("creation_date")
     LocalDateTime creationDate;
 
     @JsonProperty("keywords")

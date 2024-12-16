@@ -57,6 +57,8 @@ class StudyControllerTest {
                        .param("search", "toto")
                        .param("page", "1")
                        .param("size", "2")
+                       .param("sortColumn", "createdBy")
+                       .param("sortDirection", "desc")
                        .accept(MediaType.APPLICATION_JSON_VALUE))
 
                //Then
@@ -74,6 +76,8 @@ class StudyControllerTest {
                        .param("search", "toto")
                        .param("page", "1")
                        .param("size", "2")
+                        .param("sortColumn", "createdBy")
+                        .param("sortDirection", "desc")
                        .accept(MediaType.APPLICATION_JSON_VALUE))
 
                //Then

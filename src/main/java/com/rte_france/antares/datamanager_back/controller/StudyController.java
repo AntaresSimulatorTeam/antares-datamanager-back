@@ -10,7 +10,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyPage;
 
@@ -28,10 +31,18 @@ public class StudyController {
             @RequestParam(value = "projectId", required = false, defaultValue = "") Integer projectId,
             @RequestParam(value = "search", required = false, defaultValue = "") String search,
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
-            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
+            @RequestParam(value = "sortColumn", required = false) String sortColumn,
+            @RequestParam(value = "sortDirection", required = false) String sortDirection) {
 
-        Pageable paging = PageRequest.of(page-1, size, Sort.by(SORTING_CRITERION));
+        Sort sorting = Sort.by(SORTING_CRITERION);
 
-        return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search,projectId, paging)), HttpStatus.OK);
+        if (!sortColumn.isEmpty() && !sortDirection.isEmpty()) {
+            Sort.Direction direction = Sort.Direction.fromString(sortDirection);
+            sorting = Sort.by(direction, sortColumn);
+        }
+        Pageable paging = PageRequest.of(page - 1, size, sorting);
+
+        return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search, projectId, paging)), HttpStatus.OK);
     }
 }
