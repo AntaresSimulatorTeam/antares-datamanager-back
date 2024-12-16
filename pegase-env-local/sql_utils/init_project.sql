@@ -26,7 +26,8 @@ values  (1, 'BP23A_LIVV4_2023_REF', 'Guillaume arthrotomies', 'IN_PROGRESS', '20
         (3, 'BP23A_LIVV4_2021_REF', 'jamal eddine reda', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 1),
         (8, 'BP23A_LIVV4_2029_REF', 'Khalil reporting', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 3),
         (6, 'BP23A_LIVV4_2022_REF', 'Jabrane SEER', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 2),
-        (5, 'BP23A_LIVV4_2032_REF', 'Cedric mco', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 2);
+        (5, 'BP23A_LIVV4_2032_REF', 'Cedric mco', 'GENERATED', '2030-2031', '2024-07-25 10:07:21.000000', 2),
+        (9, 'BP23A_LIVV4_2032_REF', 'Diego Rivera', 'ERROR', '2030-2031', '2024-07-25 10:07:21.000000', 2);
 
 insert into pegase_db_schema.trajectory (id, file_name, file_size, checksum, type, version, created_by, creation_date, last_modification_content_date, horizon)
 values  (3, 'areas_BP23_A_ref_v2', 6822, 'd73a71ca53c7952eb99ab46eec3aeb24fda4d109652f0f539581227124c25010', 'AREA', 1, 'zayd', '2024-07-22 15:13:56.860045', '2024-07-09 10:55:27.467000','2023-2024'),
@@ -48,7 +49,7 @@ values  (3, 'config'),
         (1, 'gaz'),
         (2, 'figma');
 
-INSERT INTO pegase_db_schema.project_tags (project_id, tag)
+INSERT INTO pegase_local_db_schema.project_tags (project_id, tag)
 values  (1, 'gaz'),
         (1, 'elec'),
         (3, 'figma'),
@@ -60,7 +61,7 @@ values  (1, 'gaz'),
         (1, 'tag2 antares'),
         (1, ' area link');
 
-insert into pegase_db_schema.pinned_project (nni,project_id)
+insert into pegase_local_db_schema.pinned_project (nni,project_id)
 values  ('me00247', 1),
         ('me00247', 2),
         ('me00247', 3),
