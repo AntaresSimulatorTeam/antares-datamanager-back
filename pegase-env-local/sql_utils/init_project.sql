@@ -49,7 +49,7 @@ values  (3, 'config'),
         (1, 'gaz'),
         (2, 'figma');
 
-INSERT INTO pegase_local_db_schema.project_tags (project_id, tag)
+INSERT INTO pegase_db_schema.project_tags (project_id, tag)
 values  (1, 'gaz'),
         (1, 'elec'),
         (3, 'figma'),
@@ -61,7 +61,7 @@ values  (1, 'gaz'),
         (1, 'tag2 antares'),
         (1, ' area link');
 
-insert into pegase_local_db_schema.pinned_project (nni,project_id)
+insert into pegase_db_schema.pinned_project (nni,project_id)
 values  ('me00247', 1),
         ('me00247', 2),
         ('me00247', 3),
