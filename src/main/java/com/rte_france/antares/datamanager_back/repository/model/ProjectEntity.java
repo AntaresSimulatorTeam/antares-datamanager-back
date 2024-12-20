@@ -5,7 +5,9 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -42,4 +44,8 @@ public class ProjectEntity {
     @CollectionTable(name = "project_tags", joinColumns = @JoinColumn(name = "project_id"))
     @Column(name = "tag")
     private List<String> tags;
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PinnedProjectEntity> pinnedProjectEntities = new LinkedHashSet<>();
+
 }

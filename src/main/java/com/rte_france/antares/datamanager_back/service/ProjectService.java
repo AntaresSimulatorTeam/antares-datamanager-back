@@ -18,6 +18,8 @@ public interface ProjectService {
 
     ProjectEntity pinProjectForUser(String userId, Integer projectId);
 
+    void deleteProjectById(Integer projectId);
+
 
 }
 

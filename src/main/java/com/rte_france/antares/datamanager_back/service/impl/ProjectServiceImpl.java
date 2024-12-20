@@ -147,6 +147,16 @@ public class ProjectServiceImpl implements ProjectService {
         return project;
     }
 
+    @Override
+    public void deleteProjectById(Integer projectId) {
+        ProjectEntity project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId));
+        if (project.getStudies() != null && !project.getStudies().isEmpty()) {
+            throw new BadRequestException("Project contains studies and cannot be deleted");
+        }
+        projectRepository.deleteById(projectId);
+    }
+
     private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
         List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findById_Nni(userId);
         if (pinnedProjects.size() >= 3) {

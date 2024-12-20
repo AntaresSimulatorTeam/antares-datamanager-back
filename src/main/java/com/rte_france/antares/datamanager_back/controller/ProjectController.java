@@ -63,4 +63,9 @@ public class ProjectController {
         return new ResponseEntity<>(toProjectDto(projectService.findProjectById(id)), HttpStatus.OK);
     }
 
+    @Operation(summary = "Delete project if it contains no studies")
+    @DeleteMapping("/{id}")
+    public void deleteProject(@PathVariable Integer id) {
+        projectService.deleteProjectById(id);
+    }
 }
