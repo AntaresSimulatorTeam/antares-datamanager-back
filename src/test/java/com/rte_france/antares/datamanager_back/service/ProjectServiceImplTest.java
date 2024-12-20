@@ -213,4 +213,50 @@ class ProjectServiceImplTest {
         assertEquals("You have already 3 pinned projects , please unpin one before pinning another one.", exception.getMessage());
         verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
     }
+
+    @Test
+void deleteProjectById_deletesProjectWhenNoStudies() {
+    Integer projectId = 1;
+    ProjectEntity project = new ProjectEntity();
+    project.setId(projectId);
+
+    when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+
+    projectService.deleteProjectById(projectId);
+
+    verify(projectRepository, times(1)).deleteById(projectId);
+}
+
+@Test
+void deleteProjectById_throwsExceptionWhenProjectNotFound() {
+    Integer projectId = 1;
+
+    when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
+
+    ResourceNotFoundException exception = assertThrows(
+            ResourceNotFoundException.class,
+            () -> projectService.deleteProjectById(projectId)
+    );
+
+    assertEquals("Project not found with ID: 1", exception.getMessage());
+    verify(projectRepository, never()).deleteById(projectId);
+}
+
+@Test
+void deleteProjectById_throwsExceptionWhenProjectContainsStudies() {
+    Integer projectId = 1;
+    ProjectEntity project = new ProjectEntity();
+    project.setId(projectId);
+    project.setStudies(List.of(new StudyEntity()));
+
+    when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+
+    BadRequestException exception = assertThrows(
+            BadRequestException.class,
+            () -> projectService.deleteProjectById(projectId)
+    );
+
+    assertEquals("Project contains studies and cannot be deleted", exception.getMessage());
+    verify(projectRepository, never()).deleteById(projectId);
+}
 }

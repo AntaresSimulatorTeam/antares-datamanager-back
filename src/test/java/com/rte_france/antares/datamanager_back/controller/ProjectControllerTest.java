@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import org.junit.jupiter.api.BeforeEach;
@@ -155,5 +156,36 @@ class ProjectControllerTest {
                 .andExpect(jsonPath("$.name").value("name2050"))
                 .andExpect(jsonPath("$.description").value("project2050"));
     }
+@Test
+void deleteProject_returnsNoContentWhenProjectDeleted() throws Exception {
+    Integer projectId = 1;
 
+    doNothing().when(projectService).deleteProjectById(projectId);
+
+    mockMvc.perform(delete("/v1/project/{id}", projectId)
+                    .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
+}
+
+@Test
+void deleteProject_returnsNotFoundWhenProjectDoesNotExist() throws Exception {
+    Integer projectId = 1;
+
+    doThrow(new ResourceNotFoundException("Project not found")).when(projectService).deleteProjectById(projectId);
+
+    mockMvc.perform(delete("/v1/project/{id}", projectId)
+                    .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isNotFound());
+}
+
+@Test
+void deleteProject_returnsBadRequestWhenProjectContainsStudies() throws Exception {
+    Integer projectId = 1;
+
+    doThrow(new BadRequestException("Project contains studies and cannot be deleted")).when(projectService).deleteProjectById(projectId);
+
+    mockMvc.perform(delete("/v1/project/{id}", projectId)
+                    .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isInternalServerError());
+}
 }
