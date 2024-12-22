@@ -1,5 +1,8 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
@@ -18,6 +21,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.List;
 
 @Slf4j
@@ -26,6 +30,8 @@ import java.util.List;
 public class StudyServiceImpl implements StudyService {
 
     private final StudyRepository studyRepository;
+
+    private final ProjectRepository projectRepository;
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -62,6 +68,36 @@ public class StudyServiceImpl implements StudyService {
     public List<String> searchKeywordsByPartialName(String partialName) {
         return studyRepository.findKeywordsByPartialName(partialName);
     }
+
+        @Override
+        public StudyDTO createStudy(StudyDTO studyDTO) {
+            if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
+                throw new BadRequestException("Project name must be provided.");
+            }
+
+            Optional<ProjectEntity> projectEntityOptional = projectRepository.findByName(studyDTO.getProject());
+            ProjectEntity projectEntity;
+
+            if (projectEntityOptional.isPresent()) {
+                projectEntity = projectEntityOptional.get();
+            } else {
+                projectEntity = new ProjectEntity();
+                projectEntity.setName(studyDTO.getProject());
+                projectEntity = projectRepository.save(projectEntity);
+            }
+
+            StudyEntity studyEntity = new StudyEntity();
+            studyEntity.setName(studyDTO.getName());
+            studyEntity.setCreatedBy(studyDTO.getCreatedBy());
+            studyEntity.setCreationDate(LocalDateTime.now());
+            studyEntity.setProject(projectEntity);
+            studyEntity = studyRepository.save(studyEntity);
+
+            studyDTO.setId(studyEntity.getId());
+            studyDTO.setCreationDate(studyEntity.getCreationDate());
+
+            return studyDTO;
+        }
 
     public static Specification<StudyEntity> hasProjectName(String projectName) {
         return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {

@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
@@ -26,7 +28,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.rte_france.antares.datamanager_back.util.Utils;
 
 
 @ExtendWith(SpringExtension.class)
@@ -112,4 +117,42 @@ class StudyControllerTest {
                 .andExpect(jsonPath("$").isEmpty());
     }
 
+
+    @Test
+void createStudyReturnsCreatedStudy() throws Exception {
+    StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
+    StudyDTO createdStudyDTO = StudyDTO.builder().id(1).name("Study 1").createdBy("User 1").build();
+
+    when(studyService.createStudy(any(StudyDTO.class))).thenReturn(createdStudyDTO);
+
+    this.mockMvc.perform(post("/v1/study")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content(Utils.asJsonString(studyDTO))
+                    .accept(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(1))
+            .andExpect(jsonPath("$.name").value("Study 1"))
+            .andExpect(jsonPath("$.createdBy").value("User 1"))
+            .andDo(MockMvcResultHandlers.print())
+            .andReturn();
+
+    verify(studyService, times(1)).createStudy(any(StudyDTO.class));
+}
+
+@Test
+void createStudyThrowsBadRequestWhenNoProjectInfoProvided() throws Exception {
+    StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
+
+    when(studyService.createStudy(any(StudyDTO.class))).thenThrow(new BadRequestException("Either project name or project ID must be provided."));
+
+    this.mockMvc.perform(post("/v1/study")
+                    .contentType(MediaType.APPLICATION_JSON_VALUE)
+                    .content(Utils.asJsonString(studyDTO))
+                    .accept(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isInternalServerError())
+            .andDo(MockMvcResultHandlers.print())
+            .andReturn();
+
+    verify(studyService, times(1)).createStudy(any(StudyDTO.class));
+}
 }
