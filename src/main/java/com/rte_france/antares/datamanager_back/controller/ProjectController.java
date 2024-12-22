@@ -68,4 +68,10 @@ public class ProjectController {
     public void deleteProject(@PathVariable Integer id) {
         projectService.deleteProjectById(id);
     }
+
+    @Operation(summary = "Search projects by partial name for auto-completion")
+    @GetMapping("/autocomplete")
+    public ResponseEntity<List<ProjectDto>> searchProjectsByName(@RequestParam String partialName) {
+        return new ResponseEntity<>(projectService.searchProjectsByName(partialName), HttpStatus.OK);
+    }
 }

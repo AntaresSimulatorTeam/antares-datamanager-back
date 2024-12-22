@@ -188,4 +188,28 @@ void deleteProject_returnsBadRequestWhenProjectContainsStudies() throws Exceptio
                     .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isInternalServerError());
 }
+
+    @Test
+    void searchProjectsByNameReturnsMatchingProjects() throws Exception {
+        ProjectDto projectDto = ProjectDto.builder().id(1).name("Project 1").build();
+        when(projectService.searchProjectsByName("Proj")).thenReturn(List.of(projectDto));
+
+        mockMvc.perform(get("/v1/project/autocomplete")
+                        .param("partialName", "Proj")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].name").value("Project 1"));
+    }
+
+    @Test
+    void searchProjectsByNameReturnsEmptyListWhenNoMatches() throws Exception {
+        when(projectService.searchProjectsByName("NonExistent")).thenReturn(List.of());
+
+        mockMvc.perform(get("/v1/project/autocomplete")
+                        .param("partialName", "NonExistent")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
 }
