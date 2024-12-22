@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
+
+import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
 
 @Slf4j
 @Service
@@ -69,35 +72,64 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.findKeywordsByPartialName(partialName);
     }
 
-        @Override
-        public StudyDTO createStudy(StudyDTO studyDTO) {
-            if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
-                throw new BadRequestException("Project name must be provided.");
-            }
-
-            Optional<ProjectEntity> projectEntityOptional = projectRepository.findByName(studyDTO.getProject());
-            ProjectEntity projectEntity;
-
-            if (projectEntityOptional.isPresent()) {
-                projectEntity = projectEntityOptional.get();
-            } else {
-                projectEntity = new ProjectEntity();
-                projectEntity.setName(studyDTO.getProject());
-                projectEntity = projectRepository.save(projectEntity);
-            }
-
-            StudyEntity studyEntity = new StudyEntity();
-            studyEntity.setName(studyDTO.getName());
-            studyEntity.setCreatedBy(studyDTO.getCreatedBy());
-            studyEntity.setCreationDate(LocalDateTime.now());
-            studyEntity.setProject(projectEntity);
-            studyEntity = studyRepository.save(studyEntity);
-
-            studyDTO.setId(studyEntity.getId());
-            studyDTO.setCreationDate(studyEntity.getCreationDate());
-
-            return studyDTO;
+    @Override
+    public StudyDTO createStudy(StudyDTO studyDTO) {
+        if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
+            throw new BadRequestException("Project name must be provided.");
         }
+        validateHorizon(studyDTO);
+        validateTags(studyDTO);
+
+        if (studyExists(studyDTO.getName(), studyDTO.getProject())) {
+            throw new BadRequestException("A study with the same name already exists for the given project.");
+        }
+
+        ProjectEntity projectEntity = projectRepository.findByName(studyDTO.getProject())
+                .orElseGet(() -> projectRepository.save(ProjectEntity.builder()
+                        .name(studyDTO.getProject())
+                        .createdBy(studyDTO.getCreatedBy())
+                        .creationDate(LocalDateTime.now())
+                        .build()));
+
+        return toStudyDTO(buildAndSaveNewStudy(studyDTO, projectEntity));
+    }
+
+    private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
+        String studyName = studyDTO.getName() + "-" + studyDTO.getHorizon() + "_ref";
+        String horizon = studyDTO.getHorizon() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
+
+        StudyEntity studyEntity = StudyEntity.builder()
+                .name(studyName)
+                .createdBy(studyDTO.getCreatedBy())
+                .creationDate(LocalDateTime.now())
+                .project(projectEntity)
+                .horizon(horizon)
+                .status(StudyStatus.IN_PROGRESS)
+                .tags(studyDTO.getTags())
+                .build();
+        studyEntity = studyRepository.save(studyEntity);
+        return studyEntity;
+    }
+
+    private static void validateTags(StudyDTO studyDTO) {
+        if (studyDTO.getTags() != null && studyDTO.getTags().size() > 10) {
+            throw new BadRequestException("Tags list must not exceed 10 items.");
+        }
+    }
+    private boolean studyExists(String studyName, String projectName) {
+        return studyRepository.existsByNameAndProjectName(studyName, projectName);
+    }
+    private static void validateHorizon(StudyDTO studyDTO) {
+        int currentYear = LocalDateTime.now().getYear();
+        try {
+            int horizonYear = Integer.parseInt(studyDTO.getHorizon());
+            if (horizonYear < currentYear) {
+                throw new BadRequestException("Horizon year must be greater than the current year.");
+            }
+        } catch (NumberFormatException e) {
+            throw new BadRequestException("Horizon must be a valid year.");
+        }
+    }
 
     public static Specification<StudyEntity> hasProjectName(String projectName) {
         return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {

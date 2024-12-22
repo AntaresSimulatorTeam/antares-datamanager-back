@@ -18,7 +18,8 @@ import java.util.Set;
 @Table(name = "project")
 public class ProjectEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "project_seq_gen")
+    @SequenceGenerator(name = "project_seq_gen", sequenceName = "project_sequence", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Integer id;
 
