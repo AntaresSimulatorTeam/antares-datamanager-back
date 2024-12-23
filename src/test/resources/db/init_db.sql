@@ -40,3 +40,10 @@ values  ('me00247', 1),
         ('no0099', 1),
         ('no0099', 2);
 
+insert into public.scenario_tags (scenario_id, tag)
+values  (3, 'config'),
+        (1, 'elec'),
+        (3, 'antares'),
+        (3, 'bilan 22'),
+        (1, 'gaz'),
+        (2, 'figma');

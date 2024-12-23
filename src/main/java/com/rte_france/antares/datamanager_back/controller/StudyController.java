@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.service.StudyService;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyPage;
 
@@ -45,4 +48,12 @@ public class StudyController {
 
         return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search, projectId, paging)), HttpStatus.OK);
     }
+
+
+        @Operation(summary = "Search keywords by partial name for auto-completion")
+        @GetMapping("/keywords/search")
+        public ResponseEntity<List<String>> searchKeywordsByPartialName(@RequestParam String partialName) {
+            return new ResponseEntity<>(studyService.searchKeywordsByPartialName(partialName), HttpStatus.OK);
+        }
+
 }

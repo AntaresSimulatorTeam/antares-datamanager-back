@@ -18,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -57,6 +58,10 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.findAll(spec, pageable);
     }
 
+    @Override
+    public List<String> searchKeywordsByPartialName(String partialName) {
+        return studyRepository.findKeywordsByPartialName(partialName);
+    }
 
     public static Specification<StudyEntity> hasProjectName(String projectName) {
         return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
@@ -68,7 +73,7 @@ public class StudyServiceImpl implements StudyService {
     public static Specification<StudyEntity> hasProjectId(Integer projectId) {
         return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
             Join<StudyEntity, ProjectEntity> project = root.join("project");
-            return criteriaBuilder.equal(project.get("id"), projectId );
+            return criteriaBuilder.equal(project.get("id"), projectId);
         };
     }
 

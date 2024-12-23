@@ -20,10 +20,12 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 
@@ -31,59 +33,83 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class StudyControllerTest {
 
-   @Autowired
-   protected WebApplicationContext wac;
+    @Autowired
+    protected WebApplicationContext wac;
 
-   protected MockMvc mockMvc;
+    protected MockMvc mockMvc;
 
-   @MockBean
-   StudyServiceImpl studyService;
+    @MockBean
+    StudyServiceImpl studyService;
 
-   @BeforeEach
-   public void setup() {
-      this.mockMvc = MockMvcBuilders
-              .webAppContextSetup(wac)
-              .build();
-   }
-
-    @Test
-     void getStudiesReturnsPageOfStudies() throws Exception {
-       StudyEntity studyEntity = StudyEntity.builder().id(1).name("name").status(StudyStatus.IN_PROGRESS)
-               .project(ProjectEntity.builder().name("project").build())
-               .build();
-        when(studyService.findStudiesByCriteria(any(),any(), any())).thenReturn(new PageImpl<>(Collections.singletonList(studyEntity)));
-       this.mockMvc.perform(get("/v1/study/search")
-                       .contentType(MediaType.APPLICATION_JSON_VALUE)
-                       .param("search", "toto")
-                       .param("page", "1")
-                       .param("size", "2")
-                       .param("sortColumn", "createdBy")
-                       .param("sortDirection", "desc")
-                       .accept(MediaType.APPLICATION_JSON_VALUE))
-
-               //Then
-               .andExpect(status().isOk())
-               .andDo(MockMvcResultHandlers.print())
-               .andReturn();
-       verify(studyService, times(1)).findStudiesByCriteria(any(), any(), any());
+    @BeforeEach
+    public void setup() {
+        this.mockMvc = MockMvcBuilders
+                .webAppContextSetup(wac)
+                .build();
     }
 
     @Test
-     void getStudiesReturnsEmptyPageWhenNoStudiesFound() throws Exception {
-        when(studyService.findStudiesByCriteria(any(),any(), any())).thenReturn(Page.empty());
+    void getStudiesReturnsPageOfStudies() throws Exception {
+        StudyEntity studyEntity = StudyEntity.builder().id(1).name("name").status(StudyStatus.IN_PROGRESS)
+                .project(ProjectEntity.builder().name("project").build())
+                .build();
+        when(studyService.findStudiesByCriteria(any(), any(), any())).thenReturn(new PageImpl<>(Collections.singletonList(studyEntity)));
         this.mockMvc.perform(get("/v1/study/search")
-                       .contentType(MediaType.APPLICATION_JSON_VALUE)
-                       .param("search", "toto")
-                       .param("page", "1")
-                       .param("size", "2")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("search", "toto")
+                        .param("page", "1")
+                        .param("size", "2")
                         .param("sortColumn", "createdBy")
                         .param("sortDirection", "desc")
-                       .accept(MediaType.APPLICATION_JSON_VALUE))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
 
-               //Then
-               .andExpect(status().isOk())
-               .andDo(MockMvcResultHandlers.print())
-               .andReturn();
-       verify(studyService, times(1)).findStudiesByCriteria(any(), any(), any());
+                //Then
+                .andExpect(status().isOk())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(studyService, times(1)).findStudiesByCriteria(any(), any(), any());
     }
+
+    @Test
+    void getStudiesReturnsEmptyPageWhenNoStudiesFound() throws Exception {
+        when(studyService.findStudiesByCriteria(any(), any(), any())).thenReturn(Page.empty());
+        this.mockMvc.perform(get("/v1/study/search")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("search", "toto")
+                        .param("page", "1")
+                        .param("size", "2")
+                        .param("sortColumn", "createdBy")
+                        .param("sortDirection", "desc")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                //Then
+                .andExpect(status().isOk())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(studyService, times(1)).findStudiesByCriteria(any(), any(), any());
+    }
+
+    @Test
+    void searchKeywordsByPartialNameReturnsMatchingKeywords() throws Exception {
+        when(studyService.searchKeywordsByPartialName("key")).thenReturn(List.of("keyword1", "keyword2"));
+
+        mockMvc.perform(get("/v1/study/keywords/search")
+                        .param("partialName", "key")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("keyword1"))
+                .andExpect(jsonPath("$[1]").value("keyword2"));
+    }
+
+    @Test
+    void searchKeywordsByPartialNameReturnsEmptyListWhenNoMatches() throws Exception {
+        when(studyService.searchKeywordsByPartialName("nonExistent")).thenReturn(List.of());
+
+        mockMvc.perform(get("/v1/study/keywords/search")
+                        .param("partialName", "nonExistent")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
 }

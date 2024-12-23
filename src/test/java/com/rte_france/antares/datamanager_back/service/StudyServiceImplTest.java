@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -74,4 +75,38 @@ class StudyServiceImplTest {
         assertEquals(studyPage, result);
         verify(studyRepository).findAll(any(Specification.class), eq(pageable));
     }
+
+    @Test
+void searchKeywordsByPartialNameReturnsMatchingKeywords() {
+    when(studyRepository.findKeywordsByPartialName("key")).thenReturn(List.of("keyword1", "keyword2"));
+
+    List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("key");
+
+    assertThat(keywords).isNotNull();
+    assertThat(keywords).isNotEmpty();
+    assertThat(keywords).contains("keyword1", "keyword2");
+    verify(studyRepository, times(1)).findKeywordsByPartialName("key");
+}
+
+@Test
+void searchKeywordsByPartialNameReturnsEmptyListWhenNoMatches() {
+    when(studyRepository.findKeywordsByPartialName("nonExistent")).thenReturn(List.of());
+
+    List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("nonExistent");
+
+    assertThat(keywords).isNotNull();
+    assertThat(keywords).isEmpty();
+    verify(studyRepository, times(1)).findKeywordsByPartialName("nonExistent");
+}
+
+@Test
+void searchKeywordsByPartialNameHandlesNullInput() {
+    when(studyRepository.findKeywordsByPartialName(null)).thenReturn(List.of());
+
+    List<String> keywords = studyServiceImpl.searchKeywordsByPartialName(null);
+
+    assertThat(keywords).isNotNull();
+    assertThat(keywords).isEmpty();
+    verify(studyRepository, times(1)).findKeywordsByPartialName(null);
+}
 }
