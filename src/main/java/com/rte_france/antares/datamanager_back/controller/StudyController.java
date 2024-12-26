@@ -37,7 +37,7 @@ public class StudyController {
 
         Sort sorting = Sort.by(SORTING_CRITERION);
 
-        if (!sortColumn.isEmpty() && !sortDirection.isEmpty()) {
+        if (sortColumn != null && !sortColumn.isEmpty() && !sortDirection.isEmpty()) {
             Sort.Direction direction = Sort.Direction.fromString(sortDirection);
             sorting = Sort.by(direction, sortColumn);
         }
