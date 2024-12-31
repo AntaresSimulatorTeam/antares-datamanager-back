@@ -35,7 +35,7 @@ public class StudyController {
             @RequestParam(value = "sortColumn", required = false) String sortColumn,
             @RequestParam(value = "sortDirection", required = false) String sortDirection) {
 
-        Sort sorting = Sort.by(SORTING_CRITERION);
+        Sort sorting = Sort.by(Sort.Direction.DESC,SORTING_CRITERION);
 
         if (sortColumn != null && !sortColumn.isEmpty() && !sortDirection.isEmpty()) {
             Sort.Direction direction = Sort.Direction.fromString(sortDirection);

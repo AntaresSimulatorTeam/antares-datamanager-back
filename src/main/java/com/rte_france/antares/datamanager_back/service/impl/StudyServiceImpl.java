@@ -4,9 +4,11 @@ import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -20,10 +22,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
 
@@ -35,6 +41,8 @@ public class StudyServiceImpl implements StudyService {
     private final StudyRepository studyRepository;
 
     private final ProjectRepository projectRepository;
+
+    private final TrajectoryRepository trajectoryRepository;
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -74,6 +82,8 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     public StudyDTO createStudy(StudyDTO studyDTO) {
+        String studyName = studyDTO.getName() + "-" + studyDTO.getHorizon() + "_REF";
+        studyDTO.setName(studyName);
         if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
             throw new BadRequestException("Project name must be provided.");
         }
@@ -95,20 +105,32 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
-        String studyName = studyDTO.getName() + "-" + studyDTO.getHorizon() + "_ref";
         String horizon = studyDTO.getHorizon() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
+        Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())
+                ? Collections.emptySet()
+                : convertToTrajectoryEntities(studyDTO.getTrajectoryIds());
 
         StudyEntity studyEntity = StudyEntity.builder()
-                .name(studyName)
+                .name(studyDTO.getName())
                 .createdBy(studyDTO.getCreatedBy())
                 .creationDate(LocalDateTime.now())
                 .project(projectEntity)
                 .horizon(horizon)
                 .status(StudyStatus.IN_PROGRESS)
                 .tags(studyDTO.getTags())
+                .trajectories(trajectories)
                 .build();
-        studyEntity = studyRepository.save(studyEntity);
-        return studyEntity;
+
+        trajectories.forEach(trajectory -> trajectory.getScenarioEntities().add(studyEntity));
+        return studyRepository.save(studyEntity);
+    }
+
+    private Set<TrajectoryEntity> convertToTrajectoryEntities(List<Integer> trajectoryIds) {
+        return trajectoryIds.stream()
+                .map(trajectoryRepository::findTrajectoryEntityById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toSet());
     }
 
     private static void validateTags(StudyDTO studyDTO) {
@@ -116,9 +138,11 @@ public class StudyServiceImpl implements StudyService {
             throw new BadRequestException("Tags list must not exceed 10 items.");
         }
     }
+
     private boolean studyExists(String studyName, String projectName) {
         return studyRepository.existsByNameAndProjectName(studyName, projectName);
     }
+
     private static void validateHorizon(StudyDTO studyDTO) {
         int currentYear = LocalDateTime.now().getYear();
         try {

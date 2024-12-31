@@ -9,9 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import org.springframework.data.jpa.repository.Query;
-
-import java.util.List;
 
 public interface StudyRepository extends JpaRepository<StudyEntity, String> {
 
@@ -24,5 +21,6 @@ public interface StudyRepository extends JpaRepository<StudyEntity, String> {
     List<String> findKeywordsByPartialName(String partialName);
 
 
-    boolean existsByNameAndProjectName(String name, String projectName);
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM StudyEntity s WHERE s.name = :name AND s.project.name = :projectName")
+    boolean existsByNameAndProjectName(@Param("name") String name, @Param("projectName") String projectName);
 }

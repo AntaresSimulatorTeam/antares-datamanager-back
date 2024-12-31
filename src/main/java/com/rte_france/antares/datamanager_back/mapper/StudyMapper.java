@@ -3,11 +3,14 @@ package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
+
+import java.util.Collections;
 
 @Value
 @Builder(toBuilder = true)
@@ -24,6 +27,7 @@ public class StudyMapper {
                 .tags(entity.getTags())
                 .horizon(entity.getHorizon())
                 .status(entity.getStatus().name())
+                .trajectoryIds(entity.getTrajectories() != null ? entity.getTrajectories().stream().map(TrajectoryEntity::getId).toList() : Collections.emptyList())
                 .build();
     }
 

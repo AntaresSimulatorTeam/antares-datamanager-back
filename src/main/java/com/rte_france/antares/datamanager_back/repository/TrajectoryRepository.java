@@ -11,7 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, String> {
+public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, Integer> {
+
+   Optional<TrajectoryEntity> findTrajectoryEntityById(Integer id);
 
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameOrderByVersionDesc(String fileName);
