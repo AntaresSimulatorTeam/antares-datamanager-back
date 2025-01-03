@@ -59,4 +59,10 @@ public class StudyController {
         StudyDTO createdStudy = studyService.createStudy(studyDTO);
         return new ResponseEntity<>(createdStudy, HttpStatus.CREATED);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteStudyById(@PathVariable Integer id) {
+        studyService.deleteStudyById(id);
+        return ResponseEntity.noContent().build();
+    }
 }

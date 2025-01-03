@@ -81,6 +81,14 @@ public class StudyServiceImpl implements StudyService {
     }
 
     @Override
+    public void deleteStudyById(Integer id) {
+        //delete study if exists
+        studyRepository.findById(id).ifPresentOrElse(studyRepository::delete, () -> {
+            throw new BadRequestException("Study with id " + id + " not found.");
+        });
+    }
+
+    @Override
     public StudyDTO createStudy(StudyDTO studyDTO) {
         String studyName = studyDTO.getName() + "-" + studyDTO.getHorizon() + "_REF";
         studyDTO.setName(studyName);

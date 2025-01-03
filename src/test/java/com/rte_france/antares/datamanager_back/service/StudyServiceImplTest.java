@@ -88,38 +88,38 @@ class StudyServiceImplTest {
     }
 
     @Test
-void searchKeywordsByPartialNameReturnsMatchingKeywords() {
-    when(studyRepository.findKeywordsByPartialName("key")).thenReturn(List.of("keyword1", "keyword2"));
+    void searchKeywordsByPartialNameReturnsMatchingKeywords() {
+        when(studyRepository.findKeywordsByPartialName("key")).thenReturn(List.of("keyword1", "keyword2"));
 
-    List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("key");
+        List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("key");
 
-    assertThat(keywords).isNotNull();
-    assertThat(keywords).isNotEmpty();
-    assertThat(keywords).contains("keyword1", "keyword2");
-    verify(studyRepository, times(1)).findKeywordsByPartialName("key");
-}
+        assertThat(keywords).isNotNull();
+        assertThat(keywords).isNotEmpty();
+        assertThat(keywords).contains("keyword1", "keyword2");
+        verify(studyRepository, times(1)).findKeywordsByPartialName("key");
+    }
 
-@Test
-void searchKeywordsByPartialNameReturnsEmptyListWhenNoMatches() {
-    when(studyRepository.findKeywordsByPartialName("nonExistent")).thenReturn(List.of());
+    @Test
+    void searchKeywordsByPartialNameReturnsEmptyListWhenNoMatches() {
+        when(studyRepository.findKeywordsByPartialName("nonExistent")).thenReturn(List.of());
 
-    List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("nonExistent");
+        List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("nonExistent");
 
-    assertThat(keywords).isNotNull();
-    assertThat(keywords).isEmpty();
-    verify(studyRepository, times(1)).findKeywordsByPartialName("nonExistent");
-}
+        assertThat(keywords).isNotNull();
+        assertThat(keywords).isEmpty();
+        verify(studyRepository, times(1)).findKeywordsByPartialName("nonExistent");
+    }
 
-@Test
-void searchKeywordsByPartialNameHandlesNullInput() {
-    when(studyRepository.findKeywordsByPartialName(null)).thenReturn(List.of());
+    @Test
+    void searchKeywordsByPartialNameHandlesNullInput() {
+        when(studyRepository.findKeywordsByPartialName(null)).thenReturn(List.of());
 
-    List<String> keywords = studyServiceImpl.searchKeywordsByPartialName(null);
+        List<String> keywords = studyServiceImpl.searchKeywordsByPartialName(null);
 
-    assertThat(keywords).isNotNull();
-    assertThat(keywords).isEmpty();
-    verify(studyRepository, times(1)).findKeywordsByPartialName(null);
-}
+        assertThat(keywords).isNotNull();
+        assertThat(keywords).isEmpty();
+        verify(studyRepository, times(1)).findKeywordsByPartialName(null);
+    }
 
     @Test
     void createStudyCreatesNewProjectWhenProjectNotExists() {
@@ -203,4 +203,27 @@ void searchKeywordsByPartialNameHandlesNullInput() {
         verify(studyRepository, never()).save(any(StudyEntity.class));
     }
 
+    @Test
+    void deleteStudyByIdDeletesStudyWhenExists() {
+        StudyEntity studyEntity = new StudyEntity();
+        studyEntity.setId(1);
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
+
+        studyServiceImpl.deleteStudyById(1);
+
+        verify(studyRepository, times(1)).delete(studyEntity);
+    }
+
+    @Test
+    void deleteStudyByIdThrowsBadRequestExceptionWhenStudyNotFound() {
+        when(studyRepository.findById(1)).thenReturn(Optional.empty());
+
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+            studyServiceImpl.deleteStudyById(1);
+        });
+
+        assertEquals("Study with id 1 not found.", exception.getMessage());
+        verify(studyRepository, never()).delete(any(StudyEntity.class));
+    }
 }

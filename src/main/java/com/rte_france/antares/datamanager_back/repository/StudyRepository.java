@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface StudyRepository extends JpaRepository<StudyEntity, String> {
+public interface StudyRepository extends JpaRepository<StudyEntity, Integer> {
 
     Page<StudyEntity> findAll(Specification<StudyEntity> spec, Pageable pageable);
 
