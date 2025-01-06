@@ -1,7 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.mapper.ProjectMapper;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -65,6 +68,14 @@ public class ProjectServiceImpl implements ProjectService {
             return projectRepository.findAll(spec, paging);
         }
         return projectRepository.findAll(paging);
+    }
+
+    @Override
+    public List<ProjectDto> searchProjectsByName(String partialName) {
+        List<ProjectEntity> projectEntities = projectRepository.findByNameContainingIgnoreCase(partialName);
+        return projectEntities.stream()
+                .map(ProjectMapper::toProjectDto)
+                .collect(Collectors.toList());
     }
 
     public static Specification<ProjectEntity> hasStudyName(String studyName) {

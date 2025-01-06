@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.hibernate.annotations.Cascade;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
@@ -18,7 +19,8 @@ import java.util.Set;
 @Table(name = "scenario")
 public class StudyEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "study_seq_gen")
+    @SequenceGenerator(name = "study_seq_gen", sequenceName = "study_sequence", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Integer id;
 
@@ -41,6 +43,9 @@ public class StudyEntity {
     private StudyStatus status;
 
     private String horizon;
+
+    @OneToMany(mappedBy = "studyEntity", orphanRemoval = true)
+    private Set<StudyTrajectoryEntity> studyTrajectoryEntities = new LinkedHashSet<>();
 
     @ManyToMany(mappedBy = "scenarioEntities")
     private Set<TrajectoryEntity> trajectories = new LinkedHashSet<>();

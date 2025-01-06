@@ -13,6 +13,8 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 
@@ -47,5 +49,30 @@ class StudyRepositoryTest {
 
         assertThat(page).isNotNull();
         assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void findKeywordsByPartialNameReturnsMatchingKeywords() {
+        List<String> keywords = studyRepository.findKeywordsByPartialName("config");
+
+        assertThat(keywords).isNotNull();
+        assertThat(keywords).isNotEmpty();
+        assertThat(keywords).contains("config");
+    }
+
+    @Test
+    void findKeywordsByPartialNameReturnsEmptyListWhenNoMatches() {
+        List<String> keywords = studyRepository.findKeywordsByPartialName("nonExistent");
+
+        assertThat(keywords).isNotNull();
+        assertThat(keywords).isEmpty();
+    }
+
+    @Test
+    void findKeywordsByPartialNameHandlesNullInput() {
+        List<String> keywords = studyRepository.findKeywordsByPartialName(null);
+
+        assertThat(keywords).isNotNull();
+        assertThat(keywords).isEmpty();
     }
 }

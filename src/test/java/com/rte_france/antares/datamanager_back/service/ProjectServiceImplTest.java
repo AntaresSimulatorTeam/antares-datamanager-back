@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
@@ -258,5 +259,37 @@ void deleteProjectById_throwsExceptionWhenProjectContainsStudies() {
 
     assertEquals("Project contains studies and cannot be deleted", exception.getMessage());
     verify(projectRepository, never()).deleteById(projectId);
+}
+
+@Test
+void searchProjectsByNameReturnsMatchingProjects() {
+    ProjectEntity projectEntity = new ProjectEntity();
+    projectEntity.setId(1);
+    projectEntity.setName("Project 1");
+    when(projectRepository.findByNameContainingIgnoreCase("Proj")).thenReturn(List.of(projectEntity));
+
+    List<ProjectDto> result = projectService.searchProjectsByName("Proj");
+
+    assertEquals(1, result.size());
+    assertEquals("Project 1", result.get(0).getName());
+    verify(projectRepository, times(1)).findByNameContainingIgnoreCase("Proj");
+}
+
+@Test
+void searchProjectsByNameReturnsEmptyListWhenNoMatches() {
+    when(projectRepository.findByNameContainingIgnoreCase("NonExistent")).thenReturn(List.of());
+
+    List<ProjectDto> result = projectService.searchProjectsByName("NonExistent");
+
+    assertEquals(0, result.size());
+    verify(projectRepository, times(1)).findByNameContainingIgnoreCase("NonExistent");
+}
+
+@Test
+void searchProjectsByNameHandlesNullInput() {
+    List<ProjectDto> result = projectService.searchProjectsByName(null);
+
+    assertEquals(0, result.size());
+    verify(projectRepository, times(1)).findByNameContainingIgnoreCase(null);
 }
 }

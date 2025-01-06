@@ -1,5 +1,9 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
@@ -189,5 +193,10 @@ public class Utils {
         }
     }
 
-
+    public static String asJsonString(final Object obj) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return mapper.writeValueAsString(obj);
+    }
 }
