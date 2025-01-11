@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 
@@ -14,5 +15,6 @@ public interface TrajectoryService {
 
      List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType);
 
+     List<TrajectoryDTO> findTrajectoriesByTypeAndIds(String trajectoryType, List<Integer> trajectoryIds);
 
 }

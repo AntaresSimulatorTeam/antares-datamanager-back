@@ -1,8 +1,9 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 
-import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,11 +24,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
- class TrajectoryControllerTest {
+class TrajectoryControllerTest {
 
     @Autowired
     protected WebApplicationContext wac;
@@ -49,7 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
     @Test
     void uploadTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryServiceImpl.processTrajectory(any(),any(), any())).thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryServiceImpl.processTrajectory(any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -62,12 +64,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(),any());
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any());
     }
 
     @Test
     void findTrajectoriesByTypeFromDb_returnsTrajectories() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(),any(),any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
 
         this.mockMvc.perform(get("/v1/trajectory/db")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -80,7 +82,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any(),any());
+        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any(), any());
     }
 
     @Test
@@ -99,4 +101,52 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         verify(sftpDownloadService, times(1)).listFsTrajectoryByType(any(), any());
     }
 
+    @Test
+    void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentType() throws Exception {
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("nonExistentType", List.of(1, 2, 3))).thenReturn(List.of());
+        this.mockMvc.perform(get("/v1/trajectory")
+                        .param("trajectoryType", "nonExistentType")
+                        .param("studyIds", "1,2,3")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentIds() throws Exception {
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("AREA", List.of(999, 1000))).thenReturn(List.of());
+        this.mockMvc.perform(get("/v1/trajectory")
+                        .param("trajectoryType", "AREA")
+                        .param("studyIds", "999,1000")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void getTrajectoriesByStudyIdAndType_returnsNonEmptyListForExistentTypeAndIds() throws Exception {
+        TrajectoryDTO dto = new TrajectoryDTO();
+        dto.setType("AREA");
+        dto.setId(1);
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2))).thenReturn(List.of(dto));
+        this.mockMvc.perform(get("/v1/trajectory")
+                        .param("trajectoryType", "AREA")
+                        .param("studyIds", "1,2")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isNotEmpty())
+                .andExpect(jsonPath("$[0].type").value("AREA"))
+                .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void getTrajectoriesByStudyIdAndType_returnsEmptyListForEmptyIds() throws Exception {
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("AREA", List.of())).thenReturn(List.of());
+        this.mockMvc.perform(get("/v1/trajectory")
+                        .param("trajectoryType", "AREA")
+                        .param("studyIds", "")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
 }

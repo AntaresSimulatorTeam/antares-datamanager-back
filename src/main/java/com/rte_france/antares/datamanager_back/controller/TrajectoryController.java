@@ -64,4 +64,10 @@ public class TrajectoryController {
             throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon)), HttpStatus.CREATED);
     }
+
+    @GetMapping
+    public List<TrajectoryDTO> getTrajectoriesByStudyIdAndType(@RequestParam("studyIds") List<Integer> trajectoryIds,
+                                                               @RequestParam("trajectoryType") String trajectoryType) {
+        return trajectoryService.findTrajectoriesByTypeAndIds(trajectoryType, trajectoryIds);
+    }
 }

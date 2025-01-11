@@ -22,5 +22,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     @Query("SELECT t FROM Trajectory t WHERE t.type = :type AND t.horizon= :horizon AND (t.fileName LIKE CONCAT('%', CONCAT(:fileNameStartsWith, '%')) OR :fileNameStartsWith IS NULL)")
     List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(@Param("type") String type,@Param("horizon") String horizon, @Param("fileNameStartsWith") String fileNameStartsWith);
 
+    List<TrajectoryEntity> findByTypeAndIdIn(String trajectoryType, List<Integer> trajectoryIds);
+
 }
 
