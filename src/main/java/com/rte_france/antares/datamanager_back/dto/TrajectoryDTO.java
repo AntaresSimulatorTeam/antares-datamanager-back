@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder(toBuilder = true)
@@ -33,7 +32,4 @@ public class TrajectoryDTO {
     @JsonProperty("creation_date")
     LocalDateTime creationDate;
 
-    List<String> tags;
-
-    String projet;
 }
