@@ -29,6 +29,7 @@
     <properties>
         <java.version>21</java.version>
         <open-api-doc.version>2.0.3</open-api-doc.version>
+        <arrow.version>18.1.0</arrow.version>
         <sonar.organization>antaressimulatorteam</sonar.organization>
         <sonar.projectKey>AntaresSimulatorTeam_antares-datamanager-back</sonar.projectKey>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -165,6 +166,17 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-vector</artifactId>
+            <version>${arrow.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-memory-netty</artifactId>
+            <version>${arrow.version}</version>
         </dependency>
     </dependencies>
 
