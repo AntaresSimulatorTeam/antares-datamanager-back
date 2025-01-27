@@ -10,9 +10,6 @@ import lombok.Value;
 
 import java.util.List;
 
-/**
- * @author Sylvain Leclerc <sylvain.leclerc@rte-france.com>
- */
 @Value
 public class Matrix {
 
