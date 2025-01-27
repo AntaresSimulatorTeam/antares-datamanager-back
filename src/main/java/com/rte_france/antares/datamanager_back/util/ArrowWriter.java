@@ -66,12 +66,24 @@ public class ArrowWriter {
     var writer = new ArrowWriter();
     try {
       var matrix = ArrowReader.readMatrixFromTxt(Path.of("src/main/resources/load_fr_2030-2031.txt"));
-      try (var out = Files.newOutputStream(Path.of("src/main/resources/test-matrix.arrow"))) {
+
+      var startSerialization = System.nanoTime();
+      var arrowFilePath = Path.of("src/main/resources/test-matrix.arrow");
+      try (var out = Files.newOutputStream(arrowFilePath)) {
         writer.write(matrix, out);
       }
+      var endSerialization = System.nanoTime();
+      var serializationTime = (endSerialization - startSerialization) / 1_000_000_000.0;
+      var fileSize = Files.size(arrowFilePath);
 
-      var deserializedMatrix = ArrowReader.readMatrixFromArrow(Path.of("src/main/resources/test-matrix.arrow"));
-      System.out.println("decoy");
+      var startDeserialization = System.nanoTime();
+      var deserializedMatrix = ArrowReader.readMatrixFromArrow(arrowFilePath);
+      var endDeserialization = System.nanoTime();
+      var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
+
+      System.out.println("Serialization time (s): " + serializationTime);
+      System.out.println("Deserialization time (s): " + deserializationTime);
+      System.out.println(".arrow file size (bytes): " + fileSize);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
