@@ -9,63 +9,25 @@ package com.rte_france.antares.datamanager_back.util;
 import java.util.Arrays;
 import java.util.Objects;
 
-/**
- * @author Sylvain Leclerc <sylvain.leclerc@rte-france.com>
- */
-public record MatrixColumn(String name, ColumnType type, int[] intValues, float[] floatValues) {
-
-  public float[] getFloatValues() {
-        if (type != ColumnType.FLOAT) {
-            throw new IllegalArgumentException("Cannot get float values from int column");
-        }
-        return floatValues;
-    }
-
-    public int[] getIntValues() {
-        if (type != ColumnType.INT) {
-            throw new IllegalArgumentException("Cannot get int values from float column");
-        }
-        return intValues;
-    }
-
+public record MatrixColumn(String name, double[] values) {
     public int getSize() {
-      return switch (type) {
-        case INT -> intValues.length;
-        case FLOAT -> floatValues.length;
-        default -> throw new IllegalStateException("Invalid column type " + type);
-      };
-    }
-
-    public MatrixColumn(String name, float[] values) {
-        this(name, ColumnType.FLOAT, null, Objects.requireNonNull(values.clone()));
-    }
-
-    public MatrixColumn(String name, int[] values) {
-        this(name, ColumnType.INT, Objects.requireNonNull(values.clone()), null);
+      return values.length;
     }
 
     public MatrixColumn {
         Objects.requireNonNull(name);
-        Objects.requireNonNull(type);
-        if (type == ColumnType.FLOAT && floatValues == null) {
-            throw new IllegalArgumentException("Float column must have floatValues");
-        }
-        if (type == ColumnType.INT && intValues == null) {
-            throw new IllegalArgumentException("Int column must have intValues");
-        }
+        Objects.requireNonNull(values);
     }
 
     public MatrixColumn renamed(String newName) {
-        return new MatrixColumn(newName, type, intValues, floatValues);
+        return new MatrixColumn(newName, values);
     }
 
     @Override
     public String toString() {
         return "MatrixColumn{" +
                 "name='" + name + '\'' +
-                ", type=" + type +
-                ", floatValues=" + Arrays.toString(floatValues) +
-                ", intValues=" + Arrays.toString(intValues) +
+                ", values=" + Arrays.toString(values) +
                 '}';
     }
 }
