@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.util;
 
-
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -54,10 +53,22 @@ public class TimeSeriesWriter {
   public static void main(String[] args) {
     try {
       var matrix = TimeSeriesWriter.readFromTxt(Path.of("src/main/resources/INPUT/load/load_at_2030-2031.txt"));
-//      writeToParquet(matrix, Path.of("src/main/resources/INPUT/load/output_test"));
-      var read = TimeSeriesReader.readFromParquet(Path.of("src/main/resources/INPUT/load/output_test.parquet"));
 
-      assert matrix.equals(read);
+      var startSerialization = System.nanoTime();
+      var parquetFilePath = Path.of("src/main/resources/INPUT/load/output_test.parquet");
+      TimeSeriesWriter.writeToParquet(matrix, parquetFilePath);
+      var endSerialization = System.nanoTime();
+      var serializationTime = (endSerialization - startSerialization) / 1_000_000_000.0;
+      var fileSize = Files.size(parquetFilePath);
+
+      var startDeserialization = System.nanoTime();
+      var deserializedMatrix = TimeSeriesReader.readFromParquet(parquetFilePath);
+      var endDeserialization = System.nanoTime();
+      var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
+
+      System.out.println("Serialization time: " + serializationTime);
+      System.out.println("Deserialization time: " + deserializationTime);
+      System.out.println(".parquet file size (bytes): " + fileSize);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
