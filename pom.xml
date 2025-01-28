@@ -29,7 +29,7 @@
     <properties>
         <java.version>21</java.version>
         <open-api-doc.version>2.0.3</open-api-doc.version>
-        <arrow.version>18.1.0</arrow.version>
+        <parquet.version>1.15.0</parquet.version>
         <sonar.organization>antaressimulatorteam</sonar.organization>
         <sonar.projectKey>AntaresSimulatorTeam_antares-datamanager-back</sonar.projectKey>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -166,22 +166,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-vector</artifactId>
-            <version>${arrow.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-memory-netty</artifactId>
-            <version>${arrow.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-compression</artifactId>
-            <version>${arrow.version}</version>
-        </dependency>
-
     </dependencies>
 
     <build>
@@ -196,7 +180,6 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                    <jvmArguments>--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED</jvmArguments>
                 </configuration>
             </plugin>
             <plugin>
@@ -240,9 +223,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M9</version>
-                <configuration>
-                    <argLine>--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED</argLine>
-                </configuration>
             </plugin>
         </plugins>
     </build>

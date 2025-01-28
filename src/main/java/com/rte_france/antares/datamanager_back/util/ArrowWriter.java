@@ -73,7 +73,7 @@ public class ArrowWriter {
   public static void main(String[] args) {
     var writer = new ArrowWriter();
     try {
-      var matrix = ArrowReader.readMatrixFromTxt(Path.of("src/main/resources/INPUT/load/load_fr_2030-2031.txt"));
+      var matrix = ArrowReader.readMatrixFromTxt(Path.of("src/main/resources/INPUT/load/series.txt"));
 
       var startSerialization = System.nanoTime();
       var arrowFilePath = Path.of("src/main/resources/test-matrix.arrow");
