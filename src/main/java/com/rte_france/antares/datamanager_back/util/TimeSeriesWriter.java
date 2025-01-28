@@ -52,7 +52,7 @@ public class TimeSeriesWriter {
 
   public static void main(String[] args) {
     try {
-      var matrix = TimeSeriesWriter.readFromTxt(Path.of("src/main/resources/INPUT/load/load_at_2030-2031.txt"));
+      var matrix = TimeSeriesWriter.readFromTxt(Path.of("src/main/resources/INPUT/load/load_fr_2030-2031.txt"));
 
       var startSerialization = System.nanoTime();
       var parquetFilePath = Path.of("src/main/resources/INPUT/load/output_test.parquet");
