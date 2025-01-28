@@ -1,10 +1,16 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import jakarta.validation.constraints.Negative;
+import org.apache.arrow.compression.CommonsCompressionFactory;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.compression.CompressionCodec;
+import org.apache.arrow.compression.ZstdCompressionCodec;
+import org.apache.arrow.vector.compression.CompressionUtil;
 import org.apache.arrow.vector.ipc.ArrowFileWriter;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -17,6 +23,7 @@ import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -49,8 +56,9 @@ public class ArrowWriter {
     try (var table = VectorSchemaRoot.create(schema, ALLOCATOR)) {
       matrix.getColumns().forEach(c -> populateDoubleVector(table, c));
 
+      var compressionFactory = new CommonsCompressionFactory();
       try (var ch = Channels.newChannel(out);
-           var writer = new ArrowFileWriter(table, null, ch)) {
+           var writer = new ArrowFileWriter(table, null, ch, null, IpcOption.DEFAULT, compressionFactory, CompressionUtil.CodecType.ZSTD)) {
         writer.start();
         writer.writeBatch();
         writer.end();
@@ -65,7 +73,7 @@ public class ArrowWriter {
   public static void main(String[] args) {
     var writer = new ArrowWriter();
     try {
-      var matrix = ArrowReader.readMatrixFromTxt(Path.of("src/main/resources/load_fr_2030-2031.txt"));
+      var matrix = ArrowReader.readMatrixFromTxt(Path.of("src/main/resources/INPUT/load/load_fr_2030-2031.txt"));
 
       var startSerialization = System.nanoTime();
       var arrowFilePath = Path.of("src/main/resources/test-matrix.arrow");
