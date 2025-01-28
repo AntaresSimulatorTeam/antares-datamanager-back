@@ -7,6 +7,7 @@
 package com.rte_france.antares.datamanager_back.util;
 
 import com.google.common.base.Stopwatch;
+import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -55,10 +56,11 @@ public class ParquetTimeSeriesWriter {
                 .withByteStreamSplitEncoding(false)
                 .withWriterVersion(ParquetProperties.WriterVersion.PARQUET_2_0)
                 .withPageWriteChecksumEnabled(false)
-                .withRowGroupSize((long) 1024*1024*128) // Default 1024*1024*128
-                .withPageRowCountLimit(20000) // Default 20 000
-                .withPageSize(1024*1024) //Default 1024 * 1024
+                .withRowGroupSize((long) ParquetWriter.DEFAULT_BLOCK_SIZE) // Default 1024*1024*128
+                .withPageRowCountLimit(20_000) // Default 20 000
+                .withPageSize(ParquetWriter.DEFAULT_PAGE_SIZE) //Default 1024 * 1024
                 .build();
+
         Stopwatch timer = Stopwatch.createStarted();
         for (var r = 0; r < matrix.getRowCount(); r++) {
             var row = new MatrixRow(matrix, r);
