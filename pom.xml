@@ -30,6 +30,7 @@
         <java.version>21</java.version>
         <open-api-doc.version>2.0.3</open-api-doc.version>
         <parquet.version>1.15.0</parquet.version>
+        <hadoop.version>3.3.6</hadoop.version>
         <sonar.organization>antaressimulatorteam</sonar.organization>
         <sonar.projectKey>AntaresSimulatorTeam_antares-datamanager-back</sonar.projectKey>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
@@ -164,6 +165,35 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!-- Parquet Avro dependency -->
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-avro</artifactId>
+            <version>${parquet.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
     </dependencies>
