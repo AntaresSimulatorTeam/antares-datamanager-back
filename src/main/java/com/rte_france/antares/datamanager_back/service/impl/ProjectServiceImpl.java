@@ -178,10 +178,18 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectEntity createProject(ProjectInputDto projectInputDto) {
+        if (StringUtils.isBlank(projectInputDto.getName())) {
+            throw new IllegalArgumentException("Project name is required.");
+        }
+
         Optional<ProjectEntity> existingProject = projectRepository.findByName(projectInputDto.getName());
 
         if (existingProject.isPresent()) {
             throw new IllegalArgumentException("A project with the same name already exists.");
+        }
+
+        if (projectInputDto.getTags() != null && projectInputDto.getTags().size() > 6) {
+            throw new IllegalArgumentException("A project cannot have more than 6 tags.");
         }
 
         ProjectEntity newProject = new ProjectEntity();
@@ -189,6 +197,7 @@ public class ProjectServiceImpl implements ProjectService {
         newProject.setCreationDate(LocalDateTime.now());
         newProject.setCreatedBy("pegase");
         newProject.setDescription(projectInputDto.getDescription());
+        newProject.setTags(projectInputDto.getTags());
         return projectRepository.save(newProject);
     }
 

@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 
 @Data
 @Builder(toBuilder = true)
@@ -13,4 +15,5 @@ import lombok.NoArgsConstructor;
 public class ProjectInputDto {
     String name;
     String description;
+    List<String> tags;
 }
