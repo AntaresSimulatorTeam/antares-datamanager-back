@@ -17,18 +17,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/**
- *
- * Uses the standard "row based" API provided by "parquet-mr" implementation.
- * Tests show that the implementation does not scale well with number of columns.
- * Indeed it's weird to have a row-based implementation when the format is column-based ...
- * Spark seems to have implemented a "vectorized" reader, but not a writer.
- *
- * @author Sylvain Leclerc <sylvain.leclerc@rte-france.com>
- */
 public class ParquetTimeSeriesWriter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ParquetTimeSeriesWriter.class);
@@ -36,7 +28,7 @@ public class ParquetTimeSeriesWriter {
     private final CompressionCodecName compression;
 
     public ParquetTimeSeriesWriter() {
-        this(CompressionCodecName.SNAPPY);
+        this(CompressionCodecName.ZSTD);
     }
 
     public ParquetTimeSeriesWriter(CompressionCodecName compression) {
@@ -75,4 +67,28 @@ public class ParquetTimeSeriesWriter {
         return "parquet";
     }
 
+    public static void main(String[] args) {
+        try {
+            var matrix = ParquetTimeSeriesReader.readMatrixFromTxt(Path.of("src/main/resources/INPUT/load/load_fr_2030-2031.txt"));
+            var writer = new ParquetTimeSeriesWriter();
+            var startSerialization = System.nanoTime();
+            var parquetFilePath = Path.of("src/main/resources/INPUT/load/output_test.parquet");
+            var hadoopFilePath = new org.apache.hadoop.fs.Path(parquetFilePath.toUri());
+            writer.write(matrix, parquetFilePath);
+            var endSerialization = System.nanoTime();
+            var serializationTime = (endSerialization - startSerialization) / 1_000_000_000.0;
+            var fileSize = Files.size(parquetFilePath);
+
+            var startDeserialization = System.nanoTime();
+            var deserializedMatrix = ParquetTimeSeriesReader.readFromParquet(hadoopFilePath);
+            var endDeserialization = System.nanoTime();
+            var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
+
+            System.out.println("Serialization time: " + serializationTime);
+            System.out.println("Deserialization time: " + deserializationTime);
+            System.out.println(".parquet file size (bytes): " + fileSize);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

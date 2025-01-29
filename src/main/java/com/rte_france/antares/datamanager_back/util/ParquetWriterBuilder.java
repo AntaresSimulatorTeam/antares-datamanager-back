@@ -11,11 +11,6 @@ import org.apache.parquet.hadoop.api.WriteSupport;
 
 import java.nio.file.Path;
 
-/**
- * Implementation of parquet writer builder for our use case.
- *
- * @author Sylvain Leclerc <sylvain.leclerc@rte-france.com>
- */
 class ParquetWriterBuilder extends ParquetWriter.Builder<MatrixRow, ParquetWriterBuilder> {
 
     private final Matrix matrix;

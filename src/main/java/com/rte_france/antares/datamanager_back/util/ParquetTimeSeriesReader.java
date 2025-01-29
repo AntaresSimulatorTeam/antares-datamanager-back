@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import org.apache.parquet.avro.AvroParquetReader;
-import org.apache.parquet.io.LocalInputFile;
+import org.apache.parquet.hadoop.ParquetReader;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,23 +40,16 @@ public class ParquetTimeSeriesReader {
     }
 
     var columns = new ArrayList<MatrixColumn>(columnCount);
-    for (int j = 0; j < columnCount; j++) {
+    for (var j = 0; j < columnCount; j++) {
       columns.add(new MatrixColumn("Column" + j, data.get(j).stream().mapToDouble(Double::doubleValue).toArray()));
     }
 
     return new Matrix(columns);
   }
 
-  public static Matrix readFromParquet(Path filePath) throws IOException {
-    Objects.requireNonNull(filePath);
-
-    var inputFile = new LocalInputFile(filePath);
-    try (var reader = AvroParquetReader.<Matrix>builder(inputFile).build()) {
-      var matrix = reader.read();
-      if (matrix == null) {
-        throw new IOException("The Parquet file is empty or does not contain a TimeSeriesMatrix");
-      }
-      return matrix;
+  public static Matrix readFromParquet(org.apache.hadoop.fs.Path filePath) throws IOException {
+    try (var reader = ParquetReader.builder(new MatrixReadSupport(8760), filePath).build()) {
+      return reader.read();
     }
   }
 }

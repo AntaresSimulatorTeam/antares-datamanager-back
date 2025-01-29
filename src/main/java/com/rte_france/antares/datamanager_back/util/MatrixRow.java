@@ -9,11 +9,6 @@ package com.rte_france.antares.datamanager_back.util;
 
 import lombok.Value;
 
-/**
- * Parquet API takes rows as input: that small object represents one row of the matrix.
- *
- * @author Sylvain Leclerc <sylvain.leclerc@rte-france.com>
- */
 @Value
 class MatrixRow {
   Matrix matrix;
