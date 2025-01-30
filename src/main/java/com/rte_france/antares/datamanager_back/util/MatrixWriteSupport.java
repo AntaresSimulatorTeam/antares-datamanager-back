@@ -14,7 +14,6 @@ import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Types;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.stream.Collectors;
 
 class MatrixWriteSupport extends WriteSupport<MatrixRow> {

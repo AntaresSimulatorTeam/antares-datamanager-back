@@ -7,7 +7,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
 import com.google.common.base.Stopwatch;
-import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -16,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -33,10 +31,6 @@ public class ParquetTimeSeriesWriter {
 
     public ParquetTimeSeriesWriter(CompressionCodecName compression) {
         this.compression = Objects.requireNonNull(compression);
-    }
-
-    public void write(Matrix matrix, OutputStream outputStream) throws IOException {
-        throw new UnsupportedOperationException("Writing to stream not supported for parquet format.");
     }
 
     public void write(Matrix matrix, Path file) throws IOException {

@@ -1,10 +1,9 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import org.apache.parquet.io.api.Converter;
 import org.apache.parquet.io.api.GroupConverter;
 import org.apache.parquet.io.api.PrimitiveConverter;
-import org.apache.parquet.io.api.Converter;
 import org.apache.parquet.schema.GroupType;
-import org.apache.parquet.schema.Type;
 
 import java.util.ArrayList;
 import java.util.List;
