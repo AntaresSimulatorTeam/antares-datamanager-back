@@ -6,9 +6,6 @@
  */
 package com.rte_france.antares.datamanager_back.util;
 
-/**
- * @author Sylvain Leclerc <sylvain.leclerc@rte-france.com>
- */
 public enum ColumnType {
     INT,
     FLOAT
