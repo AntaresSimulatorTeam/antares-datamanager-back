@@ -33,11 +33,10 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 ).addFilterBefore((request, response, chain) -> {
-                    System.out.println("Request to: " + request.getRequestId());
                     chain.doFilter(request, response);
                 }, UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(AbstractHttpConfigurer::disable)
+            //    .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .opaqueToken(opaque -> opaque
