@@ -13,14 +13,6 @@ public class AntaresDataManagerConfig {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
-    @Bean
-    public OpenAPI customOpenAPI() {
-        return new OpenAPI()
-                .info(new Info().title("Antares datamanager Back")
-                        .version("1.0")
-                        .description("UI for Antares datamanager back-end")
-                        .contact(new Contact().name("ANTARES TEAM").email("antares-pegase@rte-france.com")));
-    }
 
     @Bean
     // 1. Configuration de la session SFTP pour se connecter au serveur distant
