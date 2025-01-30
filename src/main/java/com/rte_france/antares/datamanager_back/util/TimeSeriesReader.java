@@ -5,7 +5,6 @@ import org.apache.parquet.io.LocalInputFile;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Objects;
 
 public class TimeSeriesReader {
