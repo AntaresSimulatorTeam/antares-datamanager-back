@@ -71,16 +71,6 @@ class MatrixWriteSupport extends WriteSupport<MatrixRow> {
         for (var c : matrixRow.getMatrix().getColumns()) {
             consumer.startField(c.name(), columnIndex);
             consumer.addDouble(c.values()[matrixRow.getRow()]);
-//            switch (c.getType()) {
-//                case INT:
-//                    consumer.addInteger(c.getIntValues()[matrixRow.getRow()]);
-//                    break;
-//                case FLOAT:
-//                    consumer.addFloat(c.getFloatValues()[matrixRow.getRow()]);
-//                    break;
-//                default:
-//                    throw new IllegalArgumentException("Unknown column type " + c.getType());
-//            }
             consumer.endField(c.name(), columnIndex);
             columnIndex++;
         }
