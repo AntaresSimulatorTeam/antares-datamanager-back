@@ -84,4 +84,22 @@ void findByNameContainingIgnoreCaseHandlesNullInput() {
     assertThat(projects).isNotNull();
     assertThat(projects).isEmpty();
 }
+    @Test
+    void findByName_returnsEntityWhenExists() {
+        String name = "PROJECT1";
+
+        Optional<ProjectEntity> result = projectRepository.findByName(name);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result.get().getName()).isEqualTo(name);
+    }
+
+    @Test
+    void findByName_returnsEmptyWhenDoesNotExist() {
+        String name = "nonExistentProject";
+
+        Optional<ProjectEntity> result = projectRepository.findByName(name);
+
+        assertThat(result).isEmpty();
+    }
 }

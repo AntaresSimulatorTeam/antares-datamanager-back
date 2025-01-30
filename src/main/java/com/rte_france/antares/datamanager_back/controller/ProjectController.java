@@ -1,8 +1,11 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
+
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -73,5 +76,12 @@ public class ProjectController {
     @GetMapping("/autocomplete")
     public ResponseEntity<List<ProjectDto>> searchProjectsByName(@RequestParam String partialName) {
         return new ResponseEntity<>(projectService.searchProjectsByName(partialName), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Create a new project")
+    @PostMapping
+    public ResponseEntity<ProjectDto> createProject(@RequestBody @NotNull  ProjectInputDto projectInputDto) {
+
+        return new ResponseEntity<>(toProjectDto(projectService.createProject(projectInputDto)), HttpStatus.OK);
     }
 }

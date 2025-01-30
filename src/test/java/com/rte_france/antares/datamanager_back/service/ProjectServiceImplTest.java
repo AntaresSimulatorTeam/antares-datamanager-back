@@ -1,10 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -41,6 +43,8 @@ class ProjectServiceImplTest {
     @Mock
     private ProjectRepository projectRepository;
 
+    @Mock
+    private StudyRepository studyRepository;
 
     @Test
     void findProjectsByCriteria_returnsAllProjectsWhenSearchIsNull() {
@@ -98,7 +102,7 @@ class ProjectServiceImplTest {
     }
 
     @Test
-     void deletePinnedProjectToUser_shouldCallDeleteMethod() {
+    void deletePinnedProjectToUser_shouldCallDeleteMethod() {
         // Given
         String userId = "userId";
         Integer projectId = 1;
@@ -131,16 +135,16 @@ class ProjectServiceImplTest {
     }
 
     @Test
-    void getProjectDetailsById(){
+    void getProjectDetailsById() {
         //Given
         Integer projectId = 1;
-        ProjectEntity expectedProject= new ProjectEntity();
+        ProjectEntity expectedProject = new ProjectEntity();
         expectedProject.setId(1);
         expectedProject.setCreatedBy("User1");
         expectedProject.setName("BP 2050");
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(expectedProject));
-        ProjectEntity projectResult =projectService.findProjectById(projectId);
+        ProjectEntity projectResult = projectService.findProjectById(projectId);
         //Then
         assertEquals(projectResult, expectedProject);
 
@@ -216,80 +220,137 @@ class ProjectServiceImplTest {
     }
 
     @Test
-void deleteProjectById_deletesProjectWhenNoStudies() {
-    Integer projectId = 1;
-    ProjectEntity project = new ProjectEntity();
-    project.setId(projectId);
+    void deleteProjectById_deletesProjectWhenNoStudies() {
+        Integer projectId = 1;
+        ProjectEntity project = new ProjectEntity();
+        project.setId(projectId);
 
-    when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
 
-    projectService.deleteProjectById(projectId);
+        projectService.deleteProjectById(projectId);
 
-    verify(projectRepository, times(1)).deleteById(projectId);
-}
+        verify(projectRepository, times(1)).deleteById(projectId);
+    }
 
-@Test
-void deleteProjectById_throwsExceptionWhenProjectNotFound() {
-    Integer projectId = 1;
+    @Test
+    void deleteProjectById_throwsExceptionWhenProjectNotFound() {
+        Integer projectId = 1;
 
-    when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
+        when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
 
-    ResourceNotFoundException exception = assertThrows(
-            ResourceNotFoundException.class,
-            () -> projectService.deleteProjectById(projectId)
-    );
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> projectService.deleteProjectById(projectId)
+        );
 
-    assertEquals("Project not found with ID: 1", exception.getMessage());
-    verify(projectRepository, never()).deleteById(projectId);
-}
+        assertEquals("Project not found with ID: 1", exception.getMessage());
+        verify(projectRepository, never()).deleteById(projectId);
+    }
 
-@Test
-void deleteProjectById_throwsExceptionWhenProjectContainsStudies() {
-    Integer projectId = 1;
-    ProjectEntity project = new ProjectEntity();
-    project.setId(projectId);
-    project.setStudies(List.of(new StudyEntity()));
+    @Test
+    void deleteProjectById_throwsExceptionWhenProjectContainsStudies() {
+        Integer projectId = 1;
+        ProjectEntity project = new ProjectEntity();
+        project.setId(projectId);
+        project.setStudies(List.of(new StudyEntity()));
 
-    when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
 
-    BadRequestException exception = assertThrows(
-            BadRequestException.class,
-            () -> projectService.deleteProjectById(projectId)
-    );
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> projectService.deleteProjectById(projectId)
+        );
 
-    assertEquals("Project contains studies and cannot be deleted", exception.getMessage());
-    verify(projectRepository, never()).deleteById(projectId);
-}
+        assertEquals("Project contains studies and cannot be deleted", exception.getMessage());
+        verify(projectRepository, never()).deleteById(projectId);
+    }
 
-@Test
-void searchProjectsByNameReturnsMatchingProjects() {
-    ProjectEntity projectEntity = new ProjectEntity();
-    projectEntity.setId(1);
-    projectEntity.setName("Project 1");
-    when(projectRepository.findByNameContainingIgnoreCase("Proj")).thenReturn(List.of(projectEntity));
+    @Test
+    void searchProjectsByNameReturnsMatchingProjects() {
+        ProjectEntity projectEntity = new ProjectEntity();
+        projectEntity.setId(1);
+        projectEntity.setName("Project 1");
+        when(projectRepository.findByNameContainingIgnoreCase("Proj")).thenReturn(List.of(projectEntity));
 
-    List<ProjectDto> result = projectService.searchProjectsByName("Proj");
+        List<ProjectDto> result = projectService.searchProjectsByName("Proj");
 
-    assertEquals(1, result.size());
-    assertEquals("Project 1", result.get(0).getName());
-    verify(projectRepository, times(1)).findByNameContainingIgnoreCase("Proj");
-}
+        assertEquals(1, result.size());
+        assertEquals("Project 1", result.get(0).getName());
+        verify(projectRepository, times(1)).findByNameContainingIgnoreCase("Proj");
+    }
 
-@Test
-void searchProjectsByNameReturnsEmptyListWhenNoMatches() {
-    when(projectRepository.findByNameContainingIgnoreCase("NonExistent")).thenReturn(List.of());
+    @Test
+    void searchProjectsByNameReturnsEmptyListWhenNoMatches() {
+        when(projectRepository.findByNameContainingIgnoreCase("NonExistent")).thenReturn(List.of());
 
-    List<ProjectDto> result = projectService.searchProjectsByName("NonExistent");
+        List<ProjectDto> result = projectService.searchProjectsByName("NonExistent");
 
-    assertEquals(0, result.size());
-    verify(projectRepository, times(1)).findByNameContainingIgnoreCase("NonExistent");
-}
+        assertEquals(0, result.size());
+        verify(projectRepository, times(1)).findByNameContainingIgnoreCase("NonExistent");
+    }
 
-@Test
-void searchProjectsByNameHandlesNullInput() {
-    List<ProjectDto> result = projectService.searchProjectsByName(null);
+    @Test
+    void searchProjectsByNameHandlesNullInput() {
+        List<ProjectDto> result = projectService.searchProjectsByName(null);
 
-    assertEquals(0, result.size());
-    verify(projectRepository, times(1)).findByNameContainingIgnoreCase(null);
-}
+        assertEquals(0, result.size());
+        verify(projectRepository, times(1)).findByNameContainingIgnoreCase(null);
+    }
+
+    @Test
+    void createProject_throwsException_whenProjectNameIsBlank() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> projectService.createProject(projectInputDto)
+        );
+
+        assertEquals("Project name is required.", exception.getMessage());
+    }
+
+    @Test
+    void createProject_throwsException_whenProjectWithSameNameExists() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("existingProject");
+
+        when(projectRepository.findByName(any(String.class))).thenReturn(Optional.of(new ProjectEntity()));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> projectService.createProject(projectInputDto)
+        );
+
+        assertEquals("A project with the same name already exists.", exception.getMessage());
+    }
+
+    @Test
+    void createProject_throwsException_whenTagsExceedLimit() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("testProject");
+        projectInputDto.setTags(List.of("tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7"));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> projectService.createProject(projectInputDto)
+        );
+
+        assertEquals("A project cannot have more than 6 tags.", exception.getMessage());
+    }
+
+    @Test
+    void createProject_createsProjectSuccessfully_whenValidInput() {
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName("testProject");
+        projectInputDto.setTags(List.of("tag1", "tag2"));
+
+        when(projectRepository.findByName(any(String.class))).thenReturn(Optional.empty());
+        when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        ProjectEntity projectEntity = projectService.createProject(projectInputDto);
+
+        assertEquals(projectInputDto.getName(), projectEntity.getName());
+        assertEquals(projectInputDto.getTags(), projectEntity.getTags());
+    }
 }

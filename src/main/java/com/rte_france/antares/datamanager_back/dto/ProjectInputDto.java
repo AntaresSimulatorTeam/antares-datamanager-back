@@ -7,11 +7,13 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProjectInputDto {
     String name;
-    List<Integer> studyIds;
+    String description;
+    List<String> tags;
 }

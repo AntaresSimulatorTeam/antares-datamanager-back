@@ -4,6 +4,8 @@ import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
+
 
 import java.util.List;
 
@@ -23,6 +25,5 @@ public interface ProjectService {
 
     List<ProjectDto> searchProjectsByName(String partialName);
 
-
+    ProjectEntity createProject(ProjectInputDto projectInputDto);
 }
-
