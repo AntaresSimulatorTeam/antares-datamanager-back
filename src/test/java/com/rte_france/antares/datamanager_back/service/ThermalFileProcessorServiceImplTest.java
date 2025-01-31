@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 
 import com.rte_france.antares.datamanager_back.repository.model.ThermalParameterEntity;
@@ -36,6 +37,8 @@ class ThermalFileProcessorServiceImplTest {
     @Mock
     private TrajectoryRepository trajectoryRepository;
 
+    @Mock
+    private ThermalCostTypeRepository thermalCostTypeRepository;
 
     @InjectMocks
     private ThermalFileProcessorServiceImpl thermalFileProcessorService;
@@ -101,6 +104,39 @@ class ThermalFileProcessorServiceImplTest {
 
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
 
+    }
+
+    @Test
+    void processThermalCostFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+        // Given
+        File file = mock(File.class);
+        when(file.getName()).thenReturn("costs_BP23_A_ref.xlsx");
+        when(file.getPath()).thenReturn("src/test/resources/thermal_cost/costs_BP23_A_ref.xlsx");
+        TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
+        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
+        String horizon = "2025";
+
+        // When
+        thermalFileProcessorService.processThermalCostFile(file, horizon);
+
+        // Then
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processThermalCostFile_whenTrajectoryDoesNotExist() throws IOException {
+        // Given
+        File file = mock(File.class);
+        when(file.getName()).thenReturn("costs_BP23_A_ref.xlsx");
+        when(file.getPath()).thenReturn("src/test/resources/thermal_cost/costs_BP23_A_ref.xlsx");
+        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+        String horizon = "2025";
+
+        // When
+        thermalFileProcessorService.processThermalCostFile(file, horizon);
+
+        // Then
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
     }
 
 
