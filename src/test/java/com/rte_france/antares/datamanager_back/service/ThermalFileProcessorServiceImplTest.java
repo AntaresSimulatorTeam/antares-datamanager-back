@@ -75,20 +75,20 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalParameterFile() throws IOException {
         // Given
 
-        Path filePath = Paths.get("src/test/resources/thermal_parameters/param_PEMMDB23_test.xlsx");
+        Path filePath = Paths.get("src/test/resources/thermal_parameters/common_param_BP23_A_ref.xlsx");
         File file = filePath.toFile();
 
         String horizon = "2025";
 
         TrajectoryEntity expectedTrajectory = TrajectoryEntity.builder()
-                .fileName("param_PEMMDB23_test")
+                .fileName("common_param_BP23_A_ref")
                 .type(TrajectoryType.THERMAL_PARAMETER.name())
                 .version(1)
-                .horizon("2025")
+                .horizon(horizon)
                 .build();
 
 
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("param_PEMMDB23_test.xlsx"))
+        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("common_param_BP23_A_ref.xlsx"))
                 .thenReturn(Optional.of(expectedTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(expectedTrajectory);
 
@@ -97,7 +97,7 @@ class ThermalFileProcessorServiceImplTest {
 
         // Then
         verify(trajectoryRepository, times(1))
-                .findFirstByFileNameOrderByVersionDesc("param_PEMMDB23_test");
+                .findFirstByFileNameOrderByVersionDesc("common_param_BP23_A_ref");
 
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
 
