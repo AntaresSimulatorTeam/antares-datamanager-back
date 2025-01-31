@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.configuration;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Configuration
 public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.opaquetoken.introspection-uri}")
@@ -26,25 +28,24 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .securityMatcher("/**") // Appliquer la config à tout le projet
+        http.oauth2ResourceServer(oauth2 -> oauth2
+                        .opaqueToken(opaque -> opaque
+                                .introspectionUri(introspectionUri)
+                                .introspectionClientCredentials(introspectionClientId, introspectionClientSecret)
+                        )
+                )
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
+                        .requestMatchers("/v1/study/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
-                )
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .opaqueToken(opaque -> opaque
-                                .introspectionUri(introspectionUri)
-                                .introspectionClientCredentials(introspectionClientId, introspectionClientSecret)
-                        )
                 );
-
         return http.build();
     }
 
