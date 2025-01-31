@@ -4,21 +4,31 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.firewall.DefaultHttpFirewall;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import java.util.Collections;
 import java.util.List;
 
 @Slf4j
 @Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(
+        // prePostEnabled = true, default value is true
+        securedEnabled = true,
+        jsr250Enabled = true
+)
 public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.opaquetoken.introspection-uri}")
     private String introspectionUri;
@@ -30,13 +40,13 @@ public class SecurityConfig {
     private String introspectionClientSecret;
 
     @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
+    }
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.oauth2ResourceServer(oauth2 -> oauth2
-                        .opaqueToken(opaque -> opaque
-                                .introspectionUri(introspectionUri)
-                                .introspectionClientCredentials(introspectionClientId, introspectionClientSecret)
-                        )
-                )
+        http
+                .requestCache(request -> request.requestCache(new NullRequestCache())) // Désactive la mise en cache
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -48,6 +58,12 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .opaqueToken(opaque -> opaque
+                                .introspectionUri(introspectionUri)
+                                .introspectionClientCredentials(introspectionClientId, introspectionClientSecret)
+                        )
                 );
         return http.build();
     }
