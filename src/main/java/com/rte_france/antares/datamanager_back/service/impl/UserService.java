@@ -29,7 +29,7 @@ public class UserService {
                     .firstName((String) attributes.get("family_name"))
                     .lastName((String) attributes.get("given_name"))
                     .build();
-            log.debug("User authenticated: {}", user.getFirstName());
+            log.info("User authenticated: {}", user.getFirstName());
             return user;
         }
         else {
