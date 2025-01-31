@@ -45,6 +45,7 @@ public class SecurityConfig {
     }
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        log.info("into SecurityFilterChain");
         http
                 .requestCache(request -> request.requestCache(new NullRequestCache())) // Désactive la mise en cache
                 .httpBasic(AbstractHttpConfigurer::disable)
