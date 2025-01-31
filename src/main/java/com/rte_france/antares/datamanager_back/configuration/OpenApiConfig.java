@@ -14,7 +14,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
-@AutoConfiguration
 public class OpenApiConfig {
 
     private static final String OAUTH_CLIENT_CREDENTIALS = "oauth_client_credentials";
