@@ -9,9 +9,10 @@ import org.apache.arrow.vector.types.pojo.Field;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 
 public class ArrowReader {
   private static final int ROW_COUNT = 8961;

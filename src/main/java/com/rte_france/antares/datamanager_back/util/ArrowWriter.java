@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
 import org.apache.arrow.compression.CommonsCompressionFactory;
-import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.VectorSchemaRoot;
