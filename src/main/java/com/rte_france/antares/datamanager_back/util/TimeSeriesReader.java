@@ -4,12 +4,16 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.io.LocalInputFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
 public class TimeSeriesReader {
   public static TimeSeriesMatrix readFromParquet(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
+    if (Files.notExists(filePath)) {
+      throw new IllegalArgumentException("File " + filePath + " doesn't exist");
+    }
 
     var inputFile = new LocalInputFile(filePath);
     try (var reader = AvroParquetReader.<TimeSeriesMatrix>builder(inputFile).build()) {

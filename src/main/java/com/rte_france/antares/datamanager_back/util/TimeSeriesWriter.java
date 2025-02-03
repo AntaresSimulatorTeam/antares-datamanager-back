@@ -5,6 +5,8 @@ import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.LocalOutputFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,6 +16,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class TimeSeriesWriter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(TimeSeriesWriter.class);
+
   public static TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
     try (var lines = Files.lines(filePath)) {
@@ -31,7 +35,7 @@ public class TimeSeriesWriter {
   public static void writeToParquet(TimeSeriesMatrix matrix, Path outputPath) throws IOException {
     Objects.requireNonNull(matrix);
     Objects.requireNonNull(outputPath);
-    if (!(outputPath + "").endsWith(".parquet")) {
+    if (!outputPath.toString().endsWith(".parquet")) {
       outputPath = outputPath.resolveSibling(outputPath.getFileName() + ".parquet");
     }
 
@@ -66,9 +70,9 @@ public class TimeSeriesWriter {
       var endDeserialization = System.nanoTime();
       var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
 
-      System.out.println("Serialization time: " + serializationTime);
-      System.out.println("Deserialization time: " + deserializationTime);
-      System.out.println(".parquet file size (bytes): " + fileSize);
+      LOGGER.info("Serialization time: {}", serializationTime);
+      LOGGER.info("Deserialization time: {}", deserializationTime);
+      LOGGER.info(".parquet file size (bytes): {}", fileSize);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
