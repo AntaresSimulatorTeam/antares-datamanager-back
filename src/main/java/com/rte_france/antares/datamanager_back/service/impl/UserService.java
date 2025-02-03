@@ -12,11 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 @Slf4j
-@Configuration
-@Component
 public class UserService {
 
-    @Bean
     public UserInfoDto getCurrentUserDetails() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
