@@ -13,18 +13,20 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ArrowWriter {
-
-  private static final BufferAllocator ALLOCATOR = new RootAllocator();
+  private static final Logger LOGGER = LoggerFactory.getLogger(ArrowWriter.class);
 
   private static Field doubleField(String name) {
     return new Field(name, FieldType.notNullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
@@ -38,17 +40,26 @@ public class ArrowWriter {
   }
 
   private static void populateDoubleVector(VectorSchemaRoot table, MatrixColumn column) {
-    var vector = (Float8Vector) table.getVector(column.name());
+    var vector = table.getVector(column.name());
     var values = column.values();
     var size = values.length;
-    vector.allocateNew(size);
-    table.setRowCount(size);
-    IntStream.range(0, size).forEach(i -> vector.set(i, values[i]));
+    switch (vector) {
+      case Float8Vector f8Vector -> {
+        f8Vector.allocateNew(size);
+        table.setRowCount(size);
+        IntStream.range(0, size).forEach(i -> f8Vector.set(i, values[i]));
+      }
+      default -> throw new IllegalStateException();
+    }
   }
 
   public void write(Matrix matrix, OutputStream out) throws IOException {
+    Objects.requireNonNull(matrix);
+    Objects.requireNonNull(out);
+
     var schema = createSchema(matrix);
-    try (var table = VectorSchemaRoot.create(schema, ALLOCATOR)) {
+    try (var allocator = new RootAllocator();
+         var table = VectorSchemaRoot.create(schema, allocator)) {
       matrix.getColumns().forEach(c -> populateDoubleVector(table, c));
 
       var compressionFactory = new CommonsCompressionFactory();
@@ -84,9 +95,9 @@ public class ArrowWriter {
       var endDeserialization = System.nanoTime();
       var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
 
-      System.out.println("Serialization time (s): " + serializationTime);
-      System.out.println("Deserialization time (s): " + deserializationTime);
-      System.out.println(".arrow file size (bytes): " + fileSize);
+      LOGGER.info("Serialization time (s): {}", serializationTime);
+      LOGGER.info("Deserialization time (s): {}", deserializationTime);
+      LOGGER.info(".arrow file size (bytes): {}", fileSize);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
