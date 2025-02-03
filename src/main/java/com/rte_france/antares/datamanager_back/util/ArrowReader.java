@@ -9,13 +9,13 @@ import org.apache.arrow.vector.types.pojo.Field;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class ArrowReader {
+  private static final int ROW_COUNT = 8961;
+
   public static Matrix readMatrixFromArrow(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 
@@ -59,29 +59,32 @@ public class ArrowReader {
 
       var firstLine = iterator.next();
       var columnCount = firstLine.split("\\s+").length;
-      var data = new ArrayList<List<Double>>(columnCount);
-      for (var i = 0; i < columnCount; i++) {
-        data.add(new ArrayList<>());
-      }
+      var data = new double[columnCount][ROW_COUNT];
 
       fillDataList(firstLine, iterator, data);
 
-      var columns = new ArrayList<MatrixColumn>(data.size());
-      for (int j = 0; j < data.size(); j++) {
-        columns.add(new MatrixColumn("Column" + j, data.get(j).stream().mapToDouble(Double::doubleValue).toArray()));
+      var columns = new ArrayList<MatrixColumn>(data.length);
+      for (int j = 0; j < data.length; j++) {
+        columns.add(new MatrixColumn("Column" + j, data[j]));
       }
 
       return new Matrix(columns);
     }
   }
 
-  private static void fillDataList(String firstLine, Iterator<String> iterator, List<List<Double>> data) {
-    Stream.concat(Stream.of(firstLine), Stream.generate(iterator::next).takeWhile(x -> iterator.hasNext()))
-            .map(line -> line.split("\\s+"))
-            .forEach(values -> {
-              for (var j = 0; j < values.length; j++) {
-                data.get(j).add(Double.parseDouble(values[j]));
-              }
-            });
+  private static void fillDataList(String firstLine, Iterator<String> iterator, double[][] data) {
+    var rowIndex = 0;
+    while (iterator.hasNext()) {
+      String[] values;
+      if (rowIndex == 0) {
+        values = firstLine.split("\\s+");
+      } else {
+        values = iterator.next().split("\\s+");
+      }
+      for (var j = 0; j < values.length; j++) {
+        data[j][rowIndex] = Double.parseDouble(values[j]);
+      }
+      rowIndex++;
+    }
   }
 }
