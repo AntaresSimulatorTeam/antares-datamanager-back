@@ -10,6 +10,8 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalParameter
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
 
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -20,7 +22,9 @@ import org.mockito.MockitoAnnotations;
 
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -28,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -139,5 +144,15 @@ class ThermalFileProcessorServiceImplTest {
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
     }
 
+    @Test
+    void buildThermalParameters() throws IOException {
+        // Given
+        File file = new File("src/test/resources/thermal_parameters/common_param_BP23_A_ref.xlsx");
 
+        // When
+        List<ThermalParameterEntity> thermalParameters = thermalFileProcessorService.buildThermalParameters(file);
+
+        // Then
+        assertEquals(47, thermalParameters.size());
+    }
 }

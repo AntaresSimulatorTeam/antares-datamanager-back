@@ -29,7 +29,7 @@ public class ThermalParameterEntity {
     private String nodeEntsoe;
 
     @Column(name = "category")
-    private String category;
+    private Double category;
 
     @Column(name = "fuel")
     private String fuel;

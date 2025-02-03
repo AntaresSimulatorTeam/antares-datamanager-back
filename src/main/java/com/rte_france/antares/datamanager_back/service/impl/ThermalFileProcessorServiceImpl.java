@@ -182,39 +182,40 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         List<ThermalParameterEntity> thermalParameters = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(file);
              Workbook workbook = WorkbookFactory.create(fis)) {
-            Sheet sheet = workbook.getSheetAt(workbook.getActiveSheetIndex());// case one sheet = one year
-            if (isSheetNameYearNumber(sheet)) {
-                for (Row row : sheet) {
-                    if (row.getRowNum() > 5) {
+            var sheetWithYear = getSheetWithYear(workbook);
+            if (sheetWithYear != null) {
+                for (Row row : sheetWithYear) {
+                    if (row.getRowNum() > 4) {
                         ThermalParameterEntity thermalParameter = ThermalParameterEntity.builder()
                                 .node((String) getCellValue(row, 0))
                                 .nodeEntsoe((String) getCellValue(row, 1))
-                                .category((String) getCellValue(row, 2))
+                                .category((Double) getCellValue(row, 2))
                                 .fuel((String) getCellValue(row, 3))
-                                .efficiencyRange((String) getCellValue(row, 4))
-                                .efficiencyDefault((Double) getCellValue(row, 5))
-                                .co2((Double) getCellValue(row, 6))
-                                .omCost((Double) getCellValue(row, 7))
-                                .minUpTime((Double) getCellValue(row, 8))
-                                .minDownTime((Double) getCellValue(row, 9))
-                                .startUpFuel((Double) getCellValue(row, 10))
-                                .startUpFixCost((Double) getCellValue(row, 11))
-                                .startUpFuelColdStart((Double) getCellValue(row, 12))
-                                .startUpFixCostColdStart((Double) getCellValue(row, 13))
-                                .startUpFuelHotStart((Double) getCellValue(row, 14))
-                                .startUpFixCostHotStart((Double) getCellValue(row, 15))
-                                .transitionHotWarm((Double) getCellValue(row, 16))
-                                .transitionHotCold((Double) getCellValue(row, 17))
-                                .shutdownTime((Double) getCellValue(row, 18))
-                                .foRateDefault((Double) getCellValue(row, 19))
-                                .foDurationDefault((Double) getCellValue(row, 20))
-                                .poDurationDefault((Double) getCellValue(row, 21))
-                                .poWinterDefault((Double) getCellValue(row, 22))
-                                .minStableGenerationDefault((Double) getCellValue(row, 23))
-                                .rampUp((Double) getCellValue(row, 24))
-                                .rampDown((Double) getCellValue(row, 25))
-                                .fixedGenerationReduction((Double) getCellValue(row, 26))
-                                .efficiency((Double) getCellValue(row, 27))
+                                .type((String) getCellValue(row, 4))
+                                .efficiencyRange((String) getCellValue(row, 5))
+                                .efficiencyDefault((Double) getCellValue(row, 6))
+                                .co2((Double) getCellValue(row, 7))
+                                .omCost((Double) getCellValue(row, 8))
+                                .minUpTime((Double) getCellValue(row, 9))
+                                .minDownTime((Double) getCellValue(row, 10))
+                                .startUpFuel((Double) getCellValue(row, 11))
+                                .startUpFixCost((Double) getCellValue(row, 12))
+                                .startUpFuelColdStart((Double) getCellValue(row, 13))
+                                .startUpFixCostColdStart((Double) getCellValue(row, 14))
+                                .startUpFuelHotStart((Double) getCellValue(row, 15))
+                                .startUpFixCostHotStart((Double) getCellValue(row, 16))
+                                .transitionHotWarm((Double) getCellValue(row, 17))
+                                .transitionHotCold((Double) getCellValue(row, 18))
+                                .shutdownTime((Double) getCellValue(row, 19))
+                                .foRateDefault((Double) getCellValue(row, 20))
+                                .foDurationDefault((Double) getCellValue(row, 21))
+                                .poDurationDefault((Double) getCellValue(row, 22))
+                                .poWinterDefault((Double) getCellValue(row, 23))
+                                .minStableGenerationDefault((Double) getCellValue(row, 24))
+                                .rampUp((Double) getCellValue(row, 25))
+                                .rampDown((Double) getCellValue(row, 26))
+                                .fixedGenerationReduction((Double) getCellValue(row, 27))
+                                .efficiency((Double) getCellValue(row, 28))
                                 .build();
                         thermalParameters.add(thermalParameter);
                     }
@@ -228,5 +229,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         log.info("buildThermalParameters executed in " + executionTime + "ms");
         return thermalParameters;
+    }
+
+    private static Sheet getSheetWithYear(Workbook workbook) {
+        for (var i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet currentSheet = workbook.getSheetAt(i);
+            if (isSheetNameYearNumber(currentSheet)) {
+                return currentSheet;
+            }
+        }
+        return null;
     }
 }
