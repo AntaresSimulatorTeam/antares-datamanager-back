@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class ArrowReader {
-  private static final int ROW_COUNT = 8961;
+  private static final int ROW_COUNT = 8760;
 
   public static Matrix readMatrixFromArrow(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
