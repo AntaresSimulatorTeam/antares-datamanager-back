@@ -6,8 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 
-import com.rte_france.antares.datamanager_back.repository.model.ThermalParameterEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
 
 import org.apache.poi.ss.usermodel.Workbook;
@@ -154,5 +153,53 @@ class ThermalFileProcessorServiceImplTest {
 
         // Then
         assertEquals(47, thermalParameters.size());
+    }
+
+    @Test
+    void saveThermalCapacitiesTrajectory() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<ThermalClusterCapacityEntity> thermalClusterCapacities = List.of(new ThermalClusterCapacityEntity());
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        // When
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalCapacitiesTrajectory(trajectory, thermalClusterCapacities);
+
+        // Then
+        assertEquals(TrajectoryType.THERMAL_CAPACITY.name(), result.getType());
+        verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void saveThermalParametersTrajectory() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<ThermalParameterEntity> thermalParameterEntities = List.of(new ThermalParameterEntity());
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        // When
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalParametersTrajectory(trajectory, thermalParameterEntities);
+
+        // Then
+        assertEquals(TrajectoryType.THERMAL_PARAMETER.name(), result.getType());
+        verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void saveThermalCostTrajectory() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<ThermalCostEntity> thermalCostEntities = List.of(new ThermalCostEntity(10.0, 2036.0, new ThermalCostTypeEntity()));
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        // When
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalCostTrajectory(trajectory, thermalCostEntities);
+
+        // Then
+        assertEquals(TrajectoryType.THERMAL_COST.name(), result.getType());
+        verify(trajectoryRepository).save(any(TrajectoryEntity.class));
     }
 }
