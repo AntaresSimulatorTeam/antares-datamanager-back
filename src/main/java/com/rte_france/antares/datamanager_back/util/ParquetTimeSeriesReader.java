@@ -6,50 +6,52 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class ParquetTimeSeriesReader {
-  public static Matrix readMatrixFromTxt(Path filePath) throws IOException {
-    Objects.requireNonNull(filePath);
-
-    var lines = Files.readAllLines(filePath);
-    if (lines.isEmpty()) {
-      throw new IllegalArgumentException("File is empty");
-    }
-
-    var rowCount = lines.size();
-    var columnCount = lines.getFirst().split("\\s+").length;
-
-    return readMatrix(lines, rowCount, columnCount, Double::parseDouble, (data, value) -> data.add(Double.parseDouble(value)));
-  }
-
-  private static Matrix readMatrix(List<String> lines, int rowCount, int columnCount, Function<String, Double> parser, BiConsumer<List<Double>, String> adder) {
-    var data = new ArrayList<List<Double>>(columnCount);
-    for (var i = 0; i < columnCount; i++) {
-      data.add(new ArrayList<>(rowCount));
-    }
-
-    for (var line : lines) {
-      var values = line.split("\\s+");
-      for (var j = 0; j < columnCount; j++) {
-        adder.accept(data.get(j), values[j]);
-      }
-    }
-
-    var columns = new ArrayList<MatrixColumn>(columnCount);
-    for (var j = 0; j < columnCount; j++) {
-      columns.add(new MatrixColumn("Column" + j, data.get(j).stream().mapToDouble(Double::doubleValue).toArray()));
-    }
-
-    return new Matrix(columns);
-  }
-
   public static Matrix readFromParquet(org.apache.hadoop.fs.Path filePath) throws IOException {
     try (var reader = ParquetReader.builder(new MatrixReadSupport(8760), filePath).build()) {
       return reader.read();
     }
+  }
+
+  public static Matrix readMatrixFromTxt(Path filePath) throws IOException {
+    Objects.requireNonNull(filePath);
+
+    try (var lines = Files.lines(filePath)) {
+      var iterator = lines.iterator();
+      if (!iterator.hasNext()) {
+        throw new IllegalArgumentException("File is empty");
+      }
+
+      var firstLine = iterator.next();
+      var columnCount = firstLine.split("\\s+").length;
+      var data = new ArrayList<List<Double>>(columnCount);
+      for (var i = 0; i < columnCount; i++) {
+        data.add(new ArrayList<>());
+      }
+
+      fillDataList(firstLine, iterator, data);
+
+      var columns = new ArrayList<MatrixColumn>(data.size());
+      for (int j = 0; j < data.size(); j++) {
+        columns.add(new MatrixColumn("Column" + j, data.get(j).stream().mapToDouble(Double::doubleValue).toArray()));
+      }
+
+      return new Matrix(columns);
+    }
+  }
+
+  private static void fillDataList(String firstLine, Iterator<String> iterator, ArrayList<List<Double>> data) {
+    Stream.concat(Stream.of(firstLine), Stream.generate(iterator::next).takeWhile(x -> iterator.hasNext()))
+            .map(line -> line.split("\\s+"))
+            .forEach(values -> {
+              for (var j = 0; j < values.length; j++) {
+                data.get(j).add(Double.parseDouble(values[j]));
+              }
+            });
   }
 }

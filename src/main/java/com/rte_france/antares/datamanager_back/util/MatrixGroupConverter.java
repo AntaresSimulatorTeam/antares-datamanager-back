@@ -16,7 +16,7 @@ public class MatrixGroupConverter extends GroupConverter {
 
     public MatrixGroupConverter(GroupType schema, int rowCount) {
         Objects.requireNonNull(schema);
-        this.rowCount = Objects.checkIndex(rowCount, 8761);
+        this.rowCount = rowCount;
         this.columnNames = new ArrayList<>();
         for (var field : schema.getFields()) {
             columnNames.add(field.getName());

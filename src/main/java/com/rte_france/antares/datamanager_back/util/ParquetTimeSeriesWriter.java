@@ -78,9 +78,9 @@ public class ParquetTimeSeriesWriter {
             var endDeserialization = System.nanoTime();
             var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
 
-            System.out.println("Serialization time: " + serializationTime);
-            System.out.println("Deserialization time: " + deserializationTime);
-            System.out.println(".parquet file size (bytes): " + fileSize);
+            LOGGER.info("Serialization time: {}", serializationTime);
+            LOGGER.info("Deserialization time: {}", deserializationTime);
+            LOGGER.info(".parquet file size (bytes): {}", fileSize);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
