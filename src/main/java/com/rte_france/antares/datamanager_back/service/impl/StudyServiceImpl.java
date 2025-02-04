@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
@@ -90,7 +91,11 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     public StudyDTO createStudy(StudyDTO studyDTO) {
-        String studyName = studyDTO.getName() + "-" + studyDTO.getHorizon() + "_REF";
+        Assert.notNull(studyDTO.getName(), "Study name must be provided.");
+        Assert.notNull(studyDTO.getProject(), "Project name must be provided.");
+        Assert.notNull(studyDTO.getHorizon(), "Horizon year must be provided.");
+
+        String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1) + "_REF";
         studyDTO.setName(studyName);
         if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
             throw new BadRequestException("Project name must be provided.");
