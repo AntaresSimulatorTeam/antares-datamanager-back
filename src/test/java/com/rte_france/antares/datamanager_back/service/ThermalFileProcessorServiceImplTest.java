@@ -36,7 +36,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
-
+    private static final String thermalCapacityPath = "src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx";
+    private static final String thermalCapacityFileName = "thermal_BE_PEMMDB23_26avril";
+    private static final String thermalParametersPath = "src/test/resources/thermal_parameters/common_param_BP23_A_ref.xlsx";
+    private static final String thermalParametersFileName = "common_param_BP23_A_ref";
+    private static final String thermalCostsPath = "src/test/resources/thermal_cost/costs_BP23_A_ref.xlsx";
+    private static final String thermalCostsFileName = "costs_BP23_A_ref";
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -55,13 +60,13 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void processThermalCapacityFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx");
+        Mockito.when(file.getPath()).thenReturn(thermalCapacityPath);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
 
-        when(file.getName()).thenReturn("thermal_BE_PEMMDB23_26avril.xlsx");
+        when(file.getName()).thenReturn(thermalCapacityFileName + ".xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
-
-        thermalFileProcessorService.processThermalCapacityFile(file,"2023-2024");
+        var horizon = "2023-2024";
+        thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_CAPACITY);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -69,11 +74,11 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void processThermalCapacityFile_whenTrajectoryDoesNotExist() throws IOException {
         File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx");
-        when(file.getName()).thenReturn("thermal_BE_PEMMDB23_26avril.xlsx");
+        Mockito.when(file.getPath()).thenReturn(thermalCapacityPath);
+        when(file.getName()).thenReturn(thermalCapacityFileName + ".xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
-
-        thermalFileProcessorService.processThermalCapacityFile(file,"2023-2024");
+        var horizon = "2023-2024";
+        thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_PARAMETER);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -82,29 +87,29 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalParameterFile() throws IOException {
         // Given
 
-        Path filePath = Paths.get("src/test/resources/thermal_parameters/common_param_BP23_A_ref.xlsx");
+        Path filePath = Paths.get(thermalParametersPath);
         File file = filePath.toFile();
 
         String horizon = "2025";
 
         TrajectoryEntity expectedTrajectory = TrajectoryEntity.builder()
-                .fileName("common_param_BP23_A_ref")
+                .fileName(thermalParametersFileName)
                 .type(TrajectoryType.THERMAL_PARAMETER.name())
                 .version(1)
                 .horizon(horizon)
                 .build();
 
 
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("common_param_BP23_A_ref.xlsx"))
+        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(thermalParametersFileName + ".xlsx"))
                 .thenReturn(Optional.of(expectedTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(expectedTrajectory);
 
         // When
-        thermalFileProcessorService.processThermalParameterFile(file, horizon);
+        thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_PARAMETER);
 
         // Then
         verify(trajectoryRepository, times(1))
-                .findFirstByFileNameOrderByVersionDesc("common_param_BP23_A_ref");
+                .findFirstByFileNameOrderByVersionDesc(thermalParametersFileName);
 
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
 
@@ -114,14 +119,14 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalCostFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         // Given
         File file = mock(File.class);
-        when(file.getName()).thenReturn("costs_BP23_A_ref.xlsx");
-        when(file.getPath()).thenReturn("src/test/resources/thermal_cost/costs_BP23_A_ref.xlsx");
+        when(file.getName()).thenReturn(thermalCostsFileName + ".xlsx");
+        when(file.getPath()).thenReturn(thermalCostsPath);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
         String horizon = "2025";
 
         // When
-        thermalFileProcessorService.processThermalCostFile(file, horizon);
+        thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalCosts, TrajectoryType.THERMAL_COST);
 
         // Then
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
@@ -131,13 +136,13 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalCostFile_whenTrajectoryDoesNotExist() throws IOException {
         // Given
         File file = mock(File.class);
-        when(file.getName()).thenReturn("costs_BP23_A_ref.xlsx");
-        when(file.getPath()).thenReturn("src/test/resources/thermal_cost/costs_BP23_A_ref.xlsx");
+        when(file.getName()).thenReturn(thermalCostsFileName + ".xlsx");
+        when(file.getPath()).thenReturn(thermalCostsPath);
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
         String horizon = "2025";
 
         // When
-        thermalFileProcessorService.processThermalCostFile(file, horizon);
+        thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_PARAMETER);
 
         // Then
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
@@ -146,7 +151,7 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void buildThermalParameters() throws IOException {
         // Given
-        File file = new File("src/test/resources/thermal_parameters/common_param_BP23_A_ref.xlsx");
+        File file = new File(thermalParametersPath);
 
         // When
         List<ThermalParameterEntity> thermalParameters = thermalFileProcessorService.buildThermalParameters(file);
@@ -164,7 +169,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
 
         // When
-        TrajectoryEntity result = thermalFileProcessorService.saveThermalCapacitiesTrajectory(trajectory, thermalClusterCapacities);
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalTrajectory(trajectory, thermalClusterCapacities, TrajectoryType.THERMAL_CAPACITY);
 
         // Then
         assertEquals(TrajectoryType.THERMAL_CAPACITY.name(), result.getType());
@@ -180,7 +185,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
 
         // When
-        TrajectoryEntity result = thermalFileProcessorService.saveThermalParametersTrajectory(trajectory, thermalParameterEntities);
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalTrajectory(trajectory, thermalParameterEntities, TrajectoryType.THERMAL_PARAMETER);
 
         // Then
         assertEquals(TrajectoryType.THERMAL_PARAMETER.name(), result.getType());
@@ -196,7 +201,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
 
         // When
-        TrajectoryEntity result = thermalFileProcessorService.saveThermalCostTrajectory(trajectory, thermalCostEntities);
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalTrajectory(trajectory, thermalCostEntities, TrajectoryType.THERMAL_COST);
 
         // Then
         assertEquals(TrajectoryType.THERMAL_COST.name(), result.getType());

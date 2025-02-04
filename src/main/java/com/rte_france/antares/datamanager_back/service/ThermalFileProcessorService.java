@@ -1,24 +1,20 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterCapacityEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalCostEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalParameterEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Function;
 
 public interface ThermalFileProcessorService {
+     TrajectoryEntity processThermalFile(File file, String horizon, ThermalFileProcessorServiceImpl.ThermalBuilder builder, TrajectoryType type) throws IOException;
+     TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, List<? extends ThermalBaseEntity> thermalEntities, TrajectoryType type);
 
-     TrajectoryEntity processThermalCapacityFile(File file,String horizon) throws IOException ;
-
-     TrajectoryEntity processThermalParameterFile(File file,String horizon) throws IOException ;
-
-     TrajectoryEntity processThermalCostFile(File file, String horizon) throws IOException ;
-     TrajectoryEntity saveThermalCapacitiesTrajectory(TrajectoryEntity trajectory, List<ThermalClusterCapacityEntity> thermalClusterCapacities);
-     TrajectoryEntity saveThermalParametersTrajectory(TrajectoryEntity trajectory, List<ThermalParameterEntity> thermalParameterEntities);
-
-     TrajectoryEntity saveThermalCostTrajectory(TrajectoryEntity trajectory, List<ThermalCostEntity> thermalCostEntities);
+     List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(File file) throws IOException;
+     List<ThermalCostEntity> buildThermalCosts(File file) throws IOException;
+     List<ThermalParameterEntity> buildThermalParameters(File file) throws IOException;
 
     }

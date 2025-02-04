@@ -80,7 +80,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024");
 
-        verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any(), any());
+        verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), any());
     }
 
     @Test

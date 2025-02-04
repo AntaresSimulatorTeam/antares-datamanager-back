@@ -11,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @Entity
 @Table(name = "thermal_parameter")
-public class ThermalParameterEntity {
+public class ThermalParameterEntity extends ThermalBaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_parameter_seq_gen")
     @SequenceGenerator(name = "thermal_parameter_seq_gen", sequenceName = "thermal_parameter_sequence", allocationSize = 1)
@@ -111,9 +111,4 @@ public class ThermalParameterEntity {
 
     @Column(name = "efficiency")
     private Double efficiency;
-
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "trajectory_id")
-    private TrajectoryEntity trajectory;
-
 }

@@ -11,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @Entity
 @Table(name = "thermal_cluster_capacity")
-public class ThermalClusterCapacityEntity {
+public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_cluster_capacity_seq_gen")
     @SequenceGenerator(name = "thermal_cluster_capacity_seq_gen", sequenceName = "tthermal_cluster_capacity_sequence", allocationSize = 1)
@@ -43,11 +43,4 @@ public class ThermalClusterCapacityEntity {
 
     @Column(name = "to_use")
     private Boolean toUse;
-
-
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "trajectory_id")
-    private TrajectoryEntity trajectory;
-
-
 }
