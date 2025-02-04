@@ -36,12 +36,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
-    private static final String thermalCapacityPath = "src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx";
     private static final String thermalCapacityFileName = "thermal_BE_PEMMDB23_26avril";
-    private static final String thermalParametersPath = "src/test/resources/thermal_parameters/common_param_BP23_A_ref.xlsx";
+    private static final String thermalCapacityPath = "src/test/resources/thermal_capacity/" + thermalCapacityFileName + ".xlsx";
     private static final String thermalParametersFileName = "common_param_BP23_A_ref";
-    private static final String thermalCostsPath = "src/test/resources/thermal_cost/costs_BP23_A_ref.xlsx";
+    private static final String thermalParametersPath = "src/test/resources/thermal_parameters/" + thermalParametersFileName + ".xlsx";
     private static final String thermalCostsFileName = "costs_BP23_A_ref";
+    private static final String thermalCostsPath = "src/test/resources/thermal_cost/" + thermalCostsFileName + ".xlsx";
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
