@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "thermal_cost")
-public class ThermalCostEntity {
+public class ThermalCostEntity extends ThermalBaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_cost_seq_gen")
@@ -25,10 +25,6 @@ public class ThermalCostEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "thermal_type_id")
     private ThermalCostTypeEntity thermalType;
-
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "trajectory_id")
-    private TrajectoryEntity trajectory;
 
     public ThermalCostEntity(Double cost, Double year, ThermalCostTypeEntity thermalType) {
         this.cost = cost;

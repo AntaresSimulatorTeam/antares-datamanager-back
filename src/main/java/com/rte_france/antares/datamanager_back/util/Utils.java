@@ -70,7 +70,7 @@ public class Utils {
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
-    @ExecutionTime
+//    @ExecutionTime
     public static TrajectoryEntity buildTrajectory(File file, int versionTrajectory, String horizon) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtension(file.getName()))// file name without extension

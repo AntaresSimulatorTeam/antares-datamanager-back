@@ -54,13 +54,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 return linkFileProcessorService.processLinkFile(trajectoryFile, horizon);
             }
             case THERMAL_CAPACITY -> {
-                return thermalFileProcessorService.processThermalCapacityFile(trajectoryFile, horizon);
+                return thermalFileProcessorService.processThermalFile(trajectoryFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
             }
             case THERMAL_PARAMETER -> {
-                return thermalFileProcessorService.processThermalParameterFile(trajectoryFile, horizon);
+                return thermalFileProcessorService.processThermalFile(trajectoryFile, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
             }
             case THERMAL_COST -> {
-                return thermalFileProcessorService.processThermalCostFile(trajectoryFile, horizon);
+                return thermalFileProcessorService.processThermalFile(trajectoryFile, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
             }
             // Handle default case
             default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
