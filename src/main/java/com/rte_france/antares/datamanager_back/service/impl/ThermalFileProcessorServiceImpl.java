@@ -51,7 +51,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     @SuppressWarnings("unchecked")
     public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, List<? extends ThermalBaseEntity> thermalEntities, TrajectoryType type) {
         trajectory.setType(type.name());
-        thermalEntities.forEach(thermalClusterCapacityEntity -> thermalClusterCapacityEntity.setTrajectory(trajectory));
+        thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
             switch (thermalEntities.getFirst()) {
                 case ThermalClusterCapacityEntity cap -> trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);

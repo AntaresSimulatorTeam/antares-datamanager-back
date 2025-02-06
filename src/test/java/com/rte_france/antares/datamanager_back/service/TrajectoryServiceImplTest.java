@@ -7,12 +7,14 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
@@ -139,8 +141,8 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of(1, 2))).thenReturn(List.of(entity));
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2));
         assertThat(result).isNotEmpty();
-        assertThat(result.get(0).getType()).isEqualTo("AREA");
-        assertThat(result.get(0).getId()).isEqualTo(1);
+        assertThat(result.getFirst().getType()).isEqualTo("AREA");
+        assertThat(result.getFirst().getId()).isEqualTo(1);
     }
 
     @Test

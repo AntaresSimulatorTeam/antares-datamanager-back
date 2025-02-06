@@ -1,16 +1,11 @@
 package com.rte_france.antares.datamanager_back.service;
 
 
-
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
-
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -18,16 +13,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-
-
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -36,12 +25,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
-    private static final String thermalCapacityFileName = "thermal_BE_PEMMDB23_26avril";
-    private static final String thermalCapacityPath = "src/test/resources/thermal_capacity/" + thermalCapacityFileName + ".xlsx";
-    private static final String thermalParametersFileName = "common_param_BP23_A_ref";
-    private static final String thermalParametersPath = "src/test/resources/thermal_parameters/" + thermalParametersFileName + ".xlsx";
-    private static final String thermalCostsFileName = "costs_BP23_A_ref";
-    private static final String thermalCostsPath = "src/test/resources/thermal_cost/" + thermalCostsFileName + ".xlsx";
+    private static final String THERMAL_CAPACITY_FILE_NAME = "thermal_BE_PEMMDB23_26avril";
+    private static final String THERMAL_CAPACITY_PATH = "src/test/resources/thermal_capacity/" + THERMAL_CAPACITY_FILE_NAME + ".xlsx";
+    private static final String THERMAL_PARAMETERS_FILE_NAME = "common_param_BP23_A_ref";
+    private static final String THERMAL_PARAMETERS_PATH = "src/test/resources/thermal_parameters/" + THERMAL_PARAMETERS_FILE_NAME + ".xlsx";
+    private static final String THERMAL_COSTS_FILE_NAME = "costs_BP23_A_ref";
+    private static final String THERMAL_COSTS_PATH = "src/test/resources/thermal_cost/" + THERMAL_COSTS_FILE_NAME + ".xlsx";
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -60,10 +49,10 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void processThermalCapacityFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn(thermalCapacityPath);
+        Mockito.when(file.getPath()).thenReturn(THERMAL_CAPACITY_PATH);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
 
-        when(file.getName()).thenReturn(thermalCapacityFileName + ".xlsx");
+        when(file.getName()).thenReturn(THERMAL_CAPACITY_FILE_NAME + ".xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
         var horizon = "2023-2024";
         thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_CAPACITY);
@@ -74,8 +63,8 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void processThermalCapacityFile_whenTrajectoryDoesNotExist() throws IOException {
         File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn(thermalCapacityPath);
-        when(file.getName()).thenReturn(thermalCapacityFileName + ".xlsx");
+        Mockito.when(file.getPath()).thenReturn(THERMAL_CAPACITY_PATH);
+        when(file.getName()).thenReturn(THERMAL_CAPACITY_FILE_NAME + ".xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
         var horizon = "2023-2024";
         thermalFileProcessorService.processThermalFile(file, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_PARAMETER);
@@ -87,20 +76,20 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalParameterFile() throws IOException {
         // Given
 
-        Path filePath = Paths.get(thermalParametersPath);
+        Path filePath = Paths.get(THERMAL_PARAMETERS_PATH);
         File file = filePath.toFile();
 
         String horizon = "2025";
 
         TrajectoryEntity expectedTrajectory = TrajectoryEntity.builder()
-                .fileName(thermalParametersFileName)
+                .fileName(THERMAL_PARAMETERS_FILE_NAME)
                 .type(TrajectoryType.THERMAL_PARAMETER.name())
                 .version(1)
                 .horizon(horizon)
                 .build();
 
 
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(thermalParametersFileName + ".xlsx"))
+        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME + ".xlsx"))
                 .thenReturn(Optional.of(expectedTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(expectedTrajectory);
 
@@ -109,7 +98,7 @@ class ThermalFileProcessorServiceImplTest {
 
         // Then
         verify(trajectoryRepository, times(1))
-                .findFirstByFileNameOrderByVersionDesc(thermalParametersFileName);
+                .findFirstByFileNameOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME);
 
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
 
@@ -119,8 +108,8 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalCostFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         // Given
         File file = mock(File.class);
-        when(file.getName()).thenReturn(thermalCostsFileName + ".xlsx");
-        when(file.getPath()).thenReturn(thermalCostsPath);
+        when(file.getName()).thenReturn(THERMAL_COSTS_FILE_NAME + ".xlsx");
+        when(file.getPath()).thenReturn(THERMAL_COSTS_PATH);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
         String horizon = "2025";
@@ -136,8 +125,8 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalCostFile_whenTrajectoryDoesNotExist() throws IOException {
         // Given
         File file = mock(File.class);
-        when(file.getName()).thenReturn(thermalCostsFileName + ".xlsx");
-        when(file.getPath()).thenReturn(thermalCostsPath);
+        when(file.getName()).thenReturn(THERMAL_COSTS_FILE_NAME + ".xlsx");
+        when(file.getPath()).thenReturn(THERMAL_COSTS_PATH);
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
         String horizon = "2025";
 
@@ -151,7 +140,7 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void buildThermalParameters() throws IOException {
         // Given
-        File file = new File(thermalParametersPath);
+        File file = new File(THERMAL_PARAMETERS_PATH);
 
         // When
         List<ThermalParameterEntity> thermalParameters = thermalFileProcessorService.buildThermalParameters(file);
