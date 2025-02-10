@@ -191,9 +191,9 @@ class StudyServiceImplTest {
 
     @Test
     void createStudyThrowsBadRequestWhenNoProjectNameProvided() {
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").horizon("2021").build();
 
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             studyServiceImpl.createStudy(studyDTO);
         });
 
