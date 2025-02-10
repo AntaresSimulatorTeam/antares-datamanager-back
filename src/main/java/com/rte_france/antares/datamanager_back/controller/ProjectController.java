@@ -2,8 +2,8 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
-
 import com.rte_france.antares.datamanager_back.service.ProjectService;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +29,8 @@ public class ProjectController {
     private static final String SORTING_CRITERION = "creationDate";
 
     private final ProjectService projectService;
+
+    private final UserService userService;
 
     @Operation(summary = "Get pinned projects by user")
     @GetMapping("/pinned")
@@ -80,7 +82,7 @@ public class ProjectController {
 
     @Operation(summary = "Create a new project")
     @PostMapping
-    public ResponseEntity<ProjectDto> createProject(@RequestBody @NotNull  ProjectInputDto projectInputDto) {
+    public ResponseEntity<ProjectDto> createProject(@RequestBody @NotNull ProjectInputDto projectInputDto) {
 
         return new ResponseEntity<>(toProjectDto(projectService.createProject(projectInputDto)), HttpStatus.OK);
     }
