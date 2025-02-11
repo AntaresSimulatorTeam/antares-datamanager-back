@@ -1,0 +1,13 @@
+version: '3.7'
+services:
+  mock_oidc_server:
+    image: gridsuite/oidc-mock-server:latest
+    environment:
+      - PORT=9090
+      - CLIENT_ID=pegase-client
+      - CLIENT_SECRET=pegase-secret
+      - CLIENT_REDIRECT_URI=http://localhost:8080
+      - CLIENT_LOGOUT_REDIRECT_URI=http://localhost:8080
+      - OIDC_MOCK_SCENARIO=opaque-token
+    ports:
+      - 9090:9090
