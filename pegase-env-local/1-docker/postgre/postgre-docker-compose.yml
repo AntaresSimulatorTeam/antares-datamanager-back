@@ -17,6 +17,9 @@ services:
     ports:
       - "5434:5432"
     restart: unless-stopped
+    networks:
+      - pegase_network
 
-volumes:
-  postgres:
+networks:
+  pegase_network:
+    driver: bridge
