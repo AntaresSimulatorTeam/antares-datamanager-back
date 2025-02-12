@@ -1,5 +1,13 @@
-package com.rte_france.antares.datamanager_back.util;
+/**
+ * Copyright (c) 2025, RTE (http://www.rte-france.com)
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+package com.rte_france.antares.timeseries_manager.main;
 
+import com.rte_france.antares.timeseries_manager.arrow.TimeSeriesMatrix;
+import com.rte_france.antares.timeseries_manager.arrow.TimeSeriesMatrixColumn;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -14,10 +22,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-public class ArrowReader {
+public final class ArrowTSReader implements TimeSeriesReader<TimeSeriesMatrix> {
   private static final int ROW_COUNT = 8760;
 
-  public static Matrix readMatrixFromArrow(Path filePath) throws IOException {
+  @Override
+  public TimeSeriesMatrix read(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 
     try (var channel = Files.newByteChannel(filePath);
@@ -28,14 +37,14 @@ public class ArrowReader {
       var root = reader.getVectorSchemaRoot();
       var fields = root.getSchema().getFields();
 
-      var columns = new ArrayList<MatrixColumn>();
+      var columns = new ArrayList<TimeSeriesMatrixColumn>();
       fillMatrixColumns(fields, root, columns);
 
-      return new Matrix(columns);
+      return new TimeSeriesMatrix(columns);
     }
   }
 
-  private static void fillMatrixColumns(List<Field> fields, VectorSchemaRoot root, ArrayList<MatrixColumn> columns) {
+  private static void fillMatrixColumns(List<Field> fields, VectorSchemaRoot root, ArrayList<TimeSeriesMatrixColumn> columns) {
     for (var field : fields) {
       var vector = root.getVector(field.getName());
       var values = new double[vector.getValueCount()];
@@ -45,11 +54,12 @@ public class ArrowReader {
           default -> throw new IllegalStateException();
         }
       }
-      columns.add(new MatrixColumn(field.getName(), values));
+      columns.add(new TimeSeriesMatrixColumn(field.getName(), values));
     }
   }
 
-  public static Matrix readMatrixFromTxt(Path filePath) throws IOException {
+  @Override
+  public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 
     try (var lines = Files.lines(filePath)) {
@@ -64,12 +74,12 @@ public class ArrowReader {
 
       fillDataList(firstLine, iterator, data);
 
-      var columns = new ArrayList<MatrixColumn>(data.length);
+      var columns = new ArrayList<TimeSeriesMatrixColumn>(data.length);
       for (int j = 0; j < data.length; j++) {
-        columns.add(new MatrixColumn("Column" + j, data[j]));
+        columns.add(new TimeSeriesMatrixColumn("Column" + j, data[j]));
       }
 
-      return new Matrix(columns);
+      return new TimeSeriesMatrix(columns);
     }
   }
 

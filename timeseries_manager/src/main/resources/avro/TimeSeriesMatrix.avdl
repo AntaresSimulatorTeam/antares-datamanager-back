@@ -1,0 +1,10 @@
+@namespace("com.rte_france.antares.timeseries_manager.main")
+protocol TimeSeriesMatrixProtocol {
+	record TimeSeriesMatrix {
+		array<TimeSeriesRow> rows;
+	}
+
+	record TimeSeriesRow {
+		array<double> columns;
+	}
+}

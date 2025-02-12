@@ -1,5 +1,14 @@
-package com.rte_france.antares.datamanager_back.util;
+/**
+ * Copyright (c) 2025, RTE (http://www.rte-france.com)
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+package com.rte_france.antares.timeseries_manager.main;
 
+import com.rte_france.antares.timeseries_manager.arrow.TimeSeriesMatrix;
+import com.rte_france.antares.timeseries_manager.arrow.TimeSeriesMatrixColumn;
+import com.rte_france.antares.timeseries_manager.util.Utils;
 import org.apache.arrow.compression.CommonsCompressionFactory;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
@@ -12,11 +21,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,21 +30,19 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class ArrowWriter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ArrowWriter.class);
-
+public final class ArrowTSWriter implements TimeSeriesWriter<TimeSeriesMatrix> {
   private static Field doubleField(String name) {
     return new Field(name, FieldType.notNullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
   }
 
-  private static Schema createSchema(Matrix matrix) {
-    var fields = matrix.getColumns().stream()
+  private static Schema createSchema(TimeSeriesMatrix matrix) {
+    var fields = matrix.columns().stream()
             .map(column -> doubleField(column.name()))
             .collect(Collectors.toList());
     return new Schema(fields);
   }
 
-  private static void populateDoubleVector(VectorSchemaRoot table, MatrixColumn column) {
+  private static void populateDoubleVector(VectorSchemaRoot table, TimeSeriesMatrixColumn column) {
     var vector = table.getVector(column.name());
     var values = column.values();
     var size = values.length;
@@ -52,17 +56,21 @@ public class ArrowWriter {
     }
   }
 
-  public void write(Matrix matrix, OutputStream out) throws IOException {
+  @Override
+  public void write(TimeSeriesMatrix matrix, Path outputPath) throws IOException {
     Objects.requireNonNull(matrix);
-    Objects.requireNonNull(out);
+    Objects.requireNonNull(outputPath);
+    outputPath = Utils.ensureExtension(outputPath, this::getDefaultFileExtension);
 
     var schema = createSchema(matrix);
     try (var allocator = new RootAllocator();
          var table = VectorSchemaRoot.create(schema, allocator)) {
-      matrix.getColumns().forEach(c -> populateDoubleVector(table, c));
+      matrix.columns().forEach(c -> populateDoubleVector(table, c));
 
       var compressionFactory = new CommonsCompressionFactory();
-      try (var ch = Channels.newChannel(out);
+
+      try (var out = Files.newOutputStream(outputPath);
+           var ch = Channels.newChannel(out);
            var writer = new ArrowFileWriter(table, null, ch, null, IpcOption.DEFAULT, compressionFactory, CompressionUtil.CodecType.ZSTD)) {
         writer.start();
         writer.writeBatch();
@@ -71,34 +79,8 @@ public class ArrowWriter {
     }
   }
 
+  @Override
   public String getDefaultFileExtension() {
     return "arrow";
-  }
-
-  public static void main(String[] args) {
-    var writer = new ArrowWriter();
-    try {
-      var matrix = ArrowReader.readMatrixFromTxt(Path.of("src/main/resources/INPUT/load/load_fr_2030-2031.txt"));
-
-      var startSerialization = System.nanoTime();
-      var arrowFilePath = Path.of("src/main/resources/test-matrix.arrow");
-      try (var out = Files.newOutputStream(arrowFilePath)) {
-        writer.write(matrix, out);
-      }
-      var endSerialization = System.nanoTime();
-      var serializationTime = (endSerialization - startSerialization) / 1_000_000_000.0;
-      var fileSize = Files.size(arrowFilePath);
-
-      var startDeserialization = System.nanoTime();
-      var deserializedMatrix = ArrowReader.readMatrixFromArrow(arrowFilePath);
-      var endDeserialization = System.nanoTime();
-      var deserializationTime = (endDeserialization - startDeserialization) / 1_000_000_000.0;
-
-      LOGGER.info("Serialization time (s): {}", serializationTime);
-      LOGGER.info("Deserialization time (s): {}", deserializationTime);
-      LOGGER.info(".arrow file size (bytes): {}", fileSize);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 }

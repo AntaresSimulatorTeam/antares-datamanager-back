@@ -4,23 +4,23 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.rte_france.antares.datamanager_back.util;
+package com.rte_france.antares.timeseries_manager.arrow;
 
 import java.util.Arrays;
 import java.util.Objects;
 
-public record MatrixColumn(String name, double[] values) {
+public record TimeSeriesMatrixColumn(String name, double[] values) {
     public int getSize() {
       return values.length;
     }
 
-    public MatrixColumn {
+    public TimeSeriesMatrixColumn {
         Objects.requireNonNull(name);
         Objects.requireNonNull(values);
     }
 
-    public MatrixColumn renamed(String newName) {
-        return new MatrixColumn(newName, values);
+    public TimeSeriesMatrixColumn renamed(String newName) {
+        return new TimeSeriesMatrixColumn(newName, values);
     }
 
     @Override
