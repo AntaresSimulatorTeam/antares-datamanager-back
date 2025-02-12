@@ -1,0 +1,66 @@
+{"study_name": {
+    "version": "880",
+    "settings": "will be refactored so we'll put nothing for the moment",
+    "areas": {
+        "area_name": {
+            "ui": "AreaUI class as JSON",
+            "properties": "AreaProperties as JSON",
+            "hydro": {
+                "properties": "HydroProperties as JSON",
+                "every matrices name inside HydroMatrixName enum": "matrix hash"
+            },
+            "thermals": {
+                "thermal_name": {
+                    "properties": "ThermalProperties class as JSON",
+                    "series": "matrix hash",
+                    "fuel_cost": "matrix hash",
+                    "c02_cpst": "matrix hash",
+                    "data": "matrix hash",
+                    "modulation": "matrix hash"
+                }
+            },
+            "renewables": {
+                "renewable_name": {
+                    "properties": "renewableProperties class as JSON",
+                    "series": "matrix hash"
+                }
+            },
+            "st_storages": {
+                "storage_name": {
+                    "pmax_injection": "STStorageProperties class as JSON",
+                    "pmax_withdrawal": "matrix hash",
+                    "lower_rule_curve": "matrix hash",
+                    "upper_rule_curve": "matrix hash",
+                    "inflows": "matrix hash",
+                }
+            }
+        }
+    },
+    "links": {
+        "link name, example (area1 / area2)": {
+            "properties": "LinkProperties class as JSON",
+            "ui": "LinkUi class as JSON",
+            "parameters": "matrix hash",
+            "capacity_direct": "matrix hash",
+            "capacity_indirect": "matrix hash",
+        }
+    },
+    "binding_constraints": {
+        "constraint_name": {
+            "properties": "BindingConstraintProperties as JSON",
+            "terms": [{
+                "area": "area_name",
+                "cluster": "cluster_name",
+                "weight": "optional key",
+                "offset": "same"
+            }, {
+                "area1": "area_from",
+                "area2": "area_to"
+            }
+            ],
+            "less_term_matrix": "matrix hash",
+            "equal_term_matrix": "matrix hash",
+            "greater_term_matrix": "matrix hash"
+        }
+    }
+}}

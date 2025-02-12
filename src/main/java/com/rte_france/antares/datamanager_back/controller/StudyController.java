@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class StudyController {
 
     private static final String SORTING_CRITERION = "creationDate";
     private final StudyService studyService;
+    private final StudyGeneratorService studyGeneratorService;
 
     @GetMapping("/search")
     public ResponseEntity<Page<StudyDTO>> searchStudies(
@@ -65,4 +67,12 @@ public class StudyController {
         studyService.deleteStudyById(id);
         return ResponseEntity.noContent().build();
     }
+
+
+    @PostMapping("/generate")
+    public ResponseEntity<Void> generateStudy(@RequestBody StudyDTO studyDTO) {
+        studyGeneratorService.studyTobeGenerated(studyDTO);
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
 }
