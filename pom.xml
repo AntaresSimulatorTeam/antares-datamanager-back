@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
     <version>3.2.7</version>
-    <relativePath/>
-    <!-- lookup parent from repository -->
+    <relativePath/> <!-- lookup parent from repository -->
   </parent>
   <groupId>com.rte_france.antares</groupId>
   <artifactId>antares-datamanager-back</artifactId>
@@ -28,22 +29,21 @@
   <properties>
     <java.version>21</java.version>
     <open-api-doc.version>2.0.3</open-api-doc.version>
-    <arrow.version>18.1.0</arrow.version>
     <sonar.organization>antaressimulatorteam</sonar.organization>
     <sonar.projectKey>AntaresSimulatorTeam_antares-datamanager-back</sonar.projectKey>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     <sonar.coverage.jacoco.xmlReportPaths>
-            ../antares-datamanager-back/target/site/jacoco/jacoco.xml
-        </sonar.coverage.jacoco.xmlReportPaths>
+      ../antares-datamanager-back/target/site/jacoco/jacoco.xml
+    </sonar.coverage.jacoco.xmlReportPaths>
     <sonar.exclusions>
-            **com/rte_france/plasma/pu/pu_dashboard_api/repository/model/**,
-            **com/rte_france/antares/datamanager_back/exception/**,
-            **com/rte_france/antares/datamanager_back/configuration/**,
-            **com/rte_france/antares/datamanager_back/repository/model/**,
-            **com/rte_france/antares/datamanager_back/dto/**,
-            **com/rte_france/antares/datamanager_back/PegaseBackApplication.java,
-            **/com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java
-        </sonar.exclusions>
+      **com/rte_france/plasma/pu/pu_dashboard_api/repository/model/**,
+      **com/rte_france/antares/datamanager_back/exception/**,
+      **com/rte_france/antares/datamanager_back/configuration/**,
+      **com/rte_france/antares/datamanager_back/repository/model/**,
+      **com/rte_france/antares/datamanager_back/dto/**,
+      **com/rte_france/antares/datamanager_back/PegaseBackApplication.java,
+      **/com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java
+    </sonar.exclusions>
   </properties>
   <dependencies>
     <dependency>
@@ -56,7 +56,15 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-integration</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
     <dependency>
       <groupId>org.liquibase</groupId>
@@ -79,6 +87,7 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-integration</artifactId>
     </dependency>
+
     <!-- Spring Integration File -->
     <dependency>
       <groupId>org.springframework.integration</groupId>
@@ -89,18 +98,14 @@
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
       <version>5.2.3</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.commons</groupId>
-          <artifactId>commons-compress</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
+
     <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
       <version>1.15</version>
     </dependency>
+
     <!-- HikariCP for Connection Pooling -->
     <dependency>
       <groupId>com.zaxxer</groupId>
@@ -134,7 +139,7 @@
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-      <version>${open-api-doc.version}</version>
+      <version>2.1.0</version>
     </dependency>
     <dependency>
       <groupId>net.logstash.logback</groupId>
@@ -162,6 +167,7 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
       <plugin>
@@ -183,6 +189,7 @@
         <groupId>org.sonarsource.scanner.maven</groupId>
         <artifactId>sonar-maven-plugin</artifactId>
         <version>5.0.0.4389</version>
+
       </plugin>
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -213,6 +220,7 @@
           </execution>
         </executions>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -247,4 +255,5 @@
     <module>timeseries_manager</module>
   </modules>
   <packaging>pom</packaging>
+
 </project>
