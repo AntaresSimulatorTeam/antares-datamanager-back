@@ -13,14 +13,12 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -53,11 +51,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory.setType(type.name());
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
-            switch (thermalEntities.getFirst()) {
-                case ThermalClusterCapacityEntity cap -> trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
-                case ThermalParameterEntity param -> trajectory.setThermalClusterParameters((List<ThermalParameterEntity>) thermalEntities);
-                case ThermalCostEntity cost -> trajectory.setThermalCostEntities(((List<ThermalCostEntity>) thermalEntities));
-                default -> throw new IllegalArgumentException();
+            ThermalBaseEntity firstEntity = thermalEntities.get(0);
+            if (firstEntity instanceof ThermalClusterCapacityEntity) {
+                trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
+            } else if (firstEntity instanceof ThermalParameterEntity) {
+                trajectory.setThermalClusterParameters((List<ThermalParameterEntity>) thermalEntities);
+            } else if (firstEntity instanceof ThermalCostEntity) {
+                trajectory.setThermalCostEntities((List<ThermalCostEntity>) thermalEntities);
+            } else {
+                throw new IllegalArgumentException();
             }
         }
 
