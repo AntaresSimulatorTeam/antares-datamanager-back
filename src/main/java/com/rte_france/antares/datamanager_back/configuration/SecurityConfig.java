@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.configuration;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -31,8 +32,27 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.opaquetoken.client-secret}")
     private String introspectionClientSecret;
 
+    @Value("${spring.profiles.active}")
+    private String activeProfile;
+
+    @PostConstruct
+    public void verifyConfig() {
+        System.out.println("profile: " + activeProfile ); // Mask secret
+    }
+    /*
+    Security deactivated for local profileg
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        if ("localhost".equals(activeProfile)) {
+            http
+                    .authorizeHttpRequests(auth -> auth
+                            .anyRequest().permitAll()
+                    );
+            return http.build();
+        }
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
                // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
