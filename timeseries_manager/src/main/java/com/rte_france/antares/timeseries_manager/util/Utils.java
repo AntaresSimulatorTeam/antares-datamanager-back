@@ -22,10 +22,6 @@ public final class Utils {
     Objects.requireNonNull(getFileExt);
 
     var ext = "." + getFileExt.get();
-    if (!path.toString().endsWith(ext)) {
-      return path.resolveSibling(path.getFileName() + ext);
-    }
-
-    return path;
+    return path.toString().endsWith(ext) ? path : path.resolveSibling(path.getFileName() + ext);
   }
 }
