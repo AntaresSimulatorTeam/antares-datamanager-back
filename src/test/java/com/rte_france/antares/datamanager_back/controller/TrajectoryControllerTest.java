@@ -1,9 +1,9 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 
+import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,9 +38,6 @@ class TrajectoryControllerTest {
 
     @MockBean
     TrajectoryServiceImpl trajectoryServiceImpl;
-
-    @MockBean
-    SftpDownloadService sftpDownloadService;
 
     @BeforeEach
     public void setup() {
@@ -87,7 +84,7 @@ class TrajectoryControllerTest {
 
     @Test
     void findTrajectoriesByTypeFromFileSystem_returnsFileNames() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromFS(any())).thenReturn(List.of("test"));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromFS(any())).thenReturn(List.of(FsTrajectoryDTO.builder().build()));
         this.mockMvc.perform(get("/v1/trajectory/fs")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
@@ -98,7 +95,6 @@ class TrajectoryControllerTest {
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(sftpDownloadService, times(1)).listFsTrajectoryByType(any(), any());
     }
 
     @Test

@@ -1,20 +1,18 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,9 +37,6 @@ class TrajectoryServiceImplTest {
 
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
-
-    @Mock
-    private SftpDownloadService sftpDownloadService;
 
 
     @InjectMocks
@@ -108,9 +103,9 @@ class TrajectoryServiceImplTest {
     void findTrajectoriesByTypeAndFileNameStartWithFromFS_returnsFileNamesWhenDirectoryExists() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
 
-        List<String> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 
-        assertEquals(List.of("testFile.xlsx"), result);
+        assertEquals("testFile.xlsx", result.get(0).getFileName());
     }
 
     @Test
@@ -141,8 +136,8 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of(1, 2))).thenReturn(List.of(entity));
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2));
         assertThat(result).isNotEmpty();
-        assertThat(result.getFirst().getType()).isEqualTo("AREA");
-        assertThat(result.getFirst().getId()).isEqualTo(1);
+        assertThat(result.get(0).getType()).isEqualTo("AREA");
+        assertThat(result.get(0).getId()).isEqualTo(1);
     }
 
     @Test
