@@ -102,6 +102,7 @@ class TrajectoryServiceImplTest {
     @Test
     void findTrajectoriesByTypeAndFileNameStartWithFromFS_returnsFileNamesWhenDirectoryExists() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 

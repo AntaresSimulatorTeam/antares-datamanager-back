@@ -74,7 +74,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     public List<FsTrajectoryDTO> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType) {
-        File directory = new File(antaressDataManagerProperties.getTrajectoryFilePath() + File.separator + trajectoryType.name().toLowerCase());
+        File directory = new File( antaressDataManagerProperties.getNasDirectory() + antaressDataManagerProperties.getTrajectoryFilePath() + File.separator + trajectoryType.name().toLowerCase());
+
         if (directory.exists() && directory.isDirectory()) {
             if (directory.listFiles() != null && Objects.requireNonNull(directory.listFiles()).length > 0) {
                 return Arrays.stream(Objects.requireNonNull(directory.listFiles()))
