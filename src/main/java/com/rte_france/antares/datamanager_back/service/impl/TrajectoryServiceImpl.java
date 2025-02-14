@@ -44,7 +44,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
         //build the file path
-        String filePath = antaressDataManagerProperties.getTrajectoryFilePath() + getDirectoryByTrajectoryType(trajectoryType, null) + File.separator;
+        String filePath = antaressDataManagerProperties.getNasDirectory() + antaressDataManagerProperties.getTrajectoryFilePath() + getDirectoryByTrajectoryType(trajectoryType, null) + File.separator;
         //download the file
         File trajectoryFile = new File(filePath + trajectoryToUse + ".xlsx");
         switch (trajectoryType) {
