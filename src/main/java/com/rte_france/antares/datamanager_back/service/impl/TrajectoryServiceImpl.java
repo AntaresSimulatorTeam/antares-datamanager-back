@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
@@ -16,12 +17,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
-import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 
 
 @Slf4j
@@ -39,13 +41,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalFileProcessorService thermalFileProcessorService;
 
-    private final SftpDownloadService sftpDownloadService;
 
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
         //build the file path
-        String filePath = antaressDataManagerProperties.getDataRemoteDirectory() + sftpDownloadService.getDirectoryByTrajectoryType(trajectoryType, null) + File.separator;
+        String filePath = antaressDataManagerProperties.getTrajectoryFilePath() + getDirectoryByTrajectoryType(trajectoryType, null) + File.separator;
         //download the file
-        File trajectoryFile = sftpDownloadService.downloadFile(filePath + trajectoryToUse + ".xlsx");
+        File trajectoryFile = new File(filePath + trajectoryToUse + ".xlsx");
         switch (trajectoryType) {
             case AREA -> {
                 return areaFileProcessorService.processAreaFile(trajectoryFile, horizon);
@@ -72,13 +73,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(trajectoryType.name(), horizon, fileNameStartsWith);
     }
 
-    public List<String> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType) {
-        File directory = new File(antaressDataManagerProperties.getTrajectoryFilePath() + trajectoryType.name().toLowerCase());
+    public List<FsTrajectoryDTO> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType) {
+        File directory = new File( antaressDataManagerProperties.getNasDirectory() + antaressDataManagerProperties.getTrajectoryFilePath() + File.separator + trajectoryType.name().toLowerCase());
+
         if (directory.exists() && directory.isDirectory()) {
             if (directory.listFiles() != null && Objects.requireNonNull(directory.listFiles()).length > 0) {
                 return Arrays.stream(Objects.requireNonNull(directory.listFiles()))
                         .filter(File::isFile)
-                        .map(File::getName)
+                        .map(file -> FsTrajectoryDTO.builder()
+                                .fileName(file.getName())
+                                .lastModifiedDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(file.lastModified()), ZoneId.systemDefault())).type(trajectoryType.name())
+                                .build())
                         .toList();
             }
         } else {
@@ -92,6 +97,20 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectoryRepository.findByTypeAndIdIn(trajectoryType, trajectoryIds).stream()
                 .map(TrajectoryMapper::toTrajectoryDTO)
                 .toList();
+    }
+
+    private String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String thermalCapacityArea) {
+        return switch (trajectoryType) {
+            case AREA -> antaressDataManagerProperties.getAreaDirectory();
+            case LINK -> antaressDataManagerProperties.getLinkDirectory();
+            case THERMAL_COST -> antaressDataManagerProperties.getThermalCostDirectory();
+            case THERMAL_CAPACITY ->
+                    antaressDataManagerProperties.getThermalCapacityDirectory() + File.separator + thermalCapacityArea;
+            case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
+            case LOAD, MISC ->
+                    throw new IllegalArgumentException("No directory defined for TrajectoryType: " + trajectoryType);
+            default -> throw new IllegalArgumentException("Invalid TrajectoryType: " + trajectoryType);
+        };
     }
 
 }

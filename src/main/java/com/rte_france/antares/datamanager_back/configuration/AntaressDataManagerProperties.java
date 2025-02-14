@@ -13,22 +13,6 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.trajectory.file.path}")
     public String trajectoryFilePath;
 
-    @Value("${antares.datamanager.data.remote.directory}")
-    public String dataRemoteDirectory;
-
-    @Value("${antares.datamanager.data.host}")
-    public String dataHost;
-
-    @Value("${antares.datamanager.data.host.username}")
-    public String dataHostUsername;
-
-    @Value("${antares.datamanager.data.host.password}")
-    public String dataHostPassword;
-
-    @Value("${antares.datamanager.data.local.directory.storage}")
-    public String dataLocalDirectoryStorage;
-
-
     @Value("${antares.datamanager.area.directory}")
     public String areaDirectory;
 
@@ -43,5 +27,8 @@ public class  AntaressDataManagerProperties {
 
     @Value("${antares.datamanager.thermal.parameter.directory}")
     public String thermalParameterDirectory;
+
+    @Value("${pegase.nas.directory}")
+    public String nasDirectory;
 
 }

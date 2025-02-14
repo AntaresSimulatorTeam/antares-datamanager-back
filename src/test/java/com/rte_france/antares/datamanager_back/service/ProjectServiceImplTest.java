@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -43,8 +42,6 @@ class ProjectServiceImplTest {
     @Mock
     private ProjectRepository projectRepository;
 
-    @Mock
-    private StudyRepository studyRepository;
 
     @Test
     void findProjectsByCriteria_returnsAllProjectsWhenSearchIsNull() {

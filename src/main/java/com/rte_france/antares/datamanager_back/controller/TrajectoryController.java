@@ -1,7 +1,5 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.service.impl.SftpDownloadService;
-import com.rte_france.antares.datamanager_back.dto.AreaDTO;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -30,8 +28,6 @@ public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
 
-    private final SftpDownloadService sftpDownloadService;
-
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from Database ")
     @GetMapping(value = "/db")
     public ResponseEntity<List<TrajectoryDTO>> findTrajectoriesByTypeFromDb(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
@@ -45,14 +41,9 @@ public class TrajectoryController {
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from File System")
     @GetMapping(value = "/fs")
     public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
-                                                                                      @Parameter(description = "parameter to user just in thermal capacity case") @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea) {
-        return new ResponseEntity<>(sftpDownloadService.listFsTrajectoryByType(trajectoryType, thermalCapacityArea), HttpStatus.OK);
-    }
-
-    @Operation(summary = "Get all area of thermal capacity from File System")
-    @GetMapping(value = "/fs/thermal-capacity-area")
-    public ResponseEntity<List<AreaDTO>> findThermalCapacityArea() {
-        return new ResponseEntity<>(sftpDownloadService.findThermalCapacityAreas(), HttpStatus.OK);
+                                                                                      @Parameter(description = "parameter to user just in thermal capacity case")
+                                                                                      @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea) {
+        return new ResponseEntity<>(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(trajectoryType), HttpStatus.OK);
     }
 
     @Operation(summary = "import Trajectory file to database ")
