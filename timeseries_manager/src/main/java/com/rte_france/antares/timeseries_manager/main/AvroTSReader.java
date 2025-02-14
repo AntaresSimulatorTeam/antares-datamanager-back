@@ -19,21 +19,6 @@ import java.util.stream.Collectors;
 
 public final class AvroTSReader implements TimeSeriesReader<TimeSeriesMatrix> {
   @Override
-  public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
-    Objects.requireNonNull(filePath);
-    try (var lines = Files.lines(filePath)) {
-      var rows = lines.map(line -> {
-        var values = line.trim().split("\\s+");
-        var doubles = Arrays.stream(values)
-                .map(Double::parseDouble)
-                .toList();
-        return new TimeSeriesRow(doubles);
-      }).collect(Collectors.toList());
-      return new TimeSeriesMatrix(rows);
-    }
-  }
-
-  @Override
   public TimeSeriesMatrix read(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
     if (Files.notExists(filePath)) {
@@ -47,6 +32,21 @@ public final class AvroTSReader implements TimeSeriesReader<TimeSeriesMatrix> {
         throw new IOException("The Parquet file is empty or does not contain a TimeSeriesMatrix");
       }
       return matrix;
+    }
+  }
+
+  @Override
+  public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
+    Objects.requireNonNull(filePath);
+    try (var lines = Files.lines(filePath)) {
+      var rows = lines.map(line -> {
+        var values = line.trim().split("\\s+");
+        var doubles = Arrays.stream(values)
+                .map(Double::parseDouble)
+                .toList();
+        return new TimeSeriesRow(doubles);
+      }).collect(Collectors.toList());
+      return new TimeSeriesMatrix(rows);
     }
   }
 }

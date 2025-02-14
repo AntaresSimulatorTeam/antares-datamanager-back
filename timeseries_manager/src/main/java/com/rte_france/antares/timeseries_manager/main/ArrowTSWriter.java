@@ -6,8 +6,8 @@
  */
 package com.rte_france.antares.timeseries_manager.main;
 
-import com.rte_france.antares.timeseries_manager.arrow.TimeSeriesMatrix;
-import com.rte_france.antares.timeseries_manager.arrow.TimeSeriesMatrixColumn;
+import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrix;
+import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrixColumn;
 import com.rte_france.antares.timeseries_manager.util.Utils;
 import org.apache.arrow.compression.CommonsCompressionFactory;
 import org.apache.arrow.memory.RootAllocator;
