@@ -16,3 +16,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.0.0/V07-add_sequence_study_project.sql
   - include:
       file: classpath*:db/changelog/1.0.0/V08-modify_sequences_start_value.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V09-drop_area_values_inserted.sql

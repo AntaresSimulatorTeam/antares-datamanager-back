@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
@@ -70,8 +71,8 @@ public class StudyController {
 
 
     @PostMapping("/generate")
-    public ResponseEntity<Void> generateStudy(@RequestBody StudyDTO studyDTO) {
-        studyGeneratorService.studyTobeGenerated(studyDTO);
+    public ResponseEntity<Void> generateStudy(@RequestParam Integer id) throws JsonProcessingException {
+        studyGeneratorService.studyTobeGenerated(id);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 

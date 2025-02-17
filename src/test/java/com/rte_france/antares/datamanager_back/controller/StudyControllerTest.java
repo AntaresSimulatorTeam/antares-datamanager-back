@@ -187,17 +187,17 @@ class StudyControllerTest {
 
     @Test
     void generateStudySuccess() throws Exception {
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
-
+        Integer studyId = 1234;
 
         this.mockMvc.perform(post("/v1/study/generate")
+                        .param("id", String.valueOf(studyId))
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
-                        .content(Utils.asJsonString(studyDTO))
+                        .content(Utils.asJsonString(studyId))
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
 
-        verify(studyGeneratorService, times(1)).studyTobeGenerated(any(StudyDTO.class));
+        verify(studyGeneratorService, times(1)).studyTobeGenerated(eq(studyId));
     }
 }

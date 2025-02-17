@@ -8,5 +8,5 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 public interface StudyGeneratorService {
-    void studyTobeGenerated(StudyDTO studyDTO) throws JsonProcessingException;
+    void studyTobeGenerated(Integer study_id) throws JsonProcessingException;
 }

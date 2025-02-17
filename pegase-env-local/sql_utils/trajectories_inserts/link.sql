@@ -1,4 +1,4 @@
-insert into MY_TABLE (id, name, winter_hp_direct_mw, winter_hp_indirect_mw, winter_hc_direct_mw, winter_hc_indirect_mw, summer_hp_direct_mw, summer_hp_indirect_mw, summer_hc_direct_mw, summer_hc_indirect_mw, flowbased_perimeter, hvdc, specific_ts, forced_outage_hvac, hurdle_cost, trajectory_id)
+insert into pegase_local_db_schema.link (id, name, winter_hp_direct_mw, winter_hp_indirect_mw, winter_hc_direct_mw, winter_hc_indirect_mw, summer_hp_direct_mw, summer_hp_indirect_mw, summer_hc_direct_mw, summer_hc_indirect_mw, flowbased_perimeter, hvdc, specific_ts, forced_outage_hvac, hurdle_cost, trajectory_id)
 values  (1, 'AT-CH', 1200, 1200, 1200, 1200, 1200, 1200, 1200, 1200, false, false, false, false, 0.5, 2),
         (2, 'AT-CZ', 900, 900, 900, 900, 900, 900, 900, 900, false, false, false, false, 0.5, 2),
         (3, 'AT-DE', 7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500, false, false, false, false, 0.5, 2),
