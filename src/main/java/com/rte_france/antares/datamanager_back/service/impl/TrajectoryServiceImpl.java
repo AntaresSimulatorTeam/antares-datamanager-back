@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -46,22 +47,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //build the file path
         String filePath = antaressDataManagerProperties.getNasDirectory() + antaressDataManagerProperties.getTrajectoryFilePath() + getDirectoryByTrajectoryType(trajectoryType, null) + File.separator;
         //download the file
-        File trajectoryFile = new File(filePath + trajectoryToUse + ".xlsx");
+        Path trajectoryFilePath = Path.of(filePath + trajectoryToUse + ".xlsx");
         switch (trajectoryType) {
             case AREA -> {
-                return areaFileProcessorService.processAreaFile(trajectoryFile, horizon);
+                return areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
             }
             case LINK -> {
-                return linkFileProcessorService.processLinkFile(trajectoryFile, horizon);
+                return linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon);
             }
             case THERMAL_CAPACITY -> {
-                return thermalFileProcessorService.processThermalFile(trajectoryFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
+                return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
             }
             case THERMAL_PARAMETER -> {
-                return thermalFileProcessorService.processThermalFile(trajectoryFile, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
+                return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
             }
             case THERMAL_COST -> {
-                return thermalFileProcessorService.processThermalFile(trajectoryFile, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
+                return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
             }
             // Handle default case
             default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");

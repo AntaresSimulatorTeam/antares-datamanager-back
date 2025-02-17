@@ -14,6 +14,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -37,26 +38,26 @@ class LinkFileProcessorServiceImplTest {
 
     @Test
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
 
-        when(file.getName()).thenReturn("links_BP23_A_ref.xlsx");
+        when(path.getFileName().toString()).thenReturn("links_BP23_A_ref.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
-        linkFileProcessorService.processLinkFile(file,"2030-2031");
+        linkFileProcessorService.processLinkFile(path,"2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
 
     @Test
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
-        when(file.getName()).thenReturn("links_BP23_A_ref.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
+        when(path.getFileName().toString()).thenReturn("links_BP23_A_ref.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
-        linkFileProcessorService.processLinkFile(file,"2030-2031");
+        linkFileProcessorService.processLinkFile(path,"2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
     }

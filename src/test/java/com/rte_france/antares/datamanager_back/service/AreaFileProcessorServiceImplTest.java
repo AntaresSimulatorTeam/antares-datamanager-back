@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,14 +44,14 @@ class AreaFileProcessorServiceImplTest {
 
     @Test
     void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/area/testFile.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
 
-        when(file.getName()).thenReturn("testFile.xlsx");
+        when(path.getFileName().toString()).thenReturn("testFile.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
-        areaFileProcessorService.processAreaFile(file, "2030-2031");
+        areaFileProcessorService.processAreaFile(path, "2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
         verify(areaConfigRepository, times(1)).saveAll(any());
@@ -58,13 +59,13 @@ class AreaFileProcessorServiceImplTest {
 
     @Test
     void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/area/testFile.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
 
-        when(file.getName()).thenReturn("testFile.xlsx");
+        when(path.getFileName().toString()).thenReturn("testFile.xlsx");
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
-        areaFileProcessorService.processAreaFile(file, "2030-2031");
+        areaFileProcessorService.processAreaFile(path, "2030-2031");
 
         verify(trajectoryRepository, times(1)).save(any());
         verify(areaConfigRepository, times(1)).saveAll(any());
