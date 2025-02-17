@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.ss.usermodel.*;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -40,8 +39,8 @@ public class Utils {
      * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
      */
     public static String getFileChecksum(String filePath) throws IOException {
-        try (FileInputStream fis = new FileInputStream(filePath)) {
-            return DigestUtils.sha256Hex(fis);
+        try (InputStream inputStream = Files.newInputStream(Path.of(filePath))) {
+            return DigestUtils.sha256Hex(inputStream);
         } catch (IOException e) {
             throw new IOException("could not get file checksum : " + e.getMessage());
         }
@@ -89,7 +88,7 @@ public class Utils {
      */
     public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         if (isSameFileWithDifferentContent(path, trajectoryEntity)) {
-            log.info("File already processed but with different content : " + path.getFileName());
+          log.info("File already processed but with different content : {}", path.getFileName());
             return true;
         } else if (isSameFileWithSameContent(path, trajectoryEntity)) {
             throw new AlreadyProcessedException("File already processed : " + path.getFileName());
