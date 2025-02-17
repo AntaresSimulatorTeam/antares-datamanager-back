@@ -35,9 +35,8 @@ public class FileController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
-
-            nasFileService.saveFile(file.getOriginalFilename(), file.getBytes());
-            return ResponseEntity.ok("Fichier uploadé avec succès !");
+        nasFileService.saveFile(file.getOriginalFilename(), file.getBytes());
+        return ResponseEntity.ok("Fichier uploadé avec succès !");
 
     }
 }
