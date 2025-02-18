@@ -1,4 +1,4 @@
-insert into MY_TABLE (id, name, x, y, r, g, b)
+insert into pegase_local_db_schema.area (id, name, x, y, r, g, b)
 values  (1, 'AT', 400, -50, 255, 128, 128),
         (2, 'BE', 25, -25, 66, 0, 0),
         (3, 'CH', 150, -75, 66, 0, 0),

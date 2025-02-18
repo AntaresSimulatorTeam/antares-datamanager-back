@@ -1,4 +1,4 @@
-insert into MY_TABLE (id, power_to_gas, short_term_storage, area_id, trajectory_id)
+insert into pegase_local_db_schema.area_config (id, power_to_gas, short_term_storage, area_id, trajectory_id)
 values  (1, true, true, 1, 1),
         (2, true, true, 2, 1),
         (3, true, true, 3, 1),

@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
+import com.rte_france.antares.datamanager_back.service.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,9 @@ class StudyControllerTest {
 
     @MockBean
     StudyServiceImpl studyService;
+
+    @MockBean
+    StudyGeneratorServiceImpl studyGeneratorService;
 
     @BeforeEach
     public void setup() {
@@ -178,5 +182,21 @@ class StudyControllerTest {
                 .andReturn();
 
         verify(studyService, times(1)).deleteStudyById(1);
+    }
+
+    @Test
+    void generateStudySuccess() throws Exception {
+        Integer studyId = 1234;
+
+        this.mockMvc.perform(post("/v1/study/generate")
+                        .param("id", String.valueOf(studyId))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(Utils.asJsonString(studyId))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(eq(studyId));
     }
 }

@@ -16,6 +16,6 @@ public class AreaDTO {
     @JsonProperty("area_name")
     String name;
 
-    @JsonProperty("last_modified_date")
+    @JsonProperty(value = "last_modified_date", access = JsonProperty.Access.WRITE_ONLY)
     LocalDateTime lastModifiedDate;
 }
