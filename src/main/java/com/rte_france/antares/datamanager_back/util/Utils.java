@@ -22,6 +22,7 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Objects;
 
 
 /**
@@ -97,8 +98,18 @@ public class Utils {
     }
 
     public static String getFileNameWithoutExtension(String fileName) {
-        return fileName.substring(0, fileName.lastIndexOf('.'));
+        Objects.requireNonNull(fileName);
+        if (fileName.isBlank()) {
+            throw new IllegalArgumentException("Empty fileName");
+        }
+        var lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex <= 0) { // takes into account files with already no extension or hidden files (.gitignore)
+            return fileName;
+        }
+
+        return fileName.substring(0, lastDotIndex);
     }
+
 
     public static boolean isSheetNameYearNumber(Sheet sheet) {
         String sheetName = sheet.getSheetName();
@@ -118,15 +129,13 @@ public class Utils {
             return null;
         }
 
-        if (cell.getCellType() == CellType.STRING) {
-            return cell.getStringCellValue();
-        } else if (cell.getCellType() == CellType.NUMERIC) {
-            return cell.getNumericCellValue();
-        }else if (cell.getCellType() == CellType.BOOLEAN) {
-            return cell.getBooleanCellValue();
-        }
-
-        return null;
+        return switch (cell.getCellType()) {
+            case NUMERIC -> cell.getNumericCellValue();
+            case STRING -> cell.getStringCellValue();
+            case BOOLEAN -> cell.getBooleanCellValue();
+            case FORMULA -> cell.getCellFormula();
+            default -> null;
+        };
     }
 
     public void checkIfHorizonExist(Path path, String horizon) {

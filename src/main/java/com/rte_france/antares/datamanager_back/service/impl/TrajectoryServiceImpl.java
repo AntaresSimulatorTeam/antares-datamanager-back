@@ -43,7 +43,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //build the file path
         String filePath = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, null))
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, null)) // TODO: Why always null ? (creates an issue with capacity)
                 .toString();
 
         //download the file

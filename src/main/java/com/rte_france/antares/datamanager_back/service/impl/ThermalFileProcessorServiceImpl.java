@@ -118,8 +118,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             for (Row row : sheet) {
                 if (row.getRowNum() != 0) {
-                ThermalCostTypeEntity thermalCostTypeEntity = findOrCreateThermalCostTypeEntities(row);
-                for (int i = 7; i < header.getLastCellNum(); i++) {
+                    ThermalCostTypeEntity thermalCostTypeEntity = findOrCreateThermalCostTypeEntities(row);
+                    for (int i = 7; i < header.getLastCellNum(); i++) {
                         ThermalCostEntity thermalCostEntity = new ThermalCostEntity(
                                 (Double) getCellValue(row, i),
                                 header.getCell(i).getNumericCellValue(),
