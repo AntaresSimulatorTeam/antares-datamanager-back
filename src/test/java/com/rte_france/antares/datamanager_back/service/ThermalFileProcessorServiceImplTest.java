@@ -132,7 +132,7 @@ class ThermalFileProcessorServiceImplTest {
 
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
         var horizon = "2023-2024";
-        thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_CAPACITY);
+        thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, TrajectoryType.THERMAL_CAPACITY);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -143,7 +143,7 @@ class ThermalFileProcessorServiceImplTest {
 
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
         var horizon = "2023-2024";
-        thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalParameters, TrajectoryType.THERMAL_PARAMETER);
+        thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, TrajectoryType.THERMAL_PARAMETER);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
