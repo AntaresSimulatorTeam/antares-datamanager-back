@@ -43,7 +43,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //build the file path
         String filePath = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, null)) // TODO: Why always null ? (creates an issue with capacity)
+                // TODO: Change thermalCapacityArea according to the file tree structure
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, ""))
                 .toString();
 
         //download the file
