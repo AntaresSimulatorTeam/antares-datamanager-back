@@ -15,6 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class NasFileService {
@@ -33,7 +35,20 @@ public class NasFileService {
     }
 
     public void saveFile(String filename, byte[] content) throws IOException {
-        Path filePath = Paths.get(antaressDataManagerProperties.getNasDirectory()).resolve(filename);
+        Objects.requireNonNull(filename);
+        Objects.requireNonNull(content);
+        if (filename.contains("..") || filename.isBlank()) {
+            throw new IOException("Invalid file name: " + filename);
+        }
+
+        var targetDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
+                .toAbsolutePath()
+                .normalize();
+        var filePath = targetDirectory.resolve(filename).normalize();
+        if (!filePath.startsWith(targetDirectory)) {
+            throw new IOException("Path outside of the NAS directory: " + filePath);
+        }
+
         Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 }

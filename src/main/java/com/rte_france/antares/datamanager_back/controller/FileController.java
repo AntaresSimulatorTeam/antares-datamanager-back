@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -10,15 +11,19 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/v1/files")
 public class FileController {
 
     private final NasFileService nasFileService;
+    private final AntaressDataManagerProperties properties;
 
-    public FileController(NasFileService nasFileService) {
-        this.nasFileService = nasFileService;
+    public FileController(NasFileService nasFileService, AntaressDataManagerProperties properties) {
+        this.nasFileService = Objects.requireNonNull(nasFileService);
+        this.properties = Objects.requireNonNull(properties);
     }
 
     @GetMapping("/{filename}")
@@ -35,8 +40,17 @@ public class FileController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
-        nasFileService.saveFile(file.getOriginalFilename(), file.getBytes());
-        return ResponseEntity.ok("Fichier uploadé avec succès !");
+        Objects.requireNonNull(file);
+        var fileName = file.getOriginalFilename();
+        if (fileName == null || fileName.contains("..")) {
+            return ResponseEntity.badRequest().body("Invalid file name: " + fileName);
+        }
+        var targetPath = Path.of(properties.getNasDirectory()).resolve(fileName).normalize();
+        if (!targetPath.startsWith(properties.getNasDirectory())) {
+            throw new IOException("Path outside of target: " + targetPath);
+        }
 
+        nasFileService.saveFile(targetPath.toString(), file.getBytes());
+        return ResponseEntity.ok("Fichier uploadé avec succès !");
     }
 }
