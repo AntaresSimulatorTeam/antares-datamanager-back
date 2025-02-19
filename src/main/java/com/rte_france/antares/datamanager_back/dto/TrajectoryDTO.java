@@ -17,7 +17,7 @@ public class TrajectoryDTO {
     @JsonProperty("id")
     Integer id;
 
-    @JsonProperty("trajectory_name")
+    @JsonProperty("trajectoryName")
     String fileName;
 
     @JsonProperty("type")
@@ -26,10 +26,10 @@ public class TrajectoryDTO {
     @JsonProperty("version")
     int version;
 
-    @JsonProperty("user_name")
+    @JsonProperty("userName")
     String createdBy;
 
-    @JsonProperty("creation_date")
+    @JsonProperty("creationDate")
     LocalDateTime creationDate;
 
 }

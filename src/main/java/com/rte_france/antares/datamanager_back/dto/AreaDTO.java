@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AreaDTO {
-    @JsonProperty("area_name")
+    @JsonProperty("areaName")
     String name;
 
     @JsonProperty(value = "last_modified_date", access = JsonProperty.Access.WRITE_ONLY)
