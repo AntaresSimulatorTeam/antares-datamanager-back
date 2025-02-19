@@ -16,6 +16,9 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,7 +41,6 @@ class TrajectoryServiceImplTest {
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
 
-
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -49,9 +51,11 @@ class TrajectoryServiceImplTest {
 
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTYpeIsAREA() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/area/testFile.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
 
         trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024");
 
@@ -60,9 +64,11 @@ class TrajectoryServiceImplTest {
 
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsLINK() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("/links");
 
         trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024");
 
@@ -71,9 +77,11 @@ class TrajectoryServiceImplTest {
 
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsThermalCapacity() throws IOException {
-        File file = mock(File.class);
-        Mockito.when(file.getPath()).thenReturn("src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx");
+        Path path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("src/test/resources/thermal_capacity/");
 
         trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024");
 
@@ -106,13 +114,14 @@ class TrajectoryServiceImplTest {
 
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 
-        assertEquals("testFile.xlsx", result.get(0).getFileName());
+        assertEquals("testFile.xlsx", result.getFirst().getFileName());
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartWithFromFS_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
-        assertThrows(IllegalArgumentException.class, () -> trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA));
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA));
     }
 
     @Test

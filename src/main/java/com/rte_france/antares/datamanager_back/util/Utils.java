@@ -5,28 +5,24 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.ss.usermodel.*;
-import org.springframework.data.jpa.domain.Specification;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-
-import static org.hibernate.type.descriptor.java.JdbcDateJavaType.DATE_FORMAT;
+import java.util.Objects;
 
 
 /**
@@ -44,41 +40,41 @@ public class Utils {
      * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
      */
     public static String getFileChecksum(String filePath) throws IOException {
-        try (FileInputStream fis = new FileInputStream(filePath)) {
-            return DigestUtils.sha256Hex(fis);
+        try (InputStream inputStream = Files.newInputStream(Path.of(filePath))) {
+            return DigestUtils.sha256Hex(inputStream);
         } catch (IOException e) {
             throw new IOException("could not get file checksum : " + e.getMessage());
         }
     }
 
 
-    public static boolean isSameFileWithSameContent(File file, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtension(file.getName()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getFileSize() == file.length()
-                && trajectoryEntity.getChecksum().equals(getFileChecksum(file.getPath()));
+    public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+        return getFileNameWithoutExtension(path.getFileName().toString()).equals(trajectoryEntity.getFileName())
+                && trajectoryEntity.getFileSize() == Files.size(path)
+                && trajectoryEntity.getChecksum().equals(getFileChecksum(path.toString()));
     }
 
-    public static boolean isSameFileWithDifferentContent(File file, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtension(file.getName()).equals(trajectoryEntity.getFileName())
-                && (trajectoryEntity.getFileSize() != file.length() || !trajectoryEntity.getChecksum().equals(getFileChecksum(file.getPath())));
+    public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+        return getFileNameWithoutExtension(path.getFileName().toString()).equals(trajectoryEntity.getFileName())
+                && (trajectoryEntity.getFileSize() != Files.size(path) || !trajectoryEntity.getChecksum().equals(getFileChecksum(path.toString())));
     }
 
     /**
-     * Builds a trajectory from the given file.
+     * Builds a trajectory from the given path to a file.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
 //    @ExecutionTime
-    public static TrajectoryEntity buildTrajectory(File file, int versionTrajectory, String horizon) throws IOException {
+    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon) throws IOException {
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtension(file.getName()))// file name without extension
-                .fileSize(file.length())
+                .fileName(getFileNameWithoutExtension(path.getFileName().toString()))// file name without extension
+                .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
-                .checksum(getFileChecksum(file.getPath()))
-                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(file.lastModified()), ZoneId.systemDefault()))
+                .checksum(getFileChecksum(path.toString()))
+                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .build();
     }
@@ -87,33 +83,33 @@ public class Utils {
      * Checks the version of a trajectory by comparing the file name, file size, and checksum with a given TrajectoryEntity.
      * If the file has already been processed, a warning is logged and a RuntimeException is thrown.
      *
-     * @param file             The file to check the version of.
+     * @param path             The path to the file to check the version of.
      * @param trajectoryEntity The TrajectoryEntity to compare the file to.
      * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
      */
-    public static boolean checkTrajectoryVersion(File file, TrajectoryEntity trajectoryEntity) throws IOException {
-        if (isSameFileWithDifferentContent(file, trajectoryEntity)) {
-            log.info("File already processed but with different content : " + file.getName());
+    public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+        if (isSameFileWithDifferentContent(path, trajectoryEntity)) {
+          log.info("File already processed but with different content : {}", path.getFileName());
             return true;
-        } else if (isSameFileWithSameContent(file, trajectoryEntity)) {
-            throw new AlreadyProcessedException("File already processed : " + file.getName());
+        } else if (isSameFileWithSameContent(path, trajectoryEntity)) {
+            throw new AlreadyProcessedException("File already processed : " + path.getFileName());
         }
         return false;
     }
 
-    public static File getFile(String path, String fileName) {
-        File file = new File(path, fileName);
-        log.info("File path : " + file.getPath());
-        log.info("File name : " + file.getName());
-        if (!file.exists()) {
-            throw new ResourceNotFoundException("Trajectory not found with file name  : " + fileName);
+    public static String getFileNameWithoutExtension(String fileName) {
+        Objects.requireNonNull(fileName);
+        if (fileName.isBlank()) {
+            throw new IllegalArgumentException("Empty fileName");
         }
-        return file;
+        var lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex <= 0) { // takes into account files with already no extension or hidden files (.gitignore)
+            return fileName;
+        }
+
+        return fileName.substring(0, lastDotIndex);
     }
 
-    public static String getFileNameWithoutExtension(String fileName) {
-        return fileName.substring(0, fileName.lastIndexOf('.'));
-    }
 
     public static boolean isSheetNameYearNumber(Sheet sheet) {
         String sheetName = sheet.getSheetName();
@@ -126,10 +122,6 @@ public class Utils {
         }
     }
 
-    public static boolean eliminateCharacters(String input) {
-        return input != null && input.matches("[10]*");
-    }
-
 
     public Object getCellValue(Row row, int cellIndex) {
         Cell cell = row.getCell(cellIndex);
@@ -137,22 +129,20 @@ public class Utils {
             return null;
         }
 
-        if (cell.getCellType() == CellType.STRING) {
-            return cell.getStringCellValue();
-        } else if (cell.getCellType() == CellType.NUMERIC) {
-            return cell.getNumericCellValue();
-        }else if (cell.getCellType() == CellType.BOOLEAN) {
-            return cell.getBooleanCellValue();
-        }
-
-        return null;
+        return switch (cell.getCellType()) {
+            case NUMERIC -> cell.getNumericCellValue();
+            case STRING -> cell.getStringCellValue();
+            case BOOLEAN -> cell.getBooleanCellValue();
+            case FORMULA -> cell.getCellFormula();
+            default -> null;
+        };
     }
 
-    public void checkIfHorizonExist(File file, String horizon) {
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+    public void checkIfHorizonExist(Path path, String horizon) {
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
             if (workbook.getSheet(horizon) == null)
-                throw new TechnicalAntaresDataMangerException("The horizon " + horizon + " does not exist in the file :" + file.getName());
+                throw new TechnicalAntaresDataMangerException("The horizon " + horizon + " does not exist in the file :" + path.getFileName().toString());
         } catch (IOException e) {
             throw new TechnicalAntaresDataMangerException("could not check if horizon exist : " + e.getMessage());
         }

@@ -24,7 +24,7 @@ public class ExecutionTimeAdvice {
 
         long executionTime = System.currentTimeMillis() - start;
 
-        log.info(joinPoint.getSignature() + " executed in " + executionTime + "ms");
+        log.info("{} executed in {}ms", joinPoint.getSignature(), executionTime);
 
         return proceed;
     }

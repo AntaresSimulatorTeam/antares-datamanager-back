@@ -18,9 +18,10 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,17 +46,17 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
      * If a trajectory with the same file name exists, it updates the trajectory.
      * Otherwise, it creates a new trajectory.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processAreaFile(File file, String horizon) throws IOException {
-        checkIfHorizonExist(file, horizon);
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(),horizon), buildAreaConfigList(file));
+    public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {
+        checkIfHorizonExist(path, horizon);
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
+            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildAreaConfigList(path));
         }
-        return saveTrajectory(buildTrajectory(file, 0,horizon), buildAreaConfigList(file));
+        return saveTrajectory(buildTrajectory(path, 0,horizon), buildAreaConfigList(path));
     }
 
 
@@ -78,13 +79,13 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     /**
      * Builds a list of area configurations from the given file.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<AreaConfigEntity> buildAreaConfigList(File file) throws IOException {
+    private List<AreaConfigEntity> buildAreaConfigList(Path path) throws IOException {
         List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             for (Row row : sheet) {

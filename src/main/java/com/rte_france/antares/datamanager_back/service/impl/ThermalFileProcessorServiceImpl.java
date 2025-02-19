@@ -14,8 +14,9 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,16 +35,16 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     @FunctionalInterface
     public interface ThermalBuilder {
-        List<? extends ThermalBaseEntity> build(File file) throws IOException;
+        List<? extends ThermalBaseEntity> build(Path path) throws IOException;
     }
 
-    public TrajectoryEntity processThermalFile(File file, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException {
-        var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(file.getName()));
-        var thermalEntities = builder.build(file);
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveThermalTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(), horizon), thermalEntities, type);
+    public TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException {
+        var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+        var thermalEntities = builder.build(path);
+        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
+            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon), thermalEntities, type);
         }
-        return saveThermalTrajectory(buildTrajectory(file, 0, horizon), thermalEntities, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon), thermalEntities, type);
     }
 
     @SuppressWarnings("unchecked")
@@ -51,7 +52,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory.setType(type.name());
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
-            ThermalBaseEntity firstEntity = thermalEntities.get(0);
+            ThermalBaseEntity firstEntity = thermalEntities.getFirst();
             if (firstEntity instanceof ThermalClusterCapacityEntity) {
                 trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
             } else if (firstEntity instanceof ThermalParameterEntity) {
@@ -69,14 +70,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Builds a list of area configurations from the given file.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      * @return a list of area configurations
      */
     @Override
-    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(File file) throws IOException {
+    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path) throws IOException {
         List<ThermalClusterCapacityEntity> thermalClusterCapacities = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             Row header = sheet.getRow(0);
 
@@ -106,10 +107,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     @Override
-    public List<ThermalCostEntity> buildThermalCosts(File file) throws IOException {
+    public List<ThermalCostEntity> buildThermalCosts(Path path) throws IOException {
         List<ThermalCostEntity> thermalCostEntities = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
 
@@ -117,8 +118,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             for (Row row : sheet) {
                 if (row.getRowNum() != 0) {
-                ThermalCostTypeEntity thermalCostTypeEntity = findOrCreateThermalCostTypeEntities(row);
-                for (int i = 7; i < header.getLastCellNum(); i++) {
+                    ThermalCostTypeEntity thermalCostTypeEntity = findOrCreateThermalCostTypeEntities(row);
+                    for (int i = 7; i < header.getLastCellNum(); i++) {
                         ThermalCostEntity thermalCostEntity = new ThermalCostEntity(
                                 (Double) getCellValue(row, i),
                                 header.getCell(i).getNumericCellValue(),
@@ -154,17 +155,17 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Builds a list of area configurations from the given file.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      * @return a list of area configurations
      */
     @ExecutionTime
     @Override
-    public List<ThermalParameterEntity> buildThermalParameters(File file) throws IOException {
+    public List<ThermalParameterEntity> buildThermalParameters(Path path) throws IOException {
         long start = System.currentTimeMillis();
 
         List<ThermalParameterEntity> thermalParameters = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (InputStream inputStream = Files.newInputStream(path) ;
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
             var sheetWithYear = getSheetWithYear(workbook);
             if (sheetWithYear != null) {
                 for (Row row : sheetWithYear) {

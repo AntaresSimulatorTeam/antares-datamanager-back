@@ -16,9 +16,10 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,18 +43,18 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * If a trajectory with the same file name exists, it updates the trajectory.
      * Otherwise, it creates a new trajectory.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processLinkFile(File file, String horizon) throws IOException {
-        checkIfHorizonExist(file, horizon);
+    public TrajectoryEntity processLinkFile(Path path, String horizon) throws IOException {
+        checkIfHorizonExist(path, horizon);
 
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(file.getName());
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(file, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(file, trajectoryEntity.get().getVersion(),horizon), buildLinkList(file));
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(path.getFileName().toString());
+        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
+            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildLinkList(path));
         }
-        return saveTrajectory(buildTrajectory(file, 0,horizon), buildLinkList(file));
+        return saveTrajectory(buildTrajectory(path, 0,horizon), buildLinkList(path));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
@@ -68,13 +69,13 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     /**
      * Builds a list of area configurations from the given file.
      *
-     * @param file the file to process
+     * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(File file) throws IOException {
+    private List<LinkEntity> buildLinkList(Path path) throws IOException {
         List<LinkEntity> linkEntities = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (InputStream inputStream = Files.newInputStream(path) ;
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheetAt(1);
