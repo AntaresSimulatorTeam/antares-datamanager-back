@@ -6,6 +6,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -19,14 +20,14 @@ public class NasFileService {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
-    public Resource loadFile(String filename) throws MalformedURLException {
+    public Resource loadFile(String filename) throws FileNotFoundException {
         Path filePath = Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(filename);
-        Resource resource = new UrlResource(filePath.toUri());
+        Resource resource = UrlResource.from(filePath.toUri());
 
         if (resource.exists() || resource.isReadable()) {
             return resource;
         } else {
-            throw new RuntimeException("Fichier non trouvé ou illisible : " + filename);
+            throw new FileNotFoundException("Fichier non trouvé ou illisible : " + filename);
         }
     }
 
