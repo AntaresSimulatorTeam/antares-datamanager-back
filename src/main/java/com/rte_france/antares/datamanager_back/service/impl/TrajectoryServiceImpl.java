@@ -41,14 +41,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
         //build the file path
-        String filePath = Path.of(antaressDataManagerProperties.getNasDirectory())
+        Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
                 // TODO: Change thermalCapacityArea according to the file tree structure
                 .resolve(getDirectoryByTrajectoryType(trajectoryType, ""))
-                .toString();
+                .normalize();
+
+        if (!baseDirectory.endsWith("/")) {
+            baseDirectory = baseDirectory.resolve("");
+        }
 
         //download the file
-        Path trajectoryFilePath = Path.of(filePath + trajectoryToUse + ".xlsx");
+        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
+        if (!trajectoryFilePath.startsWith(baseDirectory)) {
+            throw new IOException("Path is outside of the target directory");
+        }
+
         switch (trajectoryType) {
             case AREA -> {
                 return areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
