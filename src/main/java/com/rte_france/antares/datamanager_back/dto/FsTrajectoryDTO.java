@@ -15,12 +15,12 @@ import java.time.LocalDateTime;
 public class FsTrajectoryDTO {
 
 
-    @JsonProperty("trajectory_name")
+    @JsonProperty("trajectoryName")
     String fileName;
 
     @JsonProperty("type")
     String type;
 
-    @JsonProperty("last_modified_date")
+    @JsonProperty("lastModifiedDate")
     LocalDateTime lastModifiedDate;
 }
