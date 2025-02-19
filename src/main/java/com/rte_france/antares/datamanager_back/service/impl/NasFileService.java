@@ -24,7 +24,7 @@ public class NasFileService {
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
     public Resource loadFile(String filename) throws MalformedURLException {
-        Path filePath = Paths.get(antaressDataManagerProperties.getNasDirectory()).resolve(filename);
+        Path filePath = Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(filename);
         Resource resource = new UrlResource(filePath.toUri());
 
         if (resource.exists() || resource.isReadable()) {
