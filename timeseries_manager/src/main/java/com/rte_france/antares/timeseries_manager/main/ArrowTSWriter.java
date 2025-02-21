@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public final class ArrowTSWriter implements TimeSeriesWriter<TimeSeriesMatrix> {
+public final class ArrowTSWriter {
   private static Field doubleField(String name) {
     return new Field(name, FieldType.notNullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
   }
@@ -56,7 +56,6 @@ public final class ArrowTSWriter implements TimeSeriesWriter<TimeSeriesMatrix> {
     }
   }
 
-  @Override
   public void write(TimeSeriesMatrix matrix, Path outputPath) throws IOException {
     Objects.requireNonNull(matrix);
     Objects.requireNonNull(outputPath);
@@ -79,7 +78,6 @@ public final class ArrowTSWriter implements TimeSeriesWriter<TimeSeriesMatrix> {
     }
   }
 
-  @Override
   public String getDefaultFileExtension() {
     return "arrow";
   }

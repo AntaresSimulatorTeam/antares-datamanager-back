@@ -22,10 +22,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-public final class ArrowTSReader implements TimeSeriesReader<TimeSeriesMatrix> {
+public final class ArrowTSReader {
   private static final int ROW_COUNT = 8760;
 
-  @Override
   public TimeSeriesMatrix read(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 
@@ -58,7 +57,6 @@ public final class ArrowTSReader implements TimeSeriesReader<TimeSeriesMatrix> {
     }
   }
 
-  @Override
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 
