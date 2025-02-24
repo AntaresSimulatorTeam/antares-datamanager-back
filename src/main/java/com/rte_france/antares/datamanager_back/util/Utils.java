@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 
 /**
@@ -188,5 +189,19 @@ public class Utils {
         mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         return mapper.writeValueAsString(obj);
+    }
+
+    /**
+     * Ensures a file is of a certain extension
+     * @param path file path
+     * @param getFileExt Method to get the correct file format
+     * @return The same path or the fixed one
+     */
+    public static Path ensureExtension(Path path, Supplier<String> getFileExt) {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(getFileExt);
+
+        var ext = "." + getFileExt.get();
+        return path.toString().endsWith(ext) ? path : path.resolveSibling(path.getFileName() + ext);
     }
 }

@@ -4,15 +4,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.rte_france.antares.timeseries_manager.structures;
+package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
 import java.util.List;
+import java.util.Objects;
 
 public record TimeSeriesMatrix(List<TimeSeriesMatrixColumn> columns) {
+    public TimeSeriesMatrix {
+        Objects.requireNonNull(columns);
+    }
+
     public int getRowCount() {
         if (columns.isEmpty()) {
             return 0;
         }
-        return columns.getFirst().getSize();
+        return columns.getFirst().size();
     }
 }

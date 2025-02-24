@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 
 import java.io.IOException;
 import java.nio.file.Path;

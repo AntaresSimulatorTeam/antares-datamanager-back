@@ -4,10 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.rte_france.antares.timeseries_manager.main;
+package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
-import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrix;
-import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrixColumn;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -22,7 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-public final class ArrowTSReader {
+public final class TimeSeriesReader {
   private static final int ROW_COUNT = 8760;
 
   public TimeSeriesMatrix read(Path filePath) throws IOException {

@@ -4,11 +4,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-package com.rte_france.antares.timeseries_manager.main;
+package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
-import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrix;
-import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrixColumn;
-import com.rte_france.antares.timeseries_manager.util.Utils;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.apache.arrow.compression.CommonsCompressionFactory;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
@@ -30,7 +28,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public final class ArrowTSWriter {
+public final class TimeSeriesWriter {
   private static Field doubleField(String name) {
     return new Field(name, FieldType.notNullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
   }

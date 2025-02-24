@@ -1,9 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.service.TimeSeriesStorageService;
-import com.rte_france.antares.timeseries_manager.main.ArrowTSReader;
-import com.rte_france.antares.timeseries_manager.main.ArrowTSWriter;
-import com.rte_france.antares.timeseries_manager.structures.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,8 +15,8 @@ import java.nio.file.Path;
 @Service
 @RequiredArgsConstructor
 public final class TimeSeriesStorageServiceImpl implements TimeSeriesStorageService {
-  private final ArrowTSReader reader;
-  private final ArrowTSWriter writer;
+  private final TimeSeriesReader reader;
+  private final TimeSeriesWriter writer;
 
   @Override
   public TimeSeriesMatrix readTimeSeries(Path filePath) throws IOException {
