@@ -8,12 +8,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class TimeSeriesConfig {
     @Bean
-    public TimeSeriesReader arrowTSReader() {
+    public TimeSeriesReader timeSeriesReader() {
         return new TimeSeriesReader();
     }
 
     @Bean
-    public TimeSeriesWriter arrowTSWriter() {
+    public TimeSeriesWriter timeSeriesWriter() {
         return new TimeSeriesWriter();
     }
 }
