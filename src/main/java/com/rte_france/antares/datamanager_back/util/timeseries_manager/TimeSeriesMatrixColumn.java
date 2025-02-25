@@ -19,8 +19,19 @@ public record TimeSeriesMatrixColumn(String name, double[] values) {
         Objects.requireNonNull(values);
     }
 
-    public TimeSeriesMatrixColumn renamed(String newName) {
-        return new TimeSeriesMatrixColumn(newName, values);
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        var column = (TimeSeriesMatrixColumn) o;
+        return name.equals(column.name()) && Arrays.equals(values, column.values());
+    }
+
+    @Override
+    public int hashCode() {
+        var result = Objects.hash(name);
+        result = 31 * result + Arrays.hashCode(values);
+        return result;
     }
 
     @Override
