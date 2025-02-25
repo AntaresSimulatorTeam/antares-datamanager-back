@@ -139,4 +139,39 @@ class UtilsTest {
 
         assertFalse(Utils.checkTrajectoryVersion(tempFile, trajectoryEntity));
     }
+
+    @Test
+    void ensureExtension_addsExtensionIfMissing() {
+        var filePath = tempDir.resolve("testFile");
+        var result = Utils.ensureExtension(filePath, () -> "txt");
+
+        assertEquals(filePath.toString() + ".txt", result.toString());
+    }
+
+    @Test
+    void ensureExtension_doesNotAddExtensionIfPresent() {
+        var filePath = tempDir.resolve("testFile.txt");
+        var result = Utils.ensureExtension(filePath, () -> "txt");
+
+        assertEquals(filePath.toString(), result.toString());
+    }
+
+    @Test
+    void ensureExtension_handlesNullPath() {
+        assertThrows(NullPointerException.class, () -> Utils.ensureExtension(null, () -> "txt"));
+    }
+
+    @Test
+    void ensureExtension_handlesNullSupplier() {
+        var filePath = tempDir.resolve("testFile");
+        assertThrows(NullPointerException.class, () -> Utils.ensureExtension(filePath, null));
+    }
+
+    @Test
+    void ensureExtension_handlesEmptyExtension() {
+        var filePath = tempDir.resolve("testFile");
+        var result = Utils.ensureExtension(filePath, () -> "");
+
+        assertEquals(filePath.toString() + ".", result.toString());
+    }
 }
