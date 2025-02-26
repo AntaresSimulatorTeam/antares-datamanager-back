@@ -10,10 +10,8 @@ import org.springframework.context.annotation.Import;
 @Import({SecurityConfig.class, OpenApiConfig.class, CorsConfig.class})
 @SpringBootApplication
 public class PegaseBackApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(PegaseBackApplication.class, args);
 	}
-
 }
 

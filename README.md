@@ -56,6 +56,7 @@ The maven project is structured as follows:
 
 - Clone the project from GitLab to your computer, and import the project in your IDE
 - Configure the environment variable SPRING_PROFILES_ACTIVE to "localhost" in your IDE.
+- Add `--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED` as a VM argument in your IDE.
 - Run the main application using localhost profile
 
 ************
