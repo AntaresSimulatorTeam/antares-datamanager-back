@@ -10,12 +10,14 @@ import java.util.List;
 
 public interface TrajectoryService {
 
-     TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException;
+    TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException;
 
-     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType,String horizon, String fileNameStartsWith);
+    List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith);
 
-     List<FsTrajectoryDTO> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType);
+    List<FsTrajectoryDTO> findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType trajectoryType);
 
-     List<TrajectoryDTO> findTrajectoriesByTypeAndIds(String trajectoryType, List<Integer> trajectoryIds);
+    List<TrajectoryDTO> findTrajectoriesByTypeAndIds(String trajectoryType, List<Integer> trajectoryIds);
+
+    TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type);
 
 }

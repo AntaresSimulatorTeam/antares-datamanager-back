@@ -65,9 +65,10 @@ class ThermalFileProcessorServiceImplTest {
             for (var rowIndex = 0; rowIndex < data.length; rowIndex++) {
                 var row = sheet.createRow(rowIndex + 1);
                 for (var colIndex = 0; colIndex < data[rowIndex].length; colIndex++) {
-                    switch (data[rowIndex][colIndex]) {
-                        case Number n -> row.createCell(colIndex).setCellValue(n.doubleValue());
-                        default -> row.createCell(colIndex).setCellValue(data[rowIndex][colIndex].toString());
+                    if (data[rowIndex][colIndex] instanceof Number) {
+                        row.createCell(colIndex).setCellValue(((Number) data[rowIndex][colIndex]).doubleValue());
+                    } else {
+                        row.createCell(colIndex).setCellValue(data[rowIndex][colIndex].toString());
                     }
                 }
             }
@@ -100,9 +101,10 @@ class ThermalFileProcessorServiceImplTest {
             for (var rowIndex = 0; rowIndex < data.length; rowIndex++) {
                 var row = sheet.createRow(rowIndex + 1); // Data rows start from row 1
                 for (var colIndex = 0; colIndex < data[rowIndex].length; colIndex++) {
-                    switch (data[rowIndex][colIndex]) {
-                        case Number n -> row.createCell(colIndex).setCellValue(n.doubleValue());
-                        default -> row.createCell(colIndex).setCellValue(data[rowIndex][colIndex].toString());
+                    if (data[rowIndex][colIndex] instanceof Number) {
+                        row.createCell(colIndex).setCellValue(((Number) data[rowIndex][colIndex]).doubleValue());
+                    } else {
+                        row.createCell(colIndex).setCellValue(data[rowIndex][colIndex].toString());
                     }
                 }
             }

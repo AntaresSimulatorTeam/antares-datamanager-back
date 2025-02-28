@@ -18,6 +18,6 @@ public record TimeSeriesMatrix(List<TimeSeriesMatrixColumn> columns) {
         if (columns.isEmpty()) {
             return 0;
         }
-        return columns.getFirst().size();
+        return columns.get(0).size();
     }
 }

@@ -25,7 +25,6 @@ import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public final class TimeSeriesWriter {
@@ -36,7 +35,7 @@ public final class TimeSeriesWriter {
   private static Schema createSchema(TimeSeriesMatrix matrix) {
     var fields = matrix.columns().stream()
             .map(column -> doubleField(column.name()))
-            .collect(Collectors.toList());
+            .toList();
     return new Schema(fields);
   }
 
@@ -44,13 +43,12 @@ public final class TimeSeriesWriter {
     var vector = table.getVector(column.name());
     var values = column.values();
     var size = values.length;
-    switch (vector) {
-      case Float8Vector f8Vector -> {
-        f8Vector.allocateNew(size);
-        table.setRowCount(size);
-        IntStream.range(0, size).forEach(i -> f8Vector.set(i, values[i]));
-      }
-      default -> throw new IllegalStateException();
+    if (vector instanceof Float8Vector f8Vector) {
+      f8Vector.allocateNew(size);
+      table.setRowCount(size);
+      IntStream.range(0, size).forEach(i -> f8Vector.set(i, values[i]));
+    } else {
+      throw new IllegalStateException();
     }
   }
 

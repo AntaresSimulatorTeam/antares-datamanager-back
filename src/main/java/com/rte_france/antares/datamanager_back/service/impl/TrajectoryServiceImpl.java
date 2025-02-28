@@ -4,8 +4,14 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
@@ -14,6 +20,7 @@ import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -21,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 
 
 @Slf4j
@@ -38,6 +46,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalFileProcessorService thermalFileProcessorService;
 
+    private final StudyRepository studyRepository;
+
+    private final StudyTrajectoryRepository studyTrajectoryRepository;
 
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
         //build the file path
@@ -128,6 +139,37 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     throw new IllegalArgumentException("No directory defined for TrajectoryType: " + trajectoryType);
             default -> throw new IllegalArgumentException("Invalid TrajectoryType: " + trajectoryType);
         };
+    }
+
+    @Transactional
+    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
+        StudyEntity study = studyRepository.findById(studyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Study not found"));
+
+        TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trajectory not found"));
+
+        // Vérifier si une trajectoire du même type est déjà associée à l'étude
+        Optional<StudyTrajectoryEntity> existingLink = study.getStudyTrajectoryEntities().stream()
+                .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
+                .findFirst();
+
+        // Supprimer l'ancienne association si elle existe
+        existingLink.ifPresent(studyTrajectoryRepository::delete);
+
+        // Créer une nouvelle association
+        StudyTrajectoryEntity newStudyTrajectoryEntity = StudyTrajectoryEntity.builder()
+                .id(StudyTrajectoryKey.builder()
+                        .trajectoryId(trajectoryId)
+                        .scenarioId(studyId)
+                        .build())
+                .studyEntity(study)
+                .trajectory(trajectory)
+                .build();
+
+        StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
+
+        return savedStudyTrajectoryEntity.getTrajectory();
     }
 
 }

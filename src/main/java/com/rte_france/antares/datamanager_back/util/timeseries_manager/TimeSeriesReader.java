@@ -46,9 +46,10 @@ public final class TimeSeriesReader {
       var vector = root.getVector(field.getName());
       var values = new double[vector.getValueCount()];
       for (var i = 0; i < vector.getValueCount(); i++) {
-        switch (vector) {
-          case Float8Vector f -> values[i] = f.get(i);
-          default -> throw new IllegalStateException();
+        if (vector instanceof Float8Vector f) {
+          values[i] = f.get(i);
+        } else {
+          throw new IllegalStateException();
         }
       }
       columns.add(new TimeSeriesMatrixColumn(field.getName(), values));
