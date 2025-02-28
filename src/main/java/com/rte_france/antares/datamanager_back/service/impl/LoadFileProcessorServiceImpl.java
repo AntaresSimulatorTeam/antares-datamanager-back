@@ -47,7 +47,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
       savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon));
     }
 
-    var matrix = reader.read(path);
+    var matrix = reader.readFromTxt(path);
     var outputFilePath = path.resolveSibling(path.getFileName() + "-output");
     writer.write(matrix, outputFilePath);
     nasFileService.saveFile(outputFilePath.toString(), Files.readAllBytes(outputFilePath));
