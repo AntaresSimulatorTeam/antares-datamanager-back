@@ -64,4 +64,7 @@ public class TrajectoryEntity {
             joinColumns = @JoinColumn(name = "trajectory_id"),
             inverseJoinColumns = @JoinColumn(name = "scenario_id"))
     private Set<StudyEntity> scenarioEntities = new LinkedHashSet<>();
+
+    @OneToOne(mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    LoadEntity loadEntity;
 }

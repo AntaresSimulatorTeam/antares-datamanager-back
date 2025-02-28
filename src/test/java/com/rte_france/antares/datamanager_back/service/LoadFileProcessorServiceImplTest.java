@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.service.impl.TimeSeriesStorageServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
@@ -17,10 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
-class TimeSeriesStorageServiceImplTest {
+class LoadFileProcessorServiceImplTest {
 
   @InjectMocks
-  private TimeSeriesStorageServiceImpl timeSeriesStorageService;
+  private LoadFileProcessorServiceImpl loadFileProcessorService;
 
   @Mock
   private TimeSeriesReader timeSeriesReader;
@@ -40,7 +40,7 @@ class TimeSeriesStorageServiceImplTest {
 
     when(timeSeriesReader.read(filePath)).thenReturn(expectedMatrix);
 
-    var result = timeSeriesStorageService.readTimeSeries(filePath);
+    var result = loadFileProcessorService.readTimeSeries(filePath);
 
     assertNotNull(result);
     verify(timeSeriesReader, times(1)).read(filePath);
@@ -53,7 +53,7 @@ class TimeSeriesStorageServiceImplTest {
 
     doNothing().when(timeSeriesWriter).write(matrix, outputPath);
 
-    assertDoesNotThrow(() -> timeSeriesStorageService.writeTimeSeries(matrix, outputPath));
+    assertDoesNotThrow(() -> loadFileProcessorService.writeTimeSeries(matrix, outputPath));
     verify(timeSeriesWriter, times(1)).write(matrix, outputPath);
   }
 }
