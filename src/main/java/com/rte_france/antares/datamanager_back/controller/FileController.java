@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
 
 @RestController
@@ -51,6 +53,8 @@ public class FileController {
         }
 
         nasFileService.saveFile(targetPath.toString(), file.getBytes());
+        var permissions = PosixFilePermissions.fromString("rw-------");
+        Files.setPosixFilePermissions(targetPath, permissions);
         return ResponseEntity.ok("Fichier uploadé avec succès !");
     }
 }

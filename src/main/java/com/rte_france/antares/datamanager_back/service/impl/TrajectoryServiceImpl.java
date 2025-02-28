@@ -13,10 +13,8 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.*;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +43,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final TrajectoryRepository trajectoryRepository;
 
     private final ThermalFileProcessorService thermalFileProcessorService;
+
+    private final LoadFileProcessorService loadFileProcessorService;
 
     private final StudyRepository studyRepository;
 
@@ -83,6 +83,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
             case THERMAL_COST -> {
                 return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
+            }
+            case LOAD -> {
+                return loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
             }
             // Handle default case
             default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
