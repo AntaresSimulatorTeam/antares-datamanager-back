@@ -138,7 +138,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .resolve(thermalCapacityArea)
                     .toString();
             case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
-            case LOAD, MISC ->
+            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
+            case MISC ->
                     throw new IllegalArgumentException("No directory defined for TrajectoryType: " + trajectoryType);
             default -> throw new IllegalArgumentException("Invalid TrajectoryType: " + trajectoryType);
         };
