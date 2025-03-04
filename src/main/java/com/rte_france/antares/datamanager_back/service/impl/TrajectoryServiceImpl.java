@@ -25,7 +25,9 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -50,6 +52,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final StudyTrajectoryRepository studyTrajectoryRepository;
 
+    private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
+
+    static {
+        FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
+    }
+
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
@@ -63,34 +71,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         //download the file
-        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
+        var fileExtension = FILE_EXTENSIONS.getOrDefault(trajectoryType, ".xlsx");
+        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + fileExtension).normalize();
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
             throw new IOException("Path is outside of the target directory");
         }
 
-        switch (trajectoryType) {
-            case AREA -> {
-                return areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
-            }
-            case LINK -> {
-                return linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon);
-            }
-            case THERMAL_CAPACITY -> {
-                return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
-            }
-            case THERMAL_PARAMETER -> {
-                return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
-            }
-            case THERMAL_COST -> {
-                return thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
-            }
-            case LOAD -> {
-                return loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
-            }
-            // Handle default case
+        return switch (trajectoryType) {
+            case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
+            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon);
+            case THERMAL_CAPACITY -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
+            case THERMAL_PARAMETER -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
+            case THERMAL_COST -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
+            case LOAD -> loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
             default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
-
-        }
+        };
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith) {
