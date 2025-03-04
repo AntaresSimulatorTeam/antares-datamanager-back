@@ -28,14 +28,15 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.opaquetoken.client-secret}")
     private String introspectionClientSecret;
 
+    @Value("${pegase.enable.authentification:true}")
+    private boolean enableAuthentification;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        //uncommented the following line to disable authentication for all requests
-                        .requestMatchers("/v1/**").permitAll()
+                        .requestMatchers(!enableAuthentification ? "/v1/**" : "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
