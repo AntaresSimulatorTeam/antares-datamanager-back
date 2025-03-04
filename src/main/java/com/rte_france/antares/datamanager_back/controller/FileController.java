@@ -53,8 +53,6 @@ public class FileController {
         }
 
         nasFileService.saveFile(targetPath.toString(), file.getBytes());
-        var permissions = PosixFilePermissions.fromString("rw-------");
-        Files.setPosixFilePermissions(targetPath, permissions);
         return ResponseEntity.ok("Fichier uploadé avec succès !");
     }
 }

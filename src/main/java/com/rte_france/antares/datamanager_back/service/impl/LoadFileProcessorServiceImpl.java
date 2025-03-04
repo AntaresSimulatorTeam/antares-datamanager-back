@@ -13,10 +13,12 @@ import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSerie
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,6 +36,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
   private final TimeSeriesWriter writer;
   private final LoadRepository loadRepository;
 
+  @Transactional
   public TrajectoryEntity processLoadFile(Path path, String horizon) throws IOException {
     Objects.requireNonNull(path);
     Objects.requireNonNull(horizon);
@@ -47,15 +50,12 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
       savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon));
     }
 
-    var matrix = reader.readFromTxt(path);
-    var outputFilePath = path.resolveSibling(path.getFileName() + "-output");
-    writer.write(matrix, outputFilePath);
-    nasFileService.saveFile(outputFilePath.toString(), Files.readAllBytes(outputFilePath));
+    saveMatrixToNas(path);
 
     return savedTrajectory;
   }
 
-  private TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory) {
+  public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory) {
     var trajectoryEntity = trajectoryRepository.save(trajectory);
     trajectory.setType(TrajectoryType.LOAD.name());
     var loadEntity = LoadEntity.builder().trajectory(trajectoryEntity).build();
@@ -64,6 +64,20 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     return trajectoryEntity;
   }
+
+  private void saveMatrixToNas(Path path) throws IOException {
+    var matrix = reader.readFromTxt(path);
+    var outputFilePath = path.resolveSibling(path.getFileName() + "." + writer.getDefaultFileExtension());
+    var matrixAsBytes = writer.writeToByteArray(matrix);
+    try {
+      nasFileService.saveFile(outputFilePath.getFileName().toString(), matrixAsBytes);
+      var permissions = PosixFilePermissions.fromString("rw-------");
+      Files.setPosixFilePermissions(path, permissions);
+    } catch (IOException e) {
+      throw new IOException(e.getMessage()); // TODO: Manage
+    }
+  }
+
 
 //  public TrajectoryEntity retrieveLoadFileFromFS(String fileName) throws IOException {
 //    var filePath = Path.of(nasFileService.loadFile(fileName).getURI());
@@ -78,12 +92,4 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 //
 //    return trajectoryRepository.save(trajectoryEntity);
 //  }
-
-  public TimeSeriesMatrix readTimeSeries(Path filePath) throws IOException {
-    return reader.read(filePath);
-  }
-
-  public void writeTimeSeries(TimeSeriesMatrix matrix, Path outputPath) throws IOException {
-    writer.write(matrix, outputPath);
-  }
 }
