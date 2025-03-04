@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.AreaFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -40,48 +42,43 @@ class AreaFileProcessorServiceImplTest {
     @InjectMocks
     private AreaFileProcessorServiceImpl areaFileProcessorService;
 
-    private static Path tempFile;
+    @TempDir
+    Path tempDir;  // Temporary directory for test files
 
-    @BeforeEach
-    public void setup(@TempDir Path tempDir) throws IOException {
-        MockitoAnnotations.openMocks(this);
+    private Path tempFile;
 
-        tempFile = tempDir.resolve("testFile.xlsx");
-        try (var outputStream = Files.newOutputStream(tempFile)) {
-            outputStream.write(generateTestExcelFile());
+
+        @BeforeEach
+        public void setup() throws IOException {
+            MockitoAnnotations.openMocks(this);
+
+            tempFile = CreateExcelTestUtil.createExcelFile( tempDir,"TestFile.xlsx","2030-2031",
+                    List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                    List.of(
+                            List.of("Area1", "False", "True", 3, 4, 1, 2, 3)
+                    )
+            );
+        }
+
+        @Test
+        void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+            var trajectoryEntity = mock(TrajectoryEntity.class);
+            when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any()))
+                    .thenReturn(Optional.of(trajectoryEntity));
+
+            areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
+
+            verify(trajectoryRepository, times(1)).save(any());
+            verify(areaConfigRepository, times(1)).saveAll(any());
+        }
+
+        @Test
+        void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
+            when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+
+            areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
+
+            verify(trajectoryRepository, times(1)).save(any());
+            verify(areaConfigRepository, times(1)).saveAll(any());
         }
     }
-
-    private static byte[] generateTestExcelFile() throws IOException {
-        var outputStream = new ByteArrayOutputStream();
-        try (var workbook = new XSSFWorkbook()) {
-            var sheet = workbook.createSheet("2030-2031");
-            var row = sheet.createRow(0);
-            row.createCell(0).setCellValue("Test Data");
-            workbook.write(outputStream);
-        }
-        return outputStream.toByteArray();
-    }
-
-    @Test
-    void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-        var trajectoryEntity = mock(TrajectoryEntity.class);
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any()))
-                .thenReturn(Optional.of(trajectoryEntity));
-
-        areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
-
-        verify(trajectoryRepository, times(1)).save(any());
-        verify(areaConfigRepository, times(1)).saveAll(any());
-    }
-
-    @Test
-    void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
-
-        areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
-
-        verify(trajectoryRepository, times(1)).save(any());
-        verify(areaConfigRepository, times(1)).saveAll(any());
-    }
-}

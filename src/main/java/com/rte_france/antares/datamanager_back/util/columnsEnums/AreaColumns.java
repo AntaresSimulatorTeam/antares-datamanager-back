@@ -6,7 +6,7 @@ import lombok.Getter;
 public enum AreaColumns {
     AREAS("areas"),
     POWER_TO_GAS("Power To Gas"),
-    STOCKAGE_COURT_TERME("Stockage court Terme"),
+    STOCKAGE_COURT_TERME("Stockage court terme"),
     X("x"),
     Y("y"),
     R("r"),
