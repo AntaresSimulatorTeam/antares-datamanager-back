@@ -3,17 +3,19 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.Hibernate;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Builder
 @Getter
 @Setter
 @Embeddable
+@NoArgsConstructor
+@AllArgsConstructor
 public class StudyTrajectoryKey implements Serializable {
     @Serial
     private static final long serialVersionUID = 2716259068521532043L;

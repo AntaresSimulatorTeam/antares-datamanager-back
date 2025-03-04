@@ -58,12 +58,12 @@ class LinkFileProcessorServiceImplTest {
 
             Object[] mockValues = { "Link1", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0,
                     "true", "false", "true", "false" };
-
-            var row = sheet.createRow(1);
-            for (var i = 0; i < mockValues.length; i++) {
-                switch (mockValues[i]) {
-                    case Number n -> row.createCell(i).setCellValue(n.doubleValue());
-                    default -> row.createCell(i).setCellValue(mockValues[i].toString());
+            Row row = sheet.createRow(1);
+            for (int i = 0; i < mockValues.length; i++) {
+                if (mockValues[i] instanceof Number) {
+                    row.createCell(i).setCellValue(((Number) mockValues[i]).doubleValue());
+                } else {
+                    row.createCell(i).setCellValue(mockValues[i].toString());
                 }
             }
 

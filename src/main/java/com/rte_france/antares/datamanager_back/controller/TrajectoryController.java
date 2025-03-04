@@ -61,4 +61,13 @@ public class TrajectoryController {
                                                                @RequestParam("trajectoryType") String trajectoryType) {
         return trajectoryService.findTrajectoriesByTypeAndIds(trajectoryType, trajectoryIds);
     }
+
+
+    @PutMapping("/link")
+    public ResponseEntity<TrajectoryDTO> linkTrajectoryToStudy(@RequestParam TrajectoryType type,
+                                                               @RequestParam Integer trajectoryId,
+                                                               @RequestParam Integer studyId) {
+        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type)), HttpStatus.OK);
+    }
+
 }

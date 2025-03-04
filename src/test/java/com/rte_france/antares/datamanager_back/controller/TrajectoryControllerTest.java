@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +23,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -144,5 +144,31 @@ class TrajectoryControllerTest {
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_returnsLinkedTrajectory() throws Exception {
+        TrajectoryEntity dto = TrajectoryEntity.builder().id(1).type("AREA").build();
+        dto.setType("AREA");
+        dto.setId(1);
+        when(trajectoryServiceImpl.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(dto);
+
+        this.mockMvc.perform(put("/v1/trajectory/link")
+                        .param("type", "AREA")
+                        .param("trajectoryId", "1")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("AREA"))
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_returnsBadRequestForMissingParams() throws Exception {
+        this.mockMvc.perform(put("/v1/trajectory/link")
+                        .param("type", "AREA")
+                        .param("trajectoryId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
     }
 }

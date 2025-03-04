@@ -4,7 +4,12 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,14 +19,15 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Optional;
+import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,6 +46,13 @@ class TrajectoryServiceImplTest {
 
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
+
+    @Mock
+    private StudyRepository studyRepository;
+
+
+    @Mock
+    private StudyTrajectoryRepository studyTrajectoryRepository;
 
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
@@ -114,7 +127,7 @@ class TrajectoryServiceImplTest {
 
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 
-        assertEquals("testFile.xlsx", result.getFirst().getFileName());
+        assertEquals("testFile.xlsx", result.get(0).getFileName());
     }
 
     @Test
@@ -162,5 +175,77 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of())).thenReturn(List.of());
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of());
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void linkTrajectoryToStudy_linksTrajectoryWhenStudyAndTrajectoryExist() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.AREA;
+
+        StudyEntity study =  StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
+
+        assertEquals(trajectory, result);
+        verify(studyTrajectoryRepository, times(1)).save(any());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_throwsExceptionWhenStudyNotFound() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.AREA;
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_throwsExceptionWhenTrajectoryNotFound() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.AREA;
+
+        StudyEntity study =  StudyEntity.builder().id(studyId).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_replacesExistingLinkWhenSameTypeExists() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.AREA;
+
+
+        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+
+        StudyTrajectoryEntity existingLink =  StudyTrajectoryEntity.builder().trajectory(trajectory).build();
+
+        StudyEntity study =  StudyEntity.builder().id(studyId).build();
+        study.setStudyTrajectoryEntities(Set.of(existingLink));
+
+        TrajectoryEntity newTrajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
+
+        assertEquals(newTrajectory, result);
+        verify(studyTrajectoryRepository, times(1)).delete(existingLink);
+        verify(studyTrajectoryRepository, times(1)).save(any());
     }
 }
