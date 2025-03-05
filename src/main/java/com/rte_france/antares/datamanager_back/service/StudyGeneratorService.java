@@ -4,5 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 
 public interface StudyGeneratorService {
-     void buildJsonForStudyGeneration(Integer study_id) throws JsonProcessingException;
+    void buildJsonForStudyGeneration(Integer study_id) throws JsonProcessingException;
+
+    void callGenerateStudyService(Integer studyId);
+
 }

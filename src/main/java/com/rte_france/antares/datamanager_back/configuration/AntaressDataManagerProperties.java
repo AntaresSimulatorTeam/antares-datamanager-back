@@ -31,4 +31,7 @@ public class  AntaressDataManagerProperties {
     @Value("${pegase.nas.directory}")
     public String nasDirectory;
 
+    @Value("${peagse.genarator.host.url}")
+    public String generatorHostUrl;
+
 }

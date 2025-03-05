@@ -9,8 +9,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-
 import org.springframework.web.filter.ForwardedHeaderFilter;
+import org.springframework.web.reactive.function.client.WebClient;
 
 
 @Slf4j
@@ -33,19 +33,28 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(!enableAuthentification ? "/v1/**" : "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .anyRequest().authenticated()
+        http.csrf(AbstractHttpConfigurer::disable);
+
+        http.authorizeHttpRequests(auth -> {
+            if (!enableAuthentification) {
+                auth.requestMatchers("/v1/**").permitAll();
+            }
+            auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                    .anyRequest().authenticated();
+        });
+
+        http.oauth2ResourceServer(oauth2 -> oauth2
+                .opaqueToken(opaque -> opaque
+                        .introspectionUri(introspectionUri)
+                        .introspectionClientCredentials(introspectionClientId, introspectionClientSecret)
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .opaqueToken(opaque -> opaque
-                                .introspectionUri(introspectionUri)
-                                .introspectionClientCredentials(introspectionClientId, introspectionClientSecret)
-                        )
-                );
+        );
         return http.build();
+    }
+
+    @Bean
+    public WebClient webClient() {
+        return WebClient.builder().build();
     }
 
     @Bean
