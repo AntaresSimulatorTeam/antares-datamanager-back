@@ -1,26 +1,37 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.repository.LoadRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LoadFileProcessorServiceImplTest {
-
   @InjectMocks
   private LoadFileProcessorServiceImpl loadFileProcessorService;
+
+  @Mock
+  private TrajectoryRepository trajectoryRepository;
+
+  @Mock
+  private LoadRepository loadRepository;
 
   @Mock
   private TimeSeriesReader timeSeriesReader;
@@ -28,32 +39,35 @@ class LoadFileProcessorServiceImplTest {
   @Mock
   private TimeSeriesWriter timeSeriesWriter;
 
+  @Mock
+  private TimeSeriesMatrix timeSeriesMatrix;
+
+  @Mock
+  private NasFileService nasFileService;
+
+  @TempDir
+  private Path tempDir;
+
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
   }
 
   @Test
-  void readTimeSeries_validFile() throws IOException {
-    var filePath = Path.of("validFile.arrow");
-    var expectedMatrix = mock(TimeSeriesMatrix.class);
+  void processLoadFile_shouldProcessFile() throws IOException {
+    var tempFile = tempDir.resolve("test-path.txt");
+    Files.createFile(tempFile);
+    var horizon = "2030-2031";
+    var trajectoryEntity = new TrajectoryEntity();
+    when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(anyString())).thenReturn(Optional.of(trajectoryEntity));
+    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
 
-    when(timeSeriesReader.read(filePath)).thenReturn(expectedMatrix);
+    assertDoesNotThrow(() -> loadFileProcessorService.processLoadFile(tempFile, horizon));
 
-    var result = loadFileProcessorService.readTimeSeries(filePath);
-
-    assertNotNull(result);
-    verify(timeSeriesReader, times(1)).read(filePath);
-  }
-
-  @Test
-  void writeTimeSeries_validMatrix() throws IOException {
-    var matrix = mock(TimeSeriesMatrix.class);
-    var outputPath = Path.of("outputFile.arrow");
-
-    doNothing().when(timeSeriesWriter).write(matrix, outputPath);
-
-    assertDoesNotThrow(() -> loadFileProcessorService.writeTimeSeries(matrix, outputPath));
-    verify(timeSeriesWriter, times(1)).write(matrix, outputPath);
+    verify(trajectoryRepository, times(1)).findFirstByFileNameOrderByVersionDesc(anyString());
+    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
+    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
+    verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
   }
 }
