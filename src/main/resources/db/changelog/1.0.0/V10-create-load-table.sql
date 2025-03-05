@@ -8,5 +8,5 @@ CREATE TABLE load
     FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
 
-ALTER TABLE trajectory ADD load INT,
-    ADD CONSTRAINT trajectory_load_fkey FOREIGN KEY (load) REFERENCES load (id);
+ALTER TABLE trajectory ADD load INT;
+ALTER TABLE trajectory ADD CONSTRAINT trajectory_load_fkey FOREIGN KEY (load) REFERENCES load (id);
