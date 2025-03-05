@@ -6,7 +6,9 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidator;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
+import com.rte_france.antares.datamanager_back.util.columnsEnums.ExcelFileType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -49,7 +51,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     @Transactional
     public TrajectoryEntity processLinkFile(Path path, String horizon) throws IOException {
         checkIfHorizonExist(path, horizon);
-
+        ExcelFileValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(path.getFileName().toString());
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
             return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildLinkList(path));
