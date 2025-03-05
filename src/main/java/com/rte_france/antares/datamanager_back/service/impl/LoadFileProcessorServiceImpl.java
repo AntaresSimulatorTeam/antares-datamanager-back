@@ -55,7 +55,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     return savedTrajectory;
   }
 
-  public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory) {
+  private TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory) {
     var trajectoryEntity = trajectoryRepository.save(trajectory);
     trajectory.setType(TrajectoryType.LOAD.name());
     var loadEntity = LoadEntity.builder().trajectory(trajectoryEntity).build();

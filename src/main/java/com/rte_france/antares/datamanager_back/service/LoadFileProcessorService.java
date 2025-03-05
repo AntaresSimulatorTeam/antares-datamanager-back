@@ -8,5 +8,4 @@ import java.nio.file.Path;
 
 public interface LoadFileProcessorService {
   TrajectoryEntity processLoadFile(Path path, String horizon) throws IOException;
-  TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory);
 }
