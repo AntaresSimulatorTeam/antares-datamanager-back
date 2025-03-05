@@ -14,7 +14,6 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryE
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.*;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

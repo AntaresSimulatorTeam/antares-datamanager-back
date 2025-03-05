@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class TrajectoryServiceImplTest {
     private StudyTrajectoryRepository studyTrajectoryRepository;
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
+
+    @Mock
+    private LoadFileProcessorServiceImpl loadFileProcessorService;
 
     @BeforeEach
     void setUp() {
@@ -179,9 +183,9 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
 
-        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        StudyEntity study =  StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
 
-        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
@@ -210,7 +214,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
 
-        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        StudyEntity study =  StudyEntity.builder().id(studyId).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.empty());
@@ -225,14 +229,14 @@ class TrajectoryServiceImplTest {
         TrajectoryType type = TrajectoryType.AREA;
 
 
-        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
-        StudyTrajectoryEntity existingLink = StudyTrajectoryEntity.builder().trajectory(trajectory).build();
+        StudyTrajectoryEntity existingLink =  StudyTrajectoryEntity.builder().trajectory(trajectory).build();
 
-        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        StudyEntity study =  StudyEntity.builder().id(studyId).build();
         study.setStudyTrajectoryEntities(Set.of(existingLink));
 
-        TrajectoryEntity newTrajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity newTrajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
@@ -243,6 +247,19 @@ class TrajectoryServiceImplTest {
         assertEquals(newTrajectory, result);
         verify(studyTrajectoryRepository, times(1)).delete(existingLink);
         verify(studyTrajectoryRepository, times(1)).save(any());
+    }
+
+    @Test
+    void processTrajectory_returnsEntityWhenTrajectoryTypeIsLOAD() throws IOException {
+        var path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/load/testFile.txt");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("/load");
+
+        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031");
+
+        verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
     }
 
     @Test
