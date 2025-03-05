@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -11,22 +12,16 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/v1/files")
 public class FileController {
 
     private final NasFileService nasFileService;
     private final AntaressDataManagerProperties properties;
-
-    public FileController(NasFileService nasFileService, AntaressDataManagerProperties properties) {
-        this.nasFileService = Objects.requireNonNull(nasFileService);
-        this.properties = Objects.requireNonNull(properties);
-    }
 
     @GetMapping("/{filename}")
     public ResponseEntity<Resource> getFile(@PathVariable String filename) {
