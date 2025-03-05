@@ -131,7 +131,7 @@ class TrajectoryServiceImplTest {
 
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 
-        assertEquals("testFile.xlsx", result.get(0).getFileName());
+        assertEquals("testFile.xlsx", result.getFirst().getFileName());
     }
 
     @Test
@@ -163,8 +163,8 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of(1, 2))).thenReturn(List.of(entity));
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2));
         assertThat(result).isNotEmpty();
-        assertThat(result.get(0).getType()).isEqualTo("AREA");
-        assertThat(result.get(0).getId()).isEqualTo(1);
+        assertThat(result.getFirst().getType()).isEqualTo("AREA");
+        assertThat(result.getFirst().getId()).isEqualTo(1);
     }
 
     @Test
@@ -264,5 +264,41 @@ class TrajectoryServiceImplTest {
         trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031");
 
         verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
+    }
+
+    @Test
+    void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_PARAMETER() throws IOException {
+        var path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/thermal_parameter/testFile.xlsx");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("/thermal_parameters");
+
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_PARAMETER, "testFile", "2023-2024");
+
+        verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), eq(TrajectoryType.THERMAL_PARAMETER));
+    }
+
+    @Test
+    void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_COST() throws IOException {
+        var path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/thermal_cost/testFile.xlsx");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("/thermal_costs");
+
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_COST, "testFile", "2023-2024");
+
+        verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), eq(TrajectoryType.THERMAL_COST));
+    }
+
+    @Test
+    void processTrajectory_throwsExceptionWhenTrajectoryTypeIsUnsupported() {
+        var path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/unsupported/testFile.xlsx");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+
+        assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024"));
     }
 }
