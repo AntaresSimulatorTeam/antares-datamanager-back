@@ -29,8 +29,6 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
-    private final NasFileService nasFileService;
-    private final AntaressDataManagerProperties properties;
 
     @Operation(summary = "Get Trajectories by type and fileNameStartsWith from Database ")
     @GetMapping(value = "/db")
