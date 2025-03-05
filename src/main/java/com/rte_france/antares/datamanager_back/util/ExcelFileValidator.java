@@ -4,17 +4,17 @@ import com.rte_france.antares.datamanager_back.util.columnsEnums.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.columnsEnums.LinksColumns;
 import lombok.Getter;
 import org.apache.poi.ss.usermodel.*;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Getter
 public class ExcelFileValidator {
+
+
     public static void checkIfColumnsAreValid(Path path, ExcelFileType fileType, String horizon) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -41,13 +41,17 @@ public class ExcelFileValidator {
 
             checkAllRowsHaveValues(sheet, fileType.getColumnCount(), path, horizon);
 
-            Optional.ofNullable(fileType == ExcelFileType.LINKS ? "Names" : null)
-                    .ifPresent(columnName -> checkForDuplicateValues(sheet, columnName, path, horizon));
-
-            checkNumericColumns(sheet,path,horizon);
+            linksDuplicateAndCellsValuesChecks(path, fileType, horizon, sheet);
 
         } catch (IOException e) {
             throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
+        }
+    }
+
+    private static void linksDuplicateAndCellsValuesChecks(Path path, ExcelFileType fileType, String horizon, Sheet sheet) {
+        if (fileType == ExcelFileType.LINKS) {
+            checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon);
+            checkNumericAndBooleanColumns(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames());
         }
     }
 
@@ -92,23 +96,59 @@ public class ExcelFileValidator {
                 }));
     }
 
-    private static void checkNumericColumns(Sheet sheet, Path path, String horizon) {
-        List<String> numericColumns = LinksColumns.getNumericColumnNames();
+    private static void checkNumericAndBooleanColumns(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns) {
 
-        numericColumns.stream()
-                .map(column -> Map.entry(column, findColumnIndex(sheet, column, path, horizon)))
-                .forEach(entry -> {
-                    String column = entry.getKey();
-                    int index = entry.getValue();
+        numericColumns.forEach(column -> checkNumericColumn(sheet, path, horizon, column));
 
-                    sheet.forEach(row -> {
-                        Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-
-                        if (cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() <= 0 || cell.getNumericCellValue() % 1 != 0) {
-                            throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
-                                    "' in file: " + path.getFileName() + " - must be a positive integer.");
-                        }
-                    });
-                });
+        booleanColumns.forEach(column -> checkBooleanColumn(sheet, path, horizon, column));
     }
+
+    private static void checkNumericColumn(Sheet sheet, Path path, String horizon, String column) {
+        int index = findColumnIndex(sheet, column, path, horizon);
+
+        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
+            Row row = sheet.getRow(i);
+            if (row != null) {
+                Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+                if (cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() <= 0 || cell.getNumericCellValue() % 1 != 0) {
+                    throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
+                            "' in file: " + path.getFileName() + " - must be a positive integer.");
+                }
+            }
+        }
+    }
+
+    private static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
+        int index = findColumnIndex(sheet, column, path, horizon);
+
+        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
+            Row row = sheet.getRow(i);
+            if (row != null) {
+                Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+                if (cell == null) {
+                    throw new TechnicalAntaresDataMangerException("Missing value in column '" + column + "' in sheet '" + horizon +
+                            "' in file: " + path.getFileName() + " - must be a boolean (true/false).");
+                }
+
+                if (cell.getCellType() == CellType.BOOLEAN) {
+                    continue;
+                }
+
+                if (cell.getCellType() == CellType.STRING) {
+                    String cellValue = cell.getStringCellValue().trim().toUpperCase();
+                    if (!"TRUE".equals(cellValue) && !"FALSE".equals(cellValue)) {
+                        throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
+                                "' in file: " + path.getFileName() + " - must be a boolean (true/false).");
+                    }
+                    continue;
+                }
+
+                throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
+                        "' in file: " + path.getFileName() + " - must be a boolean (true/false).");
+            }
+        }
+    }
+
 }

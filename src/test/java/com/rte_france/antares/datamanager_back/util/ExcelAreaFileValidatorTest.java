@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-class ExcelFileValidatorTest {
+class ExcelAreaFileValidatorTest {
     @TempDir
     Path tempDir;
 

@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.LinkFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.util.columnsEnums.LinksColumns;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -58,6 +59,11 @@ class LinkFileProcessorServiceImplTest {
 
             Object[] mockValues = { "Link1", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0,
                     "true", "false", "true", "false" };
+
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < LinksColumns.values().length; i++) {
+                headerRow.createCell(i).setCellValue(LinksColumns.values()[i].getDisplayName());
+            }
             Row row = sheet.createRow(1);
             for (int i = 0; i < mockValues.length; i++) {
                 if (mockValues[i] instanceof Number) {
