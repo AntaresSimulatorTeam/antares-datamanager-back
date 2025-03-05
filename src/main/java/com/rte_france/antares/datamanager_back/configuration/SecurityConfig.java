@@ -9,8 +9,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
-
 import org.springframework.web.filter.ForwardedHeaderFilter;
+import org.springframework.web.reactive.function.client.WebClient;
 
 
 @Slf4j
@@ -50,6 +50,11 @@ public class SecurityConfig {
                 )
         );
         return http.build();
+    }
+
+    @Bean
+    public WebClient webClient() {
+        return WebClient.builder().build();
     }
 
     @Bean

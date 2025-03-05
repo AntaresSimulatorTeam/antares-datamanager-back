@@ -198,5 +198,6 @@ class StudyControllerTest {
                 .andReturn();
 
         verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(eq(studyId));
+        verify(studyGeneratorService, times(1)).callGenerateStudyService(eq(studyId));
     }
 }

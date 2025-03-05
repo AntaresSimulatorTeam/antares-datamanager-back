@@ -2,14 +2,19 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
+import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.*;
@@ -22,25 +27,31 @@ import java.util.stream.Collectors;
 public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final StudyRepository studyRepository;
+
     private final NasFileService nasFileService;
 
+    private final WebClient webClient;
+
+    private final AntaressDataManagerProperties antaressDataManagerProperties;
+
+
     @Override
-    public void buildJsonForStudyGeneration(Integer study_id) throws JsonProcessingException {
-        Map<String, Object> jsonForGenerator= jsonBuilder(study_id);
+    public void buildJsonForStudyGeneration(Integer studyId) throws JsonProcessingException {
+        Map<String, Object> jsonForGenerator = jsonBuilder(studyId);
         ObjectMapper objectMapper = new ObjectMapper();
         String generatorJson = objectMapper.writeValueAsString(jsonForGenerator);
         try {
-            nasFileService.saveFile(study_id + ".json",generatorJson.getBytes());
+            nasFileService.saveFile(studyId + ".json", generatorJson.getBytes());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Map<String, Object> jsonBuilder(Integer study_id) {
+    private Map<String, Object> jsonBuilder(Integer studyId) {
         Map<String, Object> jsonForGenerator = new TreeMap<>();
         String studyName;
 
-        Optional<StudyEntity> studyEntity = studyRepository.findById(study_id);
+        Optional<StudyEntity> studyEntity = studyRepository.findById(studyId);
 
         if (studyEntity.isPresent()) {
             Set<TrajectoryEntity> trajectories = studyEntity.get().getTrajectories();
@@ -53,14 +64,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 var trajectoryType = trajectory.getType();
 
                 switch (trajectoryType) {
-                    case "AREA":
-                        buildAreasDataMap(trajectory, areasMap);
-                        break;
-                    case "LINK":
-                        buildLinksDataMap(trajectory, linksMap);
-                        break;
-                    default:
-                        throw new IllegalArgumentException("Unexpected value: " + trajectoryType);
+                    case "AREA" -> buildAreasDataMap(trajectory, areasMap);
+                    case "LINK" -> buildLinksDataMap(trajectory, linksMap);
+                    default -> throw new IllegalArgumentException("Unexpected value: " + trajectoryType);
                 }
             }
 
@@ -72,7 +78,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             jsonForGenerator.put(studyName, innerGeneratorMap);
         } else {
-            throw new IllegalArgumentException("Study not found with ID: " + study_id);
+            throw new IllegalArgumentException("Study not found with ID: " + studyId);
         }
 
         return jsonForGenerator;
@@ -107,7 +113,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, Object> linkMap = linksMapGenerator();
 
-        Map<String, Map<String, Object>> linksDataMap =linkEntityList.stream()
+        Map<String, Map<String, Object>> linksDataMap = linkEntityList.stream()
                 .collect(Collectors.toMap(
                         linkEntity -> linkEntity.getName().replace("-", "/"),
                         linkEntity -> linkMap,
@@ -145,5 +151,26 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return linkMap;
     }
 
+    public void callGenerateStudyService(Integer studyId) {
+        String url = antaressDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
+
+        try {
+            webClient.post()
+                    .uri(url)
+                    .exchangeToMono(resp -> {
+                        if (resp.statusCode().equals(HttpStatus.OK)) {
+                            log.debug(String.format("Study {%s} has been successfully generated", studyId));
+                            return resp.bodyToMono(String.class);
+                        } else {
+                            log.error(String.format("Error while generating study {%s}", studyId));
+                            return resp.createException().flatMap(Mono::error);
+                        }
+
+                    })
+                    .block();
+        } catch (RuntimeException ex) {
+            throw new TechnicalAntaresDataMangerException("Error while generating study: " + ex.getMessage());
+        }
+    }
 }
 

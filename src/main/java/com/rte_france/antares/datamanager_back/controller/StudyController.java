@@ -73,6 +73,7 @@ public class StudyController {
     @PostMapping("/generate")
     public ResponseEntity<Void> generateStudy(@RequestParam Integer id) throws JsonProcessingException {
         studyGeneratorService.buildJsonForStudyGeneration(id);
+        studyGeneratorService.callGenerateStudyService(id);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
