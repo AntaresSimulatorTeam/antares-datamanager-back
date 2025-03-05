@@ -43,7 +43,7 @@ class AreaFileProcessorServiceImplTest {
     private AreaFileProcessorServiceImpl areaFileProcessorService;
 
     @TempDir
-    Path tempDir;  // Temporary directory for test files
+    Path tempDir;
 
     private Path tempFile;
 

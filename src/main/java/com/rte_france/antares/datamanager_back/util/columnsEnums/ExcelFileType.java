@@ -21,7 +21,7 @@ public enum ExcelFileType {
                     try {
                         return (String) e.getClass().getMethod("getDisplayName").invoke(e);
                     } catch (Exception ex) {
-                        return e.name().replace('_', ' '); // Fallback
+                        return e.name().replace('_', ' ');
                     }
                 })
                 .map(ExcelFileType::normalizeColumnName)
@@ -40,7 +40,6 @@ public enum ExcelFileType {
     private static String normalizeColumnName(String columnName) {
         if (columnName == null) return null;
 
-        // Remove accents, but keep original case and spaces
         return Normalizer.normalize(columnName, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "") // Remove diacritics (accents)
                 .trim();
