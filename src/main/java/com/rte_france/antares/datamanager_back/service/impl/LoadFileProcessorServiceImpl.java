@@ -69,27 +69,8 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     var matrix = reader.readFromTxt(path);
     var outputFilePath = path.resolveSibling(path.getFileName() + "." + writer.getDefaultFileExtension());
     var matrixAsBytes = writer.writeToByteArray(matrix);
-    try {
-      nasFileService.saveFile(outputFilePath.getFileName().toString(), matrixAsBytes);
-      var permissions = PosixFilePermissions.fromString("rw-------");
-      Files.setPosixFilePermissions(path, permissions);
-    } catch (IOException e) {
-      throw new IOException(e.getMessage()); // TODO: Manage
-    }
+    nasFileService.saveFile(outputFilePath.getFileName().toString(), matrixAsBytes);
+    var permissions = PosixFilePermissions.fromString("rw-------");
+    Files.setPosixFilePermissions(path, permissions);
   }
-
-
-//  public TrajectoryEntity retrieveLoadFileFromFS(String fileName) throws IOException {
-//    var filePath = Path.of(nasFileService.loadFile(fileName).getURI());
-//    var matrix = reader.read(filePath);
-//
-//    var trajectoryEntity = new TrajectoryEntity();
-//    trajectoryEntity.setFileName(filePath.getFileName().toString());
-//    trajectoryEntity = trajectoryRepository.save(trajectoryEntity);
-//
-//    var loadEntity = new LoadEntity();
-//    loadEntity.setTrajectory(trajectoryEntity);
-//
-//    return trajectoryRepository.save(trajectoryEntity);
-//  }
 }
