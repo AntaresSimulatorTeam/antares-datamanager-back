@@ -2,7 +2,9 @@
 -- changeset salem:100V11-1
 
 ALTER TABLE thermal_parameter
-    ADD COLUMN type VARCHAR(255),
+    ADD COLUMN type VARCHAR(255);
+
+ALTER TABLE thermal_parameter
     DROP COLUMN comments,
     DROP COLUMN techno,
     DROP COLUMN cluster_PEMMDB,
