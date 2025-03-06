@@ -20,3 +20,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.0.0/V09-drop_area_values_inserted.sql
   - include:
       file: classpath*:db/changelog/1.0.0/V10-create-load-table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V11-update_thermal_parameters_table.sql
