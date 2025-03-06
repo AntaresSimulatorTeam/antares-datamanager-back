@@ -127,7 +127,7 @@ class TrajectoryServiceImplTest {
 
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 
-        assertEquals("testFile.xlsx", result.get(0).getFileName());
+        assertEquals("testFile.xlsx", result.getFirst().getFileName());
     }
 
     @Test
@@ -159,8 +159,8 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of(1, 2))).thenReturn(List.of(entity));
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2));
         assertThat(result).isNotEmpty();
-        assertThat(result.get(0).getType()).isEqualTo("AREA");
-        assertThat(result.get(0).getId()).isEqualTo(1);
+        assertThat(result.getFirst().getType()).isEqualTo("AREA");
+        assertThat(result.getFirst().getId()).isEqualTo(1);
     }
 
     @Test
@@ -250,19 +250,6 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsLOAD() throws IOException {
-        var path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/load/testFile.txt");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("/load");
-
-        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031");
-
-        verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
-    }
-
-    @Test
     void unlinkTrajectoryFromStudy_unlinksWhenLinkExists() {
         Integer trajectoryId = 1;
         Integer studyId = 1;
@@ -286,7 +273,20 @@ class TrajectoryServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
     }
+  
+    @Test
+    void processTrajectory_returnsEntityWhenTrajectoryTypeIsLOAD() throws IOException {
+        var path = mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("src/test/resources/load/testFile.txt");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("/load");
 
+        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031");
+
+        verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
+    }
+  
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_PARAMETER() throws IOException {
         var path = mock(Path.class);
@@ -322,5 +322,4 @@ class TrajectoryServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024"));
     }
-
 }
