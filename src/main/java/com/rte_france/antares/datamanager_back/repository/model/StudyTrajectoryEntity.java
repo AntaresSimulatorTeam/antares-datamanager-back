@@ -8,7 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @Getter
 @Setter
-@Entity
+@Entity(name = "studyTrajectory")
 @Table(name = "scenario_trajectory")
 public class StudyTrajectoryEntity {
     @EmbeddedId

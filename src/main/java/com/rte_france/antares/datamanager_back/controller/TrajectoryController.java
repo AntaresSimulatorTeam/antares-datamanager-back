@@ -70,4 +70,11 @@ public class TrajectoryController {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type)), HttpStatus.OK);
     }
 
+    @DeleteMapping("/link")
+    public ResponseEntity<Void> unlinkTrajectoryFromStudy(@RequestParam Integer trajectoryId,
+                                                          @RequestParam Integer studyId) {
+        trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
 }

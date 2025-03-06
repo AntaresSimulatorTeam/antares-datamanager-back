@@ -4,6 +4,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -170,5 +171,28 @@ class TrajectoryControllerTest {
                         .param("trajectoryId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_returnsNoContentWhenLinkExists() throws Exception {
+        doNothing().when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
+
+        this.mockMvc.perform(delete("/v1/trajectory/link")
+                        .param("trajectoryId", "1")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_returnsNotFoundWhenLinkDoesNotExist() throws Exception {
+        doThrow(new ResourceNotFoundException("Link between trajectory and study not found"))
+                .when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
+
+        this.mockMvc.perform(delete("/v1/trajectory/link")
+                        .param("trajectoryId", "1")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isNotFound());
     }
 }

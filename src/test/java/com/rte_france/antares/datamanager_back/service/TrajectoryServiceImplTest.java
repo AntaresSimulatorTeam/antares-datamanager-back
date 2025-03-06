@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryReposit
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,17 +44,12 @@ class TrajectoryServiceImplTest {
     private LinkFileProcessorService linkFileProcessorService;
     @Mock
     private AntaressDataManagerProperties antaressDataManagerProperties;
-
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
-
     @Mock
     private StudyRepository studyRepository;
-
-
     @Mock
     private StudyTrajectoryRepository studyTrajectoryRepository;
-
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -183,9 +179,9 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
 
-        StudyEntity study =  StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
 
-        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
@@ -214,7 +210,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
 
-        StudyEntity study =  StudyEntity.builder().id(studyId).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.empty());
@@ -229,14 +225,14 @@ class TrajectoryServiceImplTest {
         TrajectoryType type = TrajectoryType.AREA;
 
 
-        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
-        StudyTrajectoryEntity existingLink =  StudyTrajectoryEntity.builder().trajectory(trajectory).build();
+        StudyTrajectoryEntity existingLink = StudyTrajectoryEntity.builder().trajectory(trajectory).build();
 
-        StudyEntity study =  StudyEntity.builder().id(studyId).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
         study.setStudyTrajectoryEntities(Set.of(existingLink));
 
-        TrajectoryEntity newTrajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
@@ -247,5 +243,30 @@ class TrajectoryServiceImplTest {
         assertEquals(newTrajectory, result);
         verify(studyTrajectoryRepository, times(1)).delete(existingLink);
         verify(studyTrajectoryRepository, times(1)).save(any());
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_unlinksWhenLinkExists() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        StudyTrajectoryKey key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
+        StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder().id(key).build();
+
+        when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(entity));
+
+        trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId);
+
+        verify(studyTrajectoryRepository, times(1)).delete(entity);
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_throwsExceptionWhenLinkDoesNotExist() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        StudyTrajectoryKey key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
+
+        when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
     }
 }
