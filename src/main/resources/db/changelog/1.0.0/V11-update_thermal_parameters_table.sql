@@ -1,76 +1,74 @@
 -- liquibase formatted sql
 -- changeset salem:100V11-1
 
-ALTER TABLE thermal_parameter
-    ADD COLUMN type VARCHAR(255);
+ALTER TABLE thermal_parameter ADD COLUMN type VARCHAR(255);
 
-ALTER TABLE thermal_parameter
-    DROP COLUMN comments,
-    DROP COLUMN techno,
-    DROP COLUMN cluster_PEMMDB,
-    DROP COLUMN cluster,
-    DROP COLUMN enabled,
-    DROP COLUMN min_stable_generation,
-    DROP COLUMN spinning,
-    DROP COLUMN FO_rate,
-    DROP COLUMN FO_duration,
-    DROP COLUMN PO_duration,
-    DROP COLUMN PO_winter,
-    DROP COLUMN F1,
-    DROP COLUMN F2,
-    DROP COLUMN F3,
-    DROP COLUMN F4,
-    DROP COLUMN F5,
-    DROP COLUMN F6,
-    DROP COLUMN F7,
-    DROP COLUMN F8,
-    DROP COLUMN F9,
-    DROP COLUMN F10,
-    DROP COLUMN F11,
-    DROP COLUMN F12,
-    DROP COLUMN P1,
-    DROP COLUMN P2,
-    DROP COLUMN P3,
-    DROP COLUMN P4,
-    DROP COLUMN P5,
-    DROP COLUMN P6,
-    DROP COLUMN P7,
-    DROP COLUMN P8,
-    DROP COLUMN P9,
-    DROP COLUMN P10,
-    DROP COLUMN P11,
-    DROP COLUMN P12,
-    DROP COLUMN spread,
-    DROP COLUMN marginal_cost,
-    DROP COLUMN market_bid,
-    DROP COLUMN fixed_cost,
-    DROP COLUMN offset_variable_cost,
-    DROP COLUMN NPO_max_winter,
-    DROP COLUMN NPO_max_summer,
-    DROP COLUMN nb_units,
-    DROP COLUMN MR_specific,
-    DROP COLUMN M1,
-    DROP COLUMN M2,
-    DROP COLUMN M3,
-    DROP COLUMN M4,
-    DROP COLUMN M5,
-    DROP COLUMN M6,
-    DROP COLUMN M7,
-    DROP COLUMN M8,
-    DROP COLUMN M9,
-    DROP COLUMN M10,
-    DROP COLUMN M11,
-    DROP COLUMN M12,
-    DROP COLUMN CM_specific,
-    DROP COLUMN C1,
-    DROP COLUMN C2,
-    DROP COLUMN C3,
-    DROP COLUMN C4,
-    DROP COLUMN C5,
-    DROP COLUMN C6,
-    DROP COLUMN C7,
-    DROP COLUMN C8,
-    DROP COLUMN C9,
-    DROP COLUMN C10,
-    DROP COLUMN C11,
-    DROP COLUMN C12;
+ALTER TABLE thermal_parameter DROP COLUMN comments;
+ALTER TABLE thermal_parameter DROP COLUMN techno;
+ALTER TABLE thermal_parameter DROP COLUMN cluster_PEMMDB;
+ALTER TABLE thermal_parameter DROP COLUMN cluster;
+ALTER TABLE thermal_parameter DROP COLUMN enabled;
+ALTER TABLE thermal_parameter DROP COLUMN min_stable_generation;
+ALTER TABLE thermal_parameter DROP COLUMN spinning;
+ALTER TABLE thermal_parameter DROP COLUMN FO_rate;
+ALTER TABLE thermal_parameter DROP COLUMN FO_duration;
+ALTER TABLE thermal_parameter DROP COLUMN PO_duration;
+ALTER TABLE thermal_parameter DROP COLUMN PO_winter;
+ALTER TABLE thermal_parameter DROP COLUMN F1;
+ALTER TABLE thermal_parameter DROP COLUMN F2;
+ALTER TABLE thermal_parameter DROP COLUMN F3;
+ALTER TABLE thermal_parameter DROP COLUMN F4;
+ALTER TABLE thermal_parameter DROP COLUMN F5;
+ALTER TABLE thermal_parameter DROP COLUMN F6;
+ALTER TABLE thermal_parameter DROP COLUMN F7;
+ALTER TABLE thermal_parameter DROP COLUMN F8;
+ALTER TABLE thermal_parameter DROP COLUMN F9;
+ALTER TABLE thermal_parameter DROP COLUMN F10;
+ALTER TABLE thermal_parameter DROP COLUMN F11;
+ALTER TABLE thermal_parameter DROP COLUMN F12;
+ALTER TABLE thermal_parameter DROP COLUMN P1;
+ALTER TABLE thermal_parameter DROP COLUMN P2;
+ALTER TABLE thermal_parameter DROP COLUMN P3;
+ALTER TABLE thermal_parameter DROP COLUMN P4;
+ALTER TABLE thermal_parameter DROP COLUMN P5;
+ALTER TABLE thermal_parameter DROP COLUMN P6;
+ALTER TABLE thermal_parameter DROP COLUMN P7;
+ALTER TABLE thermal_parameter DROP COLUMN P8;
+ALTER TABLE thermal_parameter DROP COLUMN P9;
+ALTER TABLE thermal_parameter DROP COLUMN P10;
+ALTER TABLE thermal_parameter DROP COLUMN P11;
+ALTER TABLE thermal_parameter DROP COLUMN P12;
+ALTER TABLE thermal_parameter DROP COLUMN spread;
+ALTER TABLE thermal_parameter DROP COLUMN marginal_cost;
+ALTER TABLE thermal_parameter DROP COLUMN market_bid;
+ALTER TABLE thermal_parameter DROP COLUMN fixed_cost;
+ALTER TABLE thermal_parameter DROP COLUMN offset_variable_cost;
+ALTER TABLE thermal_parameter DROP COLUMN NPO_max_winter;
+ALTER TABLE thermal_parameter DROP COLUMN NPO_max_summer;
+ALTER TABLE thermal_parameter DROP COLUMN nb_units;
+ALTER TABLE thermal_parameter DROP COLUMN MR_specific;
+ALTER TABLE thermal_parameter DROP COLUMN M1;
+ALTER TABLE thermal_parameter DROP COLUMN M2;
+ALTER TABLE thermal_parameter DROP COLUMN M3;
+ALTER TABLE thermal_parameter DROP COLUMN M4;
+ALTER TABLE thermal_parameter DROP COLUMN M5;
+ALTER TABLE thermal_parameter DROP COLUMN M6;
+ALTER TABLE thermal_parameter DROP COLUMN M7;
+ALTER TABLE thermal_parameter DROP COLUMN M8;
+ALTER TABLE thermal_parameter DROP COLUMN M9;
+ALTER TABLE thermal_parameter DROP COLUMN M10;
+ALTER TABLE thermal_parameter DROP COLUMN M11;
+ALTER TABLE thermal_parameter DROP COLUMN M12;
+ALTER TABLE thermal_parameter DROP COLUMN CM_specific;
+ALTER TABLE thermal_parameter DROP COLUMN C1;
+ALTER TABLE thermal_parameter DROP COLUMN C2;
+ALTER TABLE thermal_parameter DROP COLUMN C3;
+ALTER TABLE thermal_parameter DROP COLUMN C4;
+ALTER TABLE thermal_parameter DROP COLUMN C5;
+ALTER TABLE thermal_parameter DROP COLUMN C6;
+ALTER TABLE thermal_parameter DROP COLUMN C7;
+ALTER TABLE thermal_parameter DROP COLUMN C8;
+ALTER TABLE thermal_parameter DROP COLUMN C9;
+ALTER TABLE thermal_parameter DROP COLUMN C10;
+ALTER TABLE thermal_parameter DROP COLUMN C11;
+ALTER TABLE thermal_parameter DROP COLUMN C12;
