@@ -28,6 +28,9 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.thermal.parameter.directory}")
     public String thermalParameterDirectory;
 
+    @Value("${antares.datamanager.load.directory}")
+    public String loadDirectory;
+
     @Value("${pegase.nas.directory}")
     public String nasDirectory;
 

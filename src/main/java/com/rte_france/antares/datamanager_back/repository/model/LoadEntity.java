@@ -1,0 +1,25 @@
+package com.rte_france.antares.datamanager_back.repository.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+@Table(name = "load")
+public class LoadEntity {
+  @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "load_seq_gen")
+  @SequenceGenerator(name = "load_seq_gen", sequenceName = "load_sequence", allocationSize = 1)
+  @Column(name = "id", nullable = false)
+  private Integer id;
+
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "trajectory_id")
+  private TrajectoryEntity trajectory;
+}

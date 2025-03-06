@@ -45,6 +45,8 @@
       **com/rte_france/antares/datamanager_back/PegaseBackApplication.java,
       **/com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java
     </sonar.exclusions>
+    <!--    For Apache Arrow -->
+    <argLine>--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED</argLine>
   </properties>
   <dependencies>
     <dependency>

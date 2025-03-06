@@ -20,6 +20,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
@@ -71,6 +72,28 @@ public final class TimeSeriesWriter {
         writer.writeBatch();
         writer.end();
       }
+    }
+  }
+
+  public byte[] writeToByteArray(TimeSeriesMatrix matrix) throws IOException {
+    Objects.requireNonNull(matrix);
+
+    var schema = createSchema(matrix);
+    try (var allocator = new RootAllocator();
+         var table = VectorSchemaRoot.create(schema, allocator);
+         var out = new ByteArrayOutputStream();
+         var ch = Channels.newChannel(out)) {
+
+      matrix.columns().forEach(c -> populateDoubleVector(table, c));
+
+      var compressionFactory = new CommonsCompressionFactory();
+      try (var writer = new ArrowFileWriter(table, null, ch, null, IpcOption.DEFAULT, compressionFactory, CompressionUtil.CodecType.ZSTD)) {
+        writer.start();
+        writer.writeBatch();
+        writer.end();
+      }
+
+      return out.toByteArray();
     }
   }
 
