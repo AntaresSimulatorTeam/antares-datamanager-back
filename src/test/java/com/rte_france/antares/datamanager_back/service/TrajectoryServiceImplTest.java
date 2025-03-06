@@ -322,4 +322,5 @@ class TrajectoryServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024"));
     }
+
 }
