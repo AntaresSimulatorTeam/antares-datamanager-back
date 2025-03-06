@@ -54,4 +54,54 @@ public class CreateExcelTestUtil {
 
         return filePath;
     }
+
+    public static Path createExcelFileWithTwoSheets(@TempDir Path tempDir, String fileName, List<String> sheetNames, List<List<String>> headers, List<List<List<?>>> rows) throws IOException {
+        if (sheetNames.size() != 2 || headers.size() != 2 || rows.size() != 2) {
+            throw new IllegalArgumentException("You must provide exactly two sheet names, headers, and rows.");
+        }
+
+        Path filePath = tempDir.resolve(fileName);
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            // Create two sheets
+            for (int i = 0; i < 2; i++) {
+                Sheet sheet = workbook.createSheet(sheetNames.get(i));
+
+                // Create header row for each sheet
+                Row headerRow = sheet.createRow(0);
+                for (int j = 0; j < headers.get(i).size(); j++) {
+                    headerRow.createCell(j).setCellValue(headers.get(i).get(j));
+                }
+
+                // Create data rows for each sheet
+                List<List<?>> sheetRows = rows.get(i);
+                for (int rowIndex = 0; rowIndex < sheetRows.size(); rowIndex++) {
+                    Row row = sheet.createRow(rowIndex + 1);
+                    List<?> rowData = sheetRows.get(rowIndex);
+                    for (int colIndex = 0; colIndex < rowData.size(); colIndex++) {
+                        Cell cell = row.createCell(colIndex);
+                        Object value = rowData.get(colIndex);
+
+                        if (value instanceof String) {
+                            cell.setCellValue((String) value);
+                        } else if (value instanceof Integer) {
+                            cell.setCellValue((Integer) value);
+                        } else if (value instanceof Double) {
+                            cell.setCellValue((Double) value);
+                        } else if (value instanceof Boolean) {
+                            cell.setCellValue((Boolean) value);
+                        } else if (value != null) {
+                            cell.setCellValue(value.toString());
+                        }
+                    }
+                }
+            }
+
+            try (var outputStream = Files.newOutputStream(filePath)) {
+                workbook.write(outputStream);
+            }
+        }
+
+        return filePath;
+    }
 }

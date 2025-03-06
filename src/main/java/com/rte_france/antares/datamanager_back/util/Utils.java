@@ -22,6 +22,7 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -77,6 +78,7 @@ public class Utils {
                 .checksum(getFileChecksum(path.toString()))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
+               // .warningMessage(warningMessages)
                 .build();
     }
 

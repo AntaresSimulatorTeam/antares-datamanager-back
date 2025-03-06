@@ -8,9 +8,9 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidator;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
-import com.rte_france.antares.datamanager_back.util.columnsEnums.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -54,7 +54,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @Transactional
     public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {
         checkIfHorizonExist(path, horizon);
-        ExcelFileValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
+        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
             return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildAreaConfigList(path));

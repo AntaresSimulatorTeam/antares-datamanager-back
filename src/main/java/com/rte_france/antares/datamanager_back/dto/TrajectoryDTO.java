@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder(toBuilder = true)
@@ -31,5 +32,8 @@ public class TrajectoryDTO {
 
     @JsonProperty("creationDate")
     LocalDateTime creationDate;
+
+    @JsonProperty("warningMessages")
+    List<String> warningMessages;
 
 }

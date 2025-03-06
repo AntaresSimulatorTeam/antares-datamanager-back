@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.util.columnsEnums;
+package com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums;
 
 import lombok.Getter;
 
@@ -47,4 +47,19 @@ public enum LinksColumns {
                         || name.equals("Forced_Outage_HVAC") || name.equals("Specific_TS"))
                 .toList();
     }
+
+    public static List<String> getDirectColumnNames() {
+        return Arrays.stream(values())
+                .map(LinksColumns::getDisplayName)
+                .filter(name -> name.contains("Direct"))
+                .toList();
+    }
+
+    public static List<String> getIndirectColumnNames() {
+        return Arrays.stream(values())
+                .map(LinksColumns::getDisplayName)
+                .filter(name -> name.contains("Indirect"))
+                .toList();
+    }
+
 }

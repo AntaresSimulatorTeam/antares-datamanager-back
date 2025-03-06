@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.util.columnsEnums;
+package com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums;
 
 import lombok.Getter;
 import java.text.Normalizer;
@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 @Getter
 public enum ExcelFileType {
     AREAS(8, AreaColumns.class),
-    LINKS(13,LinksColumns.class);
+    LINKS(13, LinksColumns.class);
 
     private final int columnCount;
     private final List<String> columnNames;

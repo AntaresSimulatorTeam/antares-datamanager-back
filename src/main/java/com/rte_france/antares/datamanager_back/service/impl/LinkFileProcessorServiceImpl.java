@@ -6,9 +6,12 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidator;
+import com.rte_france.antares.datamanager_back.service.WarningMessageService;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.LinksColumns;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.LinksValidator;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
-import com.rte_france.antares.datamanager_back.util.columnsEnums.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -23,6 +26,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +43,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
+    private final WarningMessageService warningMessageService;
 
     /**
      * Processes the given file.
@@ -51,12 +56,35 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     @Transactional
     public TrajectoryEntity processLinkFile(Path path, String horizon) throws IOException {
         checkIfHorizonExist(path, horizon);
-        ExcelFileValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
+        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
+        LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
+       //TODO to add warningMessages to TrajectoryEntity to be be mapped to DTO
+        List<String> warningMessages =checkForWarnings(path,horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(path.getFileName().toString());
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
             return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildLinkList(path));
         }
         return saveTrajectory(buildTrajectory(path, 0,horizon), buildLinkList(path));
+    }
+
+    private List<String> checkForWarnings(Path path, String horizon) throws IOException {
+        List<String> warningMessages = new ArrayList<>();
+
+
+        if (LinksValidator.checkPowerColumnsForZeroValues(path, horizon)) {
+            warningMessages.add(warningMessageService.getMessage("links.all_values_zero"));  // Fetch warning message for Direct columns
+        }
+
+        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames())) {
+            warningMessages.add(warningMessageService.getMessage("links.direct_values_zero"));  // Fetch warning message for Direct columns
+        }
+
+
+        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames())) {
+            warningMessages.add(warningMessageService.getMessage("links.indirect_values_zero"));  // Fetch warning message for Indirect columns
+        }
+
+        return warningMessages.isEmpty() ? null : warningMessages;
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
