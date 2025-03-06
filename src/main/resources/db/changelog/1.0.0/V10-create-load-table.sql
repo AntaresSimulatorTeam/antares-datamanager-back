@@ -10,3 +10,10 @@ CREATE TABLE load
 
 ALTER TABLE trajectory ADD load INT;
 ALTER TABLE trajectory ADD CONSTRAINT trajectory_load_fkey FOREIGN KEY (load) REFERENCES load (id);
+
+CREATE SEQUENCE load_sequence
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
