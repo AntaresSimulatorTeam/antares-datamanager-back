@@ -1,11 +1,9 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
-import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
@@ -59,9 +57,9 @@ public class TrajectoryController {
     }
 
     @GetMapping
-    public List<TrajectoryDTO> getTrajectoriesByStudyIdAndType(@RequestParam("studyIds") List<Integer> trajectoryIds,
+    public List<TrajectoryDTO> getTrajectoriesByStudyIdAndType(@RequestParam("studyId") Integer studyId,
                                                                @RequestParam("trajectoryType") String trajectoryType) {
-        return trajectoryService.findTrajectoriesByTypeAndIds(trajectoryType, trajectoryIds);
+        return trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
     }
 
 

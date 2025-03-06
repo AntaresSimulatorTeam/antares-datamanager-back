@@ -11,9 +11,6 @@ values  (1, 'etude1', 'mouad', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-
         (6, 'etude6', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
         (7, 'etude7', 'ghita', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',3),
         (8, 'etude8', 'ghita', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',3);
-insert into public.trajectory(id,file_name,file_size,checksum,type,version,created_by,creation_date,last_modification_content_date,horizon)
-values (1,'testFile.txt',100,'123','AREA',1,'test','2024-06-22 19:10:25-07','2024-06-22 19:12:25-07','2023-2024'),
-       (2,'testFile.txt',100,'123','AREA',2,'test','2024-06-23 19:10:25-07','2024-06-23 19:12:25-07','2025-2026');
 
 insert into public.thermal_cost_type(id,country,fuel,scenario,comment,unit,modulation,ratio_ncv_hcv)
 values (1,'Morocco','GAS','etude1','comment1','MWh','modulation1',1.1),
@@ -40,6 +37,13 @@ values  ('me00247', 1),
         ('no0099', 1),
         ('no0099', 2);
 
+insert into public.trajectory(id,file_name,file_size,checksum,type,version,created_by,creation_date,last_modification_content_date,horizon)
+values  (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07', '2023-2024'),
+        (2, 'testFile.txt', 100, '123', 'AREA', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07', '2025-2026'),
+        (3, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07', '2023-2024'),
+        (4, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07', '2025-2026'),
+        (5, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07', '2025-2026');
+
 insert into public.scenario_tags (scenario_id, tag)
 values  (3, 'config'),
         (1, 'elec'),
@@ -47,3 +51,13 @@ values  (3, 'config'),
         (3, 'bilan 22'),
         (1, 'gaz'),
         (2, 'figma');
+
+insert into public.scenario_trajectory (scenario_id, trajectory_id)
+values  (1, 1),
+        (1, 2),
+        (1, 5),
+        (2, 2),
+        (2, 3),
+        (3, 1),
+        (3, 4),
+        (3, 2);
