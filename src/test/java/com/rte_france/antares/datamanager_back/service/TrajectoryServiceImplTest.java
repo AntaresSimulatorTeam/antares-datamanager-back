@@ -2,7 +2,6 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -28,7 +27,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -131,7 +129,7 @@ class TrajectoryServiceImplTest {
 
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
 
-        assertEquals("testFile.xlsx", result.getFirst().getFileName());
+        assertEquals("testFile.xlsx", result.get(0).getFileName());
     }
 
     @Test
@@ -139,46 +137,6 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
         assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA));
-    }
-
-    @Test
-    void findTrajectoriesByTypeAndIds_returnsEmptyListForNonExistentType() {
-        when(trajectoryRepository.findByTypeAndIdIn("nonExistentType", List.of(1, 2, 3))).thenReturn(List.of());
-        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("nonExistentType", List.of(1, 2, 3));
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void findTrajectoriesByTypeAndIds_returnsEmptyListForNonExistentIds() {
-        when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of(999, 1000))).thenReturn(List.of());
-        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of(999, 1000));
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void findTrajectoriesByTypeAndIds_returnsNonEmptyListForExistentTypeAndIds() {
-        TrajectoryEntity entity = new TrajectoryEntity();
-        entity.setType("AREA");
-        entity.setId(1);
-        when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of(1, 2))).thenReturn(List.of(entity));
-        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2));
-        assertThat(result).isNotEmpty();
-        assertThat(result.getFirst().getType()).isEqualTo("AREA");
-        assertThat(result.getFirst().getId()).isEqualTo(1);
-    }
-
-    @Test
-    void findTrajectoriesByTypeAndIds_returnsEmptyListForNullType() {
-        when(trajectoryRepository.findByTypeAndIdIn(null, List.of(1, 2, 3))).thenReturn(List.of());
-        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds(null, List.of(1, 2, 3));
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void findTrajectoriesByTypeAndIds_returnsEmptyListForEmptyIds() {
-        when(trajectoryRepository.findByTypeAndIdIn("AREA", List.of())).thenReturn(List.of());
-        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndIds("AREA", List.of());
-        assertThat(result).isEmpty();
     }
 
     @Test

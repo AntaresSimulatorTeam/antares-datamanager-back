@@ -68,35 +68,33 @@ class TrajectoryRepositoryTest {
     }
 
     @Test
-    void findByTypeAndIdIn_returnsEmptyListForNonExistentType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndIdIn("nonExistentType", List.of(1, 2, 3));
-        assertThat(trajectoryEntities).isEmpty();
-    }
-
-    @Test
-    void findByTypeAndIdIn_returnsEmptyListForNonExistentIds() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndIdIn("AREA", List.of(999, 1000));
-        assertThat(trajectoryEntities).isEmpty();
-    }
-
-    @Test
-    void findByTypeAndIdIn_returnsNonEmptyListForExistentTypeAndIds() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndIdIn("AREA", List.of(1, 2));
+    void findByTypeAndStudyId_returnsNonEmptyListForExistentTypeAndStudyId() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("AREA", 1);
         assertThat(trajectoryEntities).isNotEmpty();
         assertThat(trajectoryEntities.get(0).getType()).isEqualTo("AREA");
-        assertThat(trajectoryEntities.get(0).getId()).isIn(1, 2);
     }
 
     @Test
-    void findByTypeAndIdIn_returnsEmptyListForNullType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndIdIn(null, List.of(1, 2, 3));
+    void findByTypeAndStudyId_returnsEmptyListForNonExistentType() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("nonExistentType", 1);
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
-    void findByTypeAndIdIn_returnsEmptyListForEmptyIds() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndIdIn("AREA", List.of());
+    void findByTypeAndStudyId_returnsEmptyListForNonExistentStudyId() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("AREA", 999);
         assertThat(trajectoryEntities).isEmpty();
     }
 
+    @Test
+    void findByTypeAndStudyId_returnsEmptyListForNullType() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(null, 1);
+        assertThat(trajectoryEntities).isEmpty();
+    }
+
+    @Test
+    void findByTypeAndStudyId_returnsEmptyListForNullStudyId() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("AREA", null);
+        assertThat(trajectoryEntities).isEmpty();
+    }
 }

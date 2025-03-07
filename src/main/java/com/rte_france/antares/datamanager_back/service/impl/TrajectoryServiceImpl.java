@@ -117,8 +117,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public List<TrajectoryDTO> findTrajectoriesByTypeAndIds(String trajectoryType, List<Integer> trajectoryIds) {
-        return trajectoryRepository.findByTypeAndIdIn(trajectoryType, trajectoryIds).stream()
+    public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
+        return trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
                 .map(TrajectoryMapper::toTrajectoryDTO)
                 .toList();
     }

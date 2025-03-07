@@ -13,16 +13,18 @@ import java.util.Optional;
 @Repository
 public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, Integer> {
 
-   Optional<TrajectoryEntity> findTrajectoryEntityById(Integer id);
+    Optional<TrajectoryEntity> findTrajectoryEntityById(Integer id);
 
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameOrderByVersionDesc(String fileName);
 
 
     @Query("SELECT t FROM Trajectory t WHERE t.type = :type AND t.horizon= :horizon AND (t.fileName LIKE CONCAT('%', CONCAT(:fileNameStartsWith, '%')) OR :fileNameStartsWith IS NULL)")
-    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(@Param("type") String type,@Param("horizon") String horizon, @Param("fileNameStartsWith") String fileNameStartsWith);
+    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameStartsWith") String fileNameStartsWith);
 
-    List<TrajectoryEntity> findByTypeAndIdIn(String trajectoryType, List<Integer> trajectoryIds);
+
+    @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE t.type = :type AND s.id = :studyId")
+    List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);
 
 }
 

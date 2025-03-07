@@ -99,51 +99,40 @@ class TrajectoryControllerTest {
 
     @Test
     void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentType() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("nonExistentType", List.of(1, 2, 3))).thenReturn(List.of());
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId("nonExistentType", 1)).thenReturn(List.of());
         this.mockMvc.perform(get("/v1/trajectory")
                         .param("trajectoryType", "nonExistentType")
-                        .param("studyIds", "1,2,3")
+                        .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
-    void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentIds() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("AREA", List.of(999, 1000))).thenReturn(List.of());
+    void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentId() throws Exception {
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId("AREA", 999)).thenReturn(List.of());
         this.mockMvc.perform(get("/v1/trajectory")
                         .param("trajectoryType", "AREA")
-                        .param("studyIds", "999,1000")
+                        .param("studyId", "999")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
-    void getTrajectoriesByStudyIdAndType_returnsNonEmptyListForExistentTypeAndIds() throws Exception {
+    void getTrajectoriesByStudyIdAndType_returnsNonEmptyListForExistentTypeAndId() throws Exception {
         TrajectoryDTO dto = new TrajectoryDTO();
         dto.setType("AREA");
         dto.setId(1);
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("AREA", List.of(1, 2))).thenReturn(List.of(dto));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId("AREA", 1)).thenReturn(List.of(dto));
         this.mockMvc.perform(get("/v1/trajectory")
                         .param("trajectoryType", "AREA")
-                        .param("studyIds", "1,2")
+                        .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isNotEmpty())
                 .andExpect(jsonPath("$[0].type").value("AREA"))
                 .andExpect(jsonPath("$[0].id").value(1));
-    }
-
-    @Test
-    void getTrajectoriesByStudyIdAndType_returnsEmptyListForEmptyIds() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndIds("AREA", List.of())).thenReturn(List.of());
-        this.mockMvc.perform(get("/v1/trajectory")
-                        .param("trajectoryType", "AREA")
-                        .param("studyIds", "")
-                        .accept(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
