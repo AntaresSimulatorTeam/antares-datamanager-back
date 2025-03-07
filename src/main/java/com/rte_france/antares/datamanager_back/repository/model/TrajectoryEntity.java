@@ -68,4 +68,7 @@ public class TrajectoryEntity {
 
     @OneToOne(mappedBy = "trajectory", cascade = {CascadeType.ALL})
     LoadEntity loadEntity;
+
+    @OneToMany(mappedBy = "trajectory", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<WarningMessageEntity> warningMessages;
 }
