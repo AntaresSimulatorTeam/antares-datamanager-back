@@ -41,6 +41,7 @@ public class TrajectoryEntity {
 
     private String horizon;
 
+
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AreaConfigEntity> areaConfigEntities;
 

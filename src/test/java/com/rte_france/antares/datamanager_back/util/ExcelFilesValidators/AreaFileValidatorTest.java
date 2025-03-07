@@ -1,7 +1,9 @@
-package com.rte_france.antares.datamanager_back.util;
+package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
-import com.rte_france.antares.datamanager_back.util.columnsEnums.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -10,7 +12,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-class ExcelFileValidatorTest {
+class AreaFileValidatorTest {
     @TempDir
     Path tempDir;
 
@@ -27,7 +29,7 @@ class ExcelFileValidatorTest {
                 )
         );
 
-        ExcelFileValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2035-2036");
+        ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2035-2036");
     }
 
     @Test
@@ -40,7 +42,7 @@ class ExcelFileValidatorTest {
         );
 
         assertThrows(TechnicalAntaresDataMangerException.class, () ->
-                ExcelFileValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037"));
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037"));
     }
 
     @Test
@@ -53,7 +55,7 @@ class ExcelFileValidatorTest {
         );
 
         assertThrows(TechnicalAntaresDataMangerException.class, () ->
-                ExcelFileValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2037-2038"));
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2037-2038"));
     }
 
 }

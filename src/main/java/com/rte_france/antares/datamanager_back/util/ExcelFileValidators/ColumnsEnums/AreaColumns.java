@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.util.columnsEnums;
+package com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums;
 
 import lombok.Getter;
 

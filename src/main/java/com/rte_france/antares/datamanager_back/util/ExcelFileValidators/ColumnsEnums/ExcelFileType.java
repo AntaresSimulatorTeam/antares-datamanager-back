@@ -1,15 +1,14 @@
-package com.rte_france.antares.datamanager_back.util.columnsEnums;
+package com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums;
 
 import lombok.Getter;
 import java.text.Normalizer;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Getter
 public enum ExcelFileType {
-    AREAS(8, AreaColumns.class);
+    AREAS(8, AreaColumns.class),
+    LINKS(13, LinksColumns.class);
 
     private final int columnCount;
     private final List<String> columnNames;
@@ -28,15 +27,20 @@ public enum ExcelFileType {
                 .collect(Collectors.toList());
     }
 
-
-    public boolean validateColumns(List<String> actualColumns) {
+    /**
+     * @param actualColumns columns name from excel files
+     * @return columns that do not match ColumnsName enums values
+     */
+    public List<String> checkColumnNames(List<String> actualColumns) {
         List<String> normalizedActual = actualColumns.stream()
                 .map(ExcelFileType::normalizeColumnName)
                 .toList();
 
-        return new HashSet<>(normalizedActual).containsAll(columnNames);
-    }
+        Set<String> missingColumns = new HashSet<>(columnNames);
+        normalizedActual.forEach(missingColumns::remove);
 
+        return new ArrayList<>(missingColumns);
+    }
     private static String normalizeColumnName(String columnName) {
         if (columnName == null) return null;
 
