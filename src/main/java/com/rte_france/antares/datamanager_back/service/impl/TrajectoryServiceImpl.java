@@ -24,10 +24,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -98,7 +98,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
         try (var stream = Files.list(directory)) {
-            return stream.filter(Files::isRegularFile)
+            var trajectories =  stream.filter(Files::isRegularFile)
                     .map(path -> {
                         try {return FsTrajectoryDTO.builder()
                                 .fileName(path.getFileName().toString())
@@ -111,9 +111,34 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         }
                     })
                     .toList();
+            var latestTrajectories = extractKeyFromColumnByComparator(
+                    trajectories,
+                    FsTrajectoryDTO::getFileName,
+                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed()
+            );
+
+            return sortedByComparator(latestTrajectories.values(), Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static <T> List<T> sortedByComparator(Collection<T> collection, Comparator<T> comparator) {
+        return collection.stream()
+                .sorted(comparator)
+                .collect(Collectors.toList());
+    }
+
+    private static <T, U> Map<T, U> extractKeyFromColumnByComparator(Collection<U> entities, Function<U, T> keyExtractor, Comparator<U> comparator) {
+        if (entities == null) {
+            return Map.of();
+        }
+        return entities.stream()
+                .collect(Collectors.toMap(
+                        keyExtractor,
+                        Function.identity(),
+                        BinaryOperator.maxBy(comparator)
+                ));
     }
 
     @Override

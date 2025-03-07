@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 
-import java.util.*;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.Objects;
 
 @Value
 @Builder(toBuilder = true)
@@ -22,14 +20,6 @@ public class StudyMapper {
 
     public static StudyDTO toStudyDTO(StudyEntity entity) {
         Objects.requireNonNull(entity);
-
-        var latestTrajectories = extractKeyFromColumnByComparator(
-                entity,
-                TrajectoryEntity::getFileName,
-                Comparator.comparing(TrajectoryEntity::getCreationDate),
-                StudyEntity::getTrajectories
-        );
-        var sortedTrajectoryIds = sortedByComparator(latestTrajectories.values(), Comparator.comparing(TrajectoryEntity::getCreationDate));
         return StudyDTO.builder()
                 .id(entity.getId())
                 .name(entity.getName())
@@ -39,28 +29,8 @@ public class StudyMapper {
                 .tags(entity.getTags())
                 .horizon(entity.getHorizon())
                 .status(entity.getStatus().name())
-                .trajectoryIds(sortedTrajectoryIds)
+                .trajectoryIds(entity.getTrajectories() != null ? entity.getTrajectories().stream().map(TrajectoryEntity::getId).toList() : Collections.emptyList())
                 .build();
-    }
-
-    private static List<Integer> sortedByComparator(Collection<TrajectoryEntity> latestTrajectories, Comparator<TrajectoryEntity> comparator) {
-        return latestTrajectories.stream()
-                .sorted(comparator)
-                .map(TrajectoryEntity::getId)
-                .collect(Collectors.toList());
-    }
-
-    private static <T, U> Map<T, U> extractKeyFromColumnByComparator(StudyEntity entity, Function<U, T> keyExtractor, Comparator<U> comparator, Function<StudyEntity, Set<U>> columnExtractor) {
-        var column = columnExtractor.apply(entity);
-        if (column == null) {
-            return Map.of();
-        }
-        return column.stream()
-                .collect(Collectors.toMap(
-                        keyExtractor,
-                        Function.identity(),
-                        BinaryOperator.maxBy(comparator)
-                ));
     }
 
     public static Page<StudyDTO> toStudyPage(Page<StudyEntity> page) {
