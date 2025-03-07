@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryReposit
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
@@ -42,17 +43,12 @@ class TrajectoryServiceImplTest {
     private LinkFileProcessorService linkFileProcessorService;
     @Mock
     private AntaressDataManagerProperties antaressDataManagerProperties;
-
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
-
     @Mock
     private StudyRepository studyRepository;
-
-
     @Mock
     private StudyTrajectoryRepository studyTrajectoryRepository;
-
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -212,6 +208,31 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void unlinkTrajectoryFromStudy_unlinksWhenLinkExists() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        StudyTrajectoryKey key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
+        StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder().id(key).build();
+
+        when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(entity));
+
+        trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId);
+
+        verify(studyTrajectoryRepository, times(1)).delete(entity);
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_throwsExceptionWhenLinkDoesNotExist() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        StudyTrajectoryKey key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
+
+        when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
+    }
+  
+    @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsLOAD() throws IOException {
         var path = mock(Path.class);
         Mockito.when(path.toString()).thenReturn("src/test/resources/load/testFile.txt");
@@ -223,7 +244,7 @@ class TrajectoryServiceImplTest {
 
         verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
     }
-
+  
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_PARAMETER() throws IOException {
         var path = mock(Path.class);

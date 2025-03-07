@@ -20,4 +20,6 @@ public interface TrajectoryService {
 
     TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type);
 
+    void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
+
 }

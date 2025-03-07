@@ -100,12 +100,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         try (var stream = Files.list(directory)) {
             return stream.filter(Files::isRegularFile)
                     .map(path -> {
-                        try {return FsTrajectoryDTO.builder()
-                                .fileName(path.getFileName().toString())
-                                .lastModifiedDate(Files.getLastModifiedTime(path)
-                                        .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                                .type(trajectoryType.name())
-                                .build();
+                        try {
+                            return FsTrajectoryDTO.builder()
+                                    .fileName(path.getFileName().toString())
+                                    .lastModifiedDate(Files.getLastModifiedTime(path)
+                                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                                    .type(trajectoryType.name())
+                                    .build();
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
                         }
@@ -168,6 +169,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
 
         return savedStudyTrajectoryEntity.getTrajectory();
+    }
+
+    @Override
+    public void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId) {
+        studyTrajectoryRepository.findById(StudyTrajectoryKey.builder()
+                        .trajectoryId(trajectoryId)
+                        .scenarioId(studyId)
+                        .build())
+                .ifPresentOrElse(studyTrajectoryRepository::delete,
+                        () -> {
+                            throw new ResourceNotFoundException("Link not found");
+                        });
     }
 
 }
