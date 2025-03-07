@@ -51,22 +51,16 @@ public class StudyMapper {
     }
 
     private static <T, U> Map<T, U> extractKeyFromColumnByComparator(StudyEntity entity, Function<U, T> keyExtractor, Comparator<U> comparator, Function<StudyEntity, Set<U>> columnExtractor) {
-        return columnExtractor.apply(entity).stream()
+        var column = columnExtractor.apply(entity);
+        if (column == null) {
+            return Map.of();
+        }
+        return column.stream()
                 .collect(Collectors.toMap(
                         keyExtractor,
                         Function.identity(),
                         BinaryOperator.maxBy(comparator)
                 ));
-    }
-
-    private static Map<String, TrajectoryEntity> extractKeyFromColumnByComparator(StudyEntity entity) {
-      return entity.getTrajectories().stream()
-              .collect(Collectors.toMap(
-                          TrajectoryEntity::getFileName,
-                          Function.identity(),
-                          BinaryOperator.maxBy(Comparator.comparing(TrajectoryEntity::getCreationDate))
-                      )
-              );
     }
 
     public static Page<StudyDTO> toStudyPage(Page<StudyEntity> page) {

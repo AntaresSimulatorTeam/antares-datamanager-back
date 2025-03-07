@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -76,5 +77,4 @@ public class StudyController {
         studyGeneratorService.callGenerateStudyService(id);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
-
 }
