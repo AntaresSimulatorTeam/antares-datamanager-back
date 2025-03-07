@@ -13,144 +13,12 @@ import java.util.*;
 import java.util.stream.IntStream;
 
 
-//public class LinksValidator {
-//
-//
-//    public static void linksDuplicateAndCellsValuesChecks(Path path, ExcelFileType fileType, String horizon) {
-//        try (InputStream inputStream = Files.newInputStream(path);
-//             Workbook workbook = WorkbookFactory.create(inputStream)) {
-//
-//            Sheet sheet = workbook.getSheet(horizon);
-//            if (fileType == ExcelFileType.LINKS) {
-//
-//                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon);
-//                checkNumericAndBooleanColumns(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames());
-//
-//            }
-//        } catch (IOException e) {
-//            throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
-//        }
-//    }
-//
-//    private static int findColumnIndex(Sheet sheet, String columnName, Path path, String horizon) {
-//        Row headerRow = sheet.getRow(0);
-//
-//        return IntStream.range(0, headerRow.getPhysicalNumberOfCells())
-//                .filter(i -> columnName.equalsIgnoreCase(headerRow.getCell(i).getStringCellValue()))
-//                .findFirst()
-//                .orElseThrow(() -> new TechnicalAntaresDataMangerException(
-//                        "Column '" + columnName + "' not found in sheet '" + horizon + "' in file: " + path.getFileName()));
-//    }
-//
-//    private static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
-//        int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
-//        Set<String> seenValues = new HashSet<>();
-//
-//        sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
-//                .map(Cell::getStringCellValue)
-//                .map(String::trim)
-//                .filter(cellValue -> !cellValue.isEmpty())
-//                .ifPresent(cellValue -> {
-//                    if (!seenValues.add(cellValue)) {
-//                        throw new TechnicalAntaresDataMangerException("Duplicate value '" + cellValue + "' found in column '" + columnName +
-//                                "' in sheet '" + horizon + "' in file: " + path.getFileName());
-//                    }
-//                }));
-//    }
-//
-//    private static void checkNumericAndBooleanColumns(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns) {
-//
-//        numericColumns.forEach(column -> checkNumericColumn(sheet, path, horizon, column));
-//
-//        booleanColumns.forEach(column -> checkBooleanColumn(sheet, path, horizon, column));
-//    }
-//
-//    private static void checkNumericColumn(Sheet sheet, Path path, String horizon, String column) {
-//        int index = findColumnIndex(sheet, column, path, horizon);
-//
-//        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
-//            Row row = sheet.getRow(i);
-//            if (row != null) {
-//                Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-//
-//                if (cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() <= 0 || cell.getNumericCellValue() % 1 != 0) {
-//                    throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
-//                            "' in file: " + path.getFileName() + " - must be a positive integer.");
-//                }
-//            }
-//        }
-//    }
-//
-//    private static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
-//        int index = findColumnIndex(sheet, column, path, horizon);
-//
-//        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
-//            Row row = sheet.getRow(i);
-//            if (row != null) {
-//                Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-//
-//                if (cell == null) {
-//                    throw new TechnicalAntaresDataMangerException("Missing value in column '" + column + "' in sheet '" + horizon +
-//                            "' in file: " + path.getFileName() + " - must be a boolean (true/false).");
-//                }
-//
-//                if (cell.getCellType() == CellType.BOOLEAN) {
-//                    continue;
-//                }
-//
-//                if (cell.getCellType() == CellType.STRING) {
-//                    String cellValue = cell.getStringCellValue().trim().toUpperCase();
-//                    if (!"TRUE".equals(cellValue) && !"FALSE".equals(cellValue)) {
-//                        throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
-//                                "' in file: " + path.getFileName() + " - must be a boolean (true/false).");
-//                    }
-//                    continue;
-//                }
-//
-//                throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
-//                        "' in file: " + path.getFileName() + " - must be a boolean (true/false).");
-//            }
-//        }
-//    }
-//
-//    public static boolean checkPowerColumnsForZeroValues(Path path, String horizon, List<String> numericColumns) {
-//        try (InputStream inputStream = Files.newInputStream(path);
-//             Workbook workbook = WorkbookFactory.create(inputStream)) {
-//
-//            Sheet sheet = workbook.getSheet(horizon);
-//
-//            for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
-//                Row row = sheet.getRow(i);
-//                if (row != null) {
-//                    boolean rowHasNonZeroValue = false;
-//
-//                    for (String column : numericColumns) {
-//                        int index = findColumnIndex(sheet, column, path, horizon);
-//                        Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-//
-//                        if (cell != null && cell.getCellType() == CellType.NUMERIC && cell.getNumericCellValue() > 0) {
-//                            rowHasNonZeroValue = true;
-//                            break;
-//                        }
-//                    }
-//
-//                    // If the row has no non-zero values, return false
-//                    if (!rowHasNonZeroValue) {
-//                        return false;
-//                    }
-//                }
-//            }
-//
-//            return true;
-//
-//        } catch (IOException e) {
-//            e.printStackTrace(); // Handle exception as needed
-//            return false;
-//        }
-//    }
-//}
 public class LinksValidator {
-
+    /**
+     * @param path trajectory to be added to database
+     * @param fileType Links
+     * @param horizon sheet in file to be read
+     */
     public static void linksDuplicateAndCellsValuesChecks(Path path, ExcelFileType fileType, String horizon) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -158,13 +26,20 @@ public class LinksValidator {
             Sheet sheet = workbook.getSheet(horizon);
             if (fileType == ExcelFileType.LINKS) {
                 checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon);
-                checkColumns(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames());
+                checkColumnsRules(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames());
             }
         } catch (IOException e) {
             throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
         }
     }
 
+    /**
+     * @param sheet to be read
+     * @param columnName column to be read
+     * @param path trajectory file
+     * @param horizon to make error clearer
+     * @return column index to be found
+     */
     private static int findColumnIndex(Sheet sheet, String columnName, Path path, String horizon) {
         Row headerRow = sheet.getRow(0);
         return IntStream.range(0, headerRow.getPhysicalNumberOfCells())
@@ -174,6 +49,13 @@ public class LinksValidator {
                         "Column '" + columnName + "' not found in sheet '" + horizon + "' in file: " + path.getFileName()));
     }
 
+    /**
+     * @param sheet to be read in Excel file
+     * @param columnName column to be read
+     * @param path trajectory file
+     * @param horizon to make error clearer
+     * Method to find if there are duplicated links values in column LinkColumns.NAME
+     */
     private static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
         int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
         Set<String> seenValues = new HashSet<>();
@@ -190,13 +72,18 @@ public class LinksValidator {
                 }));
     }
 
-    private static void checkColumns(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns) {
-        // Reuse the same method for numeric and boolean checks
-        numericColumns.forEach(column -> checkNumericColumn(sheet, path, horizon, column));
+    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns) {
+        numericColumns.forEach(column -> checkNumbersAreIntegers(sheet, path, horizon, column));
         booleanColumns.forEach(column -> checkBooleanColumn(sheet, path, horizon, column));
     }
 
-    private static void checkNumericColumn(Sheet sheet, Path path, String horizon, String column) {
+    /**
+     * @param sheet to be read in Excel file
+     * @param path trajectory file
+     * @param horizon to make error clearer
+     * @param column numeric columns must be integers and positive values
+     */
+    private static void checkNumbersAreIntegers(Sheet sheet, Path path, String horizon, String column) {
         int index = findColumnIndex(sheet, column, path, horizon);
 
         for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
@@ -204,14 +91,23 @@ public class LinksValidator {
             if (row != null) {
                 Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
 
-                if (cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() <0 || cell.getNumericCellValue() % 1 != 0) {
+                if (cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() < 0 || cell.getNumericCellValue() % 1 != 0) {
+                    String value = (cell == null) ? "NULL" : String.valueOf(cell);
+
                     throw new TechnicalAntaresDataMangerException("Invalid value in column '" + column + "' in sheet '" + horizon +
-                            "' in file: " + path.getFileName() + " - must be a positive integer.");
+                            "' in file: " + path.getFileName() + ". Wrong value: " + value + " (row: " + (i + 1) + ")");
                 }
             }
         }
     }
 
+
+    /**
+     * @param sheet to be read in Excel file
+     * @param path trajectory file
+     * @param horizon  make error clearer
+     * @param column booleans columns must be TRUE or FALSE
+     */
     private static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
         int index = findColumnIndex(sheet, column, path, horizon);
 
@@ -239,23 +135,35 @@ public class LinksValidator {
         return false;
     }
 
+    /**
+     * @param path trajectory file
+     * @param horizon make error clearer
+     * @return if all LinksColumns.getNumericColumnNames() are 0 a true is returned
+     * in order to have a warning links.all_values_zero created
+     */
     public static boolean checkPowerColumnsForZeroValues(Path path, String horizon) {
         List<String> numericColumns = LinksColumns.getNumericColumnNames();
         return findZeroValues(path, horizon, numericColumns);
     }
 
-    private static boolean hasNonZeroValueInColumns(Row row, Sheet sheet, List<String> numericColumns, Path path, String horizon) {
+    private static boolean hasOnlyZeroValues(Row row, Sheet sheet, List<String> numericColumns, Path path, String horizon) {
         for (String column : numericColumns) {
             int index = findColumnIndex(sheet, column, path, horizon);
             Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-            if (cell != null && cell.getCellType() == CellType.NUMERIC && cell.getNumericCellValue() > 0) {
-                return true;
+            if (cell != null && cell.getCellType() == CellType.NUMERIC && cell.getNumericCellValue() != 0) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
-
+    /**
+     * @param path trajectory file
+     * @param horizon make error clearer
+     * @param columns grouped by Direct or Indirect types
+     * @return true if all values are 0 in order to create a warning
+     * links.direct_values_zero or links.indirect_values_zero
+     */
 
     public static boolean areAllValuesZeroInGroup(Path path, String horizon, List<String> columns)  {
         return findZeroValues(path, horizon, columns);
@@ -269,7 +177,7 @@ public class LinksValidator {
 
             for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
                 Row row = sheet.getRow(i);
-                if (row != null && !hasNonZeroValueInColumns(row, sheet, columns, path, horizon)) {
+                if (row != null && hasOnlyZeroValues(row, sheet, columns, path, horizon)) {
                     return true;
                 }
             }

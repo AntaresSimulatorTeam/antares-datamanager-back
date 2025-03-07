@@ -33,7 +33,4 @@ public class TrajectoryDTO {
     @JsonProperty("creationDate")
     LocalDateTime creationDate;
 
-    @JsonProperty("warningMessages")
-    List<String> warningMessages;
-
 }

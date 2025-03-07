@@ -12,7 +12,11 @@ import java.util.*;
 @Getter
 public class ExcelCommonValidator {
 
-
+    /**
+     * @param path trajectory file
+     * @param fileType to known columns names using ColumnEnums
+     * @param horizon sheet name to be read
+     */
     public static void checkIfColumnsAreValid(Path path, ExcelFileType fileType, String horizon) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -33,8 +37,10 @@ public class ExcelCommonValidator {
             List<String> actualColumns = new ArrayList<>();
             headerRow.forEach(cell -> actualColumns.add(cell.getStringCellValue()));
 
-            if (!fileType.validateColumns(actualColumns)) {
-                throw new TechnicalAntaresDataMangerException("Invalid column names in sheet '" + horizon + "' in file: " + path.getFileName());
+            List<String> wrongColumnsName = fileType.checkColumnNames(actualColumns);
+            if (!wrongColumnsName.isEmpty()) {
+                throw new TechnicalAntaresDataMangerException("Invalid column names in sheet '" + horizon +
+                        "' in file: " + path.getFileName() + ". Wrong column name for: " + String.join(", ", wrongColumnsName));
             }
 
             checkAllRowsHaveValues(sheet, fileType.getColumnCount(), path, horizon);
@@ -45,6 +51,12 @@ public class ExcelCommonValidator {
         }
     }
 
+    /**
+     * @param sheet to be read
+     * @param columnCount index of column to check if there is not any empty values
+     * @param path trajectory file
+     * @param horizon to make error clearer
+     */
     private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, Path path, String horizon) {
         for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             Row row = sheet.getRow(rowIndex);

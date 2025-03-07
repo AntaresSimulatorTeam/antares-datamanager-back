@@ -72,16 +72,16 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
 
         if (LinksValidator.checkPowerColumnsForZeroValues(path, horizon)) {
-            warningMessages.add(warningMessageService.getMessage("links.all_values_zero"));  // Fetch warning message for Direct columns
+            warningMessages.add(warningMessageService.getMessage("links.all_values_zero"));
         }
 
         if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames())) {
-            warningMessages.add(warningMessageService.getMessage("links.direct_values_zero"));  // Fetch warning message for Direct columns
+            warningMessages.add(warningMessageService.getMessage("links.direct_values_zero"));
         }
 
 
         if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames())) {
-            warningMessages.add(warningMessageService.getMessage("links.indirect_values_zero"));  // Fetch warning message for Indirect columns
+            warningMessages.add(warningMessageService.getMessage("links.indirect_values_zero"));
         }
 
         return warningMessages.isEmpty() ? null : warningMessages;
