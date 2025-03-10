@@ -6,22 +6,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
-public class FsTrajectoryDTO {
+public class WarningMessageDTO {
+    @JsonProperty("id")
+    private Integer id;
 
+    @JsonProperty("code")
+    private String code;
 
-    @JsonProperty("trajectoryName")
-    String fileName;
-
-    @JsonProperty("type")
-    String type;
-
-    @JsonProperty("lastModifiedDate")
-    LocalDateTime lastModifiedDate;
+    @JsonProperty("level")
+    private String level;
 }

@@ -8,6 +8,8 @@ import lombok.Data;
 @Table(name = "warning_messages")
 public class WarningMessageEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "warning_seq_gen")
+    @SequenceGenerator(name = "warning_seq_gen", sequenceName = "warning_sequence", allocationSize = 1)
     private Integer id;
 
     @Enumerated(EnumType.STRING)
@@ -21,7 +23,6 @@ public class WarningMessageEntity {
     @ManyToOne
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;
-
 
     @ManyToOne
     @JoinColumn(name = "study_id", nullable = false)
