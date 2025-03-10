@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyPage;
 
@@ -25,7 +26,11 @@ import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudy
 @RequiredArgsConstructor
 public class StudyController {
 
-    private static final String SORTING_CRITERION = "creationDate";
+    private static final String DEFAULT_SORT_COLUMN = "creationDate";
+    private static final String DEFAULT_SORT_DIRECTION = "DESC";
+    private static final Map<String, String> COLUMN_NAME_MAPPING = Map.of(
+            "project", "project.name"
+    );
     private final StudyService studyService;
     private final StudyGeneratorService studyGeneratorService;
 
@@ -35,26 +40,26 @@ public class StudyController {
             @RequestParam(value = "search", required = false, defaultValue = "") String search,
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
-            @RequestParam(value = "sortColumn", required = false) String sortColumn,
-            @RequestParam(value = "sortDirection", required = false) String sortDirection) {
+            @RequestParam(value = "sortColumn", required = false, defaultValue = DEFAULT_SORT_COLUMN) String sortColumn,
+            @RequestParam(value = "sortDirection", required = false, defaultValue = DEFAULT_SORT_DIRECTION) String sortDirection) {
 
-        Sort sorting = Sort.by(Sort.Direction.DESC,SORTING_CRITERION);
-
-        if (sortColumn != null && !sortColumn.isEmpty() && !sortDirection.isEmpty()) {
-            Sort.Direction direction = Sort.Direction.fromString(sortDirection);
-            sorting = Sort.by(direction, sortColumn);
-        }
-        Pageable paging = PageRequest.of(page - 1, size, sorting);
-
+        Pageable paging = PageRequest.of(page - 1, size, getSort(sortColumn, sortDirection));
         return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search, projectId, paging)), HttpStatus.OK);
     }
 
+    private Sort getSort(String sortColumn, String sortDirection) {
+        return Sort.by(
+                Sort.Direction.fromString(sortDirection),
+                COLUMN_NAME_MAPPING.getOrDefault(sortColumn, sortColumn)
+        );
+    }
 
-        @Operation(summary = "Search keywords by partial name for auto-completion")
-        @GetMapping("/keywords/search")
-        public ResponseEntity<List<String>> searchKeywordsByPartialName(@RequestParam String partialName) {
-            return new ResponseEntity<>(studyService.searchKeywordsByPartialName(partialName), HttpStatus.OK);
-        }
+
+    @Operation(summary = "Search keywords by partial name for auto-completion")
+    @GetMapping("/keywords/search")
+    public ResponseEntity<List<String>> searchKeywordsByPartialName(@RequestParam String partialName) {
+        return new ResponseEntity<>(studyService.searchKeywordsByPartialName(partialName), HttpStatus.OK);
+    }
 
 
     @PostMapping
