@@ -11,6 +11,7 @@ import lombok.Value;
 import org.springframework.data.domain.Page;
 
 import java.util.Collections;
+import java.util.Objects;
 
 @Value
 @Builder(toBuilder = true)
@@ -18,6 +19,7 @@ import java.util.Collections;
 public class StudyMapper {
 
     public static StudyDTO toStudyDTO(StudyEntity entity) {
+        Objects.requireNonNull(entity);
         return StudyDTO.builder()
                 .id(entity.getId())
                 .name(entity.getName())

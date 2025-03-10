@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,7 +39,7 @@ public class StudyController {
             @RequestParam(value = "sortColumn", required = false) String sortColumn,
             @RequestParam(value = "sortDirection", required = false) String sortDirection) {
 
-        Sort sorting = Sort.by(Sort.Direction.DESC,SORTING_CRITERION);
+        Sort sorting = Sort.by(Sort.Direction.DESC, SORTING_CRITERION);
 
         if (sortColumn != null && !sortColumn.isEmpty() && !sortDirection.isEmpty()) {
             Sort.Direction direction = Sort.Direction.fromString(sortDirection);
@@ -76,5 +77,4 @@ public class StudyController {
         studyGeneratorService.callGenerateStudyService(id);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
-
 }
