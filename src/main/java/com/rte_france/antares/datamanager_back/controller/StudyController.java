@@ -43,15 +43,12 @@ public class StudyController {
             @RequestParam(value = "sortColumn", required = false, defaultValue = DEFAULT_SORT_COLUMN) String sortColumn,
             @RequestParam(value = "sortDirection", required = false, defaultValue = DEFAULT_SORT_DIRECTION) String sortDirection) {
 
-        Pageable paging = PageRequest.of(page - 1, size, getSort(sortColumn, sortDirection));
-        return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search, projectId, paging)), HttpStatus.OK);
-    }
-
-    private Sort getSort(String sortColumn, String sortDirection) {
-        return Sort.by(
+        Sort sort = Sort.by(
                 Sort.Direction.fromString(sortDirection),
                 COLUMN_NAME_MAPPING.getOrDefault(sortColumn, sortColumn)
         );
+        Pageable paging = PageRequest.of(page - 1, size, sort);
+        return new ResponseEntity<>(toStudyPage(studyService.findStudiesByCriteria(search, projectId, paging)), HttpStatus.OK);
     }
 
 
