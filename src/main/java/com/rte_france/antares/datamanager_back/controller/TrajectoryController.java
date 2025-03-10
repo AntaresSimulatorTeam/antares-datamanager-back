@@ -28,22 +28,22 @@ public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
 
-    @Operation(summary = "Get Trajectories by type and fileNameStartsWith from Database ")
+    @Operation(summary = "Get Trajectories by type and fileNameContains from Database ")
     @GetMapping(value = "/db")
     public ResponseEntity<List<TrajectoryDTO>> findTrajectoriesByTypeFromDb(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                                             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                             @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                                            @RequestParam(value = "fileNameStartsWith", required = false) String fileNameStartsWith) {
-        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(trajectoryType, horizon, fileNameStartsWith)), HttpStatus.OK);
+                                                                            @RequestParam(value = "fileNameContains", required = false) String fileNameContains) {
+        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains)), HttpStatus.OK);
     }
 
 
-    @Operation(summary = "Get Trajectories by type and fileNameStartsWith from File System")
+    @Operation(summary = "Get Trajectories by type and fileNameContains from File System")
     @GetMapping(value = "/fs")
     public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                                                       @Parameter(description = "parameter to user just in thermal capacity case")
                                                                                       @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea) {
-        return new ResponseEntity<>(trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(trajectoryType), HttpStatus.OK);
+        return new ResponseEntity<>(trajectoryService.findTrajectoriesByType(trajectoryType), HttpStatus.OK);
     }
 
     @Operation(summary = "import Trajectory file to database ")

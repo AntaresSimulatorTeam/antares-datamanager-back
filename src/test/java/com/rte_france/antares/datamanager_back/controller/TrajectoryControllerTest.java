@@ -67,7 +67,7 @@ class TrajectoryControllerTest {
 
     @Test
     void findTrajectoriesByTypeFromDb_returnsTrajectories() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
 
         this.mockMvc.perform(get("/v1/trajectory/db")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -80,12 +80,12 @@ class TrajectoryControllerTest {
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameStartWithFromDB(any(), any(), any());
+        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any());
     }
 
     @Test
     void findTrajectoriesByTypeFromFileSystem_returnsFileNames() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameStartWithFromFS(any())).thenReturn(List.of(FsTrajectoryDTO.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByType(any())).thenReturn(List.of(FsTrajectoryDTO.builder().build()));
         this.mockMvc.perform(get("/v1/trajectory/fs")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
