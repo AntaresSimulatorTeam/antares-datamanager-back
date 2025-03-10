@@ -41,7 +41,7 @@ public class StudyController {
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
             @RequestParam(value = "sortColumn", required = false, defaultValue = DEFAULT_SORT_COLUMN) String sortColumn,
-            @RequestParam(value = "sortDirection", required = false, defaultValue = DEFAULT_SORT_DIRECTION) String sortDirection) { {
+            @RequestParam(value = "sortDirection", required = false, defaultValue = DEFAULT_SORT_DIRECTION) String sortDirection)  {
 
         Sort sort = Sort.by(
                 Sort.Direction.fromString(sortDirection),
