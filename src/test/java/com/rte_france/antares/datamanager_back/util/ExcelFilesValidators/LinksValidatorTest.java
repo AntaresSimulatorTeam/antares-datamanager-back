@@ -1,28 +1,20 @@
 package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
-import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.LinksColumns;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.LinksValidator;
-import jakarta.persistence.Id;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class LinksValidatorTest {
     @TempDir
