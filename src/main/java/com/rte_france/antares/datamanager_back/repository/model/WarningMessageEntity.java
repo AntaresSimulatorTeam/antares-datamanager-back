@@ -27,7 +27,4 @@ public class WarningMessageEntity {
     @ManyToOne
     @JoinColumn(name = "study_id", nullable = false)
     private StudyEntity study;
-
-
-
 }
