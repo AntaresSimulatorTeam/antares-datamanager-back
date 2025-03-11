@@ -100,20 +100,20 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void findTrajectoriesByTypeAndFileNameStartWithFromDB_returnsEntitiesWhenExist() {
+    void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEntitiesWhenExist() {
         List<TrajectoryEntity> expectedEntities = List.of(new TrajectoryEntity());
         when(trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(TrajectoryType.AREA.name(), "2023-2024", "fileNameStartsWith")).thenReturn(expectedEntities);
 
-        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType.AREA, "2023-2024", "fileNameStartsWith");
+        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "fileNameStartsWith");
 
         assertEquals(expectedEntities, result);
     }
 
     @Test
-    void findTrajectoriesByTypeAndFileNameStartWithFromDB_returnsEmptyWhenDoNotExist() {
+    void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEmptyWhenDoNotExist() {
         when(trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(TrajectoryType.AREA.name(), "2023-2024", "nonExistentFileNameStartsWith")).thenReturn(List.of());
 
-        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromDB(TrajectoryType.AREA, "2023-2024", "nonExistentFileNameStartsWith");
+        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "nonExistentFileNameStartsWith");
 
         assertEquals(List.of(), result);
     }
@@ -123,16 +123,16 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA);
 
         assertEquals("testFile.xlsx", result.get(0).getFileName());
     }
 
     @Test
-    void findTrajectoriesByTypeAndFileNameStartWithFromFS_throwsExceptionWhenDirectoryDoesNotExist() {
+    void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByTypeAndFileNameStartWithFromFS(TrajectoryType.AREA));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA));
     }
 
     @Test
