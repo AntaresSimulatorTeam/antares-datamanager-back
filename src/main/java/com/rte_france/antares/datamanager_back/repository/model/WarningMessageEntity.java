@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "warning_messages")
+@Table(name = "warning_message")
 public class WarningMessageEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "warning_seq_gen")
