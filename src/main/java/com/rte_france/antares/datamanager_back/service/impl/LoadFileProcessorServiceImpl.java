@@ -3,11 +3,9 @@ package com.rte_france.antares.datamanager_back.service.impl;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +17,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
+import static com.rte_france.antares.datamanager_back.util.Utils.checkTrajectoryVersion;
 
 @Slf4j
 @Service
@@ -45,9 +43,9 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     TrajectoryEntity savedTrajectory;
     if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-      savedTrajectory = saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon));
+      savedTrajectory = saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, Set.of()));
     } else {
-      savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon));
+      savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon,Set.of()));
     }
 
     saveMatrixToNas(path);

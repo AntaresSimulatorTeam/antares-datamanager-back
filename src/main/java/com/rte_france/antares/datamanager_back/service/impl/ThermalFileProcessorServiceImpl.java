@@ -14,12 +14,13 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -42,9 +43,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
         var thermalEntities = builder.build(path);
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon), thermalEntities, type);
+            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, Set.of()), thermalEntities, type);
         }
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon), thermalEntities, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, Set.of()), thermalEntities, type);
     }
 
     @SuppressWarnings("unchecked")
@@ -52,7 +53,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory.setType(type.name());
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
-            ThermalBaseEntity firstEntity = thermalEntities.get(0);
+            ThermalBaseEntity firstEntity = thermalEntities.getFirst();
             if (firstEntity instanceof ThermalClusterCapacityEntity) {
                 trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
             } else if (firstEntity instanceof ThermalParameterEntity) {

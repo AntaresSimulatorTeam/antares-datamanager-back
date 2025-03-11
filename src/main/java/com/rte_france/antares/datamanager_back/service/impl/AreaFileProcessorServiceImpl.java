@@ -8,6 +8,8 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
@@ -27,6 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -57,9 +60,9 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildAreaConfigList(path));
+            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, Set.of()), buildAreaConfigList(path));
         }
-        return saveTrajectory(buildTrajectory(path, 0,horizon), buildAreaConfigList(path));
+        return saveTrajectory(buildTrajectory(path, 0,horizon, Set.of()), buildAreaConfigList(path));
     }
 
 
