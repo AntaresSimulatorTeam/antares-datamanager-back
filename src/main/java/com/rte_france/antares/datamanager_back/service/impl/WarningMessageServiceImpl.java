@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,6 @@ public class WarningMessageServiceImpl implements WarningMessageService {
 
     @Override
     public String getNotFoundMessage() {
-
-        return getMessage("data.not.found");
+        return getMessage(WarningCode.DATA_NOT_FOUND.value());
     }
 }

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -24,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 
@@ -69,7 +71,7 @@ public class Utils {
      * @throws IOException if an I/O error occurs
      */
 //    @ExecutionTime
-    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon) throws IOException {
+    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtension(path.getFileName().toString()))// file name without extension
                 .fileSize(Files.size(path))
@@ -78,7 +80,7 @@ public class Utils {
                 .checksum(getFileChecksum(path.toString()))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
-               // .warningMessage(warningMessages)
+                .warningMessages(warningMessageEntities)
                 .build();
     }
 

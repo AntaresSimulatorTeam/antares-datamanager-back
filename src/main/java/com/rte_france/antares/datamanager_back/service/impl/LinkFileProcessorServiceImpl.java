@@ -2,10 +2,10 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.dto.WarningMessageDTO;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
@@ -27,6 +27,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -42,7 +44,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final WarningMessageService warningMessageService;
-    private final Set<String> warningMessages = new HashSet<>();
 
     /**
      * Processes the given file.
@@ -58,14 +59,42 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
         //todo to add warningMessages to TrajectoryEntity to be be mapped to DTO
-         checkForWarnings(path, horizon);
+        var warningMessages = checkForWarnings(path, horizon);
         log.warn("warningMessages : " + warningMessages);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
 
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon), buildLinkList(path, horizon, studyId));
+            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon,warningMessages), buildLinkList(path, horizon, studyId));
         }
-        return saveTrajectory(buildTrajectory(path, 0, horizon), buildLinkList(path, horizon, studyId));
+        return saveTrajectory(buildTrajectory(path, 0,horizon,warningMessages), buildLinkList(path, horizon, studyId));
+    }
+
+    private Set<WarningMessageEntity> checkForWarnings(Path path, String horizon) {
+        var warningMessages = new HashSet<WarningMessageEntity>();
+
+        addWarningIfConditionMet(warningMessages,
+                LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
+                WarningCode.LINKS_ALL_VALUES_ZERO);
+
+        addWarningIfConditionMet(warningMessages,
+                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames()),
+                WarningCode.LINKS_DIRECT_VALUES_ZERO);
+
+        addWarningIfConditionMet(warningMessages,
+                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames()),
+                WarningCode.LINKS_INDIRECT_VALUES_ZERO);
+
+        return warningMessages.isEmpty() ? null : warningMessages;
+    }
+
+    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages, boolean condition, WarningCode warningCode) {
+        if (condition) {
+            var message = WarningMessageEntity.builder()
+                    .content(warningMessageService.getMessage(warningCode.value()))
+                    .level(WarningLevel.WARNING_LEVEL)
+                    .build();
+            warningMessages.add(message);
+        }
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {

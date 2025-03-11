@@ -14,8 +14,8 @@ public class WarningMessageDTO {
     @JsonProperty("id")
     private Integer id;
 
-    @JsonProperty("code")
-    private String code;
+    @JsonProperty("content")
+    private String content;
 
     @JsonProperty("level")
     private String level;

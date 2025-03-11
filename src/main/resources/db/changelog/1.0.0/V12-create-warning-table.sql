@@ -6,11 +6,10 @@ CREATE TABLE warning_message
     id                 INT NOT NULL,
     warning_code       VARCHAR(255),
     warning_level      VARCHAR(255),
+    warning_content    VARCHAR(255),
     trajectory_id      INT,
-    study_id           INT,
     PRIMARY KEY (id),
-    FOREIGN KEY (trajectory_id) REFERENCES trajectory (id),
-    FOREIGN KEY (study_id) REFERENCES scenario (id)
+    FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
 
 CREATE SEQUENCE warning_sequence

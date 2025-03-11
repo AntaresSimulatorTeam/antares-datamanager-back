@@ -28,7 +28,7 @@ public class WarningMessageMapper {
   static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
     return WarningMessageDTO.builder()
             .id(entity.getId())
-            .code(entity.getCode().name())
+            .content(entity.getContent())
             .level(entity.getLevel().name())
             .build();
   }
@@ -45,7 +45,7 @@ public class WarningMessageMapper {
   static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
     WarningMessageEntity entity = new WarningMessageEntity();
     entity.setId(dto.getId());
-    entity.setCode(WarningCode.valueOf(dto.getCode()));
+    entity.setContent(dto.getContent());
     entity.setLevel(WarningLevel.valueOf(dto.getLevel()));
     return entity;
   }
