@@ -14,9 +14,9 @@ import java.util.stream.Collectors;
 
 @Value
 @Builder(toBuilder = true)
-@NoArgsConstructor(access = AccessLevel.PACKAGE)
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class WarningMessageMapper {
-  static Set<WarningMessageDTO> toWarningMessageDTOs(Set<WarningMessageEntity> entities) {
+  public static Set<WarningMessageDTO> toWarningMessageDTOs(Set<WarningMessageEntity> entities) {
     if (entities == null) {
       return Set.of();
     }
@@ -25,7 +25,7 @@ public class WarningMessageMapper {
             .collect(Collectors.toSet());
   }
 
-  private static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
+  static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
     return WarningMessageDTO.builder()
             .id(entity.getId())
             .code(entity.getCode().name())
@@ -33,7 +33,7 @@ public class WarningMessageMapper {
             .build();
   }
 
-  static Set<WarningMessageEntity> toWarningMessageEntities(Set<WarningMessageDTO> dtos) {
+  public static Set<WarningMessageEntity> toWarningMessageEntities(Set<WarningMessageDTO> dtos) {
     if (dtos == null) {
       return Set.of();
     }
@@ -42,7 +42,7 @@ public class WarningMessageMapper {
             .collect(Collectors.toSet());
   }
 
-  private static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
+  static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
     WarningMessageEntity entity = new WarningMessageEntity();
     entity.setId(dto.getId());
     entity.setCode(WarningCode.valueOf(dto.getCode()));
