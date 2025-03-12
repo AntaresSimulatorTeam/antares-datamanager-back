@@ -58,8 +58,8 @@ public class TrajectoryController {
 
     @GetMapping
     public List<TrajectoryDTO> getTrajectoriesByStudyIdAndType(@RequestParam("studyId") Integer studyId,
-                                                               @RequestParam("trajectoryType") String trajectoryType) {
-        return trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
+                                                               @RequestParam(value = "trajectoryType", required = false) TrajectoryType trajectoryType) {
+        return trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType != null ? trajectoryType.name() : null, studyId);
     }
 
 

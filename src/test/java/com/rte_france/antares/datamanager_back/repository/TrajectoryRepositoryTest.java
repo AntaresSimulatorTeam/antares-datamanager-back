@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,7 +70,7 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findByTypeAndStudyId_returnsNonEmptyListForExistentTypeAndStudyId() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("AREA", 1);
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 1);
         assertThat(trajectoryEntities).isNotEmpty();
         assertThat(trajectoryEntities.get(0).getType()).isEqualTo("AREA");
     }
@@ -82,19 +83,19 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findByTypeAndStudyId_returnsEmptyListForNonExistentStudyId() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("AREA", 999);
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 999);
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
-    void findByTypeAndStudyId_returnsEmptyListForNullType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(null, 1);
-        assertThat(trajectoryEntities).isEmpty();
+    void findByTypeAndStudyId_returnsListForNullType() {
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("", 1);
+        assertThat(trajectoryEntities.get(0).getType()).isEqualTo("AREA");
     }
 
     @Test
     void findByTypeAndStudyId_returnsEmptyListForNullStudyId() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("AREA", null);
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), null);
         assertThat(trajectoryEntities).isEmpty();
     }
 }

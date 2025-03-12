@@ -99,10 +99,9 @@ class TrajectoryControllerTest {
     }
 
     @Test
-    void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentType() throws Exception {
+    void getTrajectoriesByStudyIdAndType_returnListForNullType() throws Exception {
         when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId("nonExistentType", 1)).thenReturn(List.of());
         this.mockMvc.perform(get("/v1/trajectory")
-                        .param("trajectoryType", "nonExistentType")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
