@@ -87,8 +87,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
-    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith) {
-        return trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(trajectoryType.name(), horizon, fileNameStartsWith);
+    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains) {
+        return trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains(trajectoryType.name(), horizon, fileNameContains);
     }
 
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType) {
