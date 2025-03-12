@@ -1,23 +1,29 @@
-package com.rte_france.antares.datamanager_back.util.ExcelFileValidators;
+package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.LinksColumns;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 
-
+@Slf4j
+@UtilityClass
 public class LinksValidator {
     /**
-     * @param path trajectory to be added to database
+     * @param path     trajectory to be added to database
      * @param fileType Links
-     * @param horizon sheet in file to be read
+     * @param horizon  sheet in file to be read
      */
     public static void linksDuplicateAndCellsValuesChecks(Path path, ExcelFileType fileType, String horizon) {
         try (InputStream inputStream = Files.newInputStream(path);
@@ -34,10 +40,10 @@ public class LinksValidator {
     }
 
     /**
-     * @param sheet to be read
+     * @param sheet      to be read
      * @param columnName column to be read
-     * @param path trajectory file
-     * @param horizon to make error clearer
+     * @param path       trajectory file
+     * @param horizon    to make error clearer
      * @return column index to be found
      */
     private static int findColumnIndex(Sheet sheet, String columnName, Path path, String horizon) {
@@ -50,11 +56,11 @@ public class LinksValidator {
     }
 
     /**
-     * @param sheet to be read in Excel file
+     * @param sheet      to be read in Excel file
      * @param columnName column to be read
-     * @param path trajectory file
-     * @param horizon to make error clearer
-     * Method to find if there are duplicated links values in column LinkColumns.NAME
+     * @param path       trajectory file
+     * @param horizon    to make error clearer
+     *                   Method to find if there are duplicated links values in column LinkColumns.NAME
      */
     private static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
         int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
@@ -78,17 +84,17 @@ public class LinksValidator {
     }
 
     /**
-     * @param sheet to be read in Excel file
-     * @param path trajectory file
+     * @param sheet   to be read in Excel file
+     * @param path    trajectory file
      * @param horizon to make error clearer
-     * @param column numeric columns must be integers and positive values
+     * @param column  numeric columns must be integers and positive values
      */
     private static void checkNumbersAreIntegers(Sheet sheet, Path path, String horizon, String column) {
         int index = findColumnIndex(sheet, column, path, horizon);
 
         for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
             Row row = sheet.getRow(i);
-            if (row != null) {
+            if (row != null && row.getPhysicalNumberOfCells() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                 Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
 
                 if (cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() < 0 || cell.getNumericCellValue() % 1 != 0) {
@@ -103,17 +109,18 @@ public class LinksValidator {
 
 
     /**
-     * @param sheet to be read in Excel file
-     * @param path trajectory file
-     * @param horizon  make error clearer
-     * @param column booleans columns must be TRUE or FALSE
+     * @param sheet   to be read in Excel file
+     * @param path    trajectory file
+     * @param horizon make error clearer
+     * @param column  booleans columns must be TRUE or FALSE
      */
     private static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
         int index = findColumnIndex(sheet, column, path, horizon);
 
         for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
             Row row = sheet.getRow(i);
-            if (row == null) continue;
+            if (row == null || row.getPhysicalNumberOfCells() == 0 || row.getCell(0) == null || row.getCell(0).getStringCellValue().isEmpty())
+                continue;
 
             Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell == null || !isValidBoolean(cell)) {
@@ -136,7 +143,7 @@ public class LinksValidator {
     }
 
     /**
-     * @param path trajectory file
+     * @param path    trajectory file
      * @param horizon make error clearer
      * @return if all LinksColumns.getNumericColumnNames() are 0 a true is returned
      * in order to have a warning links.all_values_zero created
@@ -158,14 +165,14 @@ public class LinksValidator {
     }
 
     /**
-     * @param path trajectory file
+     * @param path    trajectory file
      * @param horizon make error clearer
      * @param columns grouped by Direct or Indirect types
      * @return true if all values are 0 in order to create a warning
      * links.direct_values_zero or links.indirect_values_zero
      */
 
-    public static boolean areAllValuesZeroInGroup(Path path, String horizon, List<String> columns)  {
+    public static boolean areAllValuesZeroInGroup(Path path, String horizon, List<String> columns) {
         return findZeroValues(path, horizon, columns);
     }
 

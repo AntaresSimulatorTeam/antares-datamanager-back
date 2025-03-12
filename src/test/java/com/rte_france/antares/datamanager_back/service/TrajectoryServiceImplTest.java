@@ -68,7 +68,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
 
-        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024");
+        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024",1);
 
         verify(areaFileProcessorService, times(1)).processAreaFile(any(), any());
     }
@@ -81,9 +81,9 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("/links");
 
-        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024");
+        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024",1);
 
-        verify(linkFileProcessorService, times(1)).processLinkFile(any(), any());
+        verify(linkFileProcessorService, times(1)).processLinkFile(any(), any(), any());
     }
 
     @Test
@@ -94,7 +94,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("src/test/resources/thermal_capacity/");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024");
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024",1);
 
         verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), any());
     }
@@ -240,7 +240,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("/load");
 
-        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031");
+        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031",1);
 
         verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
     }
@@ -253,7 +253,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("/thermal_parameters");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_PARAMETER, "testFile", "2023-2024");
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_PARAMETER, "testFile", "2023-2024",1);
 
         verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), eq(TrajectoryType.THERMAL_PARAMETER));
     }
@@ -266,7 +266,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("/thermal_costs");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_COST, "testFile", "2023-2024");
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_COST, "testFile", "2023-2024",1);
 
         verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), eq(TrajectoryType.THERMAL_COST));
     }
@@ -278,6 +278,6 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
-        assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024"));
+        assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024",1));
     }
 }
