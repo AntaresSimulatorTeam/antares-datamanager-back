@@ -84,7 +84,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames()),
                 WarningCode.LINKS_INDIRECT_VALUES_ZERO);
 
-        return warningMessages.isEmpty() ? null : warningMessages;
+        return warningMessages;
     }
 
     private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages, boolean condition, WarningCode warningCode) {
