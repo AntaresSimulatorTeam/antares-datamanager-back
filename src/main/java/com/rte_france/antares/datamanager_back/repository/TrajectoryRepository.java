@@ -19,16 +19,22 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameOrderByVersionDesc(String fileName);
 
-    @Query("SELECT t " +
-            "FROM Trajectory t " +
-            "WHERE t.creationDate IN (" +
-                "SELECT MAX(t1.creationDate) " +
-                "FROM Trajectory t1 " +
-                "WHERE t1.type = :type AND t1.horizon = :horizon AND (t1.fileName LIKE CONCAT('%', CONCAT(:fileNameStartsWith, '%')) OR :fileNameStartsWith IS NULL) " +
-                "GROUP BY t1.fileName" +
-            ") " +
-            "ORDER BY t.creationDate DESC")
-    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameStartsWith") String fileNameStartsWith);
+    @Query("""
+                SELECT t
+                FROM Trajectory t
+                WHERE t.type = :type 
+                AND t.horizon = :horizon
+                AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
+                AND t.version = (
+                    SELECT MAX(t1.version) 
+                    FROM Trajectory t1 
+                    WHERE t1.fileName = t.fileName 
+                    AND t1.type = :type 
+                    AND t1.horizon = :horizon
+                )
+                ORDER BY t.creationDate DESC
+            """)
+    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains);
 
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);

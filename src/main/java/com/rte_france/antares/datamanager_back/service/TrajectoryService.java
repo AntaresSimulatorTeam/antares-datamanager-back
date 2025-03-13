@@ -12,7 +12,7 @@ public interface TrajectoryService {
 
     TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 
-    List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith);
+    List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains);
 
     List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType);
 

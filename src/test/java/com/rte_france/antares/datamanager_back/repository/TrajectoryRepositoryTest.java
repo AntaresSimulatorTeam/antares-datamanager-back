@@ -45,26 +45,26 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith("nonExistentType", "2023-2024", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains("nonExistentType", "2023-2024", "test");
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith("AREA", "2023-2024", "nonExistentStart");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains("AREA", "2023-2024", "nonExistentStart");
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsNonEmptyListForExistentTypeAndFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith("AREA", "2023-2024", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains("AREA", "2023-2024", "TEST");
         assertThat(trajectoryEntities).isNotEmpty();
         assertThat(trajectoryEntities.get(0).getFileName()).startsWith("test");
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNullType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(null, "2023-2024", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains(null, "2023-2024", "test");
         assertThat(trajectoryEntities).isEmpty();
     }
 
