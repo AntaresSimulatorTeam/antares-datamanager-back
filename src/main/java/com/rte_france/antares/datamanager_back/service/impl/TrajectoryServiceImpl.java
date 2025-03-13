@@ -57,6 +57,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
     }
 
+    /**
+     * Processes a trajectory file based on the given type, file name, horizon, and study ID.
+     *
+     * @param trajectoryType   the type of the trajectory
+     * @param trajectoryToUse  the name of the trajectory file to use
+     * @param horizon          the horizon period in the format yyyy-yyyy
+     * @param studyId          the ID of the study
+     * @return the processed TrajectoryEntity
+     * @throws IOException if an I/O error occurs
+     */
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
@@ -165,6 +175,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
+    /**
+     * Links a trajectory to a study. If a trajectory of the same type is already linked to the study,
+     * the existing link is removed before creating the new link.
+     *
+     * @param trajectoryId the ID of the trajectory to link
+     * @param studyId      the ID of the study to link the trajectory to
+     * @param type         the type of the trajectory
+     * @return the linked TrajectoryEntity
+     * @throws ResourceNotFoundException if the study or trajectory is not found
+     */
     @Transactional
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
         StudyEntity study = studyRepository.findById(studyId)

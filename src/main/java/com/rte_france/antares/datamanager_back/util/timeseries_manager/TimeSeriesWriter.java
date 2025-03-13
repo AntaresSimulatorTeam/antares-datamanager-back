@@ -75,6 +75,13 @@ public final class TimeSeriesWriter {
     }
   }
 
+  /**
+   * Writes a time series matrix to a byte array in Arrow format.
+   *
+   * @param matrix the time series matrix to write
+   * @return the byte array containing the Arrow file data
+   * @throws IOException if an I/O error occurs
+   */
   public byte[] writeToByteArray(TimeSeriesMatrix matrix) throws IOException {
     Objects.requireNonNull(matrix);
 

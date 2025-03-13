@@ -40,6 +40,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         List<? extends ThermalBaseEntity> build(Path path) throws IOException;
     }
 
+    /**
+     * Processes the given file.
+     * If a trajectory with the same file name exists, it updates the trajectory.
+     * Otherwise, it creates a new trajectory.
+     *
+     * @param path the path to the file to process
+     */
     public TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException {
         var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
         var thermalEntities = builder.build(path);
@@ -51,6 +58,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy), thermalEntities, type);
     }
 
+
+    /**
+     * Saves the thermal trajectory and associates it with the given thermal entities.
+     *
+     * @param trajectory     the trajectory entity to save
+     * @param thermalEntities the list of thermal entities to associate with the trajectory
+     * @param type           the type of the trajectory
+     * @return the saved trajectory entity
+     */
     @SuppressWarnings("unchecked")
     public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, List<? extends ThermalBaseEntity> thermalEntities, TrajectoryType type) {
         trajectory.setType(type.name());
@@ -110,6 +126,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalClusterCapacities;
     }
 
+    /**
+     * Builds a list of thermal cost entities from the given file.
+     *
+     * @param path the path to the file to process
+     * @return a list of thermal cost entities
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public List<ThermalCostEntity> buildThermalCosts(Path path) throws IOException {
         List<ThermalCostEntity> thermalCostEntities = new ArrayList<>();
