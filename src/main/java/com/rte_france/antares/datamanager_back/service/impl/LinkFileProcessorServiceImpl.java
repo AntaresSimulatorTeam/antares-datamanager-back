@@ -194,6 +194,16 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
 
+    /**
+     * Validates the link areas by checking if the link contains exactly two areas
+     * and if both areas are present in the provided list of area names
+     * If an area from the list is not present in the link, a warning message is added.
+     *
+     * @param link the link to validate
+     * @param areaNames the list of valid area names
+     * @return the validated link
+     * @throws TechnicalAntaresDataMangerException if the link is not valid or an area is not present
+     */
     public String validateLinkAreas(String link, List<String> areaNames) {
         String[] areas = link.split("-");
         if (areas.length != 2) {
