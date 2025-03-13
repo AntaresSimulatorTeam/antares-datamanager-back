@@ -172,7 +172,7 @@ public class ProjectServiceImpl implements ProjectService {
     private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
         List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findById_Nni(userId);
         if (pinnedProjects.size() >= 3) {
-            throw new BadRequestException("You have already 3 pinned projects , please unpin one before pinning another one.");
+            throw new BadRequestException("Maximum number of pinned projects reached.");
         }
     }
 
