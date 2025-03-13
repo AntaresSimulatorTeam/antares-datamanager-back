@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor

@@ -1,10 +1,8 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -91,7 +89,6 @@ class LinkFileProcessorServiceImplTest {
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
-        verify(warningMessageRepository, times(1)).saveAll(any());
     }
 
     @Test

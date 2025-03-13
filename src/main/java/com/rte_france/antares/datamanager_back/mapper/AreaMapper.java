@@ -2,12 +2,10 @@ package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-
 
 import java.util.List;
 

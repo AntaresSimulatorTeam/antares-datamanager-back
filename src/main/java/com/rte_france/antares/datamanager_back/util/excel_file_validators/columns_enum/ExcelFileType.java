@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum;
 
 import lombok.Getter;
+
 import java.text.Normalizer;
 import java.util.*;
 
