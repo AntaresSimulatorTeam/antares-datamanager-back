@@ -19,6 +19,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameOrderByVersionDesc(String fileName);
 
+
     @Query("""
                 SELECT t
                 FROM Trajectory t
@@ -34,7 +35,8 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                 )
                 ORDER BY t.creationDate DESC
             """)
-    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains);
+    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains);
+
 
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);
