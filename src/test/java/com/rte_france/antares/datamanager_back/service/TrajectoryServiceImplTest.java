@@ -102,7 +102,7 @@ class TrajectoryServiceImplTest {
     @Test
     void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEntitiesWhenExist() {
         List<TrajectoryEntity> expectedEntities = List.of(new TrajectoryEntity());
-        when(trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "fileNameStartsWith")).thenReturn(expectedEntities);
+        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "fileNameStartsWith")).thenReturn(expectedEntities);
 
         List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "fileNameStartsWith");
 
@@ -111,7 +111,7 @@ class TrajectoryServiceImplTest {
 
     @Test
     void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEmptyWhenDoNotExist() {
-        when(trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "nonExistentFileNameStartsWith")).thenReturn(List.of());
+        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "nonExistentFileNameStartsWith")).thenReturn(List.of());
 
         List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "nonExistentFileNameStartsWith");
 
