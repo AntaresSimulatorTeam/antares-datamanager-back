@@ -101,6 +101,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(trajectoryType.name(), horizon, fileNameContains);
     }
 
+    /**
+     * Finds trajectories by type from the NAS directory.
+     *
+     * @param trajectoryType the type of the trajectory
+     * @return a list of FsTrajectoryDTO representing the trajectories
+     */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType) {
         Path directory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
