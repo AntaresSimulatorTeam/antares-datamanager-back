@@ -20,6 +20,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Utility class for reading time series data from Arrow file format
+ */
 public final class TimeSeriesReader {
   private static final int ROW_COUNT = 8760;
 

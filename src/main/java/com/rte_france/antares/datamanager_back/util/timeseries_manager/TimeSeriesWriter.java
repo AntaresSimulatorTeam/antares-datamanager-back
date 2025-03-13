@@ -28,6 +28,10 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
+
+/**
+ * Utility class for writing time series data to Arrow format files.
+ */
 public final class TimeSeriesWriter {
   private static Field doubleField(String name) {
     return new Field(name, FieldType.notNullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
