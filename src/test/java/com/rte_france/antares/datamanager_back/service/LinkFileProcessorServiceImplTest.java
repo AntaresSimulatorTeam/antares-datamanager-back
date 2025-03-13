@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.service.impl.LinkFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
@@ -48,9 +49,6 @@ class LinkFileProcessorServiceImplTest {
 
     private TrajectoryEntity trajectoryEntity;
 
-    private List<String> warningMessages;
-
-
     @TempDir
     Path tempDir;
 
@@ -74,12 +72,7 @@ class LinkFileProcessorServiceImplTest {
                 .build();
         when(trajectoryRepository.findByTypeAndStudyId(any(), any())).thenReturn(List.of(trajectoryEntity));
 
-        warningMessages = new ArrayList<>();
-        when(warningMessageService.getMessage(anyString(), any())).thenAnswer(invocation -> {
-            String message = invocation.getArgument(0);
-            warningMessages.add(message);
-            return message;
-        });
+        when(warningMessageService.getMessage(anyString(), any())).thenReturn("Expected message");
     }
 
     @Test
@@ -133,7 +126,10 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        verify(warningMessageService, times(2)).getMessage(anyString(), anyString());
+        verify(warningMessageService).getMessage(WarningCode.LINKS_ALL_VALUES_ZERO.value());
+        verify(warningMessageService).getMessage(WarningCode.LINKS_DIRECT_VALUES_ZERO.value());
+        verify(warningMessageService).getMessage(WarningCode.LINKS_INDIRECT_VALUES_ZERO.value());
+        verify(warningMessageService, times(2)).getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value());
     }
 
     @Test
