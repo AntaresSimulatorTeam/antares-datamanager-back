@@ -35,6 +35,14 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
   private final LoadRepository loadRepository;
   private final UserService userService;
 
+  /**
+   * Processes the given file.
+   * If a trajectory with the same file name exists, it updates the trajectory.
+   * Otherwise, it creates a new trajectory.
+   * Also reads the txt matrix and saves it to the NAS as a compressed .arrow file
+   *
+   * @param path the path to the file to process
+   */
   @Transactional
   public TrajectoryEntity processLoadFile(Path path, String horizon) throws IOException {
     Objects.requireNonNull(path);

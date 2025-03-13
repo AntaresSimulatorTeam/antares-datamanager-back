@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +24,7 @@ public class FileController {
     private final NasFileService nasFileService;
     private final AntaressDataManagerProperties properties;
 
+    @Operation(summary = "Retrieves a file as a downloadable resource")
     @GetMapping("/{filename}")
     public ResponseEntity<Resource> getFile(@PathVariable String filename) {
         try {
@@ -35,6 +37,7 @@ public class FileController {
         }
     }
 
+    @Operation(summary = "Uploads a file to the server")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
         Objects.requireNonNull(file);
