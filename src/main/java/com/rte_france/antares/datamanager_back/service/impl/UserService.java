@@ -30,7 +30,10 @@ public class UserService {
             return user;
         }
         else {
-            return null;
+            log.info("There is no authenticated user");
+            return UserInfoDto.builder()
+                    .nni("unknown_user")
+                    .build();
         }
     }
 }
