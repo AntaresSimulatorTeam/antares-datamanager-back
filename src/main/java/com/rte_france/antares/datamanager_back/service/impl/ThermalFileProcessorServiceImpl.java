@@ -53,7 +53,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory.setType(type.name());
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
-            ThermalBaseEntity firstEntity = thermalEntities.getFirst();
+            ThermalBaseEntity firstEntity = thermalEntities.get(0);
             if (firstEntity instanceof ThermalClusterCapacityEntity) {
                 trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
             } else if (firstEntity instanceof ThermalParameterEntity) {
