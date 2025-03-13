@@ -45,6 +45,8 @@ public class StudyServiceImpl implements StudyService {
 
     private final TrajectoryRepository trajectoryRepository;
 
+    private final UserService userService;
+
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
         Specification<StudyEntity> spec = Specification.where(null);
@@ -110,7 +112,7 @@ public class StudyServiceImpl implements StudyService {
         ProjectEntity projectEntity = projectRepository.findByName(studyDTO.getProject())
                 .orElseGet(() -> projectRepository.save(ProjectEntity.builder()
                         .name(studyDTO.getProject())
-                        .createdBy(studyDTO.getCreatedBy())
+                        .createdBy(userService.getCurrentUserDetails().getNni())
                         .creationDate(LocalDateTime.now())
                         .build()));
 

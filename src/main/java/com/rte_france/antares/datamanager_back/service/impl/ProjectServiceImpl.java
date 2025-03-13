@@ -41,9 +41,10 @@ public class ProjectServiceImpl implements ProjectService {
     private final PinnedProjectRepository pinnedProjectRepository;
     private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
+    private final UserService userService;
 
     public List<ProjectEntity> getPinnedProjectsByUser(String userId) {
-        return pinnedProjectRepository.findById_Nni(userId).stream()
+        return pinnedProjectRepository.findByIdNni(userId).stream()
                 .sorted((p1, p2) -> p2.getProject().getCreationDate().compareTo(p1.getProject().getCreationDate()))
                 .limit(3)
                 .map(PinnedProjectEntity::getProject)
@@ -130,11 +131,17 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Transactional
     public ProjectEntity pinProjectForUser(String userId, Integer projectId) {
+        String nni = userService.getCurrentUserDetails().getNni();
+
+        // Check if the userId corresponds to the authenticated user's nni
+        if (!userId.equals(nni)) {
+            throw new BadRequestException("User ID does not match the authenticated user's ID.");
+        }
         checkIfUserHasALreadyMaxPinnedProjects(userId);
         // Build the composite key for the PinnedProjectEntity
         PinnedProjectEntityId pinnedProjectEntityId = PinnedProjectEntityId.builder()
                 .projectId(projectId)
-                .nni(userId)
+                .nni(nni)
                 .build();
 
         // Check if the project is already pinned for the user
@@ -170,7 +177,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
-        List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findById_Nni(userId);
+        List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findByIdNni(userId);
         if (pinnedProjects.size() >= 3) {
             throw new BadRequestException("You have already 3 pinned projects , please unpin one before pinning another one.");
         }
@@ -195,7 +202,7 @@ public class ProjectServiceImpl implements ProjectService {
         ProjectEntity newProject = new ProjectEntity();
         newProject.setName(projectInputDto.getName());
         newProject.setCreationDate(LocalDateTime.now());
-        newProject.setCreatedBy("pegase");
+        newProject.setCreatedBy(userService.getCurrentUserDetails().getNni());
         newProject.setDescription(projectInputDto.getDescription());
         newProject.setTags(projectInputDto.getTags());
         return projectRepository.save(newProject);

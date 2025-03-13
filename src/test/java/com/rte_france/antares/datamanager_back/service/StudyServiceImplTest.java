@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -8,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +38,9 @@ class StudyServiceImplTest {
 
     @Mock
     private ProjectRepository projectRepository;
+
+    @Mock
+    private UserService userService;
 
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;
@@ -93,9 +98,7 @@ class StudyServiceImplTest {
 
         List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("key");
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isNotEmpty();
-        assertThat(keywords).contains("keyword1", "keyword2");
+        assertThat(keywords).isNotNull().isNotEmpty().contains("keyword1", "keyword2");
         verify(studyRepository, times(1)).findKeywordsByPartialName("key");
     }
 
@@ -105,8 +108,7 @@ class StudyServiceImplTest {
 
         List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("nonExistent");
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isEmpty();
+        assertThat(keywords).isNotNull().isEmpty();
         verify(studyRepository, times(1)).findKeywordsByPartialName("nonExistent");
     }
 
@@ -116,8 +118,7 @@ class StudyServiceImplTest {
 
         List<String> keywords = studyServiceImpl.searchKeywordsByPartialName(null);
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isEmpty();
+        assertThat(keywords).isNotNull().isEmpty();
         verify(studyRepository, times(1)).findKeywordsByPartialName(null);
     }
 
@@ -146,7 +147,7 @@ class StudyServiceImplTest {
         when(projectRepository.findByName("New Project")).thenReturn(Optional.empty());
         when(projectRepository.save(any(ProjectEntity.class))).thenReturn(newProject);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(studyEntity);
-
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("User 1").build());
         StudyDTO result = studyServiceImpl.createStudy(studyDTO);
 
         assertEquals(1, result.getId());
