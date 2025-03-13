@@ -109,26 +109,27 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         try (var stream = Files.list(directory)) {
             var trajectories =  stream.filter(Files::isRegularFile)
-                    .map(path -> {
-                        try {
-                            return FsTrajectoryDTO.builder()
-                                    .fileName(path.getFileName().toString())
-                                    .lastModifiedDate(Files.getLastModifiedTime(path)
-                                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                                    .type(trajectoryType.name())
-                                    .build();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    })
+                    .map(path -> buildFSTrajectoryDTO(trajectoryType, path))
                     .toList();
             var latestTrajectories = extractKeyFromColumnByComparator(
                     trajectories,
                     FsTrajectoryDTO::getFileName,
-                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed()
-            );
+                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
 
             return sortedByComparator(latestTrajectories.values(), Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static FsTrajectoryDTO buildFSTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
+        try {
+            return FsTrajectoryDTO.builder()
+                    .fileName(path.getFileName().toString())
+                    .lastModifiedDate(Files.getLastModifiedTime(path)
+                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .type(trajectoryType.name())
+                    .build();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
