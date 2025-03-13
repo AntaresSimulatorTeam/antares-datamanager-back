@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @Builder(toBuilder = true)
@@ -33,4 +35,6 @@ public class TrajectoryDTO {
     @JsonProperty("creationDate")
     LocalDateTime creationDate;
 
+    @JsonProperty("messages")
+    Set<WarningMessageDTO> messages;
 }
