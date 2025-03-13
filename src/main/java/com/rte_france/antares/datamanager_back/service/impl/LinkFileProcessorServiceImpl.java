@@ -83,8 +83,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages, boolean condition, WarningCode warningCode) {
         if (condition) {
             var message = WarningMessageEntity.builder()
-                    .content(warningMessageService.getMessage(warningCode.value()))
-                    .level(WarningLevel.WARNING_LEVEL)
+                    .warningContent(warningMessageService.getMessage(warningCode.value()))
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
                     .build();
             warningMessages.add(message);
         }
@@ -156,8 +156,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         for (String areaName : areaNames) {
             if (!link.contains(areaName)) {
                 var message = WarningMessageEntity.builder()
-                        .content(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value()))
-                        .level(WarningLevel.WARNING_LEVEL)
+                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value()))
+                        .warningLevel(WarningLevel.WARNING_LEVEL)
                         .build();
                 warningMessageEntities.add(message);
             }

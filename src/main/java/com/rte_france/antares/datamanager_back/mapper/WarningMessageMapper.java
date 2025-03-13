@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.WarningMessageDTO;
-import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.repository.model.WarningLevel;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import lombok.AccessLevel;
@@ -28,8 +27,8 @@ public class WarningMessageMapper {
   static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
     return WarningMessageDTO.builder()
             .id(entity.getId())
-            .content(entity.getContent())
-            .level(entity.getLevel().name())
+            .content(entity.getWarningContent())
+            .level(entity.getWarningLevel().name())
             .build();
   }
 
@@ -45,8 +44,8 @@ public class WarningMessageMapper {
   static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
     WarningMessageEntity entity = new WarningMessageEntity();
     entity.setId(dto.getId());
-    entity.setContent(dto.getContent());
-    entity.setLevel(WarningLevel.valueOf(dto.getLevel()));
+    entity.setWarningContent(dto.getContent());
+    entity.setWarningLevel(WarningLevel.valueOf(dto.getLevel()));
     return entity;
   }
 }
