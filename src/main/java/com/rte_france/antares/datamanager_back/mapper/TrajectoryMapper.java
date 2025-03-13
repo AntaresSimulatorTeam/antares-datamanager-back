@@ -14,7 +14,6 @@ import java.util.List;
 @Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TrajectoryMapper {
-
     public static TrajectoryDTO toTrajectoryDTO(TrajectoryEntity entity) {
         return TrajectoryDTO.builder()
                 .id(entity.getId())
@@ -23,6 +22,7 @@ public class TrajectoryMapper {
                 .version(entity.getVersion())
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
+                .messages(WarningMessageMapper.toWarningMessageDTOs(entity.getWarningMessages()))
                 .build();
     }
 
@@ -34,6 +34,7 @@ public class TrajectoryMapper {
         entity.setVersion(dto.getVersion());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setCreationDate(dto.getCreationDate());
+        entity.setWarningMessages(WarningMessageMapper.toWarningMessageEntities(dto.getMessages()));
         return entity;
     }
 
