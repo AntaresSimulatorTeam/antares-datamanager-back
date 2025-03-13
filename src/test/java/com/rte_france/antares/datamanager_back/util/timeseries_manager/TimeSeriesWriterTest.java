@@ -1,13 +1,8 @@
 package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,8 +11,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class TimeSeriesWriterTest {
     private TimeSeriesWriter timeSeriesWriter;
