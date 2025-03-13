@@ -176,7 +176,7 @@ public static Specification<ProjectEntity> hasStudyName(String studyName) {
     private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
         List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findByIdNni(userId);
         if (pinnedProjects.size() >= 3) {
-            throw new BadRequestException("You have already 3 pinned projects , please unpin one before pinning another one.");
+            throw new BadRequestException("Maximum number of pinned projects reached.");
         }
     }
 
