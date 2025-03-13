@@ -1,17 +1,17 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.LinksColumns;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.LinksValidator;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -25,10 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -44,6 +41,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final WarningMessageService warningMessageService;
+    private final Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
     /**
      * Processes the given file.
@@ -54,37 +52,42 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processLinkFile(Path path, String horizon) throws IOException {
+    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
-       //TODO to add warningMessages to TrajectoryEntity to be be mapped to DTO
-        List<String> warningMessages =checkForWarnings(path,horizon);
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(path.getFileName().toString());
+        checkForWarnings(path, horizon);
+        log.warn("warningMessages : {}", warningMessageEntities);
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon), buildLinkList(path));
+            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon,warningMessageEntities), buildLinkList(path, horizon, studyId));
         }
-        return saveTrajectory(buildTrajectory(path, 0,horizon), buildLinkList(path));
+        return saveTrajectory(buildTrajectory(path, 0,horizon,warningMessageEntities), buildLinkList(path, horizon, studyId));
     }
 
-    private List<String> checkForWarnings(Path path, String horizon) throws IOException {
-        List<String> warningMessages = new ArrayList<>();
+    private void checkForWarnings(Path path, String horizon) {
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
+                WarningCode.LINKS_ALL_VALUES_ZERO);
 
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames()),
+                WarningCode.LINKS_DIRECT_VALUES_ZERO);
 
-        if (LinksValidator.checkPowerColumnsForZeroValues(path, horizon)) {
-            warningMessages.add(warningMessageService.getMessage("links.all_values_zero"));
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames()),
+                WarningCode.LINKS_INDIRECT_VALUES_ZERO);
+    }
+
+    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages, boolean condition, WarningCode warningCode) {
+        if (condition) {
+            var message = WarningMessageEntity.builder()
+                    .content(warningMessageService.getMessage(warningCode.value()))
+                    .level(WarningLevel.WARNING_LEVEL)
+                    .build();
+            warningMessages.add(message);
         }
-
-        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames())) {
-            warningMessages.add(warningMessageService.getMessage("links.direct_values_zero"));
-        }
-
-
-        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames())) {
-            warningMessages.add(warningMessageService.getMessage("links.indirect_values_zero"));
-        }
-
-        return warningMessages.isEmpty() ? null : warningMessages;
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
@@ -102,17 +105,18 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(Path path) throws IOException {
+    private List<LinkEntity> buildLinkList(Path path, String horizon, Integer studyId) throws IOException {
         List<LinkEntity> linkEntities = new ArrayList<>();
-        try (InputStream inputStream = Files.newInputStream(path) ;
+        try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
-            Sheet sLinksSheet = workbook.getSheetAt(1);
+            Sheet sLinksSheet = workbook.getSheet(horizon);
+            List<String> areaNames = listArea(studyId);
             for (Row row : sLinksSheet) {
-                if (row.getRowNum() != 0 && !row.getCell(0).getStringCellValue().isEmpty()) {
+                if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
-                            .name(row.getCell(0).getStringCellValue())
+                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames))
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
                             .winterHcDirectMw(row.getCell(2).getNumericCellValue())
@@ -135,5 +139,36 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
+    }
+
+
+    public String validateLinkAreas(String link, List<String> areaNames) {
+        String[] areas = link.split("-");
+        if (areas.length != 2) {
+            throw new TechnicalAntaresDataMangerException("Error: Link " + link + " in LINKS file is not valid");
+        }
+
+        for (String area : areas) {
+            if (!areaNames.contains(area)) {
+                throw new TechnicalAntaresDataMangerException("Error: Area " + area + " in LINKS file is not present in AREA trajectory");
+            }
+        }
+        for (String areaName : areaNames) {
+            if (!link.contains(areaName)) {
+                var message = WarningMessageEntity.builder()
+                        .content(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value()))
+                        .level(WarningLevel.WARNING_LEVEL)
+                        .build();
+                warningMessageEntities.add(message);
+            }
+        }
+        return link;
+    }
+
+    private List<String> listArea(Integer studyId) {
+        return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream()
+                .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
+                .map(area -> area.getArea().getName())
+                .toList();
     }
 }

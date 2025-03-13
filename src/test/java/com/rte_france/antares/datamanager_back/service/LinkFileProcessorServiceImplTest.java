@@ -1,13 +1,15 @@
 package com.rte_france.antares.datamanager_back.service;
 
-
+import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.service.impl.LinkFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.LinksColumns;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.LinksValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,15 +18,13 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.context.MessageSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,6 +47,8 @@ class LinkFileProcessorServiceImplTest {
 
     private Path tempFile;
 
+    private TrajectoryEntity trajectoryEntity;
+
     @TempDir
     Path tempDir;
 
@@ -58,44 +60,27 @@ class LinkFileProcessorServiceImplTest {
         try (var outputStream = Files.newOutputStream(tempFile)) {
             outputStream.write(generateTestExcelFile());
         }
+
+         trajectoryEntity = TrajectoryEntity.builder()
+                .id(1)
+                .areaConfigEntities(List.of(AreaConfigEntity.builder()
+                                .area(AreaEntity.builder().name("FR").build()).build(),
+                        AreaConfigEntity.builder()
+                                .area(AreaEntity.builder().name("CH").build()).build(),
+                        AreaConfigEntity.builder()
+                                .area(AreaEntity.builder().name("IT").build()).build()))
+                .build();
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any())).thenReturn(List.of(trajectoryEntity));
+
+        when(warningMessageService.getMessage(anyString(), any())).thenReturn("Expected message");
     }
-
-    private static byte[] generateTestExcelFile() throws IOException {
-        try (var outputStream = new ByteArrayOutputStream();
-             var workbook = new XSSFWorkbook()) {
-            var sheet = workbook.createSheet("2030-2031");
-            sheet.createRow(1).createCell(1).setCellValue(100.5);
-            workbook.createSheet("parameters");
-
-            Object[] mockValues = { "Link1", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0,
-                    "true", "false", "true", "false" };
-
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < LinksColumns.values().length; i++) {
-                headerRow.createCell(i).setCellValue(LinksColumns.values()[i].getDisplayName());
-            }
-            Row row = sheet.createRow(1);
-            for (int i = 0; i < mockValues.length; i++) {
-                if (mockValues[i] instanceof Number) {
-                    row.createCell(i).setCellValue(((Number) mockValues[i]).doubleValue());
-                } else {
-                    row.createCell(i).setCellValue(mockValues[i].toString());
-                }
-            }
-
-            workbook.write(outputStream);
-            return outputStream.toByteArray();
-        }
-    }
-
 
     @Test
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-        TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
 
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
-        linkFileProcessorService.processLinkFile(tempFile,"2030-2031");
+        linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -104,20 +89,17 @@ class LinkFileProcessorServiceImplTest {
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
-        linkFileProcessorService.processLinkFile(tempFile,"2030-2031");
+        linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
 
-
     @Test
     void testProcessLinkFileWithWarning() throws IOException {
-
-
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
-                "TestFile.xlsx",  // File name
-                List.of("2032-2033", "EmptySheet"),  // Sheet names
+                "TestFile.xlsx",
+                List.of("2032-2033", "EmptySheet"),
                 List.of(
                         List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
@@ -128,27 +110,84 @@ class LinkFileProcessorServiceImplTest {
                 ),
                 List.of(
                         List.of(
-                                List.of("Area1/Area2", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("Area3/Area4", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                                List.of("FR-CH", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-IT", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
                         ),
                         List.of()
-        ));
+                ));
 
 
-        TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
-        trajectoryEntity.setFileName("TestFile.xlsx");
-        trajectoryEntity.setVersion(1);
-       // trajectoryEntity.setWarningMessage(Collections.singletonList("message"));
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFile.xlsx");
+        trajectory.setVersion(1);
 
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
-                .thenReturn(Optional.of(trajectoryEntity));
+                .thenReturn(Optional.of(trajectory));
 
+        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        linkFileProcessorService.processLinkFile(tempFile, "2032-2033");
-
-        verify(warningMessageService, times(3)).getMessage(anyString());
-
-
+        verify(warningMessageService).getMessage(WarningCode.LINKS_ALL_VALUES_ZERO.value());
+        verify(warningMessageService).getMessage(WarningCode.LINKS_DIRECT_VALUES_ZERO.value());
+        verify(warningMessageService).getMessage(WarningCode.LINKS_INDIRECT_VALUES_ZERO.value());
+        verify(warningMessageService, times(2)).getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value());
     }
 
+    @Test
+    void validateLinkAreas_validLink() {
+        List<String> areaNames = List.of("FR", "CH", "IT");
+        String link = "FR-CH";
+        String result = linkFileProcessorService.validateLinkAreas(link, areaNames);
+        assertEquals(link, result);
+    }
+
+    @Test
+    void validateLinkAreas_invalidLinkFormat() {
+        List<String> areaNames = List.of("FR", "CH", "IT");
+        String link = "FRCH";
+        Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
+            linkFileProcessorService.validateLinkAreas(link, areaNames);
+        });
+        assertEquals("Error: Link FRCH in LINKS file is not valid", exception.getMessage());
+    }
+
+    @Test
+    void validateLinkAreas_areaNotInTrajectory() {
+        List<String> areaNames = List.of("FR", "CH", "IT");
+        String link = "FR-ES";
+        Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
+            linkFileProcessorService.validateLinkAreas(link, areaNames);
+        });
+        assertEquals("Error: Area ES in LINKS file is not present in AREA trajectory", exception.getMessage());
+    }
+
+    private static byte[] generateTestExcelFile() throws IOException {
+        try (var outputStream = new ByteArrayOutputStream();
+             var workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet("2030-2031");
+            sheet.createRow(1).createCell(1).setCellValue(100.5);
+            workbook.createSheet("parameters");
+
+            Object[][] mockValues = {
+                    {"FR-CH", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", "false", "true", "false"}
+            };
+
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < LinksColumns.values().length; i++) {
+                headerRow.createCell(i).setCellValue(LinksColumns.values()[i].getDisplayName());
+            }
+            for (int i = 0; i < mockValues.length; i++) {
+                Row row = sheet.createRow(i + 1);
+                for (int j = 0; j < mockValues[i].length; j++) {
+                    if (mockValues[i][j] instanceof Number) {
+                        row.createCell(j).setCellValue(((Number) mockValues[i][j]).doubleValue());
+                    } else {
+                        row.createCell(j).setCellValue(mockValues[i][j].toString());
+                    }
+                }
+            }
+
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
 }

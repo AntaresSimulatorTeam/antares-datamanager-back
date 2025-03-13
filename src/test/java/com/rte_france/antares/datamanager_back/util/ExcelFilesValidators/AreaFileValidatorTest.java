@@ -2,8 +2,8 @@ package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ColumnsEnums.ExcelFileType;
-import com.rte_france.antares.datamanager_back.util.ExcelFileValidators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

@@ -22,3 +22,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.0.0/V10-create-load-table.sql
   - include:
       file: classpath*:db/changelog/1.0.0/V11-update_thermal_parameters_table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V12-create-warning-table.sql

@@ -57,7 +57,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
     }
 
-    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon) throws IOException {
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
@@ -78,7 +78,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
-            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon);
+            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon,studyId);
             case THERMAL_CAPACITY -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
             case THERMAL_PARAMETER -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
             case THERMAL_COST -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
@@ -87,8 +87,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
-    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameStartsWith) {
-        return trajectoryRepository.findTrajectoriesFileNameByTypeAAndHorizonAndFileNameStartsWith(trajectoryType.name(), horizon, fileNameStartsWith);
+    public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains) {
+        return trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(trajectoryType.name(), horizon, fileNameContains);
     }
 
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType) {

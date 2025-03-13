@@ -49,20 +49,21 @@ class TrajectoryControllerTest {
 
     @Test
     void uploadTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryServiceImpl.processTrajectory(any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
                         .param("trajectoryToUse", "test")
                         .param("horizon", "2023-2024")
+                        .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
 
                 //Then
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any());
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any());
     }
 
     @Test
@@ -99,10 +100,9 @@ class TrajectoryControllerTest {
     }
 
     @Test
-    void getTrajectoriesByStudyIdAndType_returnsEmptyListForNonExistentType() throws Exception {
+    void getTrajectoriesByStudyIdAndType_returnListForNullType() throws Exception {
         when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId("nonExistentType", 1)).thenReturn(List.of());
         this.mockMvc.perform(get("/v1/trajectory")
-                        .param("trajectoryType", "nonExistentType")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
