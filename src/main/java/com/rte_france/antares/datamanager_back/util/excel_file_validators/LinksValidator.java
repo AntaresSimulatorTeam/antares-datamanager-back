@@ -15,7 +15,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 @Slf4j
 @UtilityClass
@@ -40,22 +39,6 @@ public class LinksValidator {
     }
 
     /**
-     * @param sheet      to be read
-     * @param columnName column to be read
-     * @param path       trajectory file
-     * @param horizon    to make error clearer
-     * @return column index to be found
-     */
-    private static int findColumnIndex(Sheet sheet, String columnName, Path path, String horizon) {
-        Row headerRow = sheet.getRow(0);
-        return IntStream.range(0, headerRow.getPhysicalNumberOfCells())
-                .filter(i -> columnName.equalsIgnoreCase(headerRow.getCell(i).getStringCellValue()))
-                .findFirst()
-                .orElseThrow(() -> new TechnicalAntaresDataMangerException(
-                        "Column '" + columnName + "' not found in sheet '" + horizon + "' in file: " + path.getFileName()));
-    }
-
-    /**
      * @param sheet      to be read in Excel file
      * @param columnName column to be read
      * @param path       trajectory file
@@ -63,7 +46,7 @@ public class LinksValidator {
      *                   Method to find if there are duplicated links values in column LinkColumns.NAME
      */
     private static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
-        int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
+        int columnIndex = ExcelCommonValidator.findColumnIndex(sheet, columnName, path, horizon);
         Set<String> seenValues = new HashSet<>();
 
         sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
@@ -80,7 +63,7 @@ public class LinksValidator {
 
     private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns) {
         numericColumns.forEach(column -> checkNumbersAreIntegers(sheet, path, horizon, column));
-        booleanColumns.forEach(column -> checkBooleanColumn(sheet, path, horizon, column));
+        booleanColumns.forEach(column -> ExcelCommonValidator.checkBooleanColumn(sheet, path, horizon, column));
     }
 
     /**
@@ -90,7 +73,7 @@ public class LinksValidator {
      * @param column  numeric columns must be integers and positive values
      */
     private static void checkNumbersAreIntegers(Sheet sheet, Path path, String horizon, String column) {
-        int index = findColumnIndex(sheet, column, path, horizon);
+        int index = ExcelCommonValidator.findColumnIndex(sheet, column, path, horizon);
 
         for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
             Row row = sheet.getRow(i);
@@ -109,40 +92,6 @@ public class LinksValidator {
 
 
     /**
-     * @param sheet   to be read in Excel file
-     * @param path    trajectory file
-     * @param horizon make error clearer
-     * @param column  booleans columns must be TRUE or FALSE
-     */
-    private static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
-        int index = findColumnIndex(sheet, column, path, horizon);
-
-        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
-            Row row = sheet.getRow(i);
-            if (row == null || row.getPhysicalNumberOfCells() == 0 || row.getCell(0) == null || row.getCell(0).getStringCellValue().isEmpty())
-                continue;
-
-            Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-            if (cell == null || !isValidBoolean(cell)) {
-                throw new TechnicalAntaresDataMangerException(String.format(
-                        "Invalid value in column '%s' in sheet '%s' in file: %s - must be a boolean (true/false).",
-                        column, horizon, path.getFileName()));
-            }
-        }
-    }
-
-    private static boolean isValidBoolean(Cell cell) {
-        if (cell.getCellType() == CellType.BOOLEAN) {
-            return true;
-        }
-        if (cell.getCellType() == CellType.STRING) {
-            String value = cell.getStringCellValue().trim().toUpperCase();
-            return "TRUE".equals(value) || "FALSE".equals(value);
-        }
-        return false;
-    }
-
-    /**
      * @param path    trajectory file
      * @param horizon make error clearer
      * @return if all LinksColumns.getNumericColumnNames() are 0 a true is returned
@@ -155,7 +104,7 @@ public class LinksValidator {
 
     private static boolean hasOnlyZeroValues(Row row, Sheet sheet, List<String> numericColumns, Path path, String horizon) {
         for (String column : numericColumns) {
-            int index = findColumnIndex(sheet, column, path, horizon);
+            int index = ExcelCommonValidator.findColumnIndex(sheet, column, path, horizon);
             Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell != null && cell.getCellType() == CellType.NUMERIC && cell.getNumericCellValue() != 0) {
                 return false;
