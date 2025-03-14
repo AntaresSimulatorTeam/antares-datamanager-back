@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.AreasValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +57,9 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @Transactional
     public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {
         checkIfHorizonExist(path, horizon);
+        //TODO test is not passing if AreasValidator commented and number in AREAS  check if it commes from Excelr or other?
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
+        AreasValidator.validateAreaColumns(path, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWEN__USER";
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
