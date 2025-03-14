@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,7 +35,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
-
+    @ExecutionTime
     @Override
     public void buildJsonForStudyGeneration(Integer studyId) throws JsonProcessingException {
         Map<String, Object> jsonForGenerator = jsonBuilder(studyId);
@@ -151,6 +152,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return linkMap;
     }
 
+    @ExecutionTime
     public void callGenerateStudyService(Integer studyId) {
         String url = antaressDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
 

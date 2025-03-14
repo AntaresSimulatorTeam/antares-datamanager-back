@@ -17,4 +17,7 @@ public interface StudyService {
      List<String> searchKeywordsByPartialName(String partialName);
 
     void deleteStudyById(Integer id);
+
+    void updateStudyStatusAsGenerated(Integer studyId);
+
 }

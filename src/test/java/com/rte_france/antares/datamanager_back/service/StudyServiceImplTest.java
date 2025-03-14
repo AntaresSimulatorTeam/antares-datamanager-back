@@ -226,4 +226,30 @@ class StudyServiceImplTest {
         assertEquals("Study with id 1 not found.", exception.getMessage());
         verify(studyRepository, never()).delete(any(StudyEntity.class));
     }
+
+    @Test
+    void updateStudyStatusAsGenerated_updatesStatusWhenStudyExists() {
+        StudyEntity studyEntity = new StudyEntity();
+        studyEntity.setId(1);
+        studyEntity.setStatus(StudyStatus.IN_PROGRESS);
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
+
+        studyServiceImpl.updateStudyStatusAsGenerated(1);
+
+        assertEquals(StudyStatus.GENERATED, studyEntity.getStatus());
+        verify(studyRepository).save(studyEntity);
+    }
+
+    @Test
+    void updateStudyStatusAsGenerated_throwsExceptionWhenStudyNotFound() {
+        when(studyRepository.findById(1)).thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            studyServiceImpl.updateStudyStatusAsGenerated(1);
+        });
+
+        assertEquals("Study not found with ID: 1", exception.getMessage());
+        verify(studyRepository, never()).save(any(StudyEntity.class));
+    }
 }
