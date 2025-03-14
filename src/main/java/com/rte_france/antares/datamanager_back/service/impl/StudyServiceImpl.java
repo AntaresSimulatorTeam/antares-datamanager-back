@@ -119,6 +119,19 @@ public class StudyServiceImpl implements StudyService {
         return toStudyDTO(buildAndSaveNewStudy(studyDTO, projectEntity));
     }
 
+    @Override
+    public void updateStudyStatusAsGenerated(Integer studyId) {
+        studyRepository.findById(studyId).ifPresentOrElse(
+                studyEntity -> {
+                    studyEntity.setStatus(StudyStatus.GENERATED);
+                    studyRepository.save(studyEntity);
+                },
+                () -> {
+                    throw new IllegalArgumentException("Study not found with ID: " + studyId);
+                }
+        );
+    }
+
     private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
         String horizon = studyDTO.getHorizon() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
         Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())

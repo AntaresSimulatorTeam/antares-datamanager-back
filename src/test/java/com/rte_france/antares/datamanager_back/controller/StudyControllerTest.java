@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -199,5 +200,23 @@ class StudyControllerTest {
 
         verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(eq(studyId));
         verify(studyGeneratorService, times(1)).callGenerateStudyService(eq(studyId));
+    }
+
+    @Test
+    void generateStudyUpdatesStatusWhenSuccessful() throws Exception {
+        Integer studyId = 1234;
+
+        this.mockMvc.perform(post("/v1/study/generate")
+                        .param("id", String.valueOf(studyId))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(Utils.asJsonString(studyId))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(eq(studyId));
+        verify(studyGeneratorService, times(1)).callGenerateStudyService(eq(studyId));
+        verify(studyService, times(1)).updateStudyStatusAsGenerated(eq(studyId));
     }
 }
