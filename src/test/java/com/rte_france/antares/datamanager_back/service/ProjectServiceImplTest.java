@@ -212,7 +212,7 @@ class ProjectServiceImplTest {
                 () -> projectService.pinProjectForUser(userId, projectId)
         );
 
-        assertEquals("You have already 3 pinned projects , please unpin one before pinning another one.", exception.getMessage());
+        assertEquals("Maximum number of pinned projects reached.", exception.getMessage());
         verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
     }
 

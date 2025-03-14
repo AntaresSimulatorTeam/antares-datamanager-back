@@ -20,14 +20,14 @@ public class WarningMessageEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private WarningCode code;
+    private WarningCode warningCode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private WarningLevel level;
+    private WarningLevel warningLevel;
 
     @Column(nullable = false)
-    private String content;
+    private String warningContent;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id", nullable = false)
