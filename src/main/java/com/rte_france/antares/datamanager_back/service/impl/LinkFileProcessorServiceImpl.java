@@ -91,6 +91,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
+        associateWarningsWithTrajectory(trajectory);
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setLinkEntities(linkEntities);
         trajectory.setType(TrajectoryType.LINK.name());
@@ -170,5 +171,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
                 .map(area -> area.getArea().getName())
                 .toList();
+    }
+
+    private void associateWarningsWithTrajectory(TrajectoryEntity trajectory) {
+        warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
     }
 }
