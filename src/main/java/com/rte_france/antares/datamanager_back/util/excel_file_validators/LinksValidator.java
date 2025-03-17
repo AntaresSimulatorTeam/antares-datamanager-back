@@ -11,10 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 
 @Slf4j
 @UtilityClass
@@ -30,35 +27,12 @@ public class LinksValidator {
 
             Sheet sheet = workbook.getSheet(horizon);
             if (fileType == ExcelFileType.LINKS) {
-                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon);
+                ExcelCommonValidator.checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon);
                 checkColumnsRules(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames());
             }
         } catch (IOException e) {
             throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
         }
-    }
-
-    /**
-     * @param sheet      to be read in Excel file
-     * @param columnName column to be read
-     * @param path       trajectory file
-     * @param horizon    to make error clearer
-     *                   Method to find if there are duplicated links values in column LinkColumns.NAME
-     */
-    private static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
-        int columnIndex = ExcelCommonValidator.findColumnIndex(sheet, columnName, path, horizon);
-        Set<String> seenValues = new HashSet<>();
-
-        sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
-                .map(Cell::getStringCellValue)
-                .map(String::trim)
-                .filter(cellValue -> !cellValue.isEmpty())
-                .ifPresent(cellValue -> {
-                    if (!seenValues.add(cellValue)) {
-                        throw new TechnicalAntaresDataMangerException("Duplicate value '" + cellValue + "' found in column '" + columnName +
-                                "' in sheet '" + horizon + "' in file: " + path.getFileName());
-                    }
-                }));
     }
 
     private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns) {

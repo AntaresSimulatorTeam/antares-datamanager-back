@@ -40,7 +40,7 @@ public enum ExcelFileType {
 
         return new ArrayList<>(missingColumns);
     }
-    private static String normalizeColumnName(String columnName) {
+    public static String normalizeColumnName(String columnName) {
         if (columnName == null) return null;
 
         return Normalizer.normalize(columnName, Normalizer.Form.NFD)

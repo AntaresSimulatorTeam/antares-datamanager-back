@@ -56,14 +56,14 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @Transactional
     public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {
         checkIfHorizonExist(path, horizon);
-        //TODO test is not passing if AreasValidator commented and number in AREAS  check if it commes from Excelr or other?
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
         AreasValidator.validateAreaColumns(path, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, Set.of()), buildAreaConfigList(path));
-        }
-        return saveTrajectory(buildTrajectory(path, 0,horizon, Set.of()), buildAreaConfigList(path));
+       if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
+           return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, Set.of()), buildAreaConfigList(path));
+       }
+       return saveTrajectory(buildTrajectory(path, 0,horizon, Set.of()), buildAreaConfigList(path));
+
     }
 
 
