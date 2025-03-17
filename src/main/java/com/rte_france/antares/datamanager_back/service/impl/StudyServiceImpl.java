@@ -110,11 +110,7 @@ public class StudyServiceImpl implements StudyService {
         }
 
         ProjectEntity projectEntity = projectRepository.findByName(studyDTO.getProject())
-                .orElseGet(() -> projectRepository.save(ProjectEntity.builder()
-                        .name(studyDTO.getProject())
-                        .createdBy(userService.getCurrentUserDetails().getNni())
-                        .creationDate(LocalDateTime.now())
-                        .build()));
+                .orElseThrow(() -> new BadRequestException("Project not found with name: " + studyDTO.getProject()));
 
         return toStudyDTO(buildAndSaveNewStudy(studyDTO, projectEntity));
     }

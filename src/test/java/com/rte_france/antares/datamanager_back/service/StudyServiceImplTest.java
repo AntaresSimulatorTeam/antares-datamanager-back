@@ -123,40 +123,28 @@ class StudyServiceImplTest {
     }
 
     @Test
-    void createStudyCreatesNewProjectWhenProjectNotExists() {
-        ProjectEntity newProject = new ProjectEntity();
-        newProject.setId(1);
-        newProject.setName("New Project");
-        String currentYear = String.valueOf(Year.now().getValue());
-        String nextYear = String.valueOf(Year.now().getValue() + 1);
-        String horizon = currentYear + "-" + nextYear;
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("New Project").horizon(currentYear).build();
+    void createStudyThrowsBadRequestWhenProjectWithSameNameExist() {
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2030").build();
 
-        String studyName = "Study 1-" + currentYear + "-" + nextYear + "ref";
-        ProjectEntity existingProject = new ProjectEntity();
-        existingProject.setId(1);
-        existingProject.setName("Existing Project");
-        StudyEntity studyEntity = new StudyEntity();
-        studyEntity.setId(1);
-        studyEntity.setName(studyName);
-        studyEntity.setCreatedBy("User 1");
-        studyEntity.setProject(existingProject);
-        studyEntity.setHorizon(horizon);
-        studyEntity.setStatus(StudyStatus.IN_PROGRESS);
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+            studyServiceImpl.createStudy(studyDTO);
+        });
 
-        when(projectRepository.findByName("New Project")).thenReturn(Optional.empty());
-        when(projectRepository.save(any(ProjectEntity.class))).thenReturn(newProject);
-        when(studyRepository.save(any(StudyEntity.class))).thenReturn(studyEntity);
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("User 1").build());
-        StudyDTO result = studyServiceImpl.createStudy(studyDTO);
+        assertEquals("Project not found with name: Existing Project", exception.getMessage());
+        verify(studyRepository, never()).save(any(StudyEntity.class));
+    }
 
-        assertEquals(1, result.getId());
-        assertEquals(studyName, result.getName());
-        assertEquals("User 1", result.getCreatedBy());
-        assertEquals(horizon, result.getHorizon());
-        verify(projectRepository, times(1)).findByName("New Project");
-        verify(projectRepository, times(1)).save(any(ProjectEntity.class));
-        verify(studyRepository, times(1)).save(any(StudyEntity.class));
+    @Test
+    void createStudyThrowsBadRequestWhenStudyWithSameNameExists() {
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2050").build();
+        when(studyRepository.existsByNameAndProjectName("Study 1-2051_REF", "Existing Project")).thenReturn(true);
+
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+            studyServiceImpl.createStudy(studyDTO);
+        });
+
+        assertEquals("A study with the same name already exists for the given project.", exception.getMessage());
+        verify(studyRepository, never()).save(any(StudyEntity.class));
     }
 
     @Test

@@ -24,3 +24,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.0.0/V11-update_thermal_parameters_table.sql
   - include:
       file: classpath*:db/changelog/1.0.0/V12-create-warning-table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V13-update_project_name_column.sql
