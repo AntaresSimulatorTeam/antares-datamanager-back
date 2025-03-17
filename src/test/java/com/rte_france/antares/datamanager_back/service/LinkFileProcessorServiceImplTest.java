@@ -1,13 +1,16 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.service.impl.LinkFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import org.apache.poi.ss.usermodel.Row;
@@ -23,9 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,7 +41,13 @@ class LinkFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
 
     @Mock
+    private WarningMessageRepository warningMessageRepository;
+
+    @Mock
     private WarningMessageService warningMessageService;
+
+    @Mock
+    private UserService userService;
 
     @InjectMocks
     private LinkFileProcessorServiceImpl linkFileProcessorService;
@@ -77,16 +84,19 @@ class LinkFileProcessorServiceImplTest {
 
     @Test
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
 
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
+        verify(warningMessageRepository, times(1)).saveAll(any());
     }
 
     @Test
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
@@ -120,7 +130,7 @@ class LinkFileProcessorServiceImplTest {
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setFileName("TestFile.xlsx");
         trajectory.setVersion(1);
-
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
                 .thenReturn(Optional.of(trajectory));
 
@@ -129,14 +139,15 @@ class LinkFileProcessorServiceImplTest {
         verify(warningMessageService).getMessage(WarningCode.LINKS_ALL_VALUES_ZERO.value());
         verify(warningMessageService).getMessage(WarningCode.LINKS_DIRECT_VALUES_ZERO.value());
         verify(warningMessageService).getMessage(WarningCode.LINKS_INDIRECT_VALUES_ZERO.value());
-        verify(warningMessageService, times(2)).getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value());
+        verify(warningMessageService, times(3)).getMessage(any());
     }
 
     @Test
     void validateLinkAreas_validLink() {
-        List<String> areaNames = List.of("FR", "CH", "IT");
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        List<String> areaNames = new ArrayList<>(List.of("FR", "CH", "IT"));
         String link = "FR-CH";
-        String result = linkFileProcessorService.validateLinkAreas(link, areaNames);
+        String result = linkFileProcessorService.validateLinkAreas(link, areaNames, new HashSet<>());
         assertEquals(link, result);
     }
 
@@ -145,7 +156,7 @@ class LinkFileProcessorServiceImplTest {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FRCH";
         Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
-            linkFileProcessorService.validateLinkAreas(link, areaNames);
+            linkFileProcessorService.validateLinkAreas(link, areaNames,Set.of());
         });
         assertEquals("Error: Link FRCH in LINKS file is not valid", exception.getMessage());
     }
@@ -155,7 +166,7 @@ class LinkFileProcessorServiceImplTest {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FR-ES";
         Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
-            linkFileProcessorService.validateLinkAreas(link, areaNames);
+            linkFileProcessorService.validateLinkAreas(link, areaNames,Set.of());
         });
         assertEquals("Error: Area ES in LINKS file is not present in AREA trajectory", exception.getMessage());
     }

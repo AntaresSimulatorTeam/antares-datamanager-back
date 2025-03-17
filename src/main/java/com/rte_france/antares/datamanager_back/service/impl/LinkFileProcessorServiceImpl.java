@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
@@ -14,10 +15,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,10 +27,6 @@ import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
-
-/**
- * Service class for processing area files.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,62 +35,72 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final WarningMessageService warningMessageService;
-    private final Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
+    private final WarningMessageRepository warningMessageRepository;
+    private final UserService userService;
 
-    /**
-     * Processes the given file.
-     * If a trajectory with the same file name exists, it updates the trajectory.
-     * Otherwise, it creates a new trajectory.
-     *
-     * @param path the path to the file to process
-     */
     @ExecutionTime
     @Transactional
     public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
+        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
+
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
-        checkForWarnings(path, horizon);
+        checkForWarnings(path, horizon, warningMessageEntities);
         log.warn("warningMessages : {}", warningMessageEntities);
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(
+                getFileNameWithoutExtension(path.getFileName().toString())
+        );
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN_USER";
 
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon,warningMessageEntities), buildLinkList(path, horizon, studyId));
+            return saveTrajectory(
+                    buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy),
+                    buildLinkList(path, horizon, studyId, warningMessageEntities),
+                    warningMessageEntities
+            );
         }
-        return saveTrajectory(buildTrajectory(path, 0,horizon,warningMessageEntities), buildLinkList(path, horizon, studyId));
+        return saveTrajectory(
+                buildTrajectory(path, 0, horizon, createdBy),
+                buildLinkList(path, horizon, studyId, warningMessageEntities),
+                warningMessageEntities
+        );
     }
 
-    private void checkForWarnings(Path path, String horizon) {
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
-                WarningCode.LINKS_ALL_VALUES_ZERO);
-
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames()),
-                WarningCode.LINKS_DIRECT_VALUES_ZERO);
-
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames()),
-                WarningCode.LINKS_INDIRECT_VALUES_ZERO);
-    }
-
-    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages, boolean condition, WarningCode warningCode) {
-        if (condition) {
-            var message = WarningMessageEntity.builder()
-                    .warningContent(warningMessageService.getMessage(warningCode.value()))
-                    .warningLevel(WarningLevel.WARNING_LEVEL)
-                    .build();
-            warningMessages.add(message);
+    private void checkForWarnings(Path path, String horizon, Set<WarningMessageEntity> warningMessages) {
+        if (LinksValidator.checkPowerColumnsForZeroValues(path, horizon)) {
+            buildWarningMessage(warningMessages, WarningCode.LINKS_ALL_VALUES_ZERO, WarningLevel.WARNING_LEVEL);
+        }
+        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames())) {
+            buildWarningMessage(warningMessages, WarningCode.LINKS_DIRECT_VALUES_ZERO, WarningLevel.WARNING_LEVEL);
+        }
+        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames())) {
+            buildWarningMessage(warningMessages, WarningCode.LINKS_INDIRECT_VALUES_ZERO, WarningLevel.WARNING_LEVEL);
         }
     }
 
-    public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
-        associateWarningsWithTrajectory(trajectory);
+    private void buildWarningMessage(Set<WarningMessageEntity> warningMessages, WarningCode warningCode, WarningLevel warningLevel) {
+        var message = WarningMessageEntity.builder()
+                .warningContent(warningMessageService.getMessage(warningCode.value()))
+                .warningCode(warningCode)
+                .warningLevel(warningLevel)
+                .build();
+        warningMessages.add(message);
+    }
+
+    public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setLinkEntities(linkEntities);
+        trajectory.setWarningMessages(warningMessages);
         trajectory.setType(TrajectoryType.LINK.name());
+
+        warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
+        warningMessageRepository.saveAll(warningMessages);
+
         linkEntities.forEach(link -> link.setTrajectory(trajectory));
         linkRepository.saveAll(linkEntities);
+
         return trajectoryEntity;
     }
 
@@ -106,7 +110,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(Path path, String horizon, Integer studyId) throws IOException {
+    private List<LinkEntity> buildLinkList(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessages) throws IOException {
         List<LinkEntity> linkEntities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -117,7 +121,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
-                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames))
+                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames, warningMessages))
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
                             .winterHcDirectMw(row.getCell(2).getNumericCellValue())
@@ -142,8 +146,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         return linkEntities;
     }
 
-
-    public String validateLinkAreas(String link, List<String> areaNames) {
+    public String validateLinkAreas(String link, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
         String[] areas = link.split("-");
         if (areas.length != 2) {
             throw new TechnicalAntaresDataMangerException("Error: Link " + link + " in LINKS file is not valid");
@@ -157,10 +160,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         for (String areaName : areaNames) {
             if (!link.contains(areaName)) {
                 var message = WarningMessageEntity.builder()
-                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value()))
+                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), areaName))
                         .warningLevel(WarningLevel.WARNING_LEVEL)
                         .build();
-                warningMessageEntities.add(message);
+                warningMessages.add(message);
             }
         }
         return link;
@@ -171,9 +174,5 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
                 .map(area -> area.getArea().getName())
                 .toList();
-    }
-
-    private void associateWarningsWithTrajectory(TrajectoryEntity trajectory) {
-        warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
     }
 }
