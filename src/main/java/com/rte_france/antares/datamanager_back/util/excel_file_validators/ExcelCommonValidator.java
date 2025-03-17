@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 
 import java.io.IOException;
@@ -11,7 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.IntStream;
-
+@Slf4j
 @Getter
 public class ExcelCommonValidator {
 
@@ -26,39 +27,64 @@ public class ExcelCommonValidator {
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheet(horizon);
+            if (sheet == null) {
+                throw new TechnicalAntaresDataMangerException("File '" + path.getFileName() + "' does not contain the expected sheet: '" + horizon + "'.");
+            }
 
             Row headerRow = sheet.getRow(0);
             if (headerRow == null) {
-                throw new TechnicalAntaresDataMangerException("The file " + path.getFileName() + " does not contain any columns names.");
+                throw new TechnicalAntaresDataMangerException("File '" + path.getFileName() + "' does not contain a valid header row.");
             }
 
 
             List<String> actualColumns = new ArrayList<>();
-            int columnCount = 0;
-
             for (Cell cell : headerRow) {
                 if (cell.getCellType() == CellType.STRING && !cell.getStringCellValue().trim().isEmpty()) {
-                    columnCount++;
+                    actualColumns.add(cell.getStringCellValue().trim());
                 }
-                actualColumns.add(cell.getStringCellValue());
             }
-            if (columnCount != fileType.getColumnCount()) {
-                throw new TechnicalAntaresDataMangerException("Invalid number of columns in sheet '" + horizon + "': Expected "
-                        + fileType.getColumnCount() + ", but found " + columnCount);
+
+            List<String> missingColumns = fileType.checkColumnNames(actualColumns);
+
+            List<String> expectedColumns = fileType.getColumnNames();
+            List<String> invalidColumns = actualColumns.stream()
+                    .filter(actual -> !expectedColumns.contains(ExcelFileType.normalizeColumnName(actual)))
+                    .toList();
+
+            StringBuilder errorMessage = new StringBuilder("Error in sheet '")
+                    .append(horizon)
+                    .append("' in file: ")
+                    .append(path.getFileName())
+                    .append(".");
+
+            boolean errorOccurred = false;
+
+
+            if (!missingColumns.isEmpty()) {
+                errorMessage.append(" Missing columns: ").append(String.join(", ", missingColumns));
+                errorOccurred = true;
             }
-            List<String> wrongColumnsName = fileType.checkColumnNames(actualColumns);
-            if (!wrongColumnsName.isEmpty()) {
-                throw new TechnicalAntaresDataMangerException("Invalid column names in sheet '" + horizon +
-                        "' in file: " + path.getFileName() + ". Wrong column name for: " + String.join(", ", wrongColumnsName));
+
+
+            if (!invalidColumns.isEmpty()) {
+                if (errorOccurred) {
+                    errorMessage.append(". ");
+                }
+                errorMessage.append("Invalid columns: ").append(String.join(", ", invalidColumns));
+            }
+
+            if (errorOccurred) {
+                throw new TechnicalAntaresDataMangerException(errorMessage.toString());
             }
 
             checkAllRowsHaveValues(sheet, fileType.getColumnCount(), path, horizon);
 
-
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
+            throw new TechnicalAntaresDataMangerException("Error reading file '" + path.getFileName() + "': " + e.getMessage());
         }
     }
+
+
 
     /**
      * @param sheet       to be read
@@ -96,15 +122,15 @@ public class ExcelCommonValidator {
     static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
         int index = findColumnIndex(sheet, column, path, horizon);
 
-        List<String> invalidRows = IntStream.range(1, sheet.getPhysicalNumberOfRows())
+        List<String> invalidRows = IntStream.rangeClosed(1, sheet.getLastRowNum())  // Changed to use rangeClosed for inclusive last row
                 .mapToObj(sheet::getRow)
-                .filter(row -> row != null && row.getPhysicalNumberOfCells() > 0
-                        && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) // Skip empty rows
-                .filter(row -> {
-                    Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                    return cell == null || !isValidBoolean(cell);
+                .filter(Objects::nonNull)
+                .map(row -> Map.entry(row.getRowNum() + 1, row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)))  // Map to entry with row number and cell
+                .filter(entry -> {
+                    Cell cell = entry.getValue();
+                    return !isValidBoolean(cell);
                 })
-                .map(row -> "Row " + (row.getRowNum() + 1))
+                .map(entry -> "Row " + entry.getKey())
                 .toList();
 
         if (!invalidRows.isEmpty()) {
@@ -114,6 +140,12 @@ public class ExcelCommonValidator {
         }
     }
 
+    /**
+     * @param sheet to verify strings
+     * @param path to file
+     * @param horizon sheet name
+     * @param columnName where we expect values to be strings an throw error if a number is found
+     */
     public static void checkStringColumns(Sheet sheet, Path path, String horizon, String columnName) {
         int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
 
@@ -121,11 +153,27 @@ public class ExcelCommonValidator {
                 .mapToObj(sheet::getRow)
                 .filter(Objects::nonNull)
                 .map(row -> Map.entry(row.getRowNum() + 1, row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)))
-                .filter(entry -> Optional.ofNullable(entry.getValue())
-                        .map(cell -> cell.getCellType() != CellType.STRING)
-                        .orElse(false))
-                .map(entry -> "Row " + entry.getKey() + ", Column " + (columnIndex + 1) +
-                        " (Expected STRING, found " + entry.getValue().getCellType() + ")")
+                .filter(entry -> {
+                    Cell cell = entry.getValue();
+                    if (cell == null) return false;
+
+                    if (cell.getCellType() == CellType.NUMERIC) {
+                        return true;
+                    }
+
+
+                    if (cell.getCellType() == CellType.STRING) {
+                        String cellValue = cell.getStringCellValue().trim();
+                        return cellValue.matches("\\d+"); // Invalid if it contains only digits
+                    }
+
+                    return false;
+                })
+                .map(entry -> {
+                    String actualValue = entry.getValue().toString();
+                    return "Waiting for string value at row " + entry.getKey() + ", Column " + (columnIndex + 1) +
+                            " (Invalid value: '" + actualValue + "', numbers are not allowed)";
+                })
                 .toList();
 
         if (!invalidCells.isEmpty()) {
@@ -135,16 +183,19 @@ public class ExcelCommonValidator {
     }
 
     private static boolean isValidBoolean(Cell cell) {
-        if (cell.getCellType() == CellType.BOOLEAN) {
-            return true;
+        if (cell == null) {
+            return false;
         }
-        if (cell.getCellType() == CellType.STRING) {
-            String value = cell.getStringCellValue().trim().toUpperCase();
-            return "TRUE".equals(value) || "FALSE".equals(value);
-        }
-        return false;
-    }
+        return switch (cell.getCellType()) {
+            case BOOLEAN -> true;
+            case STRING -> {
+                String value = cell.getStringCellValue().trim().toUpperCase();
+                yield "TRUE".equals(value) || "FALSE".equals(value);
+            }
+            default -> false;
+        };
 
+    }
     /**
      * @param sheet      to be read
      * @param columnName column to be read
@@ -159,5 +210,28 @@ public class ExcelCommonValidator {
                 .findFirst()
                 .orElseThrow(() -> new TechnicalAntaresDataMangerException(
                         "Column '" + columnName + "' not found in sheet '" + horizon + "' in file: " + path.getFileName()));
+    }
+
+    /**
+     * @param sheet      to be read in Excel file
+     * @param columnName column to be read
+     * @param path       trajectory file
+     * @param horizon    to make error clearer
+     * Method to find  duplicated values in a specific column
+     */
+    static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
+        int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
+        Set<String> seenValues = new HashSet<>();
+
+        sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
+                .map(Cell::getStringCellValue)
+                .map(String::trim)
+                .filter(cellValue -> !cellValue.isEmpty())
+                .ifPresent(cellValue -> {
+                    if (!seenValues.add(cellValue)) {
+                        throw new TechnicalAntaresDataMangerException("Duplicate value '" + cellValue + "' found in column '" + columnName +
+                                "' in sheet '" + horizon + "' in file: " + path.getFileName());
+                    }
+                }));
     }
 }
