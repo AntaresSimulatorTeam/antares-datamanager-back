@@ -133,25 +133,10 @@ class LinksValidatorTest {
                 )
         );
 
-        assertTrue(LinksValidator.checkPowerColumnsForZeroValues(tempFile,  "2030-2031"));
+        List<String> parameterForWarning = LinksValidator.checkPowerColumnsForZeroValues(tempFile, "2030-2031");
 
-    }
-
-    @Test
-    void testCheckDirectForZeroValues() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
-                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
-                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
-                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
-                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
-                List.of(
-                        List.of("Area1/Area2", 0, 10, 0, 10, 0, 10, 0, 10, "TRUE", "FALSE", "TRUE", "FALSE"),
-                        List.of("Area3/Area4", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
-                )
-        );
-
-        assertTrue(LinksValidator.areAllValuesZeroInGroup(tempFile,  "2030-2031", LinksColumns.getDirectColumnNames()));
+        assertEquals(1, parameterForWarning.size());
+        assertTrue(parameterForWarning.getFirst().contains("TestFile.xlsx"));
 
     }
 
@@ -169,8 +154,36 @@ class LinksValidatorTest {
                 )
         );
 
-        assertTrue(LinksValidator.areAllValuesZeroInGroup(tempFile,  "2030-2031", LinksColumns.getIndirectColumnNames()));
+        List<String> parameterForWarning = LinksValidator.areAllValuesZeroInGroup(tempFile, "2030-2031", LinksColumns.getIndirectColumnNames());
+
+
+        assertEquals(1, parameterForWarning.size());
+        assertTrue(parameterForWarning.getFirst().contains("TestFile.xlsx"));
+    }
+
+    @Test
+    void testCheckLinksAlphabeticalOrder() throws IOException {
+        List<String> areasSavedForScenario = List.of("FR", "CH", "IT", "DE", "AT", "BE", "NL");
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "TestFile.xlsx",
+                "2030-2031",
+                List.of("Name"),
+                List.of(
+                        List.of("FR-CH"), //should be CH-FR
+                        List.of("IT-FR"), //should be FR-IT
+                        List.of("DE-AT"), //should be AT-DE
+                        List.of("BE-NL")
+                )
+        );
+
+
+
+        List<String> warnings = LinksValidator.checkLinksAlphabeticalOrder(tempFile, "2030-2031", "Name", areasSavedForScenario);
+
+        assertEquals(3, warnings.size()); // Expecting 1 warning
 
     }
+
 
 }

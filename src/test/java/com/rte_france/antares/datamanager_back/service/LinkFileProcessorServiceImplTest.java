@@ -94,43 +94,50 @@ class LinkFileProcessorServiceImplTest {
         verify(trajectoryRepository, times(1)).save(any());
     }
 
-    @Test
-    void testProcessLinkFileWithWarning() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
-                tempDir,
-                "TestFile.xlsx",
-                List.of("2032-2033", "EmptySheet"),
-                List.of(
-                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
-                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
-                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
-                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),  // Headers for sheet 1 (with data)
-                        List.of()
-                ),
-                List.of(
-                        List.of(
-                                List.of("FR-CH", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("FR-IT", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
-                        ),
-                        List.of()
-                ));
+@Test
+void testProcessLinkFileWithWarning() throws IOException {
+    tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+            tempDir,
+            "TestFile.xlsx",
+            List.of("2032-2033", "EmptySheet"),
+            List.of(
+                    List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                            "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                            "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                            "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                            "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),  // Headers for sheet 1 (with data)
+                    List.of()
+            ),
+            List.of(
+                    List.of(
+                            List.of("FR-CH", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                            List.of("FR-IT", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                    ),
+                    List.of()
+            ));
 
+    TrajectoryEntity trajectory = new TrajectoryEntity();
+    trajectory.setFileName("TestFile.xlsx");
+    trajectory.setVersion(1);
 
-        TrajectoryEntity trajectory = new TrajectoryEntity();
-        trajectory.setFileName("TestFile.xlsx");
-        trajectory.setVersion(1);
+    when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
+            .thenReturn(Optional.of(trajectory));
 
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
-                .thenReturn(Optional.of(trajectory));
+    linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
-
-        verify(warningMessageService).getMessage(WarningCode.LINKS_ALL_VALUES_ZERO.value());
-        verify(warningMessageService).getMessage(WarningCode.LINKS_DIRECT_VALUES_ZERO.value());
-        verify(warningMessageService).getMessage(WarningCode.LINKS_INDIRECT_VALUES_ZERO.value());
-        verify(warningMessageService, times(2)).getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value());
-    }
+    verify(warningMessageService).getMessage(
+            WarningCode.LINKS_ALL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
+    );
+    verify(warningMessageService).getMessage(
+            WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
+    );
+    verify(warningMessageService).getMessage(
+            WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH", "2", "1", "TestFile.xlsx"
+    );
+    verify(warningMessageService, times(2)).getMessage(
+            WarningCode.LINKS_AREA_NOT_PRESENT.value()
+    );
+}
 
     @Test
     void validateLinkAreas_validLink() {

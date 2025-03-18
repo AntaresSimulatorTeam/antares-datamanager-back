@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.diff.StringsComparator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -47,7 +48,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * Processes the given file.
      * If a trajectory with the same file name exists, it updates the trajectory.
      * Otherwise, it creates a new trajectory.
-     *
+     * It checks also the rules for errors and warnings
      * @param path the path to the file to process
      */
     @ExecutionTime
@@ -56,7 +57,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
-        checkForWarnings(path, horizon);
+        checkForWarnings(path, horizon, studyId);
         log.warn("warningMessages : {}", warningMessageEntities);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
 
@@ -66,29 +67,39 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         return saveTrajectory(buildTrajectory(path, 0,horizon,warningMessageEntities), buildLinkList(path, horizon, studyId));
     }
 
-    private void checkForWarnings(Path path, String horizon) {
+    private void checkForWarnings(Path path, String horizon, Integer  studyId) {
+        List<String>  areasSavedForScenario = listArea(studyId);
         addWarningIfConditionMet(warningMessageEntities,
                 LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
                 WarningCode.LINKS_ALL_VALUES_ZERO);
 
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames()),
-                WarningCode.LINKS_DIRECT_VALUES_ZERO);
+        List<String> directAndIndirect= new ArrayList<>();
+        directAndIndirect.addAll(LinksColumns.getDirectColumnNames());
+        directAndIndirect.addAll(LinksColumns.getIndirectColumnNames());
 
         addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames()),
-                WarningCode.LINKS_INDIRECT_VALUES_ZERO);
+                LinksValidator.areAllValuesZeroInGroup(path, horizon, directAndIndirect),
+                WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(),areasSavedForScenario),
+                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
+
     }
 
-    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages, boolean condition, WarningCode warningCode) {
-        if (condition) {
+    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages,
+                                          List<String> warnings,
+                                          WarningCode warningCode) {
+        for (String warning : warnings) {
+            String[] parts = warning.split(",");
             var message = WarningMessageEntity.builder()
-                    .warningContent(warningMessageService.getMessage(warningCode.value()))
+                    .warningContent(warningMessageService.getMessage(warningCode.value(), (Object[]) parts))
                     .warningLevel(WarningLevel.WARNING_LEVEL)
                     .build();
             warningMessages.add(message);
         }
     }
+
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities) {
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
@@ -112,11 +123,11 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String> areaNames = listArea(studyId);
+            List<String>  areasSavedForScenario = listArea(studyId);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
-                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames))
+                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(),  areasSavedForScenario))
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
                             .winterHcDirectMw(row.getCell(2).getNumericCellValue())

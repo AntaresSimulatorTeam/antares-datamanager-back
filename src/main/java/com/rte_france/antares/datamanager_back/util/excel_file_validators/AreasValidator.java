@@ -11,8 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkForDuplicateValues;
-import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.findColumnIndex;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.*;
 
 
 public class AreasValidator {
@@ -27,7 +26,7 @@ public class AreasValidator {
 
            checkColumnsRules(sheet, path, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames());
            checkAreasValuesLength(sheet, path, horizon, AreaColumns.AREAS.getDisplayName());
-           checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon);
+           checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false);
         } catch (IOException e) {
             throw new TechnicalAntaresDataMangerException("Error reading file: " + path.getFileName());
         }
@@ -35,7 +34,7 @@ public class AreasValidator {
 
 
     private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> booleanColumns, List<String> stringColumns) {
-       booleanColumns.forEach(column -> ExcelCommonValidator.checkBooleanColumn(sheet, path, horizon, column));
+       checkBooleanColumns(sheet, path, horizon, booleanColumns);
        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
 
     }
