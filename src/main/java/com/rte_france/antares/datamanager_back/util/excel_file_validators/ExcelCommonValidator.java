@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 @Slf4j
 @Getter
@@ -117,26 +119,25 @@ public class ExcelCommonValidator {
      * @param sheet   to be read in Excel file
      * @param path    trajectory file
      * @param horizon make error clearer
-     * @param column  booleans columns must be TRUE or FALSE
+     * @param booleanColumns booleans columns must be TRUE or FALSE
      */
-    static void checkBooleanColumn(Sheet sheet, Path path, String horizon, String column) {
-        int index = findColumnIndex(sheet, column, path, horizon);
+    static void checkBooleanColumns(Sheet sheet, Path path, String horizon, List<String> booleanColumns) {
+        Map<String, Integer> columnIndexes = booleanColumns.stream()
+                .collect(Collectors.toMap(Function.identity(), column -> ExcelCommonValidator.findColumnIndex(sheet, column, path, horizon)));
 
-        List<String> invalidRows = IntStream.rangeClosed(1, sheet.getLastRowNum())  // Changed to use rangeClosed for inclusive last row
+        List<String> invalidCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
                 .mapToObj(sheet::getRow)
                 .filter(Objects::nonNull)
-                .map(row -> Map.entry(row.getRowNum() + 1, row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)))  // Map to entry with row number and cell
-                .filter(entry -> {
-                    Cell cell = entry.getValue();
-                    return !isValidBoolean(cell);
-                })
-                .map(entry -> "Row " + entry.getKey())
+                .flatMap(row -> columnIndexes.entrySet().stream()
+                        .map(entry -> Map.entry(entry.getKey(), Map.entry(row.getRowNum() + 1, row.getCell(entry.getValue(), Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))))
+                        .filter(entry -> !isValidBoolean(entry.getValue().getValue()))
+                        .map(entry -> String.format("Row %d, Column '%s'", entry.getValue().getKey(), entry.getKey())))
                 .toList();
 
-        if (!invalidRows.isEmpty()) {
+        if (!invalidCells.isEmpty()) {
             throw new TechnicalAntaresDataMangerException(String.format(
-                    "Invalid values in column '%s' in sheet '%s' in file: %s - must be boolean (true/false). Locations: %s",
-                    column, horizon, path.getFileName(), String.join(", ", invalidRows)));
+                    "Invalid boolean values in sheet '%s' in file: %s - must be true/false. Locations: %s",
+                    horizon, path.getFileName(), String.join("; ", invalidCells)));
         }
     }
 
@@ -217,21 +218,53 @@ public class ExcelCommonValidator {
      * @param columnName column to be read
      * @param path       trajectory file
      * @param horizon    to make error clearer
+     * @param checkSymmetric  true if links rule to be verified (AT-BE = BE-AT)
      * Method to find  duplicated values in a specific column
      */
-    static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon) {
+    static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon, boolean checkSymmetric) {
         int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
-        Set<String> seenValues = new HashSet<>();
+        Map<String, String> seenValues = new HashMap<>();
 
         sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
-                .map(Cell::getStringCellValue)
+                .map(ExcelCommonValidator::getCellValueAsString)
                 .map(String::trim)
                 .filter(cellValue -> !cellValue.isEmpty())
                 .ifPresent(cellValue -> {
-                    if (!seenValues.add(cellValue)) {
-                        throw new TechnicalAntaresDataMangerException("Duplicate value '" + cellValue + "' found in column '" + columnName +
-                                "' in sheet '" + horizon + "' in file: " + path.getFileName());
+                    String normalizedValue = checkSymmetric ? normalizeSymmetricValue(cellValue) : cellValue;
+
+                    if (seenValues.containsKey(normalizedValue)) {
+                        String firstOccurrence = seenValues.get(normalizedValue);
+
+                        // Avoid showing the same value twice if they are identical
+                        if (checkSymmetric && !firstOccurrence.equals(cellValue)) {
+                            throw new TechnicalAntaresDataMangerException(
+                                    String.format("Duplicate value found in column '%s' in sheet '%s' in file: %s. Values '%s' and '%s' are considered identical.",
+                                            columnName, horizon, path.getFileName(), firstOccurrence, cellValue));
+                        } else {
+                            throw new TechnicalAntaresDataMangerException(
+                                    String.format("Duplicate value '%s' found in column '%s' in sheet '%s' in file: %s.",
+                                            cellValue, columnName, horizon, path.getFileName()));
+                        }
                     }
+
+                    seenValues.put(normalizedValue, cellValue);
                 }));
+    }
+
+
+
+    private static String getCellValueAsString(Cell cell) {
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue();
+            case NUMERIC -> String.valueOf((int) cell.getNumericCellValue()); // Convert numeric values to String
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> "";
+        };
+    }
+
+    private static String normalizeSymmetricValue(String value) {
+        String[] parts = value.split("-");
+        Arrays.sort(parts);
+        return String.join("-", parts);
     }
 }

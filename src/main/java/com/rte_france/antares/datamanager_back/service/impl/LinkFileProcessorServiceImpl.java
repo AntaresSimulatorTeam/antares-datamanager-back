@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.diff.StringsComparator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -31,6 +32,10 @@ import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
+
+/**
+ * Service class for processing area files.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -42,6 +47,13 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private final WarningMessageRepository warningMessageRepository;
     private final UserService userService;
 
+    /**
+     * Processes the given file.
+     * If a trajectory with the same file name exists, it updates the trajectory.
+     * Otherwise, it creates a new trajectory.
+     * It checks also the rules for errors and warnings
+     * @param path the path to the file to process
+     */
     @ExecutionTime
     @Transactional
     public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
@@ -50,6 +62,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
+        checkForWarnings(path, horizon, studyId);
         checkForWarnings(path, horizon, warningMessageEntities);
         log.warn("warningMessages : {}", warningMessageEntities);
 
@@ -72,16 +85,24 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         );
     }
 
-    private void checkForWarnings(Path path, String horizon, Set<WarningMessageEntity> warningMessages) {
-        if (LinksValidator.checkPowerColumnsForZeroValues(path, horizon)) {
-            buildWarningMessage(warningMessages, WarningCode.LINKS_ALL_VALUES_ZERO, WarningLevel.WARNING_LEVEL);
-        }
-        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getDirectColumnNames())) {
-            buildWarningMessage(warningMessages, WarningCode.LINKS_DIRECT_VALUES_ZERO, WarningLevel.WARNING_LEVEL);
-        }
-        if (LinksValidator.areAllValuesZeroInGroup(path, horizon, LinksColumns.getIndirectColumnNames())) {
-            buildWarningMessage(warningMessages, WarningCode.LINKS_INDIRECT_VALUES_ZERO, WarningLevel.WARNING_LEVEL);
-        }
+    private void checkForWarnings(Path path, String horizon, Integer  studyId) {
+        List<String>  areasSavedForScenario = listArea(studyId);
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
+                WarningCode.LINKS_ALL_VALUES_ZERO);
+
+        List<String> directAndIndirect= new ArrayList<>();
+        directAndIndirect.addAll(LinksColumns.getDirectColumnNames());
+        directAndIndirect.addAll(LinksColumns.getIndirectColumnNames());
+
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.areAllValuesZeroInGroup(path, horizon, directAndIndirect),
+                WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+
+        addWarningIfConditionMet(warningMessageEntities,
+                LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(),areasSavedForScenario),
+                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
+
     }
 
     private void buildWarningMessage(Set<WarningMessageEntity> warningMessages, WarningCode warningCode, WarningLevel warningLevel) {
@@ -91,6 +112,17 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 .warningLevel(warningLevel)
                 .build();
         warningMessages.add(message);
+    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages,
+                                          List<String> warnings,
+                                          WarningCode warningCode) {
+        for (String warning : warnings) {
+            String[] parts = warning.split(",");
+            var message = WarningMessageEntity.builder()
+                    .warningContent(warningMessageService.getMessage(warningCode.value(), (Object[]) parts))
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
+                    .build();
+            warningMessages.add(message);
+        }
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
@@ -121,7 +153,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String> areaNames = listArea(studyId);
+            List<String>  areasSavedForScenario = listArea(studyId);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
@@ -178,6 +210,15 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         for (String area : areas) {
             if (!areaNames.contains(area)) {
                 throw new TechnicalAntaresDataMangerException("Error: Area " + area + " in LINKS file is not present in AREA trajectory");
+            }
+        }
+        for (String areaName : areaNames) {
+            if (!link.contains(areaName)) {
+                var message = WarningMessageEntity.builder()
+                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value()))
+                        .warningLevel(WarningLevel.WARNING_LEVEL)
+                        .build();
+                warningMessageEntities.add(message);
             }
         }
         return link;
