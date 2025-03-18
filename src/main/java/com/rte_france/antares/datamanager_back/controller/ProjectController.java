@@ -57,7 +57,7 @@ public class ProjectController {
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "12") Integer size) {
 
-        Pageable paging = PageRequest.of(page - 1, size, Sort.by(SORTING_CRITERION));
+        Pageable paging = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC,SORTING_CRITERION));
         return new ResponseEntity<>(toProjectPage(projectService.findProjectsByCriteria(search, paging)), HttpStatus.OK);
     }
 
