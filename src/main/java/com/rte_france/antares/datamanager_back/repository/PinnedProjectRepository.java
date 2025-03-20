@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface PinnedProjectRepository extends JpaRepository<PinnedProjectEntity, PinnedProjectEntityId> {
 
-    List<PinnedProjectEntity> findById_Nni(String nni);
+    List<PinnedProjectEntity> findByIdNni(String nni);
 
     @Transactional
     @Modifying

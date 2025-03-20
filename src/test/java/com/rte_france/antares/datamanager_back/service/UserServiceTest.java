@@ -57,13 +57,13 @@ class UserServiceTest {
         assertEquals("Test", userInfo.getFirstName());
         assertEquals("User", userInfo.getLastName());
     }
-
     @Test
-    void getCurrentUserDetails_returnsNullWhenNotAuthenticated() {
+    void getCurrentUserDetails_returnsUnknownUserWhenNotAuthenticated() {
         when(securityContext.getAuthentication()).thenReturn(authentication);
 
         UserInfoDto userInfo = userService.getCurrentUserDetails();
 
-        assertNull(userInfo);
+        assertNotNull(userInfo);
+        assertEquals("unknown_user", userInfo.getNni());
     }
 }

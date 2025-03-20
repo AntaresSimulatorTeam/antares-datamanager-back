@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -8,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +38,9 @@ class StudyServiceImplTest {
 
     @Mock
     private ProjectRepository projectRepository;
+
+    @Mock
+    private UserService userService;
 
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;

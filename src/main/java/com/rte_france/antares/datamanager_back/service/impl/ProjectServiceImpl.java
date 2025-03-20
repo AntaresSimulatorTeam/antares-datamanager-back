@@ -14,10 +14,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import com.rte_france.antares.datamanager_back.util.Utils;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -41,9 +38,10 @@ public class ProjectServiceImpl implements ProjectService {
     private final PinnedProjectRepository pinnedProjectRepository;
     private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
+    private final UserService userService;
 
     public List<ProjectEntity> getPinnedProjectsByUser(String userId) {
-        return pinnedProjectRepository.findById_Nni(userId).stream()
+        return pinnedProjectRepository.findByIdNni(userId).stream()
                 .sorted((p1, p2) -> p2.getProject().getCreationDate().compareTo(p1.getProject().getCreationDate()))
                 .limit(3)
                 .map(PinnedProjectEntity::getProject)
@@ -80,12 +78,12 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
     }
 
-    public static Specification<ProjectEntity> hasStudyName(String studyName) {
-        return (Root<ProjectEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
-            Join<ProjectEntity, StudyEntity> studies = root.join("studies");
-            return criteriaBuilder.like(studies.get("name"), "%" + studyName + "%");
-        };
-    }
+public static Specification<ProjectEntity> hasStudyName(String studyName) {
+    return (Root<ProjectEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
+        Join<ProjectEntity, StudyEntity> studies = root.join("studies", JoinType.LEFT);
+        return criteriaBuilder.like(studies.get("name"), "%" + studyName + "%");
+    };
+}
 
     /**
      * @param search if it is a LocalDateTime in format "yyyy-MM-dd'T'HH:mm:ss" the return is a Specification
@@ -130,11 +128,17 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Transactional
     public ProjectEntity pinProjectForUser(String userId, Integer projectId) {
+        String nni = userService.getCurrentUserDetails().getNni();
+
+        // Check if the userId corresponds to the authenticated user's nni
+        if (!userId.equals(nni)) {
+            throw new BadRequestException("User ID does not match the authenticated user's ID.");
+        }
         checkIfUserHasALreadyMaxPinnedProjects(userId);
         // Build the composite key for the PinnedProjectEntity
         PinnedProjectEntityId pinnedProjectEntityId = PinnedProjectEntityId.builder()
                 .projectId(projectId)
-                .nni(userId)
+                .nni(nni)
                 .build();
 
         // Check if the project is already pinned for the user
@@ -170,7 +174,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
-        List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findById_Nni(userId);
+        List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findByIdNni(userId);
         if (pinnedProjects.size() >= 3) {
             throw new BadRequestException("Maximum number of pinned projects reached.");
         }
@@ -195,7 +199,7 @@ public class ProjectServiceImpl implements ProjectService {
         ProjectEntity newProject = new ProjectEntity();
         newProject.setName(projectInputDto.getName());
         newProject.setCreationDate(LocalDateTime.now());
-        newProject.setCreatedBy("pegase");
+        newProject.setCreatedBy(userService.getCurrentUserDetails().getNni());
         newProject.setDescription(projectInputDto.getDescription());
         newProject.setTags(projectInputDto.getTags());
         return projectRepository.save(newProject);
