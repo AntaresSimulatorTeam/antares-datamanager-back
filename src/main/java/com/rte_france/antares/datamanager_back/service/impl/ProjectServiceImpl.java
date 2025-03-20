@@ -14,10 +14,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import com.rte_france.antares.datamanager_back.util.Utils;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -81,12 +78,12 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
     }
 
-    public static Specification<ProjectEntity> hasStudyName(String studyName) {
-        return (Root<ProjectEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
-            Join<ProjectEntity, StudyEntity> studies = root.join("studies");
-            return criteriaBuilder.like(studies.get("name"), "%" + studyName + "%");
-        };
-    }
+public static Specification<ProjectEntity> hasStudyName(String studyName) {
+    return (Root<ProjectEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
+        Join<ProjectEntity, StudyEntity> studies = root.join("studies", JoinType.LEFT);
+        return criteriaBuilder.like(studies.get("name"), "%" + studyName + "%");
+    };
+}
 
     /**
      * @param search if it is a LocalDateTime in format "yyyy-MM-dd'T'HH:mm:ss" the return is a Specification
