@@ -32,6 +32,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final TrajectoryRepository trajectoryRepository;
 
     private final ThermalCostTypeRepository thermalCostTypeRepository;
+    private final UserService userService;
 
 
     @FunctionalInterface
@@ -42,10 +43,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     public TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException {
         var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
         var thermalEntities = builder.build(path);
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWEN__USER";
+
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, Set.of()), thermalEntities, type);
+            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy), thermalEntities, type);
         }
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, Set.of()), thermalEntities, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy), thermalEntities, type);
     }
 
     @SuppressWarnings("unchecked")
