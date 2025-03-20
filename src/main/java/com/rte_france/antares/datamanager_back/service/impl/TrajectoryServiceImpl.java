@@ -91,14 +91,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(trajectoryType.name(), horizon, fileNameContains);
     }
 
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType) {
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String fileNameContains) {
         Path directory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
                 .resolve(trajectoryType.name().toLowerCase());
 
-
         try (var stream = Files.list(directory)) {
-            var trajectories =  stream.filter(Files::isRegularFile)
+            var trajectories = stream
+                    .filter(Files::isRegularFile)
                     .map(path -> {
                         try {
                             return FsTrajectoryDTO.builder()
@@ -111,7 +111,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             throw new UncheckedIOException(e);
                         }
                     })
+                    .filter(dto -> fileNameContains == null || dto.getFileName().toLowerCase().contains(fileNameContains.toLowerCase())) // Filter by partial match
                     .toList();
+
             var latestTrajectories = extractKeyFromColumnByComparator(
                     trajectories,
                     FsTrajectoryDTO::getFileName,
