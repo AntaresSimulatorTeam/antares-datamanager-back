@@ -147,7 +147,7 @@ class LinkFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         List<String> areaNames = new ArrayList<>(List.of("FR", "CH", "IT"));
         String link = "FR-CH";
-        String result = linkFileProcessorService.validateLinkAreas(link, areaNames, new HashSet<>());
+        String result = linkFileProcessorService.validateLinkAreas(link, areaNames);
         assertEquals(link, result);
     }
 
@@ -156,7 +156,7 @@ class LinkFileProcessorServiceImplTest {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FRCH";
         Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
-            linkFileProcessorService.validateLinkAreas(link, areaNames,Set.of());
+            linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
         assertEquals("Error: Link FRCH in LINKS file is not valid", exception.getMessage());
     }
@@ -166,7 +166,7 @@ class LinkFileProcessorServiceImplTest {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FR-ES";
         Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
-            linkFileProcessorService.validateLinkAreas(link, areaNames,Set.of());
+            linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
         assertEquals("Error: Area ES in LINKS file is not present in AREA trajectory", exception.getMessage());
     }

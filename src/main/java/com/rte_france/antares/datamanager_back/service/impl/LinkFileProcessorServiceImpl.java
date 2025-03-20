@@ -15,7 +15,10 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +27,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -121,7 +125,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
-                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames, warningMessages))
+                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames))
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
                             .winterHcDirectMw(row.getCell(2).getNumericCellValue())
@@ -140,13 +144,32 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
                 }
             }
+            checkConsistencyLinkAndArea(linkEntities, areaNames, warningMessages);
         } catch (IOException e) {
             throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
     }
 
-    public String validateLinkAreas(String link, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
+    private void checkConsistencyLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
+        // Extraire toutes les zones des LinkEntity dans un Set pour une recherche rapide
+        Set<String> linkedAreas = linkEntities.stream()
+                .flatMap(link -> Arrays.stream(link.getName().split("-")))
+                .collect(Collectors.toSet());
+
+        // Vérifier si chaque zone est présente dans les liens
+        for (String area : areaNames) {
+            if (!linkedAreas.contains(area)) {
+                warningMessages.add(WarningMessageEntity.builder()
+                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area))
+                        .warningLevel(WarningLevel.WARNING_LEVEL)
+                        .build());
+            }
+        }
+    }
+
+
+    public String validateLinkAreas(String link, List<String> areaNames) {
         String[] areas = link.split("-");
         if (areas.length != 2) {
             throw new TechnicalAntaresDataMangerException("Error: Link " + link + " in LINKS file is not valid");
@@ -155,15 +178,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         for (String area : areas) {
             if (!areaNames.contains(area)) {
                 throw new TechnicalAntaresDataMangerException("Error: Area " + area + " in LINKS file is not present in AREA trajectory");
-            }
-        }
-        for (String areaName : areaNames) {
-            if (!link.contains(areaName)) {
-                var message = WarningMessageEntity.builder()
-                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), areaName))
-                        .warningLevel(WarningLevel.WARNING_LEVEL)
-                        .build();
-                warningMessages.add(message);
             }
         }
         return link;
