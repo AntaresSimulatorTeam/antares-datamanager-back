@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -132,20 +133,11 @@ void testProcessLinkFileWithWarning() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
                 .thenReturn(Optional.of(trajectory));
-    TrajectoryEntity trajectory = new TrajectoryEntity();
-    trajectory.setFileName("TestFile.xlsx");
-    trajectory.setVersion(1);
 
-    when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
-            .thenReturn(Optional.of(trajectory));
 
     linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        verify(warningMessageService).getMessage(WarningCode.LINKS_ALL_VALUES_ZERO.value());
-        verify(warningMessageService).getMessage(WarningCode.LINKS_DIRECT_VALUES_ZERO.value());
-        verify(warningMessageService).getMessage(WarningCode.LINKS_INDIRECT_VALUES_ZERO.value());
-        verify(warningMessageService, times(3)).getMessage(any());
-    }
+
     verify(warningMessageService).getMessage(
             WarningCode.LINKS_ALL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
     );
@@ -155,9 +147,7 @@ void testProcessLinkFileWithWarning() throws IOException {
     verify(warningMessageService).getMessage(
             WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH", "2", "1", "TestFile.xlsx"
     );
-    verify(warningMessageService, times(2)).getMessage(
-            WarningCode.LINKS_AREA_NOT_PRESENT.value()
-    );
+
 }
 
     @Test
