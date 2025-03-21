@@ -30,7 +30,7 @@ class PinnedProjectRepositoryTest {
     void findById_Nni_returnsEntitiesWhenExist() {
         String nni = "me00247";
 
-        List<PinnedProjectEntity> result = pinnedProjectRepository.findById_Nni(nni);
+        List<PinnedProjectEntity> result = pinnedProjectRepository.findByIdNni(nni);
 
         assertThat(result).isNotEmpty().allMatch(entity -> entity.getId().getNni().equals(nni));
     }
@@ -39,7 +39,7 @@ class PinnedProjectRepositoryTest {
     void findById_Nni_returnsEmptyWhenNoneExist() {
         String nni = "nonExistentUser";
 
-        List<PinnedProjectEntity> result = pinnedProjectRepository.findById_Nni(nni);
+        List<PinnedProjectEntity> result = pinnedProjectRepository.findByIdNni(nni);
 
         assertThat(result).isEmpty();
     }
@@ -49,7 +49,7 @@ class PinnedProjectRepositoryTest {
         //Given
         String nni = "me00247";
         Integer projectId = 1;
-        List<PinnedProjectEntity> resultBefore = pinnedProjectRepository.findById_Nni(nni);
+        List<PinnedProjectEntity> resultBefore = pinnedProjectRepository.findByIdNni(nni);
         assertThat(resultBefore).hasSize(3);
 
         //When
@@ -57,7 +57,7 @@ class PinnedProjectRepositoryTest {
         pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
 
         //Then
-        List<PinnedProjectEntity> resultAfter = pinnedProjectRepository.findById_Nni(nni);
+        List<PinnedProjectEntity> resultAfter = pinnedProjectRepository.findByIdNni(nni);
         assertThat(resultAfter).hasSize(2);
 
         assertTrue(resultAfter.stream()

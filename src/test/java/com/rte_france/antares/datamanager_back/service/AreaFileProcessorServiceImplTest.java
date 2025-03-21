@@ -1,10 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.AreaFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -39,6 +41,9 @@ class AreaFileProcessorServiceImplTest {
     @Mock
     private TrajectoryRepository trajectoryRepository;
 
+    @Mock
+    private UserService userService;
+
     @InjectMocks
     private AreaFileProcessorServiceImpl areaFileProcessorService;
 
@@ -62,6 +67,7 @@ class AreaFileProcessorServiceImplTest {
 
         @Test
         void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+            when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             var trajectoryEntity = mock(TrajectoryEntity.class);
             when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any()))
                     .thenReturn(Optional.of(trajectoryEntity));
@@ -74,6 +80,7 @@ class AreaFileProcessorServiceImplTest {
 
         @Test
         void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
+            when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
 
             areaFileProcessorService.processAreaFile(tempFile, "2030-2031");

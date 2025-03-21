@@ -45,6 +45,8 @@ public class StudyServiceImpl implements StudyService {
 
     private final TrajectoryRepository trajectoryRepository;
 
+    private final UserService userService;
+
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
         Specification<StudyEntity> spec = Specification.where(null);
@@ -95,7 +97,7 @@ public class StudyServiceImpl implements StudyService {
         Assert.notNull(studyDTO.getProject(), "Project name must be provided.");
         Assert.notNull(studyDTO.getHorizon(), "Horizon year must be provided.");
 
-        String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1) + "_REF";
+        String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
         studyDTO.setName(studyName);
         if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
             throw new BadRequestException("Project name must be provided.");
@@ -108,11 +110,7 @@ public class StudyServiceImpl implements StudyService {
         }
 
         ProjectEntity projectEntity = projectRepository.findByName(studyDTO.getProject())
-                .orElseGet(() -> projectRepository.save(ProjectEntity.builder()
-                        .name(studyDTO.getProject())
-                        .createdBy(studyDTO.getCreatedBy())
-                        .creationDate(LocalDateTime.now())
-                        .build()));
+                .orElseThrow(() -> new BadRequestException("Project not found with name: " + studyDTO.getProject()));
 
         return toStudyDTO(buildAndSaveNewStudy(studyDTO, projectEntity));
     }

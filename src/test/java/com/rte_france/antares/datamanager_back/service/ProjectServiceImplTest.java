@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
@@ -11,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEnt
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.service.impl.ProjectServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,6 +44,8 @@ class ProjectServiceImplTest {
     @Mock
     private ProjectRepository projectRepository;
 
+    @Mock
+    private UserService userService;
 
     @Test
     void findProjectsByCriteria_returnsAllProjectsWhenSearchIsNull() {
@@ -80,7 +84,7 @@ class ProjectServiceImplTest {
         PinnedProjectEntity pinnedProject = new PinnedProjectEntity();
         ProjectEntity project = new ProjectEntity();
         pinnedProject.setProject(project);
-        when(pinnedProjectRepository.findById_Nni(userId)).thenReturn(List.of(pinnedProject));
+        when(pinnedProjectRepository.findByIdNni(userId)).thenReturn(List.of(pinnedProject));
 
         List<ProjectEntity> result = projectService.getPinnedProjectsByUser(userId);
 
@@ -91,7 +95,7 @@ class ProjectServiceImplTest {
     @Test
     void getProjectsByUser_returnsEmptyWhenNoneExist() {
         String userId = "user1";
-        when(pinnedProjectRepository.findById_Nni(userId)).thenReturn(List.of());
+        when(pinnedProjectRepository.findByIdNni(userId)).thenReturn(List.of());
 
         List<ProjectEntity> result = projectService.getPinnedProjectsByUser(userId);
 
@@ -154,7 +158,7 @@ class ProjectServiceImplTest {
         Integer projectId = 1;
         PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
         ProjectEntity projectEntity = new ProjectEntity();
-
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user1").firstName("JEAN").lastName("RORTEAU").build());
         when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.empty());
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(projectEntity));
 
@@ -169,7 +173,7 @@ class ProjectServiceImplTest {
         Integer projectId = 1;
         PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
         PinnedProjectEntity pinnedProjectEntity = new PinnedProjectEntity();
-
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user1").firstName("JEAN").lastName("RORTEAU").build());
         when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.of(pinnedProjectEntity));
 
         BadRequestException exception = assertThrows(
@@ -182,11 +186,25 @@ class ProjectServiceImplTest {
     }
 
     @Test
+    void pinProjectForUser_throwsExceptionWhenUserIdDoesNotMatchAuthenticatedUserId() {
+        String userId = "user1";
+        Integer projectId = 1;
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user2").firstName("JEAN").lastName("RORTEAU").build());
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> projectService.pinProjectForUser(userId, projectId)
+        );
+
+        assertEquals("User ID does not match the authenticated user's ID.", exception.getMessage());
+    }
+
+    @Test
     void pinProjectForUser_throwsExceptionWhenProjectNotFound() {
         String userId = "user1";
         Integer projectId = 1;
         PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
-
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user1").firstName("JEAN").lastName("RORTEAU").build());
         when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.empty());
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
 
@@ -204,8 +222,9 @@ class ProjectServiceImplTest {
         String userId = "user1";
         Integer projectId = 1;
         List<PinnedProjectEntity> pinnedProjects = List.of(new PinnedProjectEntity(), new PinnedProjectEntity(), new PinnedProjectEntity());
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userId).firstName("JEAN").lastName("RORTEAU").build());
 
-        when(pinnedProjectRepository.findById_Nni(userId)).thenReturn(pinnedProjects);
+        when(pinnedProjectRepository.findByIdNni(userId)).thenReturn(pinnedProjects);
 
         BadRequestException exception = assertThrows(
                 BadRequestException.class,
@@ -341,6 +360,7 @@ class ProjectServiceImplTest {
         ProjectInputDto projectInputDto = new ProjectInputDto();
         projectInputDto.setName("testProject");
         projectInputDto.setTags(List.of("tag1", "tag2"));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user2").firstName("JEAN").lastName("RORTEAU").build());
 
         when(projectRepository.findByName(any(String.class))).thenReturn(Optional.empty());
         when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(i -> i.getArguments()[0]);

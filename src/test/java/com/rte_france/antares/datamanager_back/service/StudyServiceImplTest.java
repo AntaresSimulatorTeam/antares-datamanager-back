@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -8,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +38,9 @@ class StudyServiceImplTest {
 
     @Mock
     private ProjectRepository projectRepository;
+
+    @Mock
+    private UserService userService;
 
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;
@@ -93,9 +98,7 @@ class StudyServiceImplTest {
 
         List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("key");
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isNotEmpty();
-        assertThat(keywords).contains("keyword1", "keyword2");
+        assertThat(keywords).isNotNull().isNotEmpty().contains("keyword1", "keyword2");
         verify(studyRepository, times(1)).findKeywordsByPartialName("key");
     }
 
@@ -105,8 +108,7 @@ class StudyServiceImplTest {
 
         List<String> keywords = studyServiceImpl.searchKeywordsByPartialName("nonExistent");
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isEmpty();
+        assertThat(keywords).isNotNull().isEmpty();
         verify(studyRepository, times(1)).findKeywordsByPartialName("nonExistent");
     }
 
@@ -116,46 +118,33 @@ class StudyServiceImplTest {
 
         List<String> keywords = studyServiceImpl.searchKeywordsByPartialName(null);
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isEmpty();
+        assertThat(keywords).isNotNull().isEmpty();
         verify(studyRepository, times(1)).findKeywordsByPartialName(null);
     }
 
     @Test
-    void createStudyCreatesNewProjectWhenProjectNotExists() {
-        ProjectEntity newProject = new ProjectEntity();
-        newProject.setId(1);
-        newProject.setName("New Project");
-        String currentYear = String.valueOf(Year.now().getValue());
-        String nextYear = String.valueOf(Year.now().getValue() + 1);
-        String horizon = currentYear + "-" + nextYear;
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("New Project").horizon(currentYear).build();
+    void createStudyThrowsBadRequestWhenProjectWithSameNameExist() {
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2030").build();
 
-        String studyName = "Study 1-" + currentYear + "-" + nextYear + "ref";
-        ProjectEntity existingProject = new ProjectEntity();
-        existingProject.setId(1);
-        existingProject.setName("Existing Project");
-        StudyEntity studyEntity = new StudyEntity();
-        studyEntity.setId(1);
-        studyEntity.setName(studyName);
-        studyEntity.setCreatedBy("User 1");
-        studyEntity.setProject(existingProject);
-        studyEntity.setHorizon(horizon);
-        studyEntity.setStatus(StudyStatus.IN_PROGRESS);
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+            studyServiceImpl.createStudy(studyDTO);
+        });
 
-        when(projectRepository.findByName("New Project")).thenReturn(Optional.empty());
-        when(projectRepository.save(any(ProjectEntity.class))).thenReturn(newProject);
-        when(studyRepository.save(any(StudyEntity.class))).thenReturn(studyEntity);
+        assertEquals("Project not found with name: Existing Project", exception.getMessage());
+        verify(studyRepository, never()).save(any(StudyEntity.class));
+    }
 
-        StudyDTO result = studyServiceImpl.createStudy(studyDTO);
+    @Test
+    void createStudyThrowsBadRequestWhenStudyWithSameNameExists() {
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2050").build();
+        when(studyRepository.existsByNameAndProjectName("Study 1-2051", "Existing Project")).thenReturn(true);
 
-        assertEquals(1, result.getId());
-        assertEquals(studyName, result.getName());
-        assertEquals("User 1", result.getCreatedBy());
-        assertEquals(horizon, result.getHorizon());
-        verify(projectRepository, times(1)).findByName("New Project");
-        verify(projectRepository, times(1)).save(any(ProjectEntity.class));
-        verify(studyRepository, times(1)).save(any(StudyEntity.class));
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+            studyServiceImpl.createStudy(studyDTO);
+        });
+
+        assertEquals("A study with the same name already exists for the given project.", exception.getMessage());
+        verify(studyRepository, never()).save(any(StudyEntity.class));
     }
 
     @Test

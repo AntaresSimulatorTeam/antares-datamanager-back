@@ -69,17 +69,16 @@ public class Utils {
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
-//    @ExecutionTime
-    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
+    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String createdBy) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtension(path.getFileName().toString()))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
+                .createdBy(createdBy)
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
                 .checksum(getFileChecksum(path.toString()))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
-                .warningMessages(warningMessageEntities)
                 .build();
     }
 

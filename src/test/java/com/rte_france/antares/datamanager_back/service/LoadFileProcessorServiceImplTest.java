@@ -1,10 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
@@ -45,6 +47,9 @@ class LoadFileProcessorServiceImplTest {
   @Mock
   private NasFileService nasFileService;
 
+  @Mock
+  private UserService userService;
+
   @TempDir
   private Path tempDir;
 
@@ -59,6 +64,7 @@ class LoadFileProcessorServiceImplTest {
     Files.createFile(tempFile);
     var horizon = "2030-2031";
     var trajectoryEntity = new TrajectoryEntity();
+    when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
     when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(anyString())).thenReturn(Optional.of(trajectoryEntity));
     when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
     when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
@@ -76,6 +82,7 @@ class LoadFileProcessorServiceImplTest {
     var tempFile = tempDir.resolve("test-path.txt");
     Files.createFile(tempFile);
     var horizon = "2030-2031";
+    when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
     when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(anyString())).thenReturn(Optional.empty());
     when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
     when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);

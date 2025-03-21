@@ -43,6 +43,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     private final AreaRepository areaRepository;
     private final AreaConfigRepository areaConfigRepository;
     private final TrajectoryRepository trajectoryRepository;
+    private  final UserService userService;
 
     /**
      * Processes the given file.
@@ -57,10 +58,11 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWEN__USER";
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, Set.of()), buildAreaConfigList(path));
+            return saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, createdBy), buildAreaConfigList(path));
         }
-        return saveTrajectory(buildTrajectory(path, 0,horizon, Set.of()), buildAreaConfigList(path));
+        return saveTrajectory(buildTrajectory(path, 0,horizon, createdBy), buildAreaConfigList(path));
     }
 
 

@@ -33,6 +33,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
   private final TimeSeriesReader reader;
   private final TimeSeriesWriter writer;
   private final LoadRepository loadRepository;
+  private final UserService userService;
 
   @Transactional
   public TrajectoryEntity processLoadFile(Path path, String horizon) throws IOException {
@@ -40,12 +41,13 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     Objects.requireNonNull(horizon);
 
     Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(path.getFileName().toString());
+    String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWEN__USER";
 
     TrajectoryEntity savedTrajectory;
     if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-      savedTrajectory = saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, Set.of()));
+      savedTrajectory = saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, createdBy));
     } else {
-      savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon,Set.of()));
+      savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon, createdBy));
     }
 
     saveMatrixToNas(path);

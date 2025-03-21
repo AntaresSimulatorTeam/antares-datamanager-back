@@ -69,6 +69,6 @@ public class TrajectoryEntity {
     @OneToOne(mappedBy = "trajectory", cascade = {CascadeType.ALL})
     LoadEntity loadEntity;
 
-    @OneToMany(mappedBy = "trajectory", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;
 }
