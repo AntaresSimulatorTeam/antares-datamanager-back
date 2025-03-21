@@ -53,7 +53,7 @@ class WarningMessageMapperTest {
 
         var entity2 = new WarningMessageEntity();
         entity2.setId(2);
-        entity2.setWarningCode(WarningCode.LINKS_DIRECT_VALUES_ZERO);
+        entity2.setWarningCode(WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
         entity2.setWarningLevel(WarningLevel.ERROR_LEVEL);
         entity2.setWarningContent("Test content 2");
 

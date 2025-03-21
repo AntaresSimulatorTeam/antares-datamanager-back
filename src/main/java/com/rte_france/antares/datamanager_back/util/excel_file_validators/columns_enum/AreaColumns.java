@@ -2,6 +2,9 @@ package com.rte_france.antares.datamanager_back.util.excel_file_validators.colum
 
 import lombok.Getter;
 
+import java.util.Arrays;
+import java.util.List;
+
 @Getter
 public enum AreaColumns {
     AREAS("areas"),
@@ -18,6 +21,20 @@ public enum AreaColumns {
 
     AreaColumns(String displayName) {
         this.displayName = displayName;
+    }
+
+    public static List<String> getBooleanColumnNames() {
+        return Arrays.stream(values())
+                .map(AreaColumns::getDisplayName)
+                .filter(name -> name.equals("Power To Gas") || name.equals("Stockage court terme"))
+                .toList();
+    }
+
+    public static List<String> getStringColumnNames() {
+        return Arrays.stream(values())
+                .map(AreaColumns::getDisplayName)
+                .filter(name -> name.equals("areas"))
+                .toList();
     }
 
 }
