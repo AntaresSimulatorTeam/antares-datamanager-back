@@ -1,4 +1,5 @@
 package com.rte_france.antares.datamanager_back.service;
+
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,7 +16,7 @@ import org.springframework.security.oauth2.server.resource.authentication.Bearer
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 class UserServiceTest {
 

@@ -20,9 +20,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Utility class for reading time series data from Arrow file format
+ */
 public final class TimeSeriesReader {
   private static final int ROW_COUNT = 8760;
 
+  /**
+   * Reads a time series matrix from an Arrow file.
+   *
+   * @param filePath the path to the Arrow file
+   * @return the time series matrix
+   * @throws IOException if an I/O error occurs
+   */
   public TimeSeriesMatrix read(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 

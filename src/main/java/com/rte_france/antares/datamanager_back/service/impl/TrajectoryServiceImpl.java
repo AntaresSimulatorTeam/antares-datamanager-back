@@ -57,6 +57,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
     }
 
+    /**
+     * Processes a trajectory file based on the given type, file name, horizon, and study ID.
+     *
+     * @param trajectoryType   the type of the trajectory
+     * @param trajectoryToUse  the name of the trajectory file to use
+     * @param horizon          the horizon period in the format yyyy-yyyy
+     * @param studyId          the ID of the study
+     * @return the processed TrajectoryEntity
+     * @throws IOException if an I/O error occurs
+     */
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
@@ -91,6 +101,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(trajectoryType.name(), horizon, fileNameContains);
     }
 
+    /**
+     * Finds trajectories by type from the NAS directory.
+     *
+     * @param trajectoryType the type of the trajectory
+     * @return a list of FsTrajectoryDTO representing the trajectories
+     */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType) {
         Path directory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
@@ -99,26 +115,27 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         try (var stream = Files.list(directory)) {
             var trajectories =  stream.filter(Files::isRegularFile)
-                    .map(path -> {
-                        try {
-                            return FsTrajectoryDTO.builder()
-                                    .fileName(path.getFileName().toString())
-                                    .lastModifiedDate(Files.getLastModifiedTime(path)
-                                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                                    .type(trajectoryType.name())
-                                    .build();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    })
+                    .map(path -> buildFSTrajectoryDTO(trajectoryType, path))
                     .toList();
             var latestTrajectories = extractKeyFromColumnByComparator(
                     trajectories,
                     FsTrajectoryDTO::getFileName,
-                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed()
-            );
+                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
 
             return sortedByComparator(latestTrajectories.values(), Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static FsTrajectoryDTO buildFSTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
+        try {
+            return FsTrajectoryDTO.builder()
+                    .fileName(path.getFileName().toString())
+                    .lastModifiedDate(Files.getLastModifiedTime(path)
+                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .type(trajectoryType.name())
+                    .build();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -165,6 +182,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
+    /**
+     * Links a trajectory to a study. If a trajectory of the same type is already linked to the study,
+     * the existing link is removed before creating the new link.
+     *
+     * @param trajectoryId the ID of the trajectory to link
+     * @param studyId      the ID of the study to link the trajectory to
+     * @param type         the type of the trajectory
+     * @return the linked TrajectoryEntity
+     * @throws ResourceNotFoundException if the study or trajectory is not found
+     */
     @Transactional
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
         StudyEntity study = studyRepository.findById(studyId)

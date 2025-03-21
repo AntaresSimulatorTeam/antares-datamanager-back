@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -20,6 +19,13 @@ public class NasFileService {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
+    /**
+     * Loads a file as a resource.
+     *
+     * @param filename the name of the file to load
+     * @return the loaded file as a Resource
+     * @throws FileNotFoundException if the file is not found or is not readable
+     */
     public Resource loadFile(String filename) throws FileNotFoundException {
         Path filePath = Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(filename);
         Resource resource = UrlResource.from(filePath.toUri());
@@ -31,6 +37,13 @@ public class NasFileService {
         }
     }
 
+    /**
+     * Saves a file with the given content.
+     *
+     * @param filename the name of the file to save
+     * @param content the content to save in the file
+     * @throws IOException if an I/O error occurs or if the file name is invalid
+     */
     public void saveFile(String filename, byte[] content) throws IOException {
         Objects.requireNonNull(filename);
         Objects.requireNonNull(content);

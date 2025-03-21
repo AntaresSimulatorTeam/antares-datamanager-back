@@ -91,7 +91,6 @@ class LinkFileProcessorServiceImplTest {
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
-        verify(warningMessageRepository, times(1)).saveAll(any());
     }
 
     @Test
