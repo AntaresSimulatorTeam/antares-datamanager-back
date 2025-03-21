@@ -62,8 +62,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
-        checkForWarnings(path, horizon, studyId);
-        checkForWarnings(path, horizon, warningMessageEntities);
+        checkForWarnings(path, horizon, studyId, warningMessageEntities);
         log.warn("warningMessages : {}", warningMessageEntities);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(
@@ -85,7 +84,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         );
     }
 
-    private void checkForWarnings(Path path, String horizon, Integer  studyId) {
+    private void checkForWarnings(Path path, String horizon, Integer  studyId, Set<WarningMessageEntity> warningMessageEntities) {
         List<String>  areasSavedForScenario = listArea(studyId);
         addWarningIfConditionMet(warningMessageEntities,
                 LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
@@ -105,13 +104,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
     }
 
-    private void buildWarningMessage(Set<WarningMessageEntity> warningMessages, WarningCode warningCode, WarningLevel warningLevel) {
-        var message = WarningMessageEntity.builder()
-                .warningContent(warningMessageService.getMessage(warningCode.value()))
-                .warningCode(warningCode)
-                .warningLevel(warningLevel)
-                .build();
-        warningMessages.add(message);
+
     private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages,
                                           List<String> warnings,
                                           WarningCode warningCode) {
@@ -153,7 +146,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String>  areasSavedForScenario = listArea(studyId);
+            List<String>  areaNames = listArea(studyId);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
@@ -212,15 +205,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 throw new TechnicalAntaresDataMangerException("Error: Area " + area + " in LINKS file is not present in AREA trajectory");
             }
         }
-        for (String areaName : areaNames) {
-            if (!link.contains(areaName)) {
-                var message = WarningMessageEntity.builder()
-                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value()))
-                        .warningLevel(WarningLevel.WARNING_LEVEL)
-                        .build();
-                warningMessageEntities.add(message);
-            }
-        }
+
         return link;
     }
 
