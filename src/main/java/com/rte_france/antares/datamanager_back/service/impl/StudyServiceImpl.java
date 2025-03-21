@@ -97,7 +97,7 @@ public class StudyServiceImpl implements StudyService {
         Assert.notNull(studyDTO.getProject(), "Project name must be provided.");
         Assert.notNull(studyDTO.getHorizon(), "Horizon year must be provided.");
 
-        String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1) + "_REF";
+        String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
         studyDTO.setName(studyName);
         if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
             throw new BadRequestException("Project name must be provided.");
