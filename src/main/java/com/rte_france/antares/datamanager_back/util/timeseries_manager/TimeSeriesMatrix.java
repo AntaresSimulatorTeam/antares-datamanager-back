@@ -13,4 +13,10 @@ public record TimeSeriesMatrix(List<TimeSeriesMatrixColumn> columns) {
     public TimeSeriesMatrix {
         Objects.requireNonNull(columns);
     }
+    public int getRowCount() {
+        if (columns.isEmpty()) {
+            return 0;
+        }
+        return columns.get(0).size();
+    }
 }
