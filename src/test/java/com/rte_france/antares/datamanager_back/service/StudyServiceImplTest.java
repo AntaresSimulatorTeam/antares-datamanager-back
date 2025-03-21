@@ -137,7 +137,7 @@ class StudyServiceImplTest {
     @Test
     void createStudyThrowsBadRequestWhenStudyWithSameNameExists() {
         StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2050").build();
-        when(studyRepository.existsByNameAndProjectName("Study 1-2051_REF", "Existing Project")).thenReturn(true);
+        when(studyRepository.existsByNameAndProjectName("Study 1-2051", "Existing Project")).thenReturn(true);
 
         BadRequestException exception = assertThrows(BadRequestException.class, () -> {
             studyServiceImpl.createStudy(studyDTO);
