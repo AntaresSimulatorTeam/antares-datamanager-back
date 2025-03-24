@@ -279,16 +279,9 @@
         <version>3.0.0-M9</version>
       </plugin>
       <plugin>
-        <groupId>pl.project13.maven</groupId>
-        <artifactId>git-commit-id-plugin</artifactId>
-        <version>4.0.4</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>revision</goal>
-            </goals>
-          </execution>
-        </executions>
+        <!-- Add git info to /actuator/info endpoint -->
+        <groupId>io.github.git-commit-id</groupId>
+        <artifactId>git-commit-id-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
