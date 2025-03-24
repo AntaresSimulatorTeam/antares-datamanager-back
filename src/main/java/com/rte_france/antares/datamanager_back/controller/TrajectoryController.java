@@ -40,11 +40,15 @@ public class TrajectoryController {
 
     @Operation(summary = "Get Trajectories by type and fileNameContains from File System")
     @GetMapping(value = "/fs")
-    public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
-                                                                                      @Parameter(description = "parameter to user just in thermal capacity case")
-                                                                                      @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea) {
-        return new ResponseEntity<>(trajectoryService.findTrajectoriesByType(trajectoryType), HttpStatus.OK);
+    public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(
+            @RequestParam("trajectoryType") TrajectoryType trajectoryType,
+            @Parameter(description = "parameter to use just in thermal capacity case")
+            @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea,
+            @RequestParam(value = "fileNameContains", required = false) String fileNameContains) {
+
+        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
     }
+
 
     @Operation(summary = "import Trajectory file to database ")
     @PostMapping

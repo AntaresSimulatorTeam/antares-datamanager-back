@@ -107,35 +107,36 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType) {
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String fileNameContains) {
         Path directory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
                 .resolve(trajectoryType.name().toLowerCase());
 
-
         try (var stream = Files.list(directory)) {
-            var trajectories =  stream.filter(Files::isRegularFile)
-                    .map(path -> buildFSTrajectoryDTO(trajectoryType, path))
+            var trajectories = stream
+                    .filter(Files::isRegularFile)
+                    .map(path -> {
+                        try {
+                            return FsTrajectoryDTO.builder()
+                                    .fileName(path.getFileName().toString())
+                                    .lastModifiedDate(Files.getLastModifiedTime(path)
+                                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                                    .type(trajectoryType.name())
+                                    .build();
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    })
+                    .filter(dto -> fileNameContains == null || dto.getFileName().toLowerCase().contains(fileNameContains.toLowerCase()))
                     .toList();
+
             var latestTrajectories = extractKeyFromColumnByComparator(
                     trajectories,
                     FsTrajectoryDTO::getFileName,
-                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
+                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed()
+            );
 
             return sortedByComparator(latestTrajectories.values(), Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static FsTrajectoryDTO buildFSTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
-        try {
-            return FsTrajectoryDTO.builder()
-                    .fileName(path.getFileName().toString())
-                    .lastModifiedDate(Files.getLastModifiedTime(path)
-                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                    .type(trajectoryType.name())
-                    .build();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
