@@ -97,13 +97,19 @@ public class ExcelCommonValidator {
     private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, Path path, String horizon) {
         List<String> emptyCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
                 .mapToObj(sheet::getRow)
-                .filter(row -> row != null && row.getPhysicalNumberOfCells() > 0)
+                .filter(row -> row != null && !isRowEmpty(row))
                 .flatMap(row -> IntStream.range(0, columnCount)
                         .mapToObj(colIndex -> Map.entry(row.getRowNum() + 1, colIndex + 1))
                         .filter(entry -> {
                             Cell cell = row.getCell(entry.getValue() - 1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                            return cell == null || cell.getCellType() == CellType.BLANK ||
-                                    (cell.getCellType() == CellType.STRING && cell.getStringCellValue().trim().isEmpty());
+                            if (cell == null) return true;
+
+                            return switch (cell.getCellType()) {
+                                case STRING -> cell.getStringCellValue().trim().isEmpty();
+                                case NUMERIC, BOOLEAN, FORMULA -> false;
+                                case BLANK -> true;
+                                default -> true;
+                            };
                         })
                 )
                 .map(entry -> "Row " + entry.getKey() + ", Column " + entry.getValue())
@@ -114,6 +120,19 @@ public class ExcelCommonValidator {
                     ". Locations: " + String.join(", ", emptyCells));
         }
     }
+
+    /**
+     * Check if a row is fully empty, even if formatted
+     */
+    private static boolean isRowEmpty(Row row) {
+        return row == null || IntStream.range(0, row.getLastCellNum())
+                .mapToObj(row::getCell)
+                .allMatch(cell -> cell == null ||
+                        cell.getCellType() == CellType.BLANK ||
+                        (cell.getCellType() == CellType.STRING && cell.getStringCellValue().trim().isEmpty()));
+
+    }
+
 
     /**
      * @param sheet   to be read in Excel file
@@ -129,7 +148,8 @@ public class ExcelCommonValidator {
                 .mapToObj(sheet::getRow)
                 .filter(Objects::nonNull)
                 .flatMap(row -> columnIndexes.entrySet().stream()
-                        .map(entry -> Map.entry(entry.getKey(), Map.entry(row.getRowNum() + 1, row.getCell(entry.getValue(), Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))))
+                        .map(entry -> Map.entry(entry.getKey(),
+                                Map.entry(row.getRowNum() + 1, row.getCell(entry.getValue(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))))
                         .filter(entry -> !isValidBoolean(entry.getValue().getValue()))
                         .map(entry -> String.format("Row %d, Column '%s'", entry.getValue().getKey(), entry.getKey())))
                 .toList();
@@ -153,15 +173,17 @@ public class ExcelCommonValidator {
         List<String> invalidCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
                 .mapToObj(sheet::getRow)
                 .filter(Objects::nonNull)
-                .map(row -> Map.entry(row.getRowNum() + 1, row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)))
+                .map(row -> Map.entry(
+                        row.getRowNum() + 1,
+                        row.getCell(columnIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
+                ))
                 .filter(entry -> {
                     Cell cell = entry.getValue();
-                    if (cell == null) return false;
+                    if (cell == null || cell.getCellType() == CellType.BLANK) return false;
 
                     if (cell.getCellType() == CellType.NUMERIC) {
                         return true;
                     }
-
 
                     if (cell.getCellType() == CellType.STRING) {
                         String cellValue = cell.getStringCellValue().trim();
@@ -184,18 +206,23 @@ public class ExcelCommonValidator {
     }
 
     private static boolean isValidBoolean(Cell cell) {
-        if (cell == null) {
-            return false;
+        if (cell == null || cell.getCellType() == CellType.BLANK) return true;
+        Boolean value = getBooleanCellValue(cell);
+        return value != null;
+    }
+    /**
+     * @param cell to check
+     * @return boolean value expected and avoid null for formatted cells
+     */
+    public static Boolean getBooleanCellValue(Cell cell) {
+        if (cell == null || cell.getCellType() == CellType.BLANK) return null; // Return null for invalid cells
+        if (cell.getCellType() == CellType.BOOLEAN) return cell.getBooleanCellValue();
+        if (cell.getCellType() == CellType.STRING) {
+            String value = cell.getStringCellValue().trim().toUpperCase();
+            if ("TRUE".equals(value)) return true;
+            if ("FALSE".equals(value)) return false;
         }
-        return switch (cell.getCellType()) {
-            case BOOLEAN -> true;
-            case STRING -> {
-                String value = cell.getStringCellValue().trim().toUpperCase();
-                yield "TRUE".equals(value) || "FALSE".equals(value);
-            }
-            default -> false;
-        };
-
+        return null;
     }
     /**
      * @param sheet      to be read

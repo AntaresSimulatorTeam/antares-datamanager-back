@@ -14,10 +14,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelC
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.getBooleanCellValue;
 
 
 /**
@@ -97,21 +95,29 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
 
             Sheet sheet = workbook.getSheetAt(0);
             for (Row row : sheet) {
-                if (row.getRowNum() != 0 && !row.getCell(0).getStringCellValue().isEmpty()) {
-                    AreaEntity areaEntity = findOrCreateAreaEntity(row);
-                    AreaConfigEntity areaConfigEntity = new AreaConfigEntity(
-                            Boolean.valueOf(row.getCell(1).getStringCellValue()),
-                            Boolean.valueOf(row.getCell(2).getStringCellValue()),
-                            areaEntity);
-                    areaConfigEntities.add(areaConfigEntity);
+                if (row.getRowNum() == 0) continue; // Skip header row
 
+                Cell firstCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+                if (firstCell == null || firstCell.getCellType() == CellType.BLANK ||
+                        (firstCell.getCellType() == CellType.STRING && firstCell.getStringCellValue().trim().isEmpty())) {
+                    continue;
                 }
+
+                AreaEntity areaEntity = findOrCreateAreaEntity(row);
+
+                Boolean value1 = getBooleanCellValue(row.getCell(1));
+                Boolean value2 = getBooleanCellValue(row.getCell(2));
+
+                AreaConfigEntity areaConfigEntity = new AreaConfigEntity(value1, value2, areaEntity);
+                areaConfigEntities.add(areaConfigEntity);
             }
         } catch (IOException e) {
             throw new IOException("could not build area config list : " + e.getMessage());
         }
         return areaConfigEntities;
     }
+
 
     /**
      * Finds an existing area entity by name or creates a new one if it doesn't exist.
