@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.experimental.UtilityClass;
@@ -21,6 +22,8 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 @Slf4j
 @UtilityClass
 public class LinksValidator {
+
+    private static final int LINKS_NAME_MAX_LENGTH = 40;
     /**
      * @param path     trajectory to be added to database
      * @param fileType Links
@@ -83,8 +86,26 @@ public class LinksValidator {
 
 
     private static String getCellValue(Cell cell) {
-        return (cell == null) ? "NULL" : cell.toString();
+        if (cell == null) {
+            return "NULL";
+        }
+
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> {
+                double value = cell.getNumericCellValue();
+                if (value == Math.floor(value)) {
+                    yield String.valueOf((long) value);
+                } else {
+                    yield String.valueOf(value);
+                }
+            }
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            case FORMULA -> cell.getCellFormula();
+            default -> "NULL";
+        };
     }
+
 
 
     /**

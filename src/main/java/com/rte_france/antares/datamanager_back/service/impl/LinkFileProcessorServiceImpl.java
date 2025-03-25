@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -40,7 +41,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Service
 @RequiredArgsConstructor
 public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
-
+    private static final int LINKS_FILE_NAME_MAX_SIZE = 40;
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final WarningMessageService warningMessageService;
@@ -63,7 +64,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
         checkForWarnings(path, horizon, studyId, warningMessageEntities);
-        log.warn("warningMessages : {}", warningMessageEntities);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(
                 getFileNameWithoutExtension(path.getFileName().toString())
@@ -84,24 +84,35 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         );
     }
 
-    private void checkForWarnings(Path path, String horizon, Integer  studyId, Set<WarningMessageEntity> warningMessageEntities) {
-        List<String>  areasSavedForScenario = listArea(studyId);
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.checkPowerColumnsForZeroValues(path, horizon),
-                WarningCode.LINKS_ALL_VALUES_ZERO);
+    /**
+     *Get rows where all values are zero (across both direct and indirect columns)
+     *and exclude rows already flagged as all zeros when checking for unilateral zero values
+     */
+    private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) {
+        List<String> areasSavedForScenario = listArea(studyId);
 
-        List<String> directAndIndirect= new ArrayList<>();
-        directAndIndirect.addAll(LinksColumns.getDirectColumnNames());
-        directAndIndirect.addAll(LinksColumns.getIndirectColumnNames());
+
+        List<String> allZeroRows = LinksValidator.checkPowerColumnsForZeroValues(path, horizon);
+
+
+        List<String> directColumns = LinksColumns.getDirectColumnNames();
+        List<String> indirectColumns = LinksColumns.getIndirectColumnNames();
+
+
+        List<String> directUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, directColumns);
+        directUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
+
+        List<String> indirectUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, indirectColumns);
+        indirectUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
+
+        addWarningIfConditionMet(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO);
+
+        addWarningIfConditionMet(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+        addWarningIfConditionMet(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
 
         addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.areAllValuesZeroInGroup(path, horizon, directAndIndirect),
-                WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
-
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(),areasSavedForScenario),
+                LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario),
                 WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
-
     }
 
 
@@ -119,6 +130,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
+        if (trajectory.getFileName() != null && trajectory.getFileName().length() > LINKS_FILE_NAME_MAX_SIZE) {
+            throw new IllegalArgumentException("Trajectory name cannot exceed 40 characters.");
+        }
+
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
         trajectory.setLinkEntities(linkEntities);
         trajectory.setWarningMessages(warningMessages);
