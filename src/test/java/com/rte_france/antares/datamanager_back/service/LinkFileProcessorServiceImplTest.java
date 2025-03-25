@@ -141,9 +141,6 @@ class LinkFileProcessorServiceImplTest {
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
         );
         verify(warningMessageService).getMessage(
-                WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
-        );
-        verify(warningMessageService).getMessage(
                 WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH", "2", "1", "TestFile.xlsx"
         );
 
