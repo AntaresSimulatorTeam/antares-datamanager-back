@@ -34,8 +34,8 @@ public class AreasValidator {
 
 
     private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> booleanColumns, List<String> stringColumns) {
-       checkBooleanColumns(sheet, path, horizon, booleanColumns);
-       stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
+      checkBooleanColumns(sheet, path, horizon, booleanColumns);
+      stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
 
     }
 
