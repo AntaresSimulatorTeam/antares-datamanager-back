@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
+import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -16,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +52,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final StudyRepository studyRepository;
 
     private final StudyTrajectoryRepository studyTrajectoryRepository;
+
+    private final AreaConfigRepository areaConfigRepository;
 
     private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
 
@@ -234,6 +238,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         () -> {
                             throw new ResourceNotFoundException("Link not found");
                         });
+    }
+
+    @Override
+    public List<T> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId) {
+        if (trajectoryType.name().equals("AREA")) {
+            return areaConfigRepository.findById(String.valueOf(trajectoryId));
+        }
+        return null;
     }
 
 }
