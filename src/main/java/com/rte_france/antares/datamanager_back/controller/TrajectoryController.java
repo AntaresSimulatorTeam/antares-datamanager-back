@@ -84,10 +84,10 @@ public class TrajectoryController {
 
     @Operation(summary = "Get data from trajectory")
     @GetMapping(value = "/trajectoryData")
-    public ResponseEntity<T> findTrajectoriesByTypeFromFileSystem(
+    public ResponseEntity<?> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
-            @RequestParam(value = "trajectoryId", required = false) String fileNameContains) {
+            @RequestParam(value = "trajectoryId") Integer trajectoryId) {
 
-        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
+        return ResponseEntity.ok(trajectoryService.getTrajectoryDataByTypeAndId(trajectoryType, trajectoryId));
     }
 }

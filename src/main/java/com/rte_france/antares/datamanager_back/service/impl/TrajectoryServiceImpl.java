@@ -4,12 +4,12 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
+import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
-import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
@@ -54,6 +54,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final StudyTrajectoryRepository studyTrajectoryRepository;
 
     private final AreaConfigRepository areaConfigRepository;
+
+    private final LinkRepository linkRepository;
 
     private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
 
@@ -241,11 +243,20 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public List<T> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId) {
-        if (trajectoryType.name().equals("AREA")) {
-            return areaConfigRepository.findById(String.valueOf(trajectoryId));
+    public List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId) {
+        if (trajectoryType == TrajectoryType.AREA) {
+            return areaConfigRepository.findAreaConfigByTrajectoryId(trajectoryId)
+                    .stream()
+                    .map(AreaMapper::toAreaTrajectoryDataDTO)
+                    .collect(Collectors.toList());
         }
-        return null;
-    }
+        if (trajectoryType == TrajectoryType.LINK) {
+            return linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
+                    .stream()
+                    .map(LinkMapper::toLinkTrajectoryDataDTO)
+                    .collect(Collectors.toList());
+        }
 
+        return Collections.emptyList();
+    }
 }
