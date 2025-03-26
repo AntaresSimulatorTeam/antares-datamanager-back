@@ -23,7 +23,6 @@ class LinksValidatorTest {
     private Path tempFile;
 
 
-
     @Test
     void testCheckForDuplicateLinks() throws IOException {
 
@@ -100,9 +99,9 @@ class LinksValidatorTest {
         assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036"));
     }
 
+
     @Test
-    void testLinksFileIsKO() throws IOException {
-        // Modify the file to include an invalid numeric value (negative or non-integer)
+    void testLinksFileContainsInvalidNumericValues() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2032-2033",
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
@@ -110,13 +109,21 @@ class LinksValidatorTest {
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
                         "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
                 List.of(
-                        List.of("Area1", -100, 200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90), // Invalid negative value
+                        List.of("Area1", 100.25, -200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
                         List.of("Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
                 )
         );
 
+        TechnicalAntaresDataMangerException exception = assertThrows(
+                TechnicalAntaresDataMangerException.class,
+                () -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2032-2033")
+        );
 
-        assertThrows(TechnicalAntaresDataMangerException.class, () -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2032-2033"));
+        String errorMessage = exception.getMessage();
+
+        assertTrue(errorMessage.contains("-200"), "Expected integer value '200' in error message");
+        assertTrue(errorMessage.contains("100.25"), "Expected float value '100.25' in error message");
+        assertFalse(errorMessage.contains("200.0"), "Unexpected decimal format for integer value '200'");
     }
 
     @Test
@@ -181,7 +188,7 @@ class LinksValidatorTest {
 
         List<String> warnings = LinksValidator.checkLinksAlphabeticalOrder(tempFile, "2030-2031", "Name", areasSavedForScenario);
 
-        assertEquals(3, warnings.size()); // Expecting 1 warning
+        assertEquals(3, warnings.size());
 
     }
 

@@ -23,7 +23,6 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 @UtilityClass
 public class LinksValidator {
 
-    private static final int LINKS_NAME_MAX_LENGTH = 40;
     /**
      * @param path     trajectory to be added to database
      * @param fileType Links
@@ -84,7 +83,9 @@ public class LinksValidator {
         return cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() < 0 || cell.getNumericCellValue() % 1 != 0;
     }
 
-
+    /**
+     * Method to display cell values as integer if numeric
+     */
     private static String getCellValue(Cell cell) {
         if (cell == null) {
             return "NULL";

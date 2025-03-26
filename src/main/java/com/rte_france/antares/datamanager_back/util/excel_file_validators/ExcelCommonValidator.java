@@ -165,7 +165,7 @@ public class ExcelCommonValidator {
      * @param sheet to verify strings
      * @param path to file
      * @param horizon sheet name
-     * @param columnName where we expect values to be strings an throw error if a number is found
+     * @param columnName where we expect values to be strings and throw error if a number is found
      */
     public static void checkStringColumns(Sheet sheet, Path path, String horizon, String columnName) {
         int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
@@ -283,7 +283,7 @@ public class ExcelCommonValidator {
     private static String getCellValueAsString(Cell cell) {
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue();
-            case NUMERIC -> String.valueOf((int) cell.getNumericCellValue()); // Convert numeric values to String
+            case NUMERIC -> String.valueOf((int) cell.getNumericCellValue());
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             default -> "";
         };
