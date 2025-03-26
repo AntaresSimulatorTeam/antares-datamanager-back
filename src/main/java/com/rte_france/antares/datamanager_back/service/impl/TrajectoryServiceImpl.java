@@ -14,6 +14,10 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -201,6 +205,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     @Transactional
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
+        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
+
         StudyEntity study = studyRepository.findById(studyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Study not found"));
 
@@ -211,6 +217,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Optional<StudyTrajectoryEntity> existingLink = study.getStudyTrajectoryEntities().stream()
                 .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
                 .findFirst();
+
+
+        // check area link
+        if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
+            var listLink = trajectory.getLinkEntities();
+            List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId, TrajectoryType.AREA);
+            listLink.forEach(row -> linkFileProcessorService.validateLinkAreas(row.getName(), areasSavedForScenario));
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities);
+        }
+
 
         // Supprimer l'ancienne association si elle existe
         existingLink.ifPresent(studyTrajectoryRepository::delete);

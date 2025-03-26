@@ -15,7 +15,6 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.text.diff.StringsComparator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -29,7 +28,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -90,36 +88,30 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * warning should be raised
      */
     private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) {
-        List<String> areasSavedForScenario = listArea(studyId);
-
+        List<String> areasSavedForScenario = findListArea(studyId, TrajectoryType.AREA);
 
         List<String> allZeroRows = LinksValidator.checkPowerColumnsForZeroValues(path, horizon);
 
-
         List<String> directColumns = LinksColumns.getDirectColumnNames();
-        List<String> indirectColumns = LinksColumns.getIndirectColumnNames();
-
-
         List<String> directUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, directColumns);
         directUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
 
+        List<String> indirectColumns = LinksColumns.getIndirectColumnNames();
         List<String> indirectUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, indirectColumns);
         indirectUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
 
-        addWarningIfConditionMet(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO);
+        List<String>  listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
 
-        addWarningIfConditionMet(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
-        addWarningIfConditionMet(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
-
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario),
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
+        addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO);
+        addWarning(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+        addWarning(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+        addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
     }
 
 
-    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages,
-                                          List<String> warnings,
-                                          WarningCode warningCode) {
+    private void addWarning(Set<WarningMessageEntity> warningMessages,
+                            List<String> warnings,
+                            WarningCode warningCode) {
         for (String warning : warnings) {
             String[] parts = warning.split(",");
             var message = WarningMessageEntity.builder()
@@ -162,7 +154,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String>  areaNames = listArea(studyId);
+            List<String>  areaNames = findListArea(studyId,TrajectoryType.AREA);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
@@ -185,14 +177,14 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
                 }
             }
-            checkConsistencyLinkAndArea(linkEntities, areaNames, warningMessages);
+            checkConsistencyTrajectoryLinkAndArea(linkEntities, areaNames, warningMessages);
         } catch (IOException e) {
             throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
     }
 
-    private void checkConsistencyLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
+    public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
 
         Set<String> linkedAreas = linkEntities.stream()
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
@@ -237,10 +229,11 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     /**
      * Method to fetch areas already associated to study in database
      */
-    private List<String> listArea(Integer studyId) {
-        return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream()
+    public List<String> findListArea(Integer studyId, TrajectoryType trajectoryType) {
+        return trajectoryRepository.findByTypeAndStudyId(trajectoryType.name(), studyId).stream()
                 .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
                 .map(area -> area.getArea().getName())
                 .toList();
     }
+
 }

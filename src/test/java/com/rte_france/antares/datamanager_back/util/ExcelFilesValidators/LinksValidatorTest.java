@@ -143,7 +143,7 @@ class LinksValidatorTest {
         List<String> parameterForWarning = LinksValidator.checkPowerColumnsForZeroValues(tempFile, "2030-2031");
 
         assertEquals(1, parameterForWarning.size());
-        assertTrue(parameterForWarning.getFirst().contains("TestFile.xlsx"));
+        assertTrue(parameterForWarning.get(0).contains("TestFile.xlsx"));
 
     }
 
@@ -165,7 +165,7 @@ class LinksValidatorTest {
 
 
         assertEquals(1, parameterForWarning.size());
-        assertTrue(parameterForWarning.getFirst().contains("TestFile.xlsx"));
+        assertTrue(parameterForWarning.get(0).contains("TestFile.xlsx"));
     }
 
     @Test
