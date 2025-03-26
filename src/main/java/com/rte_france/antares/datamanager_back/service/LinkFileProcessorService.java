@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
@@ -11,9 +12,14 @@ import java.util.Set;
 
 public interface LinkFileProcessorService {
 
-     TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException ;
+    TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException;
 
-     TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessageEntities);
+    TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessageEntities);
 
+    void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMess);
 
-    }
+    String validateLinkAreas(String link, List<String> areaNames);
+
+    List<String> findListArea(Integer studyId, TrajectoryType trajectoryType);
+
+}
