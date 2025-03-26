@@ -85,8 +85,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
     /**
-     *Get rows where all values are zero (across both direct and indirect columns)
-     *and exclude rows already flagged as all zeros when checking for unilateral zero values
+     * Check for warnings Isolated Zone, Unilateral link and Alphabetical order
+     * When all values are zero (across both direct and indirect columns) only Isolated Zone
+     * warning should be raised
      */
     private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) {
         List<String> areasSavedForScenario = listArea(studyId);
@@ -192,12 +193,11 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
     private void checkConsistencyLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
-        // Extraire toutes les zones des LinkEntity dans un Set pour une recherche rapide
+
         Set<String> linkedAreas = linkEntities.stream()
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
 
-        // Vérifier si chaque zone est présente dans les liens
         for (String area : areaNames) {
             if (!linkedAreas.contains(area)) {
                 warningMessages.add(WarningMessageEntity.builder()
@@ -234,6 +234,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         return link;
     }
 
+    /**
+     * Method to fetch areas already associated to study in database
+     */
     private List<String> listArea(Integer studyId) {
         return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream()
                 .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
