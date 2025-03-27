@@ -1,9 +1,6 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
-import com.rte_france.antares.datamanager_back.dto.AreaDTO;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.AreaTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.trajectoryData.LinkTrajectoryDataDTO;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -21,12 +18,12 @@ public class LinkMapper {
         return LinkTrajectoryDataDTO.builder().
                 name(linkEntity.getName())
                 .winterHpDirectMw(linkEntity.getWinterHpDirectMw())
+                .winterHcDirectMw(linkEntity.getWinterHcDirectMw())
                 .winterHpIndirectMw(linkEntity.getWinterHpIndirectMw())
-                .summerHcDirectMw(linkEntity.getSummerHcDirectMw())
                 .winterHcIndirectMw(linkEntity.getWinterHcIndirectMw())
+                .summerHcDirectMw(linkEntity.getSummerHcDirectMw())
                 .summerHpDirectMw(linkEntity.getSummerHpDirectMw())
                 .summerHpIndirectMw(linkEntity.getSummerHpIndirectMw())
-                .summerHcDirectMw(linkEntity.getSummerHcDirectMw())
                 .summerHcIndirectMw(linkEntity.getSummerHcIndirectMw())
                 .flowbasedPerimeter(String.valueOf(linkEntity.getFlowbasedPerimeter()))
                 .hvdc(String.valueOf(linkEntity.getHvdc()))

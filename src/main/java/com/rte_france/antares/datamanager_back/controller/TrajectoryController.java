@@ -82,7 +82,7 @@ public class TrajectoryController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @Operation(summary = "Get data from trajectory")
+    @Operation(summary = "Get trajectory data")
     @GetMapping(value = "/trajectoryData")
     public ResponseEntity<?> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,

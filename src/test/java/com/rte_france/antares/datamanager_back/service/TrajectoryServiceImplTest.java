@@ -3,14 +3,11 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
+import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,8 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -37,6 +33,11 @@ class TrajectoryServiceImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
+    @Mock
+    private AreaConfigRepository areaConfigRepository;
+    @Mock
+    private LinkRepository linkRepository;
+
     @Mock
     private AreaFileProcessorService areaFileProcessorService;
     @Mock
@@ -51,6 +52,7 @@ class TrajectoryServiceImplTest {
     private StudyTrajectoryRepository studyTrajectoryRepository;
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
+
 
     @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorService;
@@ -280,4 +282,51 @@ class TrajectoryServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024",1));
     }
+
+    @Test
+    void getTrajectoryDataByTypeAndId_ShouldReturnAreaData_WhenTypeIsAREA() {
+        Object[] mockedAreaConfigData = {"Germany", "true", "false"};
+
+        when(areaConfigRepository.findAreaConfigByTrajectoryId(any())).thenReturn(Collections.singletonList(mockedAreaConfigData));
+
+
+        List<TrajectoryDataDTO> result = trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.AREA, 1);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().toString().contains("Germany"));
+
+    }
+
+    @Test
+    void getTrajectoryDataByTypeAndId_ShouldReturnLinkData_WhenTypeIsLINK() {
+        LinkEntity mockLinkEntity = LinkEntity.builder().name("DE-SU").build();
+
+        when(linkRepository.findLinkEntitiesByTrajectoryIdIs(any())).thenReturn(Collections.singletonList(mockLinkEntity));
+
+
+        List<TrajectoryDataDTO> result = trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.LINK, 1);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().toString().contains("DE-SU"));
+
+    }
+
+    @Test
+    void getTrajectoryDataByTypeAndId_ShouldThrowException_WhenTypeIsUnsupported() {
+
+        TrajectoryType unsupportedType = TrajectoryType.LOAD;
+
+
+        UnsupportedOperationException exception = assertThrows(
+                UnsupportedOperationException.class,
+                () -> trajectoryService.getTrajectoryDataByTypeAndId(unsupportedType, 1)
+        );
+
+
+        assertEquals("TrajectoryType LOAD is not supported.", exception.getMessage());
+    }
+
+
 }
