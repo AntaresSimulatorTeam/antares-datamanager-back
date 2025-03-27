@@ -350,7 +350,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory);
 
-        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any());
+        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
 
@@ -371,7 +371,7 @@ class TrajectoryServiceImplTest {
 
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));
-        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any());
+        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
 

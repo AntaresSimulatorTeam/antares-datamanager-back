@@ -26,3 +26,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.0.0/V12-create-warning-table.sql
   - include:
       file: classpath*:db/changelog/1.0.0/V13-update_project_name_column.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V14-update_warning_messages_table.sql
