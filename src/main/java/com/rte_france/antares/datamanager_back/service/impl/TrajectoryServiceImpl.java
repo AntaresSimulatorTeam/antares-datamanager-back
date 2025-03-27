@@ -242,21 +242,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         });
     }
 
+
     @Override
     public List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId) {
-        if (trajectoryType == TrajectoryType.AREA) {
-            return areaConfigRepository.findAreaConfigByTrajectoryId(trajectoryId)
+        return switch (trajectoryType) {
+            case AREA -> areaConfigRepository.findAreaConfigByTrajectoryId(trajectoryId)
                     .stream()
                     .map(AreaMapper::toAreaTrajectoryDataDTO)
                     .collect(Collectors.toList());
-        }
-        if (trajectoryType == TrajectoryType.LINK) {
-            return linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
+
+            case LINK -> linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
                     .stream()
                     .map(LinkMapper::toLinkTrajectoryDataDTO)
                     .collect(Collectors.toList());
-        }
 
-        return Collections.emptyList();
+            default -> throw new UnsupportedOperationException("TrajectoryType " + trajectoryType + " is not supported.");
+        };
     }
 }
