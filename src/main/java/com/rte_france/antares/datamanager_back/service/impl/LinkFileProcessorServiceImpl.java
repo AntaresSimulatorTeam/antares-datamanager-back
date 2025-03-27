@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -193,11 +194,14 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
+        String userNni = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN_USER";
         for (String area : areaNames) {
             if (!linkedAreas.contains(area)) {
                 warningMessages.add(WarningMessageEntity.builder()
                         .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area))
                         .warningLevel(WarningLevel.WARNING_LEVEL)
+                        .creationDate(LocalDateTime.now())
+                        .createdBy(userNni)
                         .study(study)
                         .build());
             }
