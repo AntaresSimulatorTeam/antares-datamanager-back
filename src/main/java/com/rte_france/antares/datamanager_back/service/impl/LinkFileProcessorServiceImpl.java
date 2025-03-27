@@ -88,7 +88,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * warning should be raised
      */
     private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) {
-        List<String> areasSavedForScenario = findListArea(studyId, TrajectoryType.AREA);
+        List<String> areasSavedForScenario = findListArea(studyId);
 
         List<String> allZeroRows = LinksValidator.checkPowerColumnsForZeroValues(path, horizon);
 
@@ -154,7 +154,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String>  areaNames = findListArea(studyId,TrajectoryType.AREA);
+            List<String>  areaNames = findListArea(studyId);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
@@ -229,10 +229,19 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     /**
      * Method to fetch areas already associated to study in database
      */
-    public List<String> findListArea(Integer studyId, TrajectoryType trajectoryType) {
-        return trajectoryRepository.findByTypeAndStudyId(trajectoryType.name(), studyId).stream()
+    public List<String> findListArea(Integer studyId) {
+        return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream()
                 .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
                 .map(area -> area.getArea().getName())
+                .toList();
+    }
+
+    /**
+     * Method to fetch areas already associated to study in database
+     */
+    public List<LinkEntity> findListLink(Integer studyId) {
+        return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream()
+                .flatMap(trajectory -> trajectory.getLinkEntities().stream())
                 .toList();
     }
 

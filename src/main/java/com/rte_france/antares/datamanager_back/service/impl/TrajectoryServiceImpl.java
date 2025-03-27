@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final AreaConfigRepository areaConfigRepository;
 
     private final LinkRepository linkRepository;
+
+    private final WarningMessageRepository warningMessageRepository;
 
     private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
 
@@ -220,12 +223,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
         // check area link
-        if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
-            var listLink = trajectory.getLinkEntities();
-            List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId, TrajectoryType.AREA);
-            listLink.forEach(row -> linkFileProcessorService.validateLinkAreas(row.getName(), areasSavedForScenario));
-            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities);
-        }
+        checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory);
 
 
         // Supprimer l'ancienne association si elle existe
@@ -244,6 +242,24 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
 
         return savedStudyTrajectoryEntity.getTrajectory();
+    }
+
+    public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+        if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
+            var listLink = trajectory.getLinkEntities();
+            List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
+            listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities);
+        } else if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
+            List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()
+                    .map(area -> area.getArea().getName())
+                    .toList();
+            List<LinkEntity> listLink = linkFileProcessorService.findListLink(studyId);
+            listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities);
+        }
+        warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
+        warningMessageRepository.saveAll(warningMessageEntities);
     }
 
     @Override
