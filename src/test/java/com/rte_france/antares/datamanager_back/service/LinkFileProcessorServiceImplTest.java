@@ -1,14 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LinkFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
@@ -173,6 +171,32 @@ class LinkFileProcessorServiceImplTest {
             linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
         assertEquals("Error: Area ES in LINKS file is not present in AREA trajectory", exception.getMessage());
+    }
+
+    @Test
+    void findListLink_whenStudyIdExists() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setLinkEntities(List.of(new LinkEntity(), new LinkEntity()));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId))
+                .thenReturn(List.of(trajectory));
+
+        List<LinkEntity> result = linkFileProcessorService.findListLink(studyId);
+
+        assertEquals(2, result.size());
+        verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId);
+    }
+
+    @Test
+    void findListLink_whenStudyIdDoesNotExist() {
+        Integer studyId = 1;
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId))
+                .thenReturn(Collections.emptyList());
+
+        List<LinkEntity> result = linkFileProcessorService.findListLink(studyId);
+
+        assertTrue(result.isEmpty());
+        verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId);
     }
 
     private static byte[] generateTestExcelFile() throws IOException {

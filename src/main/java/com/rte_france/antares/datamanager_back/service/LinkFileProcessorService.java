@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
@@ -20,6 +19,7 @@ public interface LinkFileProcessorService {
 
     String validateLinkAreas(String link, List<String> areaNames);
 
-    List<String> findListArea(Integer studyId, TrajectoryType trajectoryType);
+    List<String> findListArea(Integer studyId);
+    List<LinkEntity> findListLink(Integer studyId);
 
 }
