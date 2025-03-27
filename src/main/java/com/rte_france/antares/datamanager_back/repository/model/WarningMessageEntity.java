@@ -32,4 +32,12 @@ public class WarningMessageEntity {
     @ManyToOne
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;
+
+    @ManyToOne
+    @JoinColumn(name = "second_trajectory_id")
+    private TrajectoryEntity secondTrajectory;
+
+    @ManyToOne
+    @JoinColumn(name = "study_id", nullable = false)
+    private StudyEntity study;
 }

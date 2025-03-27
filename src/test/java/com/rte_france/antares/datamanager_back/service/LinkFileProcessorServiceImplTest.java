@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -47,6 +48,9 @@ class LinkFileProcessorServiceImplTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private StudyRepository studyRepository;
+
     @InjectMocks
     private LinkFileProcessorServiceImpl linkFileProcessorService;
 
@@ -83,7 +87,7 @@ class LinkFileProcessorServiceImplTest {
     @Test
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
@@ -95,6 +99,7 @@ class LinkFileProcessorServiceImplTest {
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
@@ -127,6 +132,7 @@ class LinkFileProcessorServiceImplTest {
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setFileName("TestFile.xlsx");
         trajectory.setVersion(1);
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
                 .thenReturn(Optional.of(trajectory));

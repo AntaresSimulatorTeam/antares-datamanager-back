@@ -249,14 +249,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             var listLink = trajectory.getLinkEntities();
             List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
             listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
-            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId);
         } else if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
             List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()
                     .map(area -> area.getArea().getName())
                     .toList();
             List<LinkEntity> listLink = linkFileProcessorService.findListLink(studyId);
             listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
-            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId);
         }
         warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
         warningMessageRepository.saveAll(warningMessageEntities);

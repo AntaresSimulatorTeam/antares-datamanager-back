@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -39,6 +40,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Service
 @RequiredArgsConstructor
 public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
+    private final StudyRepository studyRepository;
     private static final int LINKS_FILE_NAME_MAX_SIZE = 40;
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
@@ -51,6 +53,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * If a trajectory with the same file name exists, it updates the trajectory.
      * Otherwise, it creates a new trajectory.
      * It checks also the rules for errors and warnings
+     *
      * @param path the path to the file to process
      */
     @ExecutionTime
@@ -100,7 +103,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<String> indirectUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, indirectColumns);
         indirectUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
 
-        List<String>  listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
+        List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
 
         addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO);
         addWarning(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
@@ -154,7 +157,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String>  areaNames = findListArea(studyId);
+            List<String> areaNames = findListArea(studyId);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
@@ -177,24 +180,25 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
                 }
             }
-            checkConsistencyTrajectoryLinkAndArea(linkEntities, areaNames, warningMessages);
+            checkConsistencyTrajectoryLinkAndArea(linkEntities, areaNames, warningMessages, studyId);
         } catch (IOException e) {
             throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
     }
 
-    public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
+    public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId) {
 
         Set<String> linkedAreas = linkEntities.stream()
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
-
+        StudyEntity study = studyRepository.findById(studyId).orElseThrow();
         for (String area : areaNames) {
             if (!linkedAreas.contains(area)) {
                 warningMessages.add(WarningMessageEntity.builder()
                         .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area))
                         .warningLevel(WarningLevel.WARNING_LEVEL)
+                        .study(study)
                         .build());
             }
         }
@@ -206,7 +210,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * and if both areas are present in the provided list of area names
      * If an area from the list is not present in the link, a warning message is added.
      *
-     * @param link the link to validate
+     * @param link      the link to validate
      * @param areaNames the list of valid area names
      * @return the validated link
      * @throws TechnicalAntaresDataMangerException if the link is not valid or an area is not present
