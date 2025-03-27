@@ -61,11 +61,14 @@ public class LinksValidator {
         List<String> invalidCells = IntStream.range(1, sheet.getPhysicalNumberOfRows())
                 .mapToObj(sheet::getRow)
                 .filter(Objects::nonNull)
-                .filter(row -> row.getPhysicalNumberOfCells() > 0 &&
-                        row.getCell(0) != null &&
-                        !row.getCell(0).getStringCellValue().isEmpty())
                 .flatMap(row -> columnIndexes.entrySet().stream()
-                        .map(entry -> Map.entry(entry.getKey(), row.getCell(entry.getValue(), Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)))
+                        .map(entry -> {
+                            Cell cell = row.getCell(entry.getValue(), Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                            return (cell == null || cell.getCellType() == CellType.BLANK)
+                                    ? null
+                                    : Map.entry(entry.getKey(), cell);
+                        })
+                        .filter(Objects::nonNull)
                         .filter(entry -> isInvalidNumber(entry.getValue()))
                         .map(entry -> String.format("Column '%s', Row %d, Value: %s",
                                 entry.getKey(), row.getRowNum() + 1, getCellValue(entry.getValue()))))
@@ -77,6 +80,7 @@ public class LinksValidator {
                     horizon, path.getFileName(), String.join("; ", invalidCells)));
         }
     }
+
 
 
     private static boolean isInvalidNumber(Cell cell) {
