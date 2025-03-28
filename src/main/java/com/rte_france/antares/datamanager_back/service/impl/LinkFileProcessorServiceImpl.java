@@ -197,13 +197,19 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         String userNni = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN_USER";
         for (String area : areaNames) {
             if (!linkedAreas.contains(area)) {
-                warningMessages.add(WarningMessageEntity.builder()
-                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area))
-                        .warningLevel(WarningLevel.WARNING_LEVEL)
-                        .creationDate(LocalDateTime.now())
-                        .createdBy(userNni)
-                        .study(study)
-                        .build());
+                String warningContent = warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area);
+                boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, study.getId(), studyId);
+
+                if (!warningExists) {
+                    warningMessages.add(WarningMessageEntity.builder()
+                            .warningCode(WarningCode.LINKS_AREA_NOT_PRESENT)
+                            .warningContent(warningContent)
+                            .warningLevel(WarningLevel.WARNING_LEVEL)
+                            .creationDate(LocalDateTime.now())
+                            .createdBy(userNni)
+                            .study(study)
+                            .build());
+                }
             }
         }
     }
