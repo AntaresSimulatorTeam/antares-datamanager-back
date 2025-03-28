@@ -61,3 +61,9 @@ values  (1, 1),
         (3, 1),
         (3, 4),
         (3, 2);
+
+INSERT INTO warning_message (id, warning_code, warning_content, warning_level, creation_date, created_by, trajectory_id, study_id)
+VALUES
+(1, 'LINKS_AREA_NOT_PRESENT', 'Area A is not linked', 'WARNING_LEVEL', '2023-10-01 10:00:00', 'USER1', 1, 1),
+(2, 'LINKS_AREA_NOT_PRESENT', 'Area B is not linked', 'WARNING_LEVEL', '2023-10-01 11:00:00', 'USER2', 2, 1),
+(3, 'LINKS_AREA_NOT_PRESENT', 'Area C is not linked', 'WARNING_LEVEL', '2023-10-01 12:00:00', 'USER3', 1, 2);
