@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
-@Entity(name = "AreaConfig")
+@Entity(name = "AreaConfigEntity")
 @Table(name = "area_config")
 public class AreaConfigEntity {
 

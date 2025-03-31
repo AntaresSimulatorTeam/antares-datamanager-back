@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -81,4 +82,12 @@ public class TrajectoryController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @Operation(summary = "Get trajectory data")
+    @GetMapping(value = "/trajectoryData")
+    public ResponseEntity<?> findTrajectoriesByTypeFromFileSystem(
+            @RequestParam("trajectoryType") TrajectoryType trajectoryType,
+            @RequestParam(value = "trajectoryId") Integer trajectoryId) {
+
+        return ResponseEntity.ok(trajectoryService.getTrajectoryDataByTypeAndId(trajectoryType, trajectoryId));
+    }
 }

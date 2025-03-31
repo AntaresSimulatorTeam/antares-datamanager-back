@@ -1,11 +1,14 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
+import com.rte_france.antares.datamanager_back.dto.trajectoryData.AreaTrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.apache.poi.ss.formula.functions.T;
 
 import java.util.List;
 
@@ -24,6 +27,14 @@ public class AreaMapper {
         return areaEntities.stream()
                 .map(AreaMapper::toAreaDto)
                 .toList();
+    }
+
+    public static AreaTrajectoryDataDTO toAreaTrajectoryDataDTO(Object[] row) {
+        return AreaTrajectoryDataDTO.builder()
+                .areaName((String) row[0])
+                .powerToGas(String.valueOf(row[1]))
+                .shortTermStorage(String.valueOf(row[2]))
+                .build();
     }
 
 }

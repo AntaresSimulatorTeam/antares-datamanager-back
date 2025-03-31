@@ -4,11 +4,12 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
+import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
@@ -16,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +52,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final StudyRepository studyRepository;
 
     private final StudyTrajectoryRepository studyTrajectoryRepository;
+
+    private final AreaConfigRepository areaConfigRepository;
+
+    private final LinkRepository linkRepository;
 
     private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
 
@@ -236,4 +242,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         });
     }
 
+
+    @Override
+    public List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId) {
+        return switch (trajectoryType) {
+            case AREA -> areaConfigRepository.findAreaConfigByTrajectoryId(trajectoryId)
+                    .stream()
+                    .map(AreaMapper::toAreaTrajectoryDataDTO)
+                    .collect(Collectors.toList());
+
+            case LINK -> linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
+                    .stream()
+                    .map(LinkMapper::toLinkTrajectoryDataDTO)
+                    .collect(Collectors.toList());
+
+            default -> throw new UnsupportedOperationException("TrajectoryType " + trajectoryType + " is not supported.");
+        };
+    }
 }

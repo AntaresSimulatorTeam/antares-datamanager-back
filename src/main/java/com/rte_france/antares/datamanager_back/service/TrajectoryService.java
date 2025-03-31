@@ -3,7 +3,9 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import org.apache.poi.ss.formula.functions.T;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,4 +24,5 @@ public interface TrajectoryService {
 
     void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
 
+    List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId);
 }

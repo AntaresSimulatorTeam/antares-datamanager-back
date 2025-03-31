@@ -4,6 +4,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.trajectoryData.AreaTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
@@ -183,5 +184,27 @@ class TrajectoryControllerTest {
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isNotFound());
+    }
+
+
+    @Test
+    void getTrajectoryDataByTypeAndId() throws Exception {
+        AreaTrajectoryDataDTO trajectoryDataDTO = AreaTrajectoryDataDTO.builder()
+                .areaName("AT")
+                .powerToGas("true")
+                .shortTermStorage("false")
+                .build();
+
+        when(trajectoryServiceImpl.getTrajectoryDataByTypeAndId(TrajectoryType.AREA, 1))
+                .thenReturn(List.of(trajectoryDataDTO));
+
+        this.mockMvc.perform(get("/v1/trajectory/trajectoryData")
+                        .param("trajectoryType", "AREA")
+                        .param("trajectoryId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].areaName").value("AT"))
+                .andExpect(jsonPath("$[0].powerToGas").value("true"))
+                .andExpect(jsonPath("$[0].shortTermStorage").value("false"));
     }
 }
