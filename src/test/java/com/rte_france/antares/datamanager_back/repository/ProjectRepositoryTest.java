@@ -10,7 +10,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.List;
@@ -21,10 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@SqlGroup({
-        @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql"),
-        @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql"),
-})
+@Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql")
+@Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql")
 class ProjectRepositoryTest {
 
     @Autowired
@@ -61,29 +58,27 @@ class ProjectRepositoryTest {
     }
 
     @Test
-void findByNameContainingIgnoreCaseReturnsMatchingProjects() {
-    List<ProjectEntity> projects = projectRepository.findByNameContainingIgnoreCase("Proj");
+    void findByNameContainingIgnoreCaseReturnsMatchingProjects() {
+        List<ProjectEntity> projects = projectRepository.findByNameContainingIgnoreCase("Proj");
 
-    assertThat(projects).isNotNull();
-    assertThat(projects).isNotEmpty();
-    assertThat(projects.get(0).getName()).containsIgnoringCase("Proj");
-}
+        assertThat(projects).isNotNull().isNotEmpty();
+        assertThat(projects.get(0).getName()).containsIgnoringCase("Proj");
+    }
 
-@Test
-void findByNameContainingIgnoreCaseReturnsEmptyListWhenNoMatches() {
-    List<ProjectEntity> projects = projectRepository.findByNameContainingIgnoreCase("NonExistent");
+    @Test
+    void findByNameContainingIgnoreCaseReturnsEmptyListWhenNoMatches() {
+        List<ProjectEntity> projects = projectRepository.findByNameContainingIgnoreCase("NonExistent");
 
-    assertThat(projects).isNotNull();
-    assertThat(projects).isEmpty();
-}
+        assertThat(projects).isNotNull().isEmpty();
+    }
 
-@Test
-void findByNameContainingIgnoreCaseHandlesNullInput() {
-    List<ProjectEntity> projects = projectRepository.findByNameContainingIgnoreCase(null);
+    @Test
+    void findByNameContainingIgnoreCaseHandlesNullInput() {
+        List<ProjectEntity> projects = projectRepository.findByNameContainingIgnoreCase(null);
 
-    assertThat(projects).isNotNull();
-    assertThat(projects).isEmpty();
-}
+        assertThat(projects).isNotNull().isEmpty();
+    }
+
     @Test
     void findByName_returnsEntityWhenExists() {
         String name = "PROJECT1";

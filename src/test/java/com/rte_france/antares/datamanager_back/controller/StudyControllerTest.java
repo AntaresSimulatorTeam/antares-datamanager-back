@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -198,8 +197,8 @@ class StudyControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
 
-        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(eq(studyId));
-        verify(studyGeneratorService, times(1)).callGenerateStudyService(eq(studyId));
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(studyId);
+        verify(studyGeneratorService, times(1)).callGenerateStudyService(studyId);
     }
 
     @Test
@@ -215,8 +214,8 @@ class StudyControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
 
-        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(eq(studyId));
-        verify(studyGeneratorService, times(1)).callGenerateStudyService(eq(studyId));
-        verify(studyService, times(1)).updateStudyStatusAsGenerated(eq(studyId));
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(studyId);
+        verify(studyGeneratorService, times(1)).callGenerateStudyService(studyId);
+        verify(studyService, times(1)).updateStudyStatusAsGenerated(studyId);
     }
 }

@@ -18,14 +18,6 @@ class TimeSeriesMatrixTest {
     }
 
     @Test
-    void testGetRowCount() {
-        var column = new TimeSeriesMatrixColumn("column1", new double[]{1.0, 2.0, 3.0});
-        var matrix = new TimeSeriesMatrix(List.of(column));
-
-       // assertEquals(3, matrix.getRowCount());
-    }
-
-    @Test
     void testGetRowCountEmptyColumns() {
         var matrix = new TimeSeriesMatrix(List.of());
 

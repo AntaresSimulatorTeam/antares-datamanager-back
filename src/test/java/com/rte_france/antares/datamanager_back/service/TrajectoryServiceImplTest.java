@@ -3,11 +3,14 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
-import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
-import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,10 +23,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,6 +50,8 @@ class TrajectoryServiceImplTest {
     private StudyRepository studyRepository;
     @Mock
     private StudyTrajectoryRepository studyTrajectoryRepository;
+    @Mock
+    private WarningMessageRepository warningMessageRepository;
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -145,11 +147,14 @@ class TrajectoryServiceImplTest {
 
         StudyEntity study =  StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
 
-        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name())
+                .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
+                .build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningMessageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
 
@@ -196,8 +201,9 @@ class TrajectoryServiceImplTest {
         StudyEntity study =  StudyEntity.builder().id(studyId).build();
         study.setStudyTrajectoryEntities(Set.of(existingLink));
 
-        TrajectoryEntity newTrajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
-
+        TrajectoryEntity newTrajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name())
+                .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
+                .build();
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -294,7 +300,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().toString().contains("Germany"));
+        assertTrue(result.get(0).toString().contains("Germany"));
 
     }
 
@@ -309,7 +315,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().toString().contains("DE-SU"));
+        assertTrue(result.get(0).toString().contains("DE-SU"));
 
     }
 
@@ -328,5 +334,43 @@ class TrajectoryServiceImplTest {
         assertEquals("TrajectoryType LOAD is not supported.", exception.getMessage());
     }
 
+
+
+    @Test
+    void checkLinkAreaCoherence_whenTrajectoryTypeIsLink() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setType(TrajectoryType.LINK.name());
+        trajectory.setLinkEntities(List.of(LinkEntity.builder().name("CH-IT").build()));
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        when(linkFileProcessorService.findListArea(studyId)).thenReturn(List.of("FR", "CH", "IT"));
+
+        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory);
+
+        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any());
+        verify(warningMessageRepository, times(1)).saveAll(warningMessages);
+    }
+
+    @Test
+    void checkLinkAreaCoherence_whenTrajectoryTypeIsArea() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setType(TrajectoryType.AREA.name());
+        trajectory.setAreaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("FR").build()).build(),
+                AreaConfigEntity.builder().area(AreaEntity.builder().name("CH").build()).build(),
+                AreaConfigEntity.builder().area(AreaEntity.builder().name("IT").build()).build()
+        ));
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        when(linkFileProcessorService.findListLink(studyId)).thenReturn(List.of(LinkEntity.builder().name("FR-CH").build(), LinkEntity.builder().name("FR-IT").build()));
+
+        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory);
+
+        verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
+        verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));
+        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(),any());
+        verify(warningMessageRepository, times(1)).saveAll(warningMessages);
+    }
 
 }

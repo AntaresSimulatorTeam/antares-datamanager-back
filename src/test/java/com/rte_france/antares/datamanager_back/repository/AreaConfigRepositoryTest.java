@@ -70,9 +70,9 @@ class AreaConfigRepositoryTest {
         List<Object[]> result = areaConfigRepository.findAreaConfigByTrajectoryId(savedAreaConfig.getTrajectory().getId());
 
         assertThat(result).isNotEmpty();
-        assertThat(result.getFirst()).hasSize(3);
-        assertThat(result.getFirst()[0]).isEqualTo("TestArea");
-        assertThat(result.getFirst()[1]).isEqualTo(true);
+        assertThat(result.get(0)).hasSize(3);
+        assertThat(result.get(0)[0]).isEqualTo("TestArea");
+        assertThat(result.get(0)[1]).isEqualTo(true);
         assertThat(result.getFirst()[2]).isEqualTo(false);
     }
 }

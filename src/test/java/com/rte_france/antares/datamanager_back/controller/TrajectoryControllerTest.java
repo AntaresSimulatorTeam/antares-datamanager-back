@@ -4,7 +4,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.AreaTrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.AreaTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;

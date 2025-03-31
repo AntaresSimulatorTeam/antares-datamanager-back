@@ -1,10 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
-import com.rte_france.antares.datamanager_back.repository.LinkRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
@@ -15,7 +14,6 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.text.diff.StringsComparator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -27,9 +25,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -41,6 +39,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Service
 @RequiredArgsConstructor
 public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
+    private final StudyRepository studyRepository;
     private static final int LINKS_FILE_NAME_MAX_SIZE = 40;
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
@@ -53,6 +52,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * If a trajectory with the same file name exists, it updates the trajectory.
      * Otherwise, it creates a new trajectory.
      * It checks also the rules for errors and warnings
+     *
      * @param path the path to the file to process
      */
     @ExecutionTime
@@ -70,18 +70,21 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         );
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN_USER";
 
+        List<String> areaNames = findListArea(studyId);
+
+        List<LinkEntity> listLink = buildLinkList(path, horizon, areaNames);
+
+        TrajectoryEntity trajectory;
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveTrajectory(
-                    buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy),
-                    buildLinkList(path, horizon, studyId, warningMessageEntities),
-                    warningMessageEntities
-            );
+            trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy);
+        } else {
+            trajectory = buildTrajectory(path, 0, horizon, createdBy);
         }
-        return saveTrajectory(
-                buildTrajectory(path, 0, horizon, createdBy),
-                buildLinkList(path, horizon, studyId, warningMessageEntities),
-                warningMessageEntities
-        );
+        TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
+
+        checkConsistencyTrajectoryLinkAndArea(listLink, areaNames, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory);
+
+        return saveTrajectory(trajectory, listLink, warningMessageEntities);
     }
 
     /**
@@ -90,36 +93,30 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * warning should be raised
      */
     private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) {
-        List<String> areasSavedForScenario = listArea(studyId);
-
+        List<String> areasSavedForScenario = findListArea(studyId);
 
         List<String> allZeroRows = LinksValidator.checkPowerColumnsForZeroValues(path, horizon);
 
-
         List<String> directColumns = LinksColumns.getDirectColumnNames();
-        List<String> indirectColumns = LinksColumns.getIndirectColumnNames();
-
-
         List<String> directUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, directColumns);
         directUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
 
+        List<String> indirectColumns = LinksColumns.getIndirectColumnNames();
         List<String> indirectUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, indirectColumns);
         indirectUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
 
-        addWarningIfConditionMet(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO);
+        List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
 
-        addWarningIfConditionMet(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
-        addWarningIfConditionMet(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
-
-        addWarningIfConditionMet(warningMessageEntities,
-                LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario),
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
+        addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO);
+        addWarning(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+        addWarning(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
+        addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY);
     }
 
 
-    private void addWarningIfConditionMet(Set<WarningMessageEntity> warningMessages,
-                                          List<String> warnings,
-                                          WarningCode warningCode) {
+    private void addWarning(Set<WarningMessageEntity> warningMessages,
+                            List<String> warnings,
+                            WarningCode warningCode) {
         for (String warning : warnings) {
             String[] parts = warning.split(",");
             var message = WarningMessageEntity.builder()
@@ -155,18 +152,17 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessages) throws IOException {
+    private List<LinkEntity> buildLinkList(Path path, String horizon, List<String> listArea) throws IOException {
         List<LinkEntity> linkEntities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet hurdleCostSheet = workbook.getSheetAt(0);
             Sheet sLinksSheet = workbook.getSheet(horizon);
-            List<String>  areaNames = listArea(studyId);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
-                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), areaNames))
+                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), listArea))
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
                             .winterHcDirectMw(row.getCell(2).getNumericCellValue())
@@ -185,26 +181,41 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
                 }
             }
-            checkConsistencyLinkAndArea(linkEntities, areaNames, warningMessages);
         } catch (IOException e) {
             throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
     }
 
-    private void checkConsistencyLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages) {
-
+    public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId, Integer trajectoryId, TrajectoryEntity secondTrajectory) {
         Set<String> linkedAreas = linkEntities.stream()
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
 
-        for (String area : areaNames) {
-            if (!linkedAreas.contains(area)) {
-                warningMessages.add(WarningMessageEntity.builder()
-                        .warningContent(warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area))
-                        .warningLevel(WarningLevel.WARNING_LEVEL)
-                        .build());
-            }
+        StudyEntity study = studyRepository.findById(studyId).orElseThrow();
+        String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
+                .map(UserInfoDto::getNni)
+                .orElse("UNKNOWN_USER");
+
+        areaNames.stream()
+                .filter(area -> !linkedAreas.contains(area))
+                .forEach(area -> addWarningMessage(warningMessages, area, study, trajectoryId, studyId, secondTrajectory, userNni));
+    }
+
+    private void addWarningMessage(Set<WarningMessageEntity> warningMessages, String area, StudyEntity study, Integer trajectoryId, Integer studyId, TrajectoryEntity secondTrajectory, String userNni) {
+        String warningContent = warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area);
+        boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, studyId);
+
+        if (!warningExists) {
+            warningMessages.add(WarningMessageEntity.builder()
+                    .warningCode(WarningCode.LINKS_AREA_NOT_PRESENT)
+                    .warningContent(warningContent)
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
+                    .creationDate(LocalDateTime.now())
+                    .createdBy(userNni)
+                    .study(study)
+                    .secondTrajectory(secondTrajectory)
+                    .build());
         }
     }
 
@@ -214,7 +225,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * and if both areas are present in the provided list of area names
      * If an area from the list is not present in the link, a warning message is added.
      *
-     * @param link the link to validate
+     * @param link      the link to validate
      * @param areaNames the list of valid area names
      * @return the validated link
      * @throws TechnicalAntaresDataMangerException if the link is not valid or an area is not present
@@ -237,10 +248,20 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     /**
      * Method to fetch areas already associated to study in database
      */
-    private List<String> listArea(Integer studyId) {
+    public List<String> findListArea(Integer studyId) {
         return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream()
                 .flatMap(trajectory -> trajectory.getAreaConfigEntities().stream())
                 .map(area -> area.getArea().getName())
                 .toList();
     }
+
+    /**
+     * Method to fetch areas already associated to study in database
+     */
+    public List<LinkEntity> findListLink(Integer studyId) {
+        return trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream()
+                .flatMap(trajectory -> trajectory.getLinkEntities().stream())
+                .toList();
+    }
+
 }

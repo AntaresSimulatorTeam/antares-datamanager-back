@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
@@ -29,7 +31,21 @@ public class WarningMessageEntity {
     @Column(nullable = false)
     private String warningContent;
 
+    @Column(nullable = false)
+    private String createdBy;
+
+    @Column(nullable = false)
+    private LocalDateTime creationDate;
+
     @ManyToOne
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;
+
+    @ManyToOne
+    @JoinColumn(name = "second_trajectory_id")
+    private TrajectoryEntity secondTrajectory;
+
+    @ManyToOne
+    @JoinColumn(name = "study_id", nullable = false)
+    private StudyEntity study;
 }

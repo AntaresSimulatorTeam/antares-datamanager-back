@@ -10,7 +10,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.List;
@@ -20,10 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@SqlGroup({
-        @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql"),
-        @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql"),
-})
+@Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql")
+@Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql")
 class StudyRepositoryTest {
 
     @Autowired
@@ -55,24 +52,20 @@ class StudyRepositoryTest {
     void findKeywordsByPartialNameReturnsMatchingKeywords() {
         List<String> keywords = studyRepository.findKeywordsByPartialName("config");
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isNotEmpty();
-        assertThat(keywords).contains("config");
+        assertThat(keywords).isNotNull().isNotEmpty().contains("config");
     }
 
     @Test
     void findKeywordsByPartialNameReturnsEmptyListWhenNoMatches() {
         List<String> keywords = studyRepository.findKeywordsByPartialName("nonExistent");
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isEmpty();
+        assertThat(keywords).isNotNull().isEmpty();
     }
 
     @Test
     void findKeywordsByPartialNameHandlesNullInput() {
         List<String> keywords = studyRepository.findKeywordsByPartialName(null);
 
-        assertThat(keywords).isNotNull();
-        assertThat(keywords).isEmpty();
+        assertThat(keywords).isNotNull().isEmpty();
     }
 }

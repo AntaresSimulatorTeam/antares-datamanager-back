@@ -4,7 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
@@ -14,10 +14,14 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.formula.functions.T;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +60,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final AreaConfigRepository areaConfigRepository;
 
     private final LinkRepository linkRepository;
+
+    private final WarningMessageRepository warningMessageRepository;
 
     private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
 
@@ -151,7 +157,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static <T> List<T> sortedByComparator(Collection<T> collection, Comparator<T> comparator) {
         return collection.stream()
                 .sorted(comparator)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private static <T, U> Map<T, U> extractKeyFromColumnByComparator(Collection<U> entities, Function<U, T> keyExtractor, Comparator<U> comparator) {
@@ -201,6 +207,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     @Transactional
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
+        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
+
         StudyEntity study = studyRepository.findById(studyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Study not found"));
 
@@ -211,6 +219,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Optional<StudyTrajectoryEntity> existingLink = study.getStudyTrajectoryEntities().stream()
                 .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
                 .findFirst();
+
+
+        // check area link
+        checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory);
+
 
         // Supprimer l'ancienne association si elle existe
         existingLink.ifPresent(studyTrajectoryRepository::delete);
@@ -228,6 +241,38 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
 
         return savedStudyTrajectoryEntity.getTrajectory();
+    }
+
+    public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+        if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
+            checkLinkCoherence(studyId, warningMessageEntities, trajectory);
+        } else if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
+            checkAreaCoherence(studyId, warningMessageEntities, trajectory);
+        }
+        warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
+        warningMessageRepository.saveAll(warningMessageEntities);
+    }
+
+    private void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+        var listLink = trajectory.getLinkEntities();
+        List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
+        if (!areasSavedForScenario.isEmpty()) {
+            listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
+            TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory);
+        }
+    }
+
+    private void checkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+        List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()
+                .map(area -> area.getArea().getName())
+                .toList();
+        List<LinkEntity> listLink = linkFileProcessorService.findListLink(studyId);
+        if (!listLink.isEmpty()) {
+            listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
+            TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream().findFirst().orElse(null);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory);
+        }
     }
 
     @Override

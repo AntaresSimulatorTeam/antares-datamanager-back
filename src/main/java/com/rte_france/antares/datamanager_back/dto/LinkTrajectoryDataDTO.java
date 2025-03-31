@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.dto.trajectoryData;
+package com.rte_france.antares.datamanager_back.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

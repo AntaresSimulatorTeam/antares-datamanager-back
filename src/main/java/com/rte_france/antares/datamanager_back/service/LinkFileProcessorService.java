@@ -11,9 +11,16 @@ import java.util.Set;
 
 public interface LinkFileProcessorService {
 
-     TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException ;
+    TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException;
 
-     TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessageEntities);
+    TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessageEntities);
 
+    void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId,Integer trajectoryId, TrajectoryEntity secondTrajectory);
 
-    }
+    String validateLinkAreas(String link, List<String> areaNames);
+
+    List<String> findListArea(Integer studyId);
+
+    List<LinkEntity> findListLink(Integer studyId);
+
+}

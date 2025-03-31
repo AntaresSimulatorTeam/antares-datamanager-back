@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.LinkTrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.LinkTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import lombok.AccessLevel;
 import lombok.Builder;
