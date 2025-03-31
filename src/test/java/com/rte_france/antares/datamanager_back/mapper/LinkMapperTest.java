@@ -1,5 +1,5 @@
 package com.rte_france.antares.datamanager_back.mapper;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.LinkTrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.LinkTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

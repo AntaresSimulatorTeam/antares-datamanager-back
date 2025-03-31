@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.experimental.UtilityClass;

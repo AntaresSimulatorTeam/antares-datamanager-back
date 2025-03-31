@@ -46,7 +46,7 @@ class ThermalFileProcessorServiceImplTest {
     private ThermalFileProcessorServiceImpl thermalFileProcessorService;
 
     @BeforeEach
-    public void setup(@TempDir Path tempDir) throws IOException {
+    public void setup() {
         MockitoAnnotations.openMocks(this);
     }
 

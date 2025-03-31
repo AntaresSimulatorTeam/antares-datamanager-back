@@ -19,7 +19,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
 import static com.rte_france.antares.datamanager_back.util.Utils.checkTrajectoryVersion;

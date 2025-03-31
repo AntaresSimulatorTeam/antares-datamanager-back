@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface LinkRepository extends JpaRepository<LinkEntity, String> {
 
-   List<LinkEntity> findLinkEntitiesByTrajectoryIdIs(Integer trajectory_id);
+   List<LinkEntity> findLinkEntitiesByTrajectoryIdIs(Integer trajectoryId);
 }

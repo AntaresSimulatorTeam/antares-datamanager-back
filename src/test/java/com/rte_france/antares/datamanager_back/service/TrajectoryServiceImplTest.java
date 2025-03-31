@@ -3,16 +3,14 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.*;
-import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -302,7 +300,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().toString().contains("Germany"));
+        assertTrue(result.get(0).toString().contains("Germany"));
 
     }
 
@@ -317,7 +315,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().toString().contains("DE-SU"));
+        assertTrue(result.get(0).toString().contains("DE-SU"));
 
     }
 
