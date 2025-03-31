@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;

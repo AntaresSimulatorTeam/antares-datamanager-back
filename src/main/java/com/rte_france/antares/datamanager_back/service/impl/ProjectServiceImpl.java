@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -36,7 +35,6 @@ import java.util.stream.Collectors;
 public class ProjectServiceImpl implements ProjectService {
 
     private final PinnedProjectRepository pinnedProjectRepository;
-    private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
     private final UserService userService;
 
@@ -75,7 +73,7 @@ public class ProjectServiceImpl implements ProjectService {
         List<ProjectEntity> projectEntities = projectRepository.findByNameContainingIgnoreCase(partialName);
         return projectEntities.stream()
                 .map(ProjectMapper::toProjectDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
 public static Specification<ProjectEntity> hasStudyName(String studyName) {

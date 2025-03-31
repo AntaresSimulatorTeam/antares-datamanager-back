@@ -4,7 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.trajectoryData.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
@@ -22,7 +22,6 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.formula.functions.T;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -158,7 +157,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static <T> List<T> sortedByComparator(Collection<T> collection, Comparator<T> comparator) {
         return collection.stream()
                 .sorted(comparator)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private static <T, U> Map<T, U> extractKeyFromColumnByComparator(Collection<U> entities, Function<U, T> keyExtractor, Comparator<U> comparator) {

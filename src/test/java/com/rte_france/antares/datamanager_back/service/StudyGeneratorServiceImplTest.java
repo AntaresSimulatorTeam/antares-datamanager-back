@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class StudyGeneratorServiceImplTest {
+class StudyGeneratorServiceImplTest {
 
     @Mock
     private StudyRepository studyRepository;
@@ -75,13 +75,15 @@ public class StudyGeneratorServiceImplTest {
         byte[] generatedJson = captureGeneratedJson(studyId);
 
 
-        Map<String, Object> jsonMap = objectMapper.readValue(generatedJson, new TypeReference<>() {});
+        Map<String, Object> jsonMap = objectMapper.readValue(generatedJson, new TypeReference<>() {
+        });
 
 
         assertNotNull(jsonMap);
         assertTrue(jsonMap.containsKey("studyTest"));
 
-        Map<String, Object> studyMap = objectMapper.readValue(objectMapper.writeValueAsString(jsonMap.get("studyTest")), new TypeReference<>() {});
+        Map<String, Object> studyMap = objectMapper.readValue(objectMapper.writeValueAsString(jsonMap.get("studyTest")), new TypeReference<>() {
+        });
 
         assertNotNull(studyMap);
         assertTrue(studyMap.containsKey("version"));
@@ -91,15 +93,16 @@ public class StudyGeneratorServiceImplTest {
         assertEquals("will be refactored so we'll put nothing for the moment", studyMap.get("settings"));
 
 
-        Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {
+        });
         assertNotNull(areasMap);
         assertTrue(areasMap.containsKey("DE"));
 
-        Map<String, Object> linksMap = objectMapper.convertValue(studyMap.get("links"), new TypeReference<>() {});
+        Map<String, Object> linksMap = objectMapper.convertValue(studyMap.get("links"), new TypeReference<>() {
+        });
         assertNotNull(linksMap);
         assertTrue(linksMap.containsKey("FR/DE"));
     }
-
 
 
     private byte[] captureGeneratedJson(Integer studyId) throws IOException {
