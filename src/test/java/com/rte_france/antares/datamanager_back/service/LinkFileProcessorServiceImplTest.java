@@ -180,6 +180,14 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
+    void validateLinkAreas_caseInsensitive() {
+        List<String> areaNames = List.of("FR", "CH", "ITcn");
+        String link = "fr-itCN";
+
+        assertDoesNotThrow(() -> linkFileProcessorService.validateLinkAreas(link, areaNames));
+    }
+
+    @Test
     void findListLink_whenStudyIdExists() {
         Integer studyId = 1;
         TrajectoryEntity trajectory = new TrajectoryEntity();

@@ -224,7 +224,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * Validates the link areas by checking if the link contains exactly two areas
      * and if both areas are present in the provided list of area names
      * If an area from the list is not present in the link, a warning message is added.
-     *
+     * This method is case-insensitive
      * @param link      the link to validate
      * @param areaNames the list of valid area names
      * @return the validated link
@@ -237,7 +237,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         }
 
         for (String area : areas) {
-            if (!areaNames.contains(area)) {
+            boolean found = areaNames.stream()
+                    .anyMatch(existingArea -> existingArea.equalsIgnoreCase(area));
+            if (!found) {
                 throw new TechnicalAntaresDataMangerException("Error: Area " + area + " in LINKS file is not present in AREA trajectory");
             }
         }
