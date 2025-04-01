@@ -86,31 +86,6 @@ public class LinksValidator {
         return cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() < 0 || cell.getNumericCellValue() % 1 != 0;
     }
 
-    /**
-     * Method to display cell values as integer if numeric
-     */
-    private static String getCellValue(Cell cell) {
-        if (cell == null) {
-            return "NULL";
-        }
-
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
-                double value = cell.getNumericCellValue();
-                if (value == Math.floor(value)) {
-                    yield String.valueOf((long) value);
-                } else {
-                    yield String.valueOf(value);
-                }
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            case FORMULA -> cell.getCellFormula();
-            default -> "NULL";
-        };
-    }
-
-
 
     /**
      * @param path    trajectory file

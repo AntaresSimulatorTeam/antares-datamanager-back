@@ -193,7 +193,7 @@ public class ExcelCommonValidator {
                     return false;
                 })
                 .map(entry -> {
-                    String actualValue = entry.getValue().toString();
+                    String actualValue = getCellValue(entry.getValue());
                     return "Waiting for string value at row " + entry.getKey() + ", Column " + (columnIndex + 1) +
                             " (Invalid value: '" + actualValue + "', numbers are not allowed)";
                 })
@@ -253,7 +253,7 @@ public class ExcelCommonValidator {
         Map<String, String> seenValues = new HashMap<>();
 
         sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
-                .map(ExcelCommonValidator::getCellValueAsString)
+                .map(ExcelCommonValidator::getCellValue)
                 .map(String::trim)
                 .filter(cellValue -> !cellValue.isEmpty())
                 .ifPresent(cellValue -> {
@@ -279,19 +279,33 @@ public class ExcelCommonValidator {
     }
 
 
-
-    private static String getCellValueAsString(Cell cell) {
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue();
-            case NUMERIC -> String.valueOf((int) cell.getNumericCellValue());
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            default -> "";
-        };
-    }
-
     private static String normalizeSymmetricValue(String value) {
         String[] parts = value.split("-");
         Arrays.sort(parts);
         return String.join("-", parts);
+    }
+
+    /**
+     * Method to display cell values as integer if numeric
+     */
+    static String getCellValue(Cell cell) {
+        if (cell == null) {
+            return "NULL";
+        }
+
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> {
+                double value = cell.getNumericCellValue();
+                if (value == Math.floor(value)) {
+                    yield String.valueOf((long) value);
+                } else {
+                    yield String.valueOf(value);
+                }
+            }
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            case FORMULA -> cell.getCellFormula();
+            default -> "NULL";
+        };
     }
 }
