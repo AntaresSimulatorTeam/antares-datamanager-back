@@ -14,10 +14,12 @@ public interface StudyService {
 
     StudyDTO createStudy(StudyDTO studyDTO);
 
-     List<String> searchKeywordsByPartialName(String partialName);
+    List<String> searchKeywordsByPartialName(String partialName);
 
     void deleteStudyById(Integer id);
 
     void updateStudyStatusAsGenerated(Integer studyId);
+
+    StudyDTO findStudyById(Integer id);
 
 }

@@ -218,4 +218,21 @@ class StudyControllerTest {
         verify(studyGeneratorService, times(1)).callGenerateStudyService(studyId);
         verify(studyService, times(1)).updateStudyStatusAsGenerated(studyId);
     }
+
+    @Test
+    void findStudyById_returnsStudyDtoWhenStudyExists() throws Exception {
+        // Given
+        Integer studyId = 1;
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
+
+        when(studyService.findStudyById(studyId)).thenReturn(studyDTO);
+
+        // When & Then
+        mockMvc.perform(get("/v1/study/{id}", studyId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(studyId))
+                .andExpect(jsonPath("$.name").value("Study 1"))
+                .andExpect(jsonPath("$.createdBy").value("User 1"));
+    }
 }

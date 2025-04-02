@@ -240,4 +240,21 @@ class StudyServiceImplTest {
         assertEquals("Study not found with ID: 1", exception.getMessage());
         verify(studyRepository, never()).save(any(StudyEntity.class));
     }
+
+    @Test
+    void findStudyByIdFindStudyWhenExists() {
+        StudyEntity studyEntity = new StudyEntity();
+        studyEntity.setId(1);
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
+
+        studyServiceImpl.findStudyById(1);
+
+        verify(studyRepository, times(1)).findById(studyEntity.getId());
+    }
+
+    @Test
+    void findStudyByIdReturnNullWhenStudyNotFound() {
+        when(studyRepository.findById(1)).thenReturn(null);
+    }
 }
