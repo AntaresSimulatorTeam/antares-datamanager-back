@@ -94,7 +94,11 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     public StudyDTO findStudyById(Integer id) {
-        return StudyMapper.toStudyDTO(studyRepository.findById(id).orElse(null));
+        StudyEntity study = studyRepository.findById(id).orElse(null);
+        if (study != null) {
+            return StudyMapper.toStudyDTO(study);
+        }
+        return null;
     }
 
     @Override
