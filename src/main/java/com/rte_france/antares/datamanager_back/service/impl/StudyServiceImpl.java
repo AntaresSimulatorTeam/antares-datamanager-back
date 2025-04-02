@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -89,6 +90,11 @@ public class StudyServiceImpl implements StudyService {
         studyRepository.findById(id).ifPresentOrElse(studyRepository::delete, () -> {
             throw new BadRequestException("Study with id " + id + " not found.");
         });
+    }
+
+    @Override
+    public StudyDTO findStudyById(Integer id) {
+        return StudyMapper.toStudyDTO(studyRepository.findById(id).orElse(null));
     }
 
     @Override

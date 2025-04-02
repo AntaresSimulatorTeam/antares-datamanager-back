@@ -81,4 +81,10 @@ public class StudyController {
         studyService.updateStudyStatusAsGenerated(id);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
+
+    @Operation(summary = "Find a study by id")
+    @GetMapping("/{id}")
+    public ResponseEntity<StudyDTO> findStudyById(@PathVariable Integer id) {
+        return new ResponseEntity<>(studyService.findStudyById(id), HttpStatus.OK);
+    }
 }
