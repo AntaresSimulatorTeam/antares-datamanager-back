@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+    <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" />
+    <appender name="JSON_ACCESS_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.access.net.URLEvaluator">
+                <URL>/actuator/health</URL>
+                <URL>/actuator/prometheus</URL>
+            </evaluator>
+            <OnMismatch>NEUTRAL</OnMismatch>
+            <OnMatch>DENY</OnMatch>
+        </filter>
+        <encoder class="net.logstash.logback.encoder.LogstashAccessEncoder">
+            <messagePattern>%fullResponse</messagePattern>
+        </encoder>
+    </appender>
+    <appender-ref ref="JSON_ACCESS_CONSOLE"/>
+
+</configuration>

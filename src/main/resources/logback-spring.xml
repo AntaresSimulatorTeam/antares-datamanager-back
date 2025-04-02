@@ -1,25 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-            <providers>
-                <pattern>
-                    <pattern>
-                        {
-                            "timestamp": "%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}",
-                            "level": "%level",
-                            "thread": "%thread",
-                            "logger": "%logger",
-                            "message": "%message",
-                            "context": "%X",
-                            "stack_trace": "%ex"
-                        }
-                    </pattern>
-                </pattern>
-            </providers>
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="co.elastic.logging.logback.EcsEncoder">
+            <includeOrigin>true</includeOrigin>
+            <stackTraceAsArray>true</stackTraceAsArray>
+            <includeMarkers>true</includeMarkers>
         </encoder>
     </appender>
-
-    <root level="info">
-        <appender-ref ref="STDOUT"/>
+    <root additivity="false">
+        <appender-ref ref="JSON_CONSOLE"/>
     </root>
 </configuration>
