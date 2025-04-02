@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
@@ -25,8 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,6 +40,9 @@ class StudyServiceImplTest {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private StudyMapper studyMapper;
 
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;
@@ -243,8 +246,12 @@ class StudyServiceImplTest {
 
     @Test
     void findStudyByIdFindStudyWhenExists() {
+        ProjectEntity projectEntity = new ProjectEntity();
+        projectEntity.setId(1);
         StudyEntity studyEntity = new StudyEntity();
         studyEntity.setId(1);
+        studyEntity.setProject(projectEntity);
+        studyEntity.setStatus(StudyStatus.IN_PROGRESS);
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
 
@@ -255,6 +262,8 @@ class StudyServiceImplTest {
 
     @Test
     void findStudyByIdReturnNullWhenStudyNotFound() {
-        when(studyRepository.findById(1)).thenReturn(null);
+        when(studyRepository.findById(1)).thenReturn(Optional.empty());
+        var result =studyServiceImpl.findStudyById(1);
+        assertNull(result);
     }
 }
