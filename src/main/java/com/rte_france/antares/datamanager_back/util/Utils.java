@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -24,7 +24,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Supplier;
 
 
@@ -34,6 +33,9 @@ import java.util.function.Supplier;
 @Slf4j
 @UtilityClass
 public class Utils {
+
+    private static final String AREAS_PREFIX = "areas_";
+    private static final String LINKS_PREFIX = "links_";
 
     /**
      * Calculates and returns the SHA-256 checksum of a file.
@@ -52,13 +54,13 @@ public class Utils {
 
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtension(path.getFileName().toString()).equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && trajectoryEntity.getFileSize() == Files.size(path)
                 && trajectoryEntity.getChecksum().equals(getFileChecksum(path.toString()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtension(path.getFileName().toString()).equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(),trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && (trajectoryEntity.getFileSize() != Files.size(path) || !trajectoryEntity.getChecksum().equals(getFileChecksum(path.toString())));
     }
 
@@ -69,9 +71,9 @@ public class Utils {
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
-    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String createdBy) throws IOException {
+    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String createdBy, TrajectoryType trajectoryType) throws IOException {
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtension(path.getFileName().toString()))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name() ))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
@@ -100,10 +102,16 @@ public class Utils {
         return false;
     }
 
-    public static String getFileNameWithoutExtension(String fileName) {
+    public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
             throw new IllegalArgumentException("Empty fileName");
+        }
+        String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX:
+                Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
+
+        if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
+            fileName = fileName.substring(prefix.length());
         }
         var lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex <= 0) { // takes into account files with already no extension or hidden files (.gitignore)
