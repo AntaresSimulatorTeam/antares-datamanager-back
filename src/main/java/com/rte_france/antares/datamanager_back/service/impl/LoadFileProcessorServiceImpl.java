@@ -52,9 +52,9 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     TrajectoryEntity savedTrajectory;
     if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-      savedTrajectory = saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, createdBy));
+      savedTrajectory = saveTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(),horizon, createdBy, TrajectoryType.LOAD));
     } else {
-      savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon, createdBy));
+      savedTrajectory = saveTrajectory(buildTrajectory(path, 0,horizon, createdBy , TrajectoryType.LOAD));
     }
 
     saveMatrixToNas(path);

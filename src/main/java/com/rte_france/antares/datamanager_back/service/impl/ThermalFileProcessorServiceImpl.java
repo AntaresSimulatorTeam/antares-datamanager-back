@@ -48,14 +48,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @param path the path to the file to process
      */
     public TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException {
-        var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+        var trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()));
         var thermalEntities = builder.build(path);
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWEN__USER";
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
 
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy), thermalEntities, type);
+            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), thermalEntities, type);
         }
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy), thermalEntities, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), thermalEntities, type);
     }
 
 

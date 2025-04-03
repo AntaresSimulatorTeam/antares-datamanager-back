@@ -15,15 +15,15 @@ import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorSer
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -123,13 +123,24 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void findTrajectoriesByTypeAndFileNameStartWithFromFS_returnsFileNamesWhenDirectoryExists() {
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+    void findTrajectoriesByTypeAndFileNameStartWithFromFS_returnsFileNamesWhenDirectoryExists(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path areaDir = tempDir.resolve("area");
+        Files.createDirectories(areaDir);
+
+        // When
+        Path testFile = areaDir.resolve("areas_testFile.xlsx");
+        Files.createFile(testFile);
+
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
+        // Then
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "test");
 
-        assertEquals("testFile.xlsx", result.get(0).getFileName());
+        assertEquals(1, result.size());
+        assertEquals("areas_testFile.xlsx", result.get(0).getFileName());
     }
 
     @Test
@@ -372,5 +383,46 @@ class TrajectoryServiceImplTest {
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(),any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
+
+
+    @Test
+    void findTrajectoriesByType_returnsFilesStartingByAreas_(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path areaDir = tempDir.resolve("area");
+        Files.createDirectories(areaDir);
+
+        Path testFile = areaDir.resolve("areas_test1.txt");
+        Files.createFile(testFile);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("areas_test1.txt", result.get(0).getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsEmptyList(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path linkDir = tempDir.resolve("link");
+        Files.createDirectories(linkDir);
+
+        Path testFile = linkDir.resolve("invalid_name.txt");
+        Files.createFile(testFile);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK, null);
+
+        // Then
+        assertEquals(0, result.size());
+    }
+
 
 }

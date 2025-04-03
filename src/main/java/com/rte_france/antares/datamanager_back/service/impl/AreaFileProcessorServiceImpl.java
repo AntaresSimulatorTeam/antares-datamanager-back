@@ -47,7 +47,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
         AreasValidator.validateAreaColumns(path, horizon);
 
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtension(path.getFileName().toString()));
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString() ,TrajectoryType.AREA.name()));
         String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
                                    .map(UserInfoDto::getNni)
                                    .orElse("UNKNOWN_USER");
@@ -57,7 +57,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy), buildAreaConfigList(path));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA), buildAreaConfigList(path));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {

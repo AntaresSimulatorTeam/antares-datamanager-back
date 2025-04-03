@@ -68,6 +68,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     static {
         FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
     }
+    private static final String AREAS_PREFIX = "areas_";
+    private static final String LINKS_PREFIX = "links_";
 
     /**
      * Processes a trajectory file based on the given type, file name, horizon, and study ID.
@@ -127,6 +129,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         try (var stream = Files.list(directory)) {
             var trajectories = stream
                     .filter(Files::isRegularFile)
+                    .filter(path -> isValidTrajectoryFile(path, trajectoryType))
                     .map(path -> {
                         try {
                             return FsTrajectoryDTO.builder()
@@ -152,6 +155,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+    /**
+     * Checks if the file name matches the required prefix for the given TrajectoryType.
+     */
+    private boolean isValidTrajectoryFile(Path path, TrajectoryType trajectoryType) {
+        String fileName = path.getFileName().toString().toLowerCase();
+
+        return switch (trajectoryType) {
+            case AREA -> fileName.startsWith(AREAS_PREFIX);
+            case LINK -> fileName.startsWith(LINKS_PREFIX);
+            default -> true;
+        };
     }
 
     private static <T> List<T> sortedByComparator(Collection<T> collection, Comparator<T> comparator) {

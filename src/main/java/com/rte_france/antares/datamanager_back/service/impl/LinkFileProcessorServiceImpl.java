@@ -66,7 +66,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         checkForWarnings(path, horizon, studyId, warningMessageEntities);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(
-                getFileNameWithoutExtension(path.getFileName().toString())
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name())
         );
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN_USER";
 
@@ -76,9 +76,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
         TrajectoryEntity trajectory;
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy);
+            trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.LINK);
         } else {
-            trajectory = buildTrajectory(path, 0, horizon, createdBy);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.LINK);
         }
         TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
 
