@@ -112,12 +112,21 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private void buildLinksDataMap(TrajectoryEntity trajectory, Map<String, Object> linksMap) {
         List<LinkEntity> linkEntityList = trajectory.getLinkEntities();
 
-        Map<String, Object> linkMap = linksMapGenerator();
-
         Map<String, Map<String, Object>> linksDataMap = linkEntityList.stream()
                 .collect(Collectors.toMap(
                         linkEntity -> linkEntity.getName().replace("-", "/"),
-                        linkEntity -> linkMap,
+                        linkEntity -> {
+                            Map<String, Object> linkMap = linksMapGenerator();
+                            linkMap.put("winterHpDirectMw", linkEntity.getWinterHpDirectMw());
+                            linkMap.put("winterHpIndirectMw", linkEntity.getWinterHpIndirectMw());
+                            linkMap.put("winterHcDirectMw", linkEntity.getWinterHcDirectMw());
+                            linkMap.put("winterHcIndirectMw", linkEntity.getWinterHcIndirectMw());
+                            linkMap.put("summerHpDirectMw", linkEntity.getSummerHpDirectMw());
+                            linkMap.put("summerHpIndirectMw", linkEntity.getSummerHpIndirectMw());
+                            linkMap.put("summerHcDirectMw", linkEntity.getSummerHcDirectMw());
+                            linkMap.put("summerHcIndirectMw", linkEntity.getSummerHcIndirectMw());
+                            return linkMap;
+                        },
                         (existing, replacement) -> existing
                 ));
 
