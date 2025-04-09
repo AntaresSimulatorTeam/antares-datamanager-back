@@ -2,28 +2,28 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
-import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +52,8 @@ class TrajectoryServiceImplTest {
     private StudyTrajectoryRepository studyTrajectoryRepository;
     @Mock
     private WarningMessageRepository warningMessageRepository;
+    @Mock
+    private UserService userService;
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -72,7 +74,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
 
-        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024",1);
+        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1);
 
         verify(areaFileProcessorService, times(1)).processAreaFile(any(), any());
     }
@@ -85,7 +87,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("/links");
 
-        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024",1);
+        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024", 1);
 
         verify(linkFileProcessorService, times(1)).processLinkFile(any(), any(), any());
     }
@@ -98,7 +100,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("src/test/resources/thermal_capacity/");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024",1);
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024", 1);
 
         verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), any());
     }
@@ -147,7 +149,7 @@ class TrajectoryServiceImplTest {
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,"area"));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "area"));
     }
 
     @Test
@@ -156,12 +158,12 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
 
-        StudyEntity study =  StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
 
-        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name())
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name())
                 .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
                 .build();
-
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -190,7 +192,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
 
-        StudyEntity study =  StudyEntity.builder().id(studyId).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.empty());
@@ -205,16 +207,17 @@ class TrajectoryServiceImplTest {
         TrajectoryType type = TrajectoryType.AREA;
 
 
-        TrajectoryEntity trajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
 
-        StudyTrajectoryEntity existingLink =  StudyTrajectoryEntity.builder().trajectory(trajectory).build();
+        StudyTrajectoryEntity existingLink = StudyTrajectoryEntity.builder().trajectory(trajectory).build();
 
-        StudyEntity study =  StudyEntity.builder().id(studyId).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
         study.setStudyTrajectoryEntities(Set.of(existingLink));
 
-        TrajectoryEntity newTrajectory =  TrajectoryEntity.builder().id(trajectoryId).type(type.name())
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name())
                 .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
                 .build();
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -250,7 +253,7 @@ class TrajectoryServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
     }
-  
+
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsLOAD() throws IOException {
         var path = mock(Path.class);
@@ -259,11 +262,11 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("/load");
 
-        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031",1);
+        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031", 1);
 
         verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
     }
-  
+
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_PARAMETER() throws IOException {
         var path = mock(Path.class);
@@ -272,7 +275,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("/thermal_parameters");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_PARAMETER, "testFile", "2023-2024",1);
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_PARAMETER, "testFile", "2023-2024", 1);
 
         verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), eq(TrajectoryType.THERMAL_PARAMETER));
     }
@@ -285,7 +288,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("/thermal_costs");
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_COST, "testFile", "2023-2024",1);
+        trajectoryService.processTrajectory(TrajectoryType.THERMAL_COST, "testFile", "2023-2024", 1);
 
         verify(thermalFileProcessorService, times(1)).processThermalFile(any(), any(), any(), eq(TrajectoryType.THERMAL_COST));
     }
@@ -297,7 +300,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
-        assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024",1));
+        assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024", 1));
     }
 
     @Test
@@ -346,10 +349,10 @@ class TrajectoryServiceImplTest {
     }
 
 
-
     @Test
     void checkLinkAreaCoherence_whenTrajectoryTypeIsLink() {
         Integer studyId = 1;
+        String userNni = "me0000";
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setType(TrajectoryType.LINK.name());
         trajectory.setLinkEntities(List.of(LinkEntity.builder().name("CH-IT").build()));
@@ -357,15 +360,17 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListArea(studyId)).thenReturn(List.of("FR", "CH", "IT"));
 
-        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory);
+        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory, userNni);
 
-        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any());
+        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
 
     @Test
     void checkLinkAreaCoherence_whenTrajectoryTypeIsArea() {
         Integer studyId = 1;
+        String userNni = "me0000";
+
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setType(TrajectoryType.AREA.name());
         trajectory.setAreaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("FR").build()).build(),
@@ -376,11 +381,11 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListLink(studyId)).thenReturn(List.of(LinkEntity.builder().name("FR-CH").build(), LinkEntity.builder().name("FR-IT").build()));
 
-        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory);
+        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));
-        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(),any());
+        verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
 
