@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
@@ -19,4 +21,16 @@ public class WarningMessageDTO {
 
     @JsonProperty("level")
     private String level;
+
+    @JsonProperty("code")
+    private String code;
+
+    @JsonProperty("generatedBy")
+    private String generatedBy;
+
+    @JsonProperty("generatedAt")
+    private LocalDateTime generatedAt;
+
+    @JsonProperty("secondTrajectory")
+    private String secondTrajectory;
 }
