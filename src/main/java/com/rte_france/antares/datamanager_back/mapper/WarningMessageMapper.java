@@ -29,6 +29,10 @@ public class WarningMessageMapper {
             .id(entity.getId())
             .content(entity.getWarningContent())
             .level(entity.getWarningLevel().name())
+            .code(entity.getWarningCode().name())
+            .generatedAt(entity.getCreationDate())
+            .generatedBy(entity.getCreatedBy())
+            .secondTrajectory(entity.getSecondTrajectory() != null ? entity.getSecondTrajectory().getFileName() : null)
             .build();
   }
 
