@@ -15,7 +15,7 @@ public interface LinkFileProcessorService {
 
     TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessageEntities);
 
-    void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId,Integer trajectoryId, TrajectoryEntity secondTrajectory);
+    void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId,Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni);
 
     String validateLinkAreas(String link, List<String> areaNames);
 

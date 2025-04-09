@@ -73,6 +73,6 @@ class AreaConfigRepositoryTest {
         assertThat(result.get(0)).hasSize(3);
         assertThat(result.get(0)[0]).isEqualTo("TestArea");
         assertThat(result.get(0)[1]).isEqualTo(true);
-        assertThat(result.getFirst()[2]).isEqualTo(false);
+        assertThat(result.get(0)[2]).isEqualTo(false);
     }
 }

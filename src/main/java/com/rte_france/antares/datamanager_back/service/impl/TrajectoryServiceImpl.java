@@ -63,6 +63,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final WarningMessageRepository warningMessageRepository;
 
+    private final UserService userService;
+
     private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
 
     static {
@@ -235,9 +237,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
                 .findFirst();
 
+        String userNni = userService.getCurrentUserDetails().getNni();
 
         // check area link
-        checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory);
+        checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
 
 
         // Supprimer l'ancienne association si elle existe
@@ -258,27 +261,27 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return savedStudyTrajectoryEntity.getTrajectory();
     }
 
-    public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+    public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
-            checkLinkCoherence(studyId, warningMessageEntities, trajectory);
+            checkLinkCoherence(studyId, warningMessageEntities, trajectory, userNni);
         } else if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
-            checkAreaCoherence(studyId, warningMessageEntities, trajectory);
+            checkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
         warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
         warningMessageRepository.saveAll(warningMessageEntities);
     }
 
-    private void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+    private void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         var listLink = trajectory.getLinkEntities();
         List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
         if (!areasSavedForScenario.isEmpty()) {
             listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
             TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
-            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
         }
     }
 
-    private void checkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory) {
+    private void checkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()
                 .map(area -> area.getArea().getName())
                 .toList();
@@ -286,7 +289,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (!listLink.isEmpty()) {
             listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
             TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream().findFirst().orElse(null);
-            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
         }
     }
 

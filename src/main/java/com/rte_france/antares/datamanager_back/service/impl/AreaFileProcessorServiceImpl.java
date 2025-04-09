@@ -69,19 +69,14 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     }
 
     private List<AreaConfigEntity> buildAreaConfigList(Path path) throws IOException {
-        List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
-            for (Row row : sheet) {
-                if (row.getRowNum() == 0) continue;
+            List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
 
-                Cell firstCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                if (firstCell == null || firstCell.getCellType() == CellType.BLANK ||
-                        (firstCell.getCellType() == CellType.STRING && firstCell.getStringCellValue().trim().isEmpty())) {
-                    continue;
-                }
+            for (Row row : sheet) {
+                if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
 
                 AreaEntity areaEntity = findOrCreateAreaEntity(row);
                 Boolean value1 = getBooleanCellValue(row.getCell(1));
@@ -89,10 +84,16 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
 
                 areaConfigEntities.add(new AreaConfigEntity(value1, value2, areaEntity));
             }
+            return areaConfigEntities;
         } catch (IOException e) {
-            throw new IOException("could not build area config list : " + e.getMessage());
+            throw new IOException("could not build area config list: " + e.getMessage());
         }
-        return areaConfigEntities;
+    }
+
+    private boolean isRowEmpty(Row row) {
+        Cell firstCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        return firstCell == null || firstCell.getCellType() == CellType.BLANK ||
+                (firstCell.getCellType() == CellType.STRING && firstCell.getStringCellValue().trim().isEmpty());
     }
 
     private AreaEntity findOrCreateAreaEntity(Row area) {
