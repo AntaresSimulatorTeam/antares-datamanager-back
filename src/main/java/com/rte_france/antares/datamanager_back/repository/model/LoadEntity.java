@@ -19,7 +19,11 @@ public class LoadEntity {
   @Column(name = "id", nullable = false)
   private Integer id;
 
-  @OneToOne(fetch = FetchType.LAZY)
+    @Column(name = "file_name", nullable = false)
+    private String fileName;
+
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "trajectory_id")
   private TrajectoryEntity trajectory;
+
 }

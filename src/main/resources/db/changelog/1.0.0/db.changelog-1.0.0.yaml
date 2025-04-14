@@ -1,0 +1,32 @@
+databaseChangeLog:
+  ######################################### version 1.0.0 ##########################################
+  - include:
+      file: classpath*:db/changelog/1.0.0/V01-schema-initialization.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V02-create-areas-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V03-create-loads-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V04-create-thermal-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V05-create_user_and_pinned_project.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V06-create_project_tags_table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V07-add_sequence_study_project.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V08-modify_sequences_start_value.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V09-drop_area_values_inserted.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V10-create-load-table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V11-update_thermal_parameters_table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V12-create-warning-table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V13-update_project_name_column.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V14-update_warning_messages_table.sql
+  - include:
+      file: classpath*:db/changelog/1.0.0/V15-add_column_warning_messages_table.sql
