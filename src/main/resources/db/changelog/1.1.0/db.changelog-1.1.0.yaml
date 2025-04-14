@@ -2,3 +2,5 @@ databaseChangeLog:
   ######################################### version 1.0.0 ##########################################
   - include:
       file: classpath*:db/changelog/1.1.0/V01-update-load-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V02-add_default_load_values.sql

@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -83,7 +84,7 @@ public class TrajectoryController {
 
     @Operation(summary = "Get trajectory data")
     @GetMapping(value = "/trajectoryData")
-    public ResponseEntity<?> findTrajectoriesByTypeFromFileSystem(
+    public ResponseEntity<List<TrajectoryDataDTO>> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
             @RequestParam(value = "trajectoryId") Integer trajectoryId) {
 
