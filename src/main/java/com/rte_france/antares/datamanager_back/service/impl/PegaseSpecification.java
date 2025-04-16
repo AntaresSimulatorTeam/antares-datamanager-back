@@ -1,9 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
 
@@ -24,8 +21,13 @@ public class PegaseSpecification<T> implements Specification<T> {
         else if (criteria.getOperation().equalsIgnoreCase("<")) {
             return builder.lessThanOrEqualTo(root.get(criteria.getKey()), criteria.getValue().toString());
         } else if (criteria.getOperation().equalsIgnoreCase("in")) {
-            return builder.isMember(criteria.getValue().toString(), root.get(criteria.getKey()));
-        } else if (criteria.getOperation().equalsIgnoreCase(":")) {
+            // Join avec les éléments de la liste 'tags'
+            Join<T, String> join = root.join(criteria.getKey());
+            return builder.like(
+                    builder.lower(join),
+                    "%" + criteria.getValue().toString().toLowerCase() + "%"
+            );
+        }else if (criteria.getOperation().equalsIgnoreCase(":")) {
             if (root.get(criteria.getKey()).getJavaType() == String.class) {
                 return builder.like(builder.lower(root.<String>get(criteria.getKey())), "%" + criteria.getValue().toString().toLowerCase() + "%");
             } else {

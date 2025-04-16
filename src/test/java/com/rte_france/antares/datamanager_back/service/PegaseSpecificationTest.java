@@ -63,19 +63,30 @@ class PegaseSpecificationTest {
     }
 
 
+    @SuppressWarnings("unchecked")
     @Test
-    void inOperation() {
-        when(root.get("roles")).thenReturn(path);
+    void inOperationWithLikeOnCollection() {
+        Join<Object, String> join = mock(Join.class);
+
+        // Cast et retour explicite du join
+        when(root.join("roles")).thenAnswer(invocation -> join);
+
+        Expression<String> lowerExpr = mock(Expression.class);
+        when(builder.lower(join)).thenReturn(lowerExpr);
+
+        Predicate mockPredicate = mock(Predicate.class);
+        when(builder.like(eq(lowerExpr), eq("%admin%"))).thenReturn(mockPredicate);
 
         SearchCriteria criteria = new SearchCriteria("roles", "in", "admin");
         specification = new PegaseSpecification<>(criteria);
 
-        Predicate mockPredicate = mock(Predicate.class);
-        when(builder.isMember(eq("admin"), any(Expression.class))).thenReturn(mockPredicate);
-
         Predicate predicate = specification.toPredicate(root, query, builder);
 
         assertNotNull(predicate);
-        verify(builder).isMember(eq("admin"), any(Expression.class));
+        verify(root).join("roles");
+        verify(builder).lower(join);
+        verify(builder).like(eq(lowerExpr), eq("%admin%"));
     }
+
+
 }
