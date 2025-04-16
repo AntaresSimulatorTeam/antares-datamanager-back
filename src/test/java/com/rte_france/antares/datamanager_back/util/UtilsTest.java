@@ -20,9 +20,9 @@ class UtilsTest {
     @Test
     void getFileChecksum_returnsCorrectChecksum() throws IOException {
         String filePath = "src/test/resources/area/testFile.xlsx";
-        String expectedChecksum = "ddcf3b936326b35bf74caaecb2cb24cfd96f49b6472d1e6bc19c8eccb7a5c51b"; // pre-calculated checksum for "hello" text
+        String expectedChecksum = "13ed437c4399e34b32b1ba34374179bec3e4e6792048ba0dce5560563107e616"; // pre-calculated checksum for "hello" text
 
-        String actualChecksum = Utils.getFileChecksum(filePath);
+        String actualChecksum = Utils.computeSheetChecksum(filePath, "2030-2031");
 
         assertEquals(expectedChecksum, actualChecksum);
     }
@@ -31,7 +31,7 @@ class UtilsTest {
     void getFileChecksum_throwsExceptionForNonExistentFile() {
         String filePath = "src/test/resources/area/nonExistentFile.txt";
 
-        assertThrows(IOException.class, () -> Utils.getFileChecksum(filePath));
+        assertThrows(IOException.class, () -> Utils.computeSheetChecksum(filePath, "Sheet1"));
     }
 
 
@@ -39,9 +39,10 @@ class UtilsTest {
     void isSameFileWithSameContent_returnsTrueForIdenticalFile() throws IOException {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
+        trajectoryEntity.setHorizon("2030-2031");
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
-        trajectoryEntity.setChecksum(Utils.getFileChecksum(path.toString()));
+        trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
         boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
 
@@ -54,7 +55,7 @@ class UtilsTest {
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("differentFile");
         trajectoryEntity.setFileSize(Files.size(path));
-        trajectoryEntity.setChecksum(Utils.getFileChecksum(path.toString()));
+        trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
         boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
 
@@ -65,6 +66,7 @@ class UtilsTest {
     void isSameFileWithDifferentContent_returnsTrueForDifferentContent() throws IOException {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
+        trajectoryEntity.setHorizon("2030-2031");
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
         trajectoryEntity.setChecksum("differentChecksum");
@@ -78,10 +80,10 @@ class UtilsTest {
     void isSameFileWithDifferentContent_returnsFalseForIdenticalFile() throws IOException {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
+        trajectoryEntity.setHorizon("2030-2031");
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
-        trajectoryEntity.setChecksum(Utils.getFileChecksum(path.toString()));
-
+        trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
         boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
 
         assertFalse(isSameFileWithDifferentContent);
@@ -106,30 +108,33 @@ class UtilsTest {
 
     @Test
     void checkTrajectoryVersion_sameContent() throws IOException {
-        var tempFile = Files.createFile(tempDir.resolve("testFile.xlsx"));
-        Files.writeString(tempFile, "test content");
+        Path  filePath = Path.of("src/test/resources/area/testFile.xlsx");
+        String sheetName = "2030-2031";
         var trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("testFile");
-        trajectoryEntity.setFileSize(Files.size(tempFile));
-        trajectoryEntity.setChecksum(Utils.getFileChecksum(tempFile.toString()));
+        trajectoryEntity.setFileSize(Files.size(filePath));
+        trajectoryEntity.setHorizon(sheetName);
+        trajectoryEntity.setChecksum(Utils.computeSheetChecksum(filePath.toString(), "2030-2031"));
 
-        assertThrows(AlreadyProcessedException.class, () -> Utils.checkTrajectoryVersion(tempFile, trajectoryEntity));
+        assertThrows(AlreadyProcessedException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity));
     }
 
     @Test
-    void checkTrajectoryVersion_differentContent() throws IOException {
-        var tempFile = Files.createFile(tempDir.resolve("testFile.xlsx"));
-        Files.writeString(tempFile, "test content");
+    void checkTrajectoryVersion_differentContent() throws Exception {
+        String filePath = "src/test/resources/area/testFile.xlsx";
+        String sheetName = "2030-2031";
+
         var trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("testFile");
-        trajectoryEntity.setFileSize(Files.size(tempFile));
+        trajectoryEntity.setFileSize(Files.size(Path.of(filePath)));
         trajectoryEntity.setChecksum("differentChecksum");
+        trajectoryEntity.setHorizon(sheetName);
 
-        assertTrue(Utils.checkTrajectoryVersion(tempFile, trajectoryEntity));
+        assertTrue(Utils.checkTrajectoryVersion(Path.of(filePath), trajectoryEntity));
     }
 
     @Test
-    void checkTrajectoryVersion_newFile() throws IOException {
+    void checkTrajectoryVersion_newFile() throws Exception {
         var tempFile = Files.createFile(tempDir.resolve("testFile.xlsx"));
         Files.writeString(tempFile, "test content");
         var trajectoryEntity = new TrajectoryEntity();
@@ -173,5 +178,16 @@ class UtilsTest {
         var result = Utils.ensureExtension(filePath, () -> "");
 
         assertEquals(filePath.toString() + ".", result.toString());
+    }
+
+    @org.junit.jupiter.api.Test
+    void computeSheetChecksum_returnsCorrectChecksumForValidSheet() throws IOException {
+        String filePath = "src/test/resources/area/testFile.xlsx";
+        String sheetName = "2030-2031";
+        String expectedChecksum = "13ed437c4399e34b32b1ba34374179bec3e4e6792048ba0dce5560563107e616";
+
+        String actualChecksum = Utils.computeSheetChecksum(filePath, sheetName);
+
+        assertEquals(expectedChecksum, actualChecksum);
     }
 }

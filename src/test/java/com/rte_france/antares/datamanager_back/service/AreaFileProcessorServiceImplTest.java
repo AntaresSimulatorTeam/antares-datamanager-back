@@ -62,7 +62,7 @@ class AreaFileProcessorServiceImplTest {
         void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
             when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             var trajectoryEntity = mock(TrajectoryEntity.class);
-            when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any()))
+            when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any()))
                     .thenReturn(Optional.of(trajectoryEntity));
 
             areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
@@ -74,7 +74,7 @@ class AreaFileProcessorServiceImplTest {
         @Test
         void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
             when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-            when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+            when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.empty());
 
             areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
 

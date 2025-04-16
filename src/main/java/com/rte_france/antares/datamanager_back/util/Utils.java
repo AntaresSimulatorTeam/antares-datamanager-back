@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.google.common.hash.Hashing;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,9 +13,10 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -56,12 +58,13 @@ public class Utils {
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && trajectoryEntity.getFileSize() == Files.size(path)
-                && trajectoryEntity.getChecksum().equals(getFileChecksum(path.toString()));
+                && trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(),trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && (trajectoryEntity.getFileSize() != Files.size(path) || !trajectoryEntity.getChecksum().equals(getFileChecksum(path.toString())));
+                && (trajectoryEntity.getFileSize() != Files.size(path)
+                || !trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon())));
     }
 
     /**
@@ -78,7 +81,7 @@ public class Utils {
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
-                .checksum(getFileChecksum(path.toString()))
+                .checksum(trajectoryType.name().equals(TrajectoryType.LOAD.name()) || trajectoryType.name().equals(TrajectoryType.THERMAL_CAPACITY.name()) ?  getFileChecksum(path.toString()) : computeSheetChecksum(path.toString(), horizon))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .build();
@@ -213,5 +216,45 @@ public class Utils {
 
         var ext = "." + getFileExt.get();
         return path.toString().endsWith(ext) ? path : path.resolveSibling(path.getFileName() + ext);
+    }
+
+
+    /**
+     * Calcule le checksum SHA-256 d'une feuille Excel par nom
+     * @param filePath chemin vers le fichier .xlsx
+     * @param sheetName nom exact de la feuille Excel
+     * @return hash SHA-256 sous forme hexadécimale
+     * @throws IOException en cas de fichier introuvable ou feuille absente
+     */
+    public static String computeSheetChecksum(String filePath, String sheetName) throws IOException {
+        try (InputStream inputStream = Files.newInputStream(Path.of(filePath));
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+
+            Sheet sheet = workbook.getSheet(sheetName);
+            if (sheet == null) {
+                throw new IllegalArgumentException("Feuille '" + sheetName + "' non trouvée dans le fichier : " + filePath);
+            }
+
+            StringBuilder sb = new StringBuilder();
+
+            for (Row row : sheet) {
+                for (Cell cell : row) {
+                    switch (cell.getCellType()) {
+                        case STRING -> sb.append(cell.getStringCellValue());
+                        case NUMERIC -> sb.append(cell.getNumericCellValue());
+                        case BOOLEAN -> sb.append(cell.getBooleanCellValue());
+                        case FORMULA -> sb.append(cell.getCellFormula());
+                        case BLANK -> sb.append("BLANK");
+                        default -> sb.append("NULL");
+                    }
+                    sb.append("|");
+                }
+                sb.append("\n");
+            }
+
+            return Hashing.sha256()
+                    .hashString(sb.toString(), StandardCharsets.UTF_8)
+                    .toString();
+        }
     }
 }

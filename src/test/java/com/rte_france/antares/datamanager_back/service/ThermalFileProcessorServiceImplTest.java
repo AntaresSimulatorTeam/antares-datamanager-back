@@ -133,11 +133,11 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalCapacityFile_whenTrajectoryExistsAndVersionIsValid(@TempDir Path tempDir) throws IOException {
+    void processThermalCapacityFile_whenTrajectoryExistsAndVersionIsValid(@TempDir Path tempDir) throws Exception {
         var tempFile = mockExcelFile(tempDir, THERMAL_CAPACITY_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCapacityExcelFile);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(),any())).thenReturn(Optional.of(trajectoryEntity));
         var horizon = "2023-2024";
         thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, TrajectoryType.THERMAL_CAPACITY);
 
@@ -145,10 +145,10 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalCapacityFile_whenTrajectoryDoesNotExist(@TempDir Path tempDir) throws IOException {
+    void processThermalCapacityFile_whenTrajectoryDoesNotExist(@TempDir Path tempDir) throws Exception {
         var tempFile = mockExcelFile(tempDir, THERMAL_CAPACITY_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCapacityExcelFile);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.empty());
         var horizon = "2023-2024";
         thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, TrajectoryType.THERMAL_PARAMETER);
 
@@ -156,12 +156,12 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalParameterFile() throws IOException {
+    void processThermalParameterFile() throws Exception {
         // Given
 
         Path path = Path.of(THERMAL_PARAMETERS_PATH);
 
-        String horizon = "2025";
+        String horizon = "2031";
 
         TrajectoryEntity expectedTrajectory = TrajectoryEntity.builder()
                 .fileName(THERMAL_PARAMETERS_FILE_NAME)
@@ -171,7 +171,7 @@ class ThermalFileProcessorServiceImplTest {
                 .build();
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME + ".xlsx"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME + ".xlsx", horizon))
                 .thenReturn(Optional.of(expectedTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(expectedTrajectory);
 
@@ -180,19 +180,19 @@ class ThermalFileProcessorServiceImplTest {
 
         // Then
         verify(trajectoryRepository, times(1))
-                .findFirstByFileNameOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME);
+                .findFirstByFileNameAndHorizonOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME, horizon);
 
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
 
     }
 
     @Test
-    void processThermalCostFile_whenTrajectoryExistsAndVersionIsValid(@TempDir Path tempDir) throws IOException {
+    void processThermalCostFile_whenTrajectoryExistsAndVersionIsValid(@TempDir Path tempDir) throws Exception {
         // Given
         var tempFile = mockExcelFile(tempDir, THERMAL_COSTS_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCostExcelFile);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.of(trajectoryEntity));
         String horizon = "2025";
 
         // When
@@ -203,11 +203,11 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalCostFile_whenTrajectoryDoesNotExist(@TempDir Path tempDir) throws IOException {
+    void processThermalCostFile_whenTrajectoryDoesNotExist(@TempDir Path tempDir) throws Exception {
         // Given
         var tempFile = mockExcelFile(tempDir, THERMAL_COSTS_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCostExcelFile);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.empty());
         String horizon = "2025";
 
         // When

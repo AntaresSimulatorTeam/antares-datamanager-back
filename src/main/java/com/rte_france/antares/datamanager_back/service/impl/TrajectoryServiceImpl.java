@@ -84,6 +84,20 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse);
+
+        return switch (trajectoryType) {
+            case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
+            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon,studyId);
+            case THERMAL_CAPACITY -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
+            case THERMAL_PARAMETER -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
+            case THERMAL_COST -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
+            case LOAD -> loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
+            default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
+        };
+    }
+
+    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
@@ -101,16 +115,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
             throw new IOException("Path is outside of the target directory");
         }
-
-        return switch (trajectoryType) {
-            case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
-            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon,studyId);
-            case THERMAL_CAPACITY -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
-            case THERMAL_PARAMETER -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
-            case THERMAL_COST -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
-            case LOAD -> loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
-            default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
-        };
+        return trajectoryFilePath;
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains) {
@@ -129,31 +134,28 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .resolve(trajectoryType.name().toLowerCase());
 
         try (var stream = Files.list(directory)) {
-            var trajectories = stream
-                    .filter(Files::isRegularFile)
+            return stream.filter(Files::isRegularFile)
                     .filter(path -> isValidTrajectoryFile(path, trajectoryType))
-                    .map(path -> {
-                        try {
-                            return FsTrajectoryDTO.builder()
-                                    .fileName(path.getFileName().toString())
-                                    .lastModifiedDate(Files.getLastModifiedTime(path)
-                                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                                    .type(trajectoryType.name())
-                                    .build();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    })
+                    .map(path -> createFsTrajectoryDTO(path, trajectoryType))
                     .filter(dto -> fileNameContains == null || dto.getFileName().toLowerCase().contains(fileNameContains.toLowerCase()))
+                    .collect(Collectors.groupingBy(FsTrajectoryDTO::getFileName, Collectors.maxBy(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate))))
+                    .values().stream()
+                    .flatMap(Optional::stream)
+                    .sorted(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed())
                     .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
-            var latestTrajectories = extractKeyFromColumnByComparator(
-                    trajectories,
-                    FsTrajectoryDTO::getFileName,
-                    Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed()
-            );
-
-            return sortedByComparator(latestTrajectories.values(), Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed());
+    private FsTrajectoryDTO createFsTrajectoryDTO(Path path, TrajectoryType trajectoryType) {
+        try {
+            return FsTrajectoryDTO.builder()
+                    .fileName(path.getFileName().toString())
+                    .lastModifiedDate(Files.getLastModifiedTime(path)
+                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .type(trajectoryType.name())
+                    .build();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

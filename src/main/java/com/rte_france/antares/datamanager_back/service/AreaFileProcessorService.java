@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface AreaFileProcessorService {
 
-     TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException ;
+     TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException;
 
      TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities);
 

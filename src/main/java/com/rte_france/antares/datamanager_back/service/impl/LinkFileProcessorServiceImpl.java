@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -17,10 +16,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,8 +63,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
 
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name())
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name()), horizon
         );
         String createdBy = userService.getCurrentUserDetails().getNni();
 
@@ -112,16 +108,16 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
         List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
 
-        addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO,studyId, userNni, trajectory);
-        addWarning(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO,studyId, userNni, trajectory);
-        addWarning(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO,studyId, userNni, trajectory);
-        addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY,studyId, userNni, trajectory);
+        addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO, studyId, userNni, trajectory);
+        addWarning(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
+        addWarning(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
+        addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY, studyId, userNni, trajectory);
     }
 
 
     private void addWarning(Set<WarningMessageEntity> warningMessages,
                             List<String> warnings,
-                            WarningCode warningCode,Integer studyId, String userNni, TrajectoryEntity trajectory) {
+                            WarningCode warningCode, Integer studyId, String userNni, TrajectoryEntity trajectory) {
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
 
         for (String warning : warnings) {
@@ -170,7 +166,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet hurdleCostSheet = workbook.getSheetAt(0);
+            Sheet hurdleCostSheet = workbook.getSheet("parameters");
             Sheet sLinksSheet = workbook.getSheet(horizon);
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
@@ -188,7 +184,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .hvdc(Boolean.valueOf(row.getCell(10).getStringCellValue()))
                             .specificTs(Boolean.valueOf(row.getCell(11).getStringCellValue()))
                             .forcedOutageHvac(Boolean.valueOf(row.getCell(12).getStringCellValue()))
-                            .hurdleCost(hurdleCostSheet.getRow(1).getCell(1).getNumericCellValue())
+                            .hurdleCost(hurdleCostSheet.getRow(1).getCell(findCellIndexByHorizon(hurdleCostSheet, horizon)).getNumericCellValue())
                             .build();
                     linkEntities.add(link);
 
@@ -198,6 +194,21 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             throw new IOException("could not build link list : " + e.getMessage());
         }
         return linkEntities;
+    }
+
+    private int findCellIndexByHorizon(Sheet sheet, String horizon) {
+        Row headerRow = sheet.getRow(0); // Récupère la ligne 0
+        if (headerRow == null) {
+            throw new IllegalArgumentException("Header row is missing in the sheet.");
+        }
+
+        for (Cell cell : headerRow) {
+            if (cell.getCellType() == CellType.STRING && horizon.equals(cell.getStringCellValue().trim())) {
+                return cell.getColumnIndex(); // Retourne l'index de la colonne
+            }
+        }
+
+        throw new IllegalArgumentException("Horizon '" + horizon + "' not found in the header row.");
     }
 
     public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId, Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni) {
