@@ -4,3 +4,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V01-update-load-table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V02-add_default_load_values.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V03-add_ack_column_in_warning_message.sql

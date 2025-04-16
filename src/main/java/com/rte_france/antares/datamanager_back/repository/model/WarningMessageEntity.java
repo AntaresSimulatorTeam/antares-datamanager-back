@@ -37,6 +37,9 @@ public class WarningMessageEntity {
     @Column(nullable = false)
     private LocalDateTime creationDate;
 
+    @Column(name = "ack")
+    private Boolean isAck;
+
     @ManyToOne
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;
