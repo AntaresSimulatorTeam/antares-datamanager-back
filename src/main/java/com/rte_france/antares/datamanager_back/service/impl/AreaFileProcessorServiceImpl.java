@@ -46,18 +46,19 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         checkIfHorizonExist(path, horizon);
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon);
         AreasValidator.validateAreaColumns(path, horizon);
+        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.AREA.name());
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(fileName, horizon);
 
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString() ,TrajectoryType.AREA.name()));
         String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
-                                   .map(UserInfoDto::getNni)
-                                   .orElse("UNKNOWN_USER");
+                .map(UserInfoDto::getNni)
+                .orElse("UNKNOWN_USER");
 
         int version = trajectoryEntity.map(TrajectoryEntity::getVersion).orElse(0);
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA), buildAreaConfigList(path));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA), buildAreaConfigList(path, horizon));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
@@ -68,11 +69,11 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
-    private List<AreaConfigEntity> buildAreaConfigList(Path path) throws IOException {
+    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon) throws IOException {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheetAt(0);
+            Sheet sheet = workbook.getSheet(horizon);
             List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
 
             for (Row row : sheet) {

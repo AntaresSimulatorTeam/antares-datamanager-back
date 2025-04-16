@@ -25,7 +25,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -88,7 +91,7 @@ class LinkFileProcessorServiceImplTest {
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
@@ -98,7 +101,7 @@ class LinkFileProcessorServiceImplTest {
     @Test
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc(any())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.empty());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
@@ -111,21 +114,22 @@ class LinkFileProcessorServiceImplTest {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
-                List.of("2032-2033", "EmptySheet"),
+                List.of("parameters", "2032-2033"),
                 List.of(
+                        List.of("", "2032-2033"),
                         List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),  // Headers for sheet 1 (with data)
-                        List.of()
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
                 ),
                 List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5
+                        )),
                         List.of(
                                 List.of("FR-CH", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
                                 List.of("FR-IT", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
-                        ),
-                        List.of()
+                        )
                 ));
 
 
@@ -134,7 +138,7 @@ class LinkFileProcessorServiceImplTest {
         trajectory.setVersion(1);
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameOrderByVersionDesc("TestFile.xlsx"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFile.xlsx", "2032-2033"))
                 .thenReturn(Optional.of(trajectory));
 
 
@@ -218,7 +222,10 @@ class LinkFileProcessorServiceImplTest {
              var workbook = new XSSFWorkbook()) {
             var sheet = workbook.createSheet("2030-2031");
             sheet.createRow(1).createCell(1).setCellValue(100.5);
-            workbook.createSheet("parameters");
+            var parametersSheet = workbook.createSheet("parameters");
+            parametersSheet.createRow(0).createCell(1).setCellValue("2030-2031");
+            parametersSheet.createRow(1).createCell(0).setCellValue("Hurdle Costs");
+            parametersSheet.createRow(1).createCell(1).setCellValue(0.5);
 
             Object[][] mockValues = {
                     {"FR-CH", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", "false", "true", "false"}

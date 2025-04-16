@@ -16,7 +16,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     Optional<TrajectoryEntity> findTrajectoryEntityById(Integer id);
 
     @ExecutionTime
-    Optional<TrajectoryEntity> findFirstByFileNameOrderByVersionDesc(String fileName);
+    Optional<TrajectoryEntity> findFirstByFileNameAndHorizonOrderByVersionDesc(String fileName, String horizon);
 
 
     @Query("""
