@@ -11,11 +11,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "load_default")
+@Table(name = "default_load")
 public class DefaultLoadEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "load_default_seq_gen")
-    @SequenceGenerator(name = "load_default_seq_gen", sequenceName = "load_default_sequence", allocationSize = 1)
+    @SequenceGenerator(name = "default_load_seq_gen", sequenceName = "load_default_sequence", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Integer id;
 
