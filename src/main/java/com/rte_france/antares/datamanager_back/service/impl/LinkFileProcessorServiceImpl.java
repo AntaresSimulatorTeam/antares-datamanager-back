@@ -131,6 +131,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                     .trajectory(trajectory)
                     .creationDate(LocalDateTime.now())
                     .createdBy(userNni)
+                    .isAck(false)
                     .build();
             warningMessages.add(message);
         }
@@ -240,6 +241,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                     .createdBy(userNni)
                     .study(study)
                     .secondTrajectory(secondTrajectory)
+                    .isAck(false)
                     .build());
         }
     }
