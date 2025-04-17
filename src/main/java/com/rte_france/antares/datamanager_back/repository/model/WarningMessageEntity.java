@@ -37,8 +37,8 @@ public class WarningMessageEntity {
     @Column(nullable = false)
     private LocalDateTime creationDate;
 
-    @Column(name = "ack")
-    private Boolean isAck;
+    @Column(name = "ack" , nullable = false, columnDefinition = "boolean default false" )
+    private Boolean isAck = false;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id", nullable = false)
