@@ -15,41 +15,41 @@ import java.util.stream.Collectors;
 @Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class WarningMessageMapper {
-  public static Set<WarningMessageDTO> toWarningMessageDTOs(Set<WarningMessageEntity> entities) {
-    if (entities == null) {
-      return Set.of();
+    public static Set<WarningMessageDTO> toWarningMessageDTOs(Set<WarningMessageEntity> entities) {
+        if (entities == null) {
+            return Set.of();
+        }
+        return entities.stream()
+                .map(WarningMessageMapper::toWarningMessageDTO)
+                .collect(Collectors.toSet());
     }
-    return entities.stream()
-            .map(WarningMessageMapper::toWarningMessageDTO)
-            .collect(Collectors.toSet());
-  }
 
-  static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
-    return WarningMessageDTO.builder()
-            .id(entity.getId())
-            .content(entity.getWarningContent())
-            .level(entity.getWarningLevel().name())
-            .code(entity.getWarningCode().name())
-            .generatedAt(entity.getCreationDate())
-            .generatedBy(entity.getCreatedBy())
-            .secondTrajectory(entity.getSecondTrajectory() != null ? entity.getSecondTrajectory().getFileName() : null)
-            .build();
-  }
-
-  public static Set<WarningMessageEntity> toWarningMessageEntities(Set<WarningMessageDTO> dtos) {
-    if (dtos == null) {
-      return Set.of();
+    static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
+        return WarningMessageDTO.builder()
+                .id(entity.getId())
+                .content(entity.getWarningContent())
+                .level(entity.getWarningLevel().name())
+                .code(entity.getWarningCode().name())
+                .generatedAt(entity.getCreationDate())
+                .generatedBy(entity.getCreatedBy())
+                .secondTrajectory(entity.getSecondTrajectory() != null ? entity.getSecondTrajectory().getFileName() : null)
+                .build();
     }
-    return dtos.stream()
-            .map(WarningMessageMapper::toWarningMessageEntity)
-            .collect(Collectors.toSet());
-  }
 
-  static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
-    WarningMessageEntity entity = new WarningMessageEntity();
-    entity.setId(dto.getId());
-    entity.setWarningContent(dto.getContent());
-    entity.setWarningLevel(WarningLevel.valueOf(dto.getLevel()));
-    return entity;
-  }
+    public static Set<WarningMessageEntity> toWarningMessageEntities(Set<WarningMessageDTO> dtos) {
+        if (dtos == null) {
+            return Set.of();
+        }
+        return dtos.stream()
+                .map(WarningMessageMapper::toWarningMessageEntity)
+                .collect(Collectors.toSet());
+    }
+
+    static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
+        WarningMessageEntity entity = new WarningMessageEntity();
+        entity.setId(dto.getId());
+        entity.setWarningContent(dto.getContent());
+        entity.setWarningLevel(WarningLevel.valueOf(dto.getLevel()));
+        return entity;
+    }
 }
