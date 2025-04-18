@@ -215,8 +215,13 @@ public class ExcelCommonValidator {
      * @return boolean value expected and avoid null for formatted cells
      */
     public static Boolean getBooleanCellValue(Cell cell) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) return null; // Return null for invalid cells
+        // If the cell is null or blank, we return null to indicate an invalid or undefined value
+        if (cell == null || cell.getCellType() == CellType.BLANK) return null;
+
+        // If the cell contains a boolean value, return it directly
         if (cell.getCellType() == CellType.BOOLEAN) return cell.getBooleanCellValue();
+
+        // If the cell contains a string representation of true/false, parse it
         if (cell.getCellType() == CellType.STRING) {
             String value = cell.getStringCellValue().trim().toUpperCase();
             if ("TRUE".equals(value)) return true;

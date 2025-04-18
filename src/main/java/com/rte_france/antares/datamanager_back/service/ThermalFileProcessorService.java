@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 public interface ThermalFileProcessorService {
-     TrajectoryEntity processThermalFile(Path path, String horizon, ThermalFileProcessorServiceImpl.ThermalBuilder builder, TrajectoryType type) throws IOException;
+     TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException;
      TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, List<? extends ThermalBaseEntity> thermalEntities, TrajectoryType type);
 
      List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path) throws IOException;
