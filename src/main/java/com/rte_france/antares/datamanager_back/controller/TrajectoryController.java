@@ -42,11 +42,11 @@ public class TrajectoryController {
     @GetMapping(value = "/fs")
     public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
-            @Parameter(description = "parameter to use just in thermal capacity case")
-            @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea,
+            @Parameter(description = "parameter to use just in load case")
+            @RequestParam(value = "zone", required = false) String loadZone,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) {
 
-        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
+        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, loadZone, fileNameContains));
     }
 
 

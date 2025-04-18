@@ -15,7 +15,7 @@ public interface TrajectoryService {
 
     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains);
 
-    List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String fileNameContains);
+    List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType,String loadZone, String fileNameContains);
 
     List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId);
 

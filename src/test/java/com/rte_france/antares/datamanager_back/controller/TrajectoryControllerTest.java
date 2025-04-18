@@ -87,7 +87,7 @@ class TrajectoryControllerTest {
 
     @Test
     void findTrajectoriesByTypeFromFileSystem_returnsFileNames() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByType(any(), any())).thenReturn(List.of(FsTrajectoryDTO.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByType(any(), any(), any())).thenReturn(List.of(FsTrajectoryDTO.builder().build()));
         this.mockMvc.perform(get("/v1/trajectory/fs")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
