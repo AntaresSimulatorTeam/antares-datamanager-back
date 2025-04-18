@@ -58,9 +58,9 @@ public class ProjectServiceImpl implements ProjectService {
             SearchCriteria searchCriteriaWithTag = new SearchCriteria("tags", "in", search);
             SearchCriteria searchCriteriaWithUser = new SearchCriteria("createdBy", ":", search);
 
-            spec = spec.and(new PegaseSpecification(searchCriteriaWithProjectName))
-                    .or(new PegaseSpecification(searchCriteriaWithTag))
-                    .or(new PegaseSpecification(searchCriteriaWithUser))
+            spec = spec.and(new PegaseSpecification<>(searchCriteriaWithProjectName))
+                    .or(new PegaseSpecification<>(searchCriteriaWithTag))
+                    .or(new PegaseSpecification<>(searchCriteriaWithUser))
                     .or(hasStudyName(search))
                     .or(creationDateSpec);
             return projectRepository.findAll(spec, paging);

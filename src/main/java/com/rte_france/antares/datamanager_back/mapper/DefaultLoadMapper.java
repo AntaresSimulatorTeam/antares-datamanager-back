@@ -12,7 +12,7 @@ import java.util.List;
 
 @Value
 @Builder(toBuilder = true)
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DefaultLoadMapper {
     public static DefaultLoadDTO toLoadDefaultDto(DefaultLoadEntity defaultLoadEntity) {
         return DefaultLoadDTO.builder()

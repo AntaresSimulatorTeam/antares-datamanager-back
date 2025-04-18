@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.ThermalBuilder;
 import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +36,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final UserService userService;
 
 
-    @FunctionalInterface
-    public interface ThermalBuilder {
-        List<? extends ThermalBaseEntity> build(Path path) throws IOException;
-    }
 
     /**
      * Processes the given file.

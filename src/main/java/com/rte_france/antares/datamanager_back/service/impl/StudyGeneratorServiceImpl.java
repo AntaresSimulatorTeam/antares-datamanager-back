@@ -35,6 +35,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
+    private static final String PROPERTIES = "properties";
+
+    private static final String MATRIX_HASH = "matrix hash";
+
+
     @ExecutionTime
     @Override
     public void buildJsonForStudyGeneration(Integer studyId) throws JsonProcessingException {
@@ -140,11 +145,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private static Map<String, Object> areasMapGenerator() {
         Map<String, Object> areaMap = new HashMap<>();
         areaMap.put("ui", "AreaUI class as JSON");
-        areaMap.put("properties", "AreaProperties as JSON");
+        areaMap.put(PROPERTIES, "AreaProperties as JSON");
 
         Map<String, Object> hydroMap = new HashMap<>();
-        hydroMap.put("properties", "HydroProperties as JSON");
-        hydroMap.put("every matrices name inside HydroMatrixName enum", "matrix hash");
+        hydroMap.put(PROPERTIES, "HydroProperties as JSON");
+        hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
         areaMap.put("hydro", hydroMap);
         return areaMap;
@@ -152,11 +157,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private static Map<String, Object> linksMapGenerator() {
         Map<String, Object> linkMap = new HashMap<>();
-        linkMap.put("properties", "LinkProperties as JSON");
+        linkMap.put(PROPERTIES, "LinkProperties as JSON");
         linkMap.put("ui", "LinkUi class as JSON");
-        linkMap.put("parameters", "matrix hash");
-        linkMap.put("capacity_direct", "matrix hash");
-        linkMap.put("capacity_indirect", "matrix hash");
+        linkMap.put("parameters", MATRIX_HASH);
+        linkMap.put("capacity_direct", MATRIX_HASH);
+        linkMap.put("capacity_indirect", MATRIX_HASH);
 
         return linkMap;
     }
