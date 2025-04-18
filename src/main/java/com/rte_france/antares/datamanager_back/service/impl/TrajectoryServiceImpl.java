@@ -3,21 +3,13 @@ package com.rte_france.antares.datamanager_back.service.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
 import com.rte_france.antares.datamanager_back.repository.*;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryKey;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.function.BinaryOperator;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
@@ -70,16 +60,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     static {
         FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
     }
+
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
 
     /**
      * Processes a trajectory file based on the given type, file name, horizon, and study ID.
      *
-     * @param trajectoryType   the type of the trajectory
-     * @param trajectoryToUse  the name of the trajectory file to use
-     * @param horizon          the horizon period in the format yyyy-yyyy
-     * @param studyId          the ID of the study
+     * @param trajectoryType  the type of the trajectory
+     * @param trajectoryToUse the name of the trajectory file to use
+     * @param horizon         the horizon period in the format yyyy-yyyy
+     * @param studyId         the ID of the study
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
@@ -88,10 +79,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
-            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon,studyId);
-            case THERMAL_CAPACITY -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
-            case THERMAL_PARAMETER -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
-            case THERMAL_COST -> thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
+            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
+            case THERMAL_CAPACITY ->
+                    thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
+            case THERMAL_PARAMETER ->
+                    thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
+            case THERMAL_COST ->
+                    thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
             case LOAD -> loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
             default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
         };
@@ -128,14 +122,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String fileNameContains) {
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String loadZone, String fileNameContains) {
         Path directory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(trajectoryType.name().toLowerCase());
+                .resolve(trajectoryType == TrajectoryType.LOAD && loadZone != null ?
+                        trajectoryType.name().toLowerCase() + "/load_" + loadZone :
+                        trajectoryType.name().toLowerCase());
 
         try (var stream = Files.list(directory)) {
-            return stream.filter(Files::isRegularFile)
-                    .filter(path -> isValidTrajectoryFile(path, trajectoryType))
+            return stream
+                    .filter(path -> trajectoryType == TrajectoryType.LOAD || Files.isRegularFile(path))
+                    .filter(path -> trajectoryType == TrajectoryType.LOAD || isValidTrajectoryFile(path, trajectoryType))
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
                     .filter(dto -> fileNameContains == null || dto.getFileName().toLowerCase().contains(fileNameContains.toLowerCase()))
                     .collect(Collectors.groupingBy(FsTrajectoryDTO::getFileName, Collectors.maxBy(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate))))
@@ -160,6 +157,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             throw new UncheckedIOException(e);
         }
     }
+
     /**
      * Checks if the file name matches the required prefix for the given TrajectoryType.
      */
@@ -171,24 +169,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> fileName.startsWith(LINKS_PREFIX);
             default -> true;
         };
-    }
-
-    private static <T> List<T> sortedByComparator(Collection<T> collection, Comparator<T> comparator) {
-        return collection.stream()
-                .sorted(comparator)
-                .toList();
-    }
-
-    private static <T, U> Map<T, U> extractKeyFromColumnByComparator(Collection<U> entities, Function<U, T> keyExtractor, Comparator<U> comparator) {
-        if (entities == null) {
-            return Map.of();
-        }
-        return entities.stream()
-                .collect(Collectors.toMap(
-                        keyExtractor,
-                        Function.identity(),
-                        BinaryOperator.maxBy(comparator)
-                ));
     }
 
     @Override
@@ -321,7 +301,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .map(LinkMapper::toLinkTrajectoryDataDTO)
                     .collect(Collectors.toList());
 
-            default -> throw new UnsupportedOperationException("TrajectoryType " + trajectoryType + " is not supported.");
+            default ->
+                    throw new UnsupportedOperationException("TrajectoryType " + trajectoryType + " is not supported.");
         };
     }
 }

@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
@@ -43,11 +42,11 @@ public class TrajectoryController {
     @GetMapping(value = "/fs")
     public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
-            @Parameter(description = "parameter to use just in thermal capacity case")
-            @RequestParam(value = "thermalCapacityArea", required = false) String thermalCapacityArea,
+            @Parameter(description = "parameter to use just in load case")
+            @RequestParam(value = "zone", required = false) String loadZone,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) {
 
-        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
+        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, loadZone, fileNameContains));
     }
 
 
