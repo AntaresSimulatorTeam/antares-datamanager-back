@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
@@ -56,8 +57,19 @@ public class TrajectoryController {
                                                           @RequestParam("trajectoryToUse") String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                          @RequestParam("studyId") Integer studyId) throws Exception {
+                                                          @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import Trajectory load to database ")
+    @PostMapping("/load")
+    public ResponseEntity<TrajectoryDTO> uploadTrajectory(
+            @RequestParam("area") String area,
+            @RequestParam("trajectoryToUse") String trajectoryToUse,
+                                                          @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                          @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                          @RequestParam("studyId") Integer studyId) throws IOException {
+        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
     @GetMapping

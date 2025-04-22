@@ -1,10 +1,10 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import com.google.common.hash.Hashing;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
@@ -13,10 +13,11 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -25,8 +26,12 @@ import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
@@ -62,9 +67,39 @@ public class Utils {
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(),trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && (trajectoryEntity.getFileSize() != Files.size(path)
                 || !trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon())));
+    }
+
+    public static boolean isSameLoadTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
+                && (trajectoryEntity.getFileSize() != Files.size(path)
+                && trajectoryEntity.getLastModificationContentDate().isEqual(Files.getLastModifiedTime(path)
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()))
+                ;
+    }
+
+    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String expectedHorizon) throws IOException {
+        Pattern pattern = Pattern.compile("load_[a-z]{2}_(\\d{4}-\\d{4})\\.txt");
+        List<String> loadsFileNames = new ArrayList<>();
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.txt")) {
+            for (Path file : stream) {
+                String fileName = file.getFileName().toString();
+                Matcher matcher = pattern.matcher(fileName);
+                if (matcher.matches()) {
+                    String horizon = matcher.group(1); // extract horizon
+                    if (horizon.equals(expectedHorizon)) {
+                        loadsFileNames.add(fileName);
+                    }
+                }
+            }
+        }
+
+        return loadsFileNames;
     }
 
     /**
@@ -76,12 +111,12 @@ public class Utils {
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String createdBy, TrajectoryType trajectoryType) throws IOException {
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name() ))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
-                .checksum(trajectoryType.name().equals(TrajectoryType.LOAD.name()) || trajectoryType.name().equals(TrajectoryType.THERMAL_CAPACITY.name()) ?  getFileChecksum(path.toString()) : computeSheetChecksum(path.toString(), horizon))
+                .checksum(trajectoryType.name().equals(TrajectoryType.LOAD.name()) || trajectoryType.name().equals(TrajectoryType.THERMAL_CAPACITY.name()) ? getFileChecksum(path.toString()) : computeSheetChecksum(path.toString(), horizon))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .build();
@@ -97,7 +132,7 @@ public class Utils {
      */
     public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         if (isSameFileWithDifferentContent(path, trajectoryEntity)) {
-          log.info("File already processed but with different content : {}", path.getFileName());
+            log.info("File already processed but with different content : {}", path.getFileName());
             return true;
         } else if (isSameFileWithSameContent(path, trajectoryEntity)) {
             throw new AlreadyProcessedException("File already processed : " + path.getFileName());
@@ -110,7 +145,7 @@ public class Utils {
         if (fileName.isBlank()) {
             throw new IllegalArgumentException("Empty fileName");
         }
-        String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX:
+        String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX :
                 Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
 
         if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
@@ -184,7 +219,7 @@ public class Utils {
      *
      * @param dateStr the string to verify, expected in the format "yyyy-MM-dd'T'HH:mm:ss"
      * @return true if dateStr can be parsed to LocalDateTime in the specified format; false otherwise
-     *
+     * <p>
      * TODO: Confirm the date format "yyyy-MM-dd'T'HH:mm:ss" with functional team.
      */
     public static boolean hasValidDateFormat(String dateStr) {
@@ -206,7 +241,8 @@ public class Utils {
 
     /**
      * Ensures a file is of a certain extension
-     * @param path file path
+     *
+     * @param path       file path
      * @param getFileExt Method to get the correct file format
      * @return The same path or the fixed one
      */
@@ -221,7 +257,8 @@ public class Utils {
 
     /**
      * Calcule le checksum SHA-256 d'une feuille Excel par nom
-     * @param filePath chemin vers le fichier .xlsx
+     *
+     * @param filePath  chemin vers le fichier .xlsx
      * @param sheetName nom exact de la feuille Excel
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
