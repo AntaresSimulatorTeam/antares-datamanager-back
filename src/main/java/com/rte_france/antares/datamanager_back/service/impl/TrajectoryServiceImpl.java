@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
@@ -24,6 +25,9 @@ import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.rte_france.antares.datamanager_back.util.Utils.getValidLoadFileNamesWithHorizon;
+import static com.rte_france.antares.datamanager_back.util.Utils.isSameLoadTrajectory;
 
 
 @Slf4j
@@ -55,14 +59,59 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final UserService userService;
 
-    private static final Map<TrajectoryType, String> FILE_EXTENSIONS = new EnumMap<>(TrajectoryType.class);
-
-    static {
-        FILE_EXTENSIONS.put(TrajectoryType.LOAD, ".txt");
-    }
-
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
+
+    @Override
+    public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(horizon);
+        //build directory path of trajectory
+        Path trajectoryPath = Path.of(antaressDataManagerProperties.getNasDirectory())
+                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaressDataManagerProperties.getLoadDirectory())
+                .resolve("/load_" + area.toUpperCase() + "/" + trajectoryToUse)
+                .normalize();
+        //check if directory ( trajectory ) exist  and check if ( size and last modification date)
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(trajectoryToUse, horizon);
+        if (trajectoryEntity.isPresent()) {
+            TrajectoryEntity loadTrajectory = trajectoryEntity.get();
+            //if exist checkif is the same
+            if (isSameLoadTrajectory(trajectoryPath, loadTrajectory)) {
+                throw new TechnicalAntaresDataMangerException("trajectory already uploaded");
+            } else {
+                //upgrade version existing load trajectory trajectory
+                loadTrajectory.setVersion(loadTrajectory.getVersion()+1);
+                buildAndSaveLoadTrajectory(horizon, trajectoryPath, loadTrajectory);
+            }
+        } else {
+            //new trajectory save it directly
+            TrajectoryEntity newTrajectory=  TrajectoryEntity.builder()
+                    .fileName(trajectoryToUse)
+                    .fileSize()
+                    .createdBy()
+                    .version()
+                    .lastModificationContentDate()
+                    .horizon(horizon)
+            .build();
+            buildAndSaveLoadTrajectory(horizon, trajectoryPath, loadTrajectory);
+
+        }
+
+        //if exist already exist
+        //else load it
+        //GET loads by horizon and area if not others
+        return loadFileProcessorService.processLoadFile(trajectoryToUse, horizon);
+    }
+
+    private void buildAndSaveLoadTrajectory(String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory) throws IOException {
+        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, horizon);
+        List<LoadEntity> loadEntities = loadsFile.stream()
+                .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).trajectory(loadTrajectory).build())
+                .toList();
+        loadTrajectory.setLoadEntities(loadEntities);
+        trajectoryRepository.save(loadTrajectory);
+    }
 
     /**
      * Processes a trajectory file based on the given type, file name, horizon, and study ID.
@@ -91,7 +140,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
-    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
+    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
@@ -102,14 +151,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (!baseDirectory.endsWith("/")) {
             baseDirectory = baseDirectory.resolve("");
         }
-
-        //download the file
-        var fileExtension = FILE_EXTENSIONS.getOrDefault(trajectoryType, ".xlsx");
-        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + fileExtension).normalize();
-        if (!trajectoryFilePath.startsWith(baseDirectory)) {
-            throw new IOException("Path is outside of the target directory");
-        }
-        return trajectoryFilePath;
+        return baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains) {
@@ -123,19 +165,25 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String loadZone, String fileNameContains) {
-        Path directory = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(trajectoryType == TrajectoryType.LOAD && loadZone != null ?
-                        trajectoryType.name().toLowerCase() + "/load_" + loadZone :
-                        trajectoryType.name().toLowerCase());
+        String basePath = antaressDataManagerProperties.getNasDirectory();
+        String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
+        String typePath = trajectoryType.name().toLowerCase();
+
+        if (trajectoryType == TrajectoryType.LOAD && loadZone != null) {
+            typePath += "/load_" + loadZone;
+        }
+
+        Path directory = Path.of(basePath).resolve(subPath).resolve(typePath);
 
         try (var stream = Files.list(directory)) {
             return stream
-                    .filter(path -> trajectoryType == TrajectoryType.LOAD || Files.isRegularFile(path))
-                    .filter(path -> trajectoryType == TrajectoryType.LOAD || isValidTrajectoryFile(path, trajectoryType))
+                    .filter(path -> isRelevantFile(path, trajectoryType))
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
-                    .filter(dto -> fileNameContains == null || dto.getFileName().toLowerCase().contains(fileNameContains.toLowerCase()))
-                    .collect(Collectors.groupingBy(FsTrajectoryDTO::getFileName, Collectors.maxBy(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate))))
+                    .filter(dto -> fileNameMatches(dto, fileNameContains))
+                    .collect(Collectors.groupingBy(
+                            FsTrajectoryDTO::getFileName,
+                            Collectors.maxBy(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate))
+                    ))
                     .values().stream()
                     .flatMap(Optional::stream)
                     .sorted(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed())
@@ -144,6 +192,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             throw new UncheckedIOException(e);
         }
     }
+
+    private boolean isRelevantFile(Path path, TrajectoryType trajectoryType) {
+        return trajectoryType == TrajectoryType.LOAD ||
+                (Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType));
+    }
+
+    private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
+        return fileNameContains == null ||
+                dto.getFileName().toLowerCase().contains(fileNameContains.toLowerCase());
+    }
+
 
     private FsTrajectoryDTO createFsTrajectoryDTO(Path path, TrajectoryType trajectoryType) {
         try {

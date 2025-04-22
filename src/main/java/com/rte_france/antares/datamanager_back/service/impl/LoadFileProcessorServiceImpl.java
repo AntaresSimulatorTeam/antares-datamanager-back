@@ -44,8 +44,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
    */
   @Transactional
   public TrajectoryEntity processLoadFile(Path path, String horizon) throws  IOException {
-    Objects.requireNonNull(path);
-    Objects.requireNonNull(horizon);
+
 
     Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(path.getFileName().toString(), horizon);
     String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWEN__USER";
