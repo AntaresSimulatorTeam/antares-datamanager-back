@@ -29,7 +29,6 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
-    private final LoadFileProcessorService loadFileProcessorService;
 
     @Operation(summary = "Get Trajectories by type and fileNameContains from Database ")
     @GetMapping(value = "/db")
