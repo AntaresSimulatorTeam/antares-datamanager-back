@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -74,16 +75,19 @@ public class Utils {
 
     public static boolean isSameLoadTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && (trajectoryEntity.getFileSize() != Files.size(path)
-                && trajectoryEntity.getLastModificationContentDate().isEqual(Files.getLastModifiedTime(path)
-                .toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDateTime()))
+                && ( trajectoryEntity.getLastModificationContentDate()
+                .truncatedTo(ChronoUnit.SECONDS)
+                .isEqual(Files.getLastModifiedTime(path)
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDateTime()
+                        .truncatedTo(ChronoUnit.SECONDS)))
                 ;
     }
 
-    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String expectedHorizon) throws IOException {
-        Pattern pattern = Pattern.compile("load_[a-z]{2}_(\\d{4}-\\d{4})\\.txt");
+    public static List<String> getValidLoadFileNamesWithHorizon(Path dir,String area, String expectedHorizon) throws IOException {
+        String areaPattern = area.equals("EU") ? "[a-z]{2}" : area.toLowerCase();
+        Pattern pattern = Pattern.compile("load_" + areaPattern + "_(\\d{4}-\\d{4})\\.txt");
         List<String> loadsFileNames = new ArrayList<>();
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.txt")) {

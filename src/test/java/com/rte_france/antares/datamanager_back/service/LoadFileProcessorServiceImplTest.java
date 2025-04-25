@@ -22,78 +22,76 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LoadFileProcessorServiceImplTest {
-  @InjectMocks
-  private LoadFileProcessorServiceImpl loadFileProcessorService;
+    @InjectMocks
+    private LoadFileProcessorServiceImpl loadFileProcessorService;
 
-  @Mock
-  private TrajectoryRepository trajectoryRepository;
+    @Mock
+    private TrajectoryRepository trajectoryRepository;
 
-  @Mock
-  private LoadRepository loadRepository;
+    @Mock
+    private LoadRepository loadRepository;
 
-  @Mock
-  private TimeSeriesReader timeSeriesReader;
+    @Mock
+    private TimeSeriesReader timeSeriesReader;
 
-  @Mock
-  private TimeSeriesWriter timeSeriesWriter;
+    @Mock
+    private TimeSeriesWriter timeSeriesWriter;
 
-  @Mock
-  private TimeSeriesMatrix timeSeriesMatrix;
+    @Mock
+    private TimeSeriesMatrix timeSeriesMatrix;
 
-  @Mock
-  private NasFileService nasFileService;
+    @Mock
+    private NasFileService nasFileService;
 
-  @Mock
-  private UserService userService;
+    @Mock
+    private UserService userService;
 
   @TempDir
   private Path tempDir;
 
-  @BeforeEach
-  void setUp() {
-    MockitoAnnotations.openMocks(this);
-  }
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
 
-  @Test
-  void processLoadFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-    var tempFile = tempDir.resolve("test-path.txt");
-    Files.createFile(tempFile);
-    Files.writeString(tempFile, "This is the content to be written to the file.");
-    var horizon = "2030-2031";
-    var trajectoryEntity = new TrajectoryEntity();
-    when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-    when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
-    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
-    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
+    @Test
+    void processLoadFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+        var tempFile = tempDir.resolve("test-path.txt");
+        Files.createFile(tempFile);
+        Files.writeString(tempFile, "This is the content to be written to the file.");
+        var trajectoryEntity = new TrajectoryEntity();
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
+        when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
+        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
 
-    assertDoesNotThrow(() -> loadFileProcessorService.processLoadFile(tempFile, horizon));
+        assertDoesNotThrow(() -> loadFileProcessorService.saveMatrixToNas(tempFile));
 
-    verify(trajectoryRepository, times(1)).findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString());
-    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
-    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
-    verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
-  }
+        verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
+        verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
+        verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
+    }
 
-  @Test
-  void processLoadFile_whenTrajectoryDoesNotExist() throws IOException {
-    var tempFile = tempDir.resolve("test-path.txt");
-    Files.createFile(tempFile);
-    Files.writeString(tempFile, "This is the content to be written to the file.");
-    var horizon = "2030-2031";
-    when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-    when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.empty());
-    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
-    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
+    @Test
+    void processLoadFile_whenTrajectoryDoesNotExist() throws IOException {
+        var tempFile = tempDir.resolve("test-path.txt");
+        Files.createFile(tempFile);
+        Files.writeString(tempFile, "This is the content to be written to the file.");
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.empty());
+        when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
+        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
 
-    assertDoesNotThrow(() -> loadFileProcessorService.processLoadFile(tempFile, horizon));
+        assertDoesNotThrow(() -> loadFileProcessorService.saveMatrixToNas(tempFile));
 
-    verify(trajectoryRepository, times(1)).findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString());
-    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
-    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
-    verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
-  }
+        verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
+        verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
+        verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
+    }
+
+
 }

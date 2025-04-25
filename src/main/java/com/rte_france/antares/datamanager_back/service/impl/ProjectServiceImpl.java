@@ -7,7 +7,6 @@ import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundExcepti
 import com.rte_france.antares.datamanager_back.mapper.ProjectMapper;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;

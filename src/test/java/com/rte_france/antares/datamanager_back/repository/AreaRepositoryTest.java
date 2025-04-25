@@ -39,4 +39,35 @@ class AreaRepositoryTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    void findAreaByNameAndStudyId_returnsEntityWhenExists() {
+        String areaName = "area8";
+        Integer studyId = 1;
+
+        Optional<AreaEntity> result = areaRepository.findAreaByNameAndStudyId(areaName, studyId);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result.get().getName()).isEqualTo(areaName);
+    }
+
+    @Test
+    void findAreaByNameAndStudyId_returnsEmptyWhenAreaDoesNotExist() {
+        String areaName = "nonExistentArea";
+        Integer studyId = 1;
+
+        Optional<AreaEntity> result = areaRepository.findAreaByNameAndStudyId(areaName, studyId);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findAreaByNameAndStudyId_returnsEmptyWhenStudyDoesNotExist() {
+        String areaName = "area8";
+        Integer studyId = 999;
+
+        Optional<AreaEntity> result = areaRepository.findAreaByNameAndStudyId(areaName, studyId);
+
+        assertThat(result).isEmpty();
+    }
 }

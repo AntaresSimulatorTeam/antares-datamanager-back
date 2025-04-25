@@ -22,6 +22,9 @@ public class LoadEntity {
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
+    @Column(name = "output_file_name")
+    private String outPutFileName;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "trajectory_id")
   private TrajectoryEntity trajectory;

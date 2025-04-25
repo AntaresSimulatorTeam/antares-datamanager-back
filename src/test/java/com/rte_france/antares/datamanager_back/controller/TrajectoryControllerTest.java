@@ -1,10 +1,10 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 
+import com.rte_france.antares.datamanager_back.dto.AreaTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.AreaTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
@@ -206,5 +206,45 @@ class TrajectoryControllerTest {
                 .andExpect(jsonPath("$[0].areaName").value("AT"))
                 .andExpect(jsonPath("$[0].powerToGas").value("true"))
                 .andExpect(jsonPath("$[0].shortTermStorage").value("false"));
+    }
+
+    @Test
+    void uploadTrajectoryLoad_returnsCreatedTrajectory() throws Exception {
+        when(trajectoryServiceImpl.processLoadTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory/load")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("area", "testArea")
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(trajectoryServiceImpl, times(1)).processLoadTrajectory(any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadTrajectoryLoad_returnsBadRequestForInvalidHorizon() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/load")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("area", "testArea")
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void uploadTrajectoryLoad_returnsBadRequestForMissingParams() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/load")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
     }
 }

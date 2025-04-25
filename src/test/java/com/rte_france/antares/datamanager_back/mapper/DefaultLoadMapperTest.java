@@ -2,7 +2,6 @@ package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
 import com.rte_france.antares.datamanager_back.repository.model.DefaultLoadEntity;
-import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,9 +10,9 @@ import static java.lang.Boolean.TRUE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class DefaultLoadMapperTest {
+ class DefaultLoadMapperTest {
     @Test
-    public void testLoadDefaultMapper() {
+     void testLoadDefaultMapper() {
         //Given
         DefaultLoadEntity entity = DefaultLoadEntity.builder()
                 .name("FR")

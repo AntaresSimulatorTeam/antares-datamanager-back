@@ -2,6 +2,7 @@ delete from public.warning_message;
 delete from public.scenario_tags;
 delete from public.pinned_project;
 delete from public.thermal_cost_type;
+delete from public.area_config;
 delete from public.area;
 delete from public.scenario_trajectory;
 delete from public.trajectory;
