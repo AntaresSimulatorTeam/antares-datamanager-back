@@ -7,4 +7,6 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V03-add_ack_column_in_warning_message.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V04-add_area_column_to_trajectory_table.sql
+      file: classpath*:db/changelog/1.1.0/V04-add_outputfilename_load_column.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V05-add_area_column_to_trajectory_table.sql

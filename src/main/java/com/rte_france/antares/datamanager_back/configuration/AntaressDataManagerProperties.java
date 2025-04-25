@@ -31,6 +31,9 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.load.directory}")
     public String loadDirectory;
 
+    @Value("${antares.datamanager.load.output.directory}")
+    public String outputLoadDirectory;
+
     @Value("${pegase.nas.directory}")
     public String nasDirectory;
 

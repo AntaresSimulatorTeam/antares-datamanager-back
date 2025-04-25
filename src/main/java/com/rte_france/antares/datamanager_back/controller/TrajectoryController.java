@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,6 +29,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
+    private final LoadFileProcessorService loadFileProcessorService;
 
     @Operation(summary = "Get Trajectories by type and fileNameContains from Database ")
     @GetMapping(value = "/db")
@@ -63,9 +65,8 @@ public class TrajectoryController {
 
     @Operation(summary = "import Trajectory load to database ")
     @PostMapping("/load")
-    public ResponseEntity<TrajectoryDTO> uploadTrajectory(
-            @RequestParam("area") String area,
-            @RequestParam("trajectoryToUse") String trajectoryToUse,
+    public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("area") String area,
+                                                          @RequestParam("trajectoryToUse") String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId) throws IOException {

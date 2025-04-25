@@ -1,69 +1,86 @@
 insert into public.project (id, name, created_by, creation_date)
-values  (1, 'PROJECT1', 'MOUAD', '2024-07-25 10:09:41.000000'),
-        (2, 'PROJECT2', 'ghita', '2024-07-25 10:09:41.000000'),
-        (3, 'PROJECT3', 'zayd', '2024-07-25 10:09:41.000000');
-insert into public.scenario (id, name, created_by, creation_date,status,horizon,project_id)
-values  (1, 'etude1', 'mouad', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',1),
-        (2, 'etude2', 'mouad', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',1),
-        (3, 'etude3', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',1),
-        (4, 'etude4', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
-        (5, 'etude5', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
-        (6, 'etude6', 'zayd', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',2),
-        (7, 'etude7', 'ghita', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',3),
-        (8, 'etude8', 'ghita', '2024-07-25 10:07:21.000000','IN_PROGRESS','2030-2031',3);
+values (1, 'PROJECT1', 'MOUAD', '2024-07-25 10:09:41.000000'),
+       (2, 'PROJECT2', 'ghita', '2024-07-25 10:09:41.000000'),
+       (3, 'PROJECT3', 'zayd', '2024-07-25 10:09:41.000000');
+insert into public.scenario (id, name, created_by, creation_date, status, horizon, project_id)
+values (1, 'etude1', 'mouad', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 1),
+       (2, 'etude2', 'mouad', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 1),
+       (3, 'etude3', 'zayd', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 1),
+       (4, 'etude4', 'zayd', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 2),
+       (5, 'etude5', 'zayd', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 2),
+       (6, 'etude6', 'zayd', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 2),
+       (7, 'etude7', 'ghita', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 3),
+       (8, 'etude8', 'ghita', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 3);
 
-insert into public.thermal_cost_type(id,country,fuel,scenario,comment,unit,modulation,ratio_ncv_hcv)
-values (1,'Morocco','GAS','etude1','comment1','MWh','modulation1',1.1),
-       (2,'Morocco','OIL','etude2','comment2','MWh','modulation2',1.2),
-       (3,'Morocco','OIL','etude3','comment3','MWh','modulation3',1.3),
-       (4,'europe','OIL','etude4','comment4','MWh','modulation4',1.4),
-       (5,'europe','GAS','etude5','comment5','MWh','modulation5',1.5),
-       (6,'FRANCE','GAS','etude6','comment6','MWh','modulation6',1.6),
-       (7,'FRANCE','GAS','etude7','comment7','MWh','modulation7',1.7),
-       (8,'SPAIN','GAS','etude8','comment8','MWh','modulation8',1.8);
+insert into public.thermal_cost_type(id, country, fuel, scenario, comment, unit, modulation, ratio_ncv_hcv)
+values (1, 'Morocco', 'GAS', 'etude1', 'comment1', 'MWh', 'modulation1', 1.1),
+       (2, 'Morocco', 'OIL', 'etude2', 'comment2', 'MWh', 'modulation2', 1.2),
+       (3, 'Morocco', 'OIL', 'etude3', 'comment3', 'MWh', 'modulation3', 1.3),
+       (4, 'europe', 'OIL', 'etude4', 'comment4', 'MWh', 'modulation4', 1.4),
+       (5, 'europe', 'GAS', 'etude5', 'comment5', 'MWh', 'modulation5', 1.5),
+       (6, 'FRANCE', 'GAS', 'etude6', 'comment6', 'MWh', 'modulation6', 1.6),
+       (7, 'FRANCE', 'GAS', 'etude7', 'comment7', 'MWh', 'modulation7', 1.7),
+       (8, 'SPAIN', 'GAS', 'etude8', 'comment8', 'MWh', 'modulation8', 1.8);
 
-insert into public.area(id,name,x,y,r,g,b)
- values
-        (4,'area4',1,2,3,4,5),
-        (5,'area5',1,2,3,4,5),
-        (6,'area6',1,2,3,4,5),
-        (7,'area7',1,2,3,4,5),
-        (8,'area8',1,2,3,4,5);
+insert into public.area(id, name, x, y, r, g, b)
+values (4, 'area4', 1, 2, 3, 4, 5),
+       (5, 'area5', 1, 2, 3, 4, 5),
+       (6, 'area6', 1, 2, 3, 4, 5),
+       (7, 'area7', 1, 2, 3, 4, 5),
+       (8, 'area8', 1, 2, 3, 4, 5);
 
-insert into public.pinned_project (nni,project_id)
-values  ('me00247', 1),
-        ('me00247', 2),
-        ('me00247', 3),
-        ('no0099', 1),
-        ('no0099', 2);
 
-insert into public.trajectory(id,file_name,file_size,checksum,type,version,created_by,creation_date,last_modification_content_date,horizon)
-values  (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07', '2023-2024'),
-        (2, 'testFile.txt', 100, '123', 'AREA', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07', '2025-2026'),
-        (3, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07', '2023-2024'),
-        (4, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07', '2025-2026'),
-        (5, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07', '2025-2026');
+
+insert into public.pinned_project (nni, project_id)
+values ('me00247', 1),
+       ('me00247', 2),
+       ('me00247', 3),
+       ('no0099', 1),
+       ('no0099', 2);
+
+insert into public.trajectory(id, file_name, file_size, checksum, type, version, created_by, creation_date,
+                              last_modification_content_date, horizon)
+values (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07',
+        '2023-2024'),
+       (2, 'testFile.txt', 100, '123', 'AREA', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+        '2025-2026'),
+       (3, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07',
+        '2023-2024'),
+       (4, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+        '2025-2026'),
+       (5, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+        '2025-2026'),
+       (8, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+        '2025-2026');
+
+insert into public.area_config(id, power_to_gas, short_term_storage, area_id, trajectory_id)
+values (1, 1, 1, 4, 1),
+       (2, 1, 1, 5, 2),
+       (3, 1, 1, 6, 3),
+       (4, 1, 1, 7, 4),
+       (5, 1, 1, 8, 8);
 
 insert into public.scenario_tags (scenario_id, tag)
-values  (3, 'config'),
-        (1, 'elec'),
-        (3, 'antares'),
-        (3, 'bilan 22'),
-        (1, 'gaz'),
-        (2, 'figma');
+values (3, 'config'),
+       (1, 'elec'),
+       (3, 'antares'),
+       (3, 'bilan 22'),
+       (1, 'gaz'),
+       (2, 'figma');
 
 insert into public.scenario_trajectory (scenario_id, trajectory_id)
-values  (1, 1),
-        (1, 2),
-        (1, 5),
-        (2, 2),
-        (2, 3),
-        (3, 1),
-        (3, 4),
-        (3, 2);
+values (1, 1),
+       (1, 2),
+       (1, 5),
+       (2, 2),
+       (2, 3),
+       (3, 1),
+       (3, 4),
+       (1, 8),
+       (3, 2);
 
-INSERT INTO warning_message (id, warning_code, warning_content, warning_level, creation_date, created_by, trajectory_id, study_id)
-VALUES
-(1, 'LINKS_AREA_NOT_PRESENT', 'Area A is not linked', 'WARNING_LEVEL', '2023-10-01 10:00:00', 'USER1', 1, 1),
-(2, 'LINKS_AREA_NOT_PRESENT', 'Area B is not linked', 'WARNING_LEVEL', '2023-10-01 11:00:00', 'USER2', 2, 1),
-(3, 'LINKS_AREA_NOT_PRESENT', 'Area C is not linked', 'WARNING_LEVEL', '2023-10-01 12:00:00', 'USER3', 1, 2);
+INSERT INTO warning_message (id, warning_code, warning_content, warning_level, creation_date, created_by, trajectory_id,
+                             study_id)
+VALUES (1, 'LINKS_AREA_NOT_PRESENT', 'Area A is not linked', 'WARNING_LEVEL', '2023-10-01 10:00:00', 'USER1', 1, 1),
+       (2, 'LINKS_AREA_NOT_PRESENT', 'Area B is not linked', 'WARNING_LEVEL', '2023-10-01 11:00:00', 'USER2', 2, 1),
+       (3, 'LINKS_AREA_NOT_PRESENT', 'Area C is not linked', 'WARNING_LEVEL', '2023-10-01 12:00:00', 'USER3', 1, 2);

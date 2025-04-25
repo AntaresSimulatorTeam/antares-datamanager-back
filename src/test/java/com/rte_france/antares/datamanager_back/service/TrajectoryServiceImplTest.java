@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +31,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class TrajectoryServiceImplTest {
+
+    @Mock
+    private AreaRepository areaRepository;
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -139,7 +143,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // Then
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR","test");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR", "test");
 
         assertEquals(1, result.size());
         assertEquals("areas_testFile.xlsx", result.get(0).getFileName());
@@ -149,7 +153,7 @@ class TrajectoryServiceImplTest {
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,"FR", "area"));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR", "area"));
     }
 
     @Test
@@ -252,19 +256,6 @@ class TrajectoryServiceImplTest {
         when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
-    }
-
-    @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsLOAD() throws IOException {
-        var path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/load/testFile.txt");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("/load");
-
-        trajectoryService.processTrajectory(TrajectoryType.LOAD, "testFile", "2030-2031", 1);
-
-        verify(loadFileProcessorService, times(1)).processLoadFile(any(), any());
     }
 
     @Test
@@ -403,7 +394,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,"FR", null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR", null);
 
         // Then
         assertEquals(1, result.size());
@@ -423,11 +414,70 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,"FR", null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK, "FR", null);
 
         // Then
         assertEquals(0, result.size());
     }
 
+    @Test
+    void processLoadTrajectory_savesTrajectoryAndProcessesLoadFiles() throws IOException {
+        String area = "FR";
+        String trajectoryToUse = "testTrajectory";
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .loadEntities(List.of(LoadEntity.builder().fileName("load1").build()))
+                .build();
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
+        when(antaressDataManagerProperties.getLoadDirectory())
+                .thenReturn(Paths.get("src/test/resources/load").toAbsolutePath().toString());
+        when(loadFileProcessorService.saveMatrixToNas(any())).thenReturn("outputFileName");
+        when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+
+        TrajectoryEntity result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId);
+
+        assertNotNull(result);
+        assertEquals(1, result.getLoadEntities().size());
+        assertEquals("outputFileName", result.getLoadEntities().get(0).getOutPutFileName());
+        verify(loadFileProcessorService, times(1)).saveMatrixToNas(any());
+    }
+
+    @Test
+    void processLoadTrajectory_throwsExceptionWhenAreaNotFound() {
+        String area = "invalidArea";
+        String trajectoryToUse = "testTrajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
+    }
+
+    @Test
+    void processLoadTrajectory_throwsExceptionWhenIOExceptionOccurs() throws IOException {
+        String area = "testArea";
+        String trajectoryToUse = "testTrajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .loadEntities(List.of(LoadEntity.builder().fileName("load1").build()))
+                .build();
+
+        Path mockPath = mock(Path.class);
+        when(mockPath.resolve(anyString())).thenReturn(mockPath);
+        when(loadFileProcessorService.saveMatrixToNas(mockPath)).thenThrow(IOException.class);
+        when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
+
+        assertThrows(RuntimeException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
+    }
 
 }

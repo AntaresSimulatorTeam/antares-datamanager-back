@@ -1,10 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
@@ -22,6 +19,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -53,6 +52,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final AreaConfigRepository areaConfigRepository;
 
+    private final AreaRepository areaRepository;
+
     private final LinkRepository linkRepository;
 
     private final WarningMessageRepository warningMessageRepository;
@@ -62,55 +63,111 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
 
+    @Transactional
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Objects.requireNonNull(path);
-        Objects.requireNonNull(horizon);
-        //build directory path of trajectory
-        Path trajectoryPath = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaressDataManagerProperties.getLoadDirectory())
-                .resolve("/load_" + area.toUpperCase() + "/" + trajectoryToUse)
-                .normalize();
-        //check if directory ( trajectory ) exist  and check if ( size and last modification date)
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(trajectoryToUse, horizon);
-        if (trajectoryEntity.isPresent()) {
-            TrajectoryEntity loadTrajectory = trajectoryEntity.get();
-            //if exist checkif is the same
-            if (isSameLoadTrajectory(trajectoryPath, loadTrajectory)) {
-                throw new TechnicalAntaresDataMangerException("trajectory already uploaded");
-            } else {
-                //upgrade version existing load trajectory trajectory
-                loadTrajectory.setVersion(loadTrajectory.getVersion()+1);
-                buildAndSaveLoadTrajectory(horizon, trajectoryPath, loadTrajectory);
+        TrajectoryEntity savedTrajectory = saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
+        Path trajectoryPath = buildTrajectoryPath(area, trajectoryToUse);
+        savedTrajectory.getLoadEntities().forEach(load -> {
+            try {
+                String outputFileName = loadFileProcessorService.saveMatrixToNas(trajectoryPath.resolve(load.getFileName()));
+                load.setOutPutFileName(outputFileName);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        } else {
-            //new trajectory save it directly
-            TrajectoryEntity newTrajectory=  TrajectoryEntity.builder()
-                    .fileName(trajectoryToUse)
-                    .fileSize()
-                    .createdBy()
-                    .version()
-                    .lastModificationContentDate()
-                    .horizon(horizon)
-            .build();
-            buildAndSaveLoadTrajectory(horizon, trajectoryPath, loadTrajectory);
+        });
 
-        }
-
-        //if exist already exist
-        //else load it
-        //GET loads by horizon and area if not others
-        return loadFileProcessorService.processLoadFile(trajectoryToUse, horizon);
+        return savedTrajectory;
     }
 
-    private void buildAndSaveLoadTrajectory(String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory) throws IOException {
-        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, horizon);
+    /**
+     * Processes a load trajectory file based on the given area, trajectory name, and horizon.
+     *
+     * @param area            the area of the trajectory
+     * @param trajectoryToUse the name of the trajectory file to use
+     * @param horizon         the horizon period in the format yyyy-yyyy
+     * @return the processed TrajectoryEntity
+     * @throws IOException if an I/O error occurs
+     */
+    public TrajectoryEntity saveLoadTrajectoriesInDb(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        if (area == null || trajectoryToUse == null || horizon == null) {
+            throw new IllegalArgumentException("Area, trajectory name, and horizon must not be null");
+        }
+        areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() -> new ResourceNotFoundException("Area not found for studyId: " + studyId));
+
+        String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
+                .map(UserInfoDto::getNni)
+                .orElseThrow(() -> new IllegalStateException("User NNI could not be determined"));
+
+        // Build and normalize the trajectory path
+        Path trajectoryPath = buildTrajectoryPath(area, trajectoryToUse);
+
+        // Try to find existing trajectory
+        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
+                .findFirstByFileNameAndHorizonOrderByVersionDesc(trajectoryToUse, horizon);
+
+        if (existingTrajectoryOpt.isPresent()) {
+            TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
+
+            if (isSameLoadTrajectory(trajectoryPath, existingTrajectory)) {
+                throw new TechnicalAntaresDataMangerException("Trajectory already uploaded");
+            }
+
+            // Update version and save new trajectory
+            TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+            newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
+            return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory);
+        }
+
+        // No existing trajectory: create and save new
+        TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+        return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory);
+    }
+
+    // Utility method to build trajectory path with checks
+    private Path buildTrajectoryPath(String area, String trajectoryToUse) {
+        String nasDir = antaressDataManagerProperties.getNasDirectory();
+        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
+        String loadDir = antaressDataManagerProperties.getLoadDirectory();
+
+        if (nasDir == null || trajFilePath == null || loadDir == null) {
+            throw new IllegalStateException("Antaress path configuration is incomplete");
+        }
+
+        return Paths.get(nasDir)
+                .resolve(trajFilePath)
+                .resolve(loadDir)
+                .resolve("load_" + area.toUpperCase())
+                .resolve(trajectoryToUse)
+                .normalize();
+    }
+
+
+    private TrajectoryEntity buildNewLoadTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
+        //build new trajectory
+        return TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .fileSize(Files.size(trajectoryPath))
+                .createdBy(userNni)
+                .version(0)
+                .lastModificationContentDate(Files.getLastModifiedTime(trajectoryPath).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                .horizon(horizon)
+                .checksum("NA")
+                .type(TrajectoryType.LOAD.name())
+                .creationDate(LocalDateTime.now())
+                .build();
+    }
+
+    private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory) throws IOException {
+        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon);
+        if (loadsFile.isEmpty()) {
+            throw new IllegalArgumentException("No valid load files found in the trajectory path");
+        }
         List<LoadEntity> loadEntities = loadsFile.stream()
                 .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).trajectory(loadTrajectory).build())
                 .toList();
         loadTrajectory.setLoadEntities(loadEntities);
-        trajectoryRepository.save(loadTrajectory);
+        return trajectoryRepository.save(loadTrajectory);
     }
 
     /**
@@ -135,7 +192,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
             case THERMAL_COST ->
                     thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
-            case LOAD -> loadFileProcessorService.processLoadFile(trajectoryFilePath, horizon);
             default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
         };
     }
@@ -170,7 +226,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String typePath = trajectoryType.name().toLowerCase();
 
         if (trajectoryType == TrajectoryType.LOAD && loadZone != null) {
-            typePath += "/load_" + loadZone;
+            typePath += "/load_" + loadZone.toUpperCase();
         }
 
         Path directory = Path.of(basePath).resolve(subPath).resolve(typePath);

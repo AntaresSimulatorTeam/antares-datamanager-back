@@ -65,21 +65,39 @@ class NasFileServiceTest {
 
   @Test
   void saveFile_validInput() throws IOException {
-    var filename = "testFile.txt";
+    var filename = "validFile.txt";
     var content = "test content".getBytes();
-    var targetDirectory = tempDir.toAbsolutePath().normalize();
-    var filePath = targetDirectory.resolve(filename).normalize();
+    var targetDirectory = tempDir.resolve("trajectory/load/output");
+    Files.createDirectories(targetDirectory);
 
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+    when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectory");
+    when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
+    when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
 
     nasFileService.saveFile(filename, content);
 
-    assertTrue(Files.exists(filePath));
-    assertArrayEquals(content, Files.readAllBytes(filePath));
+    var savedFile = targetDirectory.resolve(filename);
+    assertTrue(Files.exists(savedFile));
+    assertArrayEquals(content, Files.readAllBytes(savedFile));
   }
 
   @Test
-  void saveFile_invalidFileName() {
+  void saveFile_nullFilename() {
+    var content = "test content".getBytes();
+
+    assertThrows(NullPointerException.class, () -> nasFileService.saveFile(null, content));
+  }
+
+  @Test
+  void saveFile_nullContent() {
+    var filename = "validFile.txt";
+
+    assertThrows(NullPointerException.class, () -> nasFileService.saveFile(filename, null));
+  }
+
+  @Test
+  void saveFile_invalidFilename() {
     var filename = "../invalidFile.txt";
     var content = "test content".getBytes();
 
@@ -90,12 +108,14 @@ class NasFileServiceTest {
 
   @Test
   void saveFile_pathOutsideNasDirectory() {
+    var filename = "../outsideDir/testFile.txt";
     var content = "test content".getBytes();
-    var targetDirectory = tempDir.toAbsolutePath().normalize();
-    var filePath = targetDirectory.resolve("../outsideDir/testFile.txt").normalize();
 
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+    when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectory");
+    when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
+    when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
 
-    assertThrows(IOException.class, () -> nasFileService.saveFile(filePath.toString(), content));
+    assertThrows(IOException.class, () -> nasFileService.saveFile(filename, content));
   }
 }

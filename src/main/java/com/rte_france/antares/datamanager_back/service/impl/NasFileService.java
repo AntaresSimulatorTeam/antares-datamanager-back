@@ -50,8 +50,11 @@ public class NasFileService {
         if (filename.contains("..") || filename.isBlank()) {
             throw new IOException("Invalid file name: " + filename);
         }
-
-        var targetDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
+        String nasDir = antaressDataManagerProperties.getNasDirectory();
+        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
+        String loadDir = antaressDataManagerProperties.getLoadDirectory();
+        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
+        var targetDirectory = Path.of(nasDir).resolve(trajFilePath).resolve(loadDir).resolve(outputLoadDir)
                 .toAbsolutePath()
                 .normalize();
         var filePath = targetDirectory.resolve(filename).normalize();
