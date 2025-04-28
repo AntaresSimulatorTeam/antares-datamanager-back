@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
 import com.rte_france.antares.datamanager_back.repository.model.DefaultLoadEntity;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
