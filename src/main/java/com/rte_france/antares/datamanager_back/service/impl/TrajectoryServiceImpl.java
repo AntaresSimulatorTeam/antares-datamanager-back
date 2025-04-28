@@ -167,6 +167,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).trajectory(loadTrajectory).build())
                 .toList();
         loadTrajectory.setLoadEntities(loadEntities);
+        loadTrajectory.setLoadArea(area.toUpperCase());
         return trajectoryRepository.save(loadTrajectory);
     }
 
