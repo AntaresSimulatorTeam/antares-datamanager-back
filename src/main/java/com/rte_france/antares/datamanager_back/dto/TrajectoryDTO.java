@@ -30,6 +30,9 @@ public class TrajectoryDTO {
     @JsonProperty("userName")
     String createdBy;
 
+    @JsonProperty("loadArea")
+    String loadArea;
+
     @JsonProperty("creationDate")
     LocalDateTime creationDate;
 

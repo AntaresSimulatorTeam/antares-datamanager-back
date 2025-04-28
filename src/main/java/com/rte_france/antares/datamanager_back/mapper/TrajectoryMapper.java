@@ -22,6 +22,7 @@ public class TrajectoryMapper {
                 .version(entity.getVersion())
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
+                .loadArea(entity.getLoadArea())
                 .messages(WarningMessageMapper.toWarningMessageDTOs(entity.getWarningMessages()))
                 .build();
     }
