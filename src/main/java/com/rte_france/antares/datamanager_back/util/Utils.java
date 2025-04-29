@@ -63,14 +63,12 @@ public class Utils {
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getFileSize() == Files.size(path)
                 && trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && (trajectoryEntity.getFileSize() != Files.size(path)
-                || !trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon())));
+                && !trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
     }
 
     public static boolean isSameLoadTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
