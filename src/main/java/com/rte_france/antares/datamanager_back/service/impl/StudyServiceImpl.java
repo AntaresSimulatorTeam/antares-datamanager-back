@@ -12,10 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import com.rte_france.antares.datamanager_back.util.Utils;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -50,34 +47,60 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
-        Specification<StudyEntity> spec = Specification.where(null);
+        Specification<StudyEntity> spec = (root, query, cb) -> {
+            query.distinct(true);
+            Predicate predicate = cb.conjunction();
 
-        // Ajouter le critère pour idProject s'il est non nul
-        if (idProject != null) {
-            spec = spec.and(hasProjectId(idProject));
-        }
+            // Filtre sur l'id du projet
+            if (idProject != null) {
+                Join<StudyEntity, ProjectEntity> project = root.join("project");
+                predicate = cb.and(predicate, cb.equal(project.get("id"), idProject));
+            }
 
-        // Ajouter les critères liés au "search" s'il est non nul et non vide
-        if (search != null && !StringUtils.isEmpty(search)) {
-            // Construire les différentes spécifications liées à la recherche
-            Specification<StudyEntity> creationDateSpec = creationDateSpecification(search);
+            // Filtres liés au champ "search"
+            if (StringUtils.isNotBlank(search)) {
+                Predicate searchPredicate = cb.disjunction();
 
-            Specification<StudyEntity> searchSpecs =
-                    Specification.where(new PegaseSpecification(new SearchCriteria("name", ":", search)))
-                            .or(new PegaseSpecification(new SearchCriteria("tags", "in", search)))
-                            .or(new PegaseSpecification(new SearchCriteria("createdBy", ":", search)))
-                            .or(new PegaseSpecification(new SearchCriteria("status", ":", search)))
-                            .or(new PegaseSpecification(new SearchCriteria("horizon", ":", search)))
-                            .or(hasProjectName(search))
-                            .or(creationDateSpec);
+                // Recherche par nom
+                searchPredicate = cb.or(searchPredicate,
+                        cb.like(cb.lower(root.get("name")), "%" + search.toLowerCase() + "%"));
 
-            // Combiner les spécifications existantes avec celles liées à "search"
-            spec = spec.and(searchSpecs);
-        }
+                // Recherche par tags
+                searchPredicate = cb.or(searchPredicate,
+                        cb.isMember(search.toLowerCase(), root.get("tags")));
 
-        // Retourner les résultats filtrés
+                // Recherche par utilisateur
+                searchPredicate = cb.or(searchPredicate,
+                        cb.like(cb.lower(root.get("createdBy")), "%" + search.toLowerCase() + "%"));
+
+                // Recherche par status
+                searchPredicate = cb.or(searchPredicate,
+                        cb.like(cb.lower(root.get("status")), "%" + search.toLowerCase() + "%"));
+
+                // Recherche par horizon
+                searchPredicate = cb.or(searchPredicate,
+                        cb.like(cb.lower(root.get("horizon")), "%" + search.toLowerCase() + "%"));
+
+                // Recherche par nom du projet
+                Join<StudyEntity, ProjectEntity> projectJoin = root.join("project");
+                searchPredicate = cb.or(searchPredicate,
+                        cb.like(cb.lower(projectJoin.get("name")), "%" + search.toLowerCase() + "%"));
+
+                // Recherche par date de création si applicable
+                if (Utils.hasValidDateFormat(search)) {
+                    LocalDateTime date = Utils.parseToLocalDateTime(search);
+                    searchPredicate = cb.or(searchPredicate, cb.equal(root.get("creationDate"), date));
+                }
+
+                predicate = cb.and(predicate, searchPredicate);
+            }
+
+            return predicate;
+        };
+
         return studyRepository.findAll(spec, pageable);
     }
+
 
     @Override
     public List<String> searchKeywordsByPartialName(String partialName) {
