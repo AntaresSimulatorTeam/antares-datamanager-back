@@ -47,25 +47,45 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Page<ProjectEntity> findProjectsByCriteria(String search, Pageable paging) {
-        Specification<ProjectEntity> spec = Specification.where(null);
+        Specification<ProjectEntity> spec = (root, query, criteriaBuilder) -> {
+            query.distinct(true); // 🔥 Forcer les résultats distincts
 
-        if (search != null && !StringUtils.isEmpty(search)) {
+            Predicate finalPredicate = criteriaBuilder.conjunction();
 
-            Specification<ProjectEntity> creationDateSpec = creationDateSpecification(search);
+            if (StringUtils.isNotBlank(search)) {
+                Predicate namePredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), "%" + search.toLowerCase() + "%");
+                Predicate createdByPredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("createdBy")), "%" + search.toLowerCase() + "%");
 
-            SearchCriteria searchCriteriaWithProjectName = new SearchCriteria("name", ":", search);
-            SearchCriteria searchCriteriaWithTag = new SearchCriteria("tags", "in", search);
-            SearchCriteria searchCriteriaWithUser = new SearchCriteria("createdBy", ":", search);
+                // Join for tags
+                Join<ProjectEntity, String> tagsJoin = root.join("tags", JoinType.LEFT);
+                Predicate tagPredicate = criteriaBuilder.like(criteriaBuilder.lower(tagsJoin), "%" + search.toLowerCase() + "%");
 
-            spec = spec.and(new PegaseSpecification<>(searchCriteriaWithProjectName))
-                    .or(new PegaseSpecification<>(searchCriteriaWithTag))
-                    .or(new PegaseSpecification<>(searchCriteriaWithUser))
-                    .or(hasStudyName(search))
-                    .or(creationDateSpec);
-            return projectRepository.findAll(spec, paging);
-        }
-        return projectRepository.findAll(paging);
+                // Join for studies
+                Join<ProjectEntity, StudyEntity> studyJoin = root.join("studies", JoinType.LEFT);
+                Predicate studyPredicate = criteriaBuilder.like(criteriaBuilder.lower(studyJoin.get("name")), "%" + search.toLowerCase() + "%");
+
+                // Handle creationDate if applicable
+                Predicate datePredicate = null;
+                if (Utils.hasValidDateFormat(search)) {
+                    LocalDateTime creationDate = Utils.parseToLocalDateTime(search);
+                    datePredicate = criteriaBuilder.equal(root.get("creationDate"), creationDate);
+                }
+
+                finalPredicate = criteriaBuilder.or(
+                        namePredicate,
+                        createdByPredicate,
+                        tagPredicate,
+                        studyPredicate,
+                        datePredicate != null ? datePredicate : criteriaBuilder.disjunction()
+                );
+            }
+
+            return finalPredicate;
+        };
+
+        return projectRepository.findAll(spec, paging);
     }
+
 
     @Override
     public List<ProjectDto> searchProjectsByName(String partialName) {

@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.service.impl.ProjectServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -48,31 +49,104 @@ class ProjectServiceImplTest {
     private UserService userService;
 
     @Test
-    void findProjectsByCriteria_returnsAllProjectsWhenSearchIsNull() {
+    void findProjectsByCriteria_returnsAllProjectsWhenSearchIsEmpty() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(ProjectEntity.builder().name("project1").build()), pageable, 1);
 
-        when(projectRepository.findAll(pageable)).thenReturn(expectedPage);
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
 
-        Page<ProjectEntity> result = projectService.findProjectsByCriteria(null, pageable);
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria("", pageable);
 
         assertEquals(expectedPage, result);
-        verify(projectRepository, times(1)).findAll(pageable);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test
-    void findProjectsByCriteria_returnsProjectsByStudyName() {
-        String studyName = "study1";
+    void findProjectsByCriteria_filtersByName() {
+        String search = "project1";
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = ProjectEntity.builder().name("project1").build();
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(project), pageable, 1);
+
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findProjectsByCriteria_filtersByCreatedBy() {
+        String search = "user1";
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = ProjectEntity.builder().createdBy("user1").build();
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(project), pageable, 1);
+
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findProjectsByCriteria_filtersByTag() {
+        String search = "tag1";
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = ProjectEntity.builder().tags(List.of("tag1")).build();
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(project), pageable, 1);
+
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findProjectsByCriteria_filtersByStudyName() {
+        String search = "study1";
         Pageable pageable = PageRequest.of(0, 10);
         ProjectEntity project = ProjectEntity.builder()
-                .name("project1")
-                .studies(Collections.singletonList(StudyEntity.builder().name(studyName).build()))
+                .studies(List.of(StudyEntity.builder().name("study1").build()))
                 .build();
         Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(project), pageable, 1);
 
         when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
 
-        Page<ProjectEntity> result = projectService.findProjectsByCriteria(studyName, pageable);
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findProjectsByCriteria_filtersByCreationDate() {
+        String search = "2023-01-01T00:00:00";
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = ProjectEntity.builder().creationDate(Utils.parseToLocalDateTime(search)).build();
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(project), pageable, 1);
+
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, pageable);
+
+        assertEquals(expectedPage, result);
+        verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findProjectsByCriteria_returnsEmptyPageWhenNoMatch() {
+        String search = "nonexistent";
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ProjectEntity> expectedPage = new PageImpl<>(List.of(), pageable, 0);
+
+        when(projectRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(expectedPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, pageable);
 
         assertEquals(expectedPage, result);
         verify(projectRepository, times(1)).findAll(any(Specification.class), eq(pageable));
