@@ -45,4 +45,30 @@ import static org.mockito.Mockito.*;
         verify(defaultLoadRepository).findAllByIsDefaultIsTrue();
 
     }
+
+
+    @Test
+    void fetchAllDefaults_shouldReturnMappedDTOsSortedByName() {
+        // Given
+        DefaultLoadEntity entity1 = new DefaultLoadEntity();
+        entity1.setName("RO");
+        DefaultLoadEntity entity2 = new DefaultLoadEntity();
+        entity2.setName("ES");
+        DefaultLoadEntity entity3 = new DefaultLoadEntity();
+        entity3.setName("AR");
+
+        List<DefaultLoadEntity> entities = List.of(entity1, entity2, entity3);
+
+
+        when(defaultLoadRepository.findAllByIsDefaultIsTrue()).thenReturn(entities);
+
+        // When
+        List<DefaultLoadDTO> result = loadDefaultService.fetchAllDefaults();
+
+        // Then
+        assertEquals("AR", result.get(0).getName());
+        assertEquals("ES", result.get(1).getName());
+        assertEquals("RO", result.get(2).getName());
+        verify(defaultLoadRepository).findAllByIsDefaultIsTrue();
+    }
 }
