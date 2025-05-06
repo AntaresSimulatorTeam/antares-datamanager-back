@@ -108,36 +108,68 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<String> indirectUnilateralZeroRows = LinksValidator.areAllValuesZeroInGroup(path, horizon, indirectColumns);
         indirectUnilateralZeroRows.removeAll(allZeroRows); // Exclude all-zero rows
 
+        List<String> allUnilateralZeroRows = new ArrayList<>();
+        allUnilateralZeroRows.addAll(directUnilateralZeroRows);
+        allUnilateralZeroRows.addAll(indirectUnilateralZeroRows);
+
+
         List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
 
         addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO, studyId, userNni, trajectory);
-        addWarning(warningMessageEntities, directUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
-        addWarning(warningMessageEntities, indirectUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
+        addWarning(warningMessageEntities, allUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
         addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY, studyId, userNni, trajectory);
     }
 
-
     private void addWarning(Set<WarningMessageEntity> warningMessages,
-                            List<String> warnings,
-                            WarningCode warningCode, Integer studyId, String userNni, TrajectoryEntity trajectory) {
+                           List<String> warnings,
+                           WarningCode warningCode,
+                           Integer studyId,
+                           String userNni,
+                           TrajectoryEntity trajectory) {
+        if (warnings.isEmpty()) {
+            return;
+        }
+
+        List<String[]> splitWarnings = warnings.stream()
+                .map(warning -> warning.split(","))
+                .toList();
+
+
+        String[] parts = new String[splitWarnings.getFirst().length];
+
+
+        for (int i = 0; i < parts.length; i++) {
+            int finalI = i;
+            Set<String> uniqueValues = splitWarnings.stream()
+                    .map(w -> w[finalI])
+                    .collect(Collectors.toSet());
+
+            if (i == parts.length - 1 || uniqueValues.size() == 1) {
+                parts[i] = uniqueValues.iterator().next();
+            } else {
+                parts[i] = String.join(", ", uniqueValues);
+            }
+        }
+
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
 
-        for (String warning : warnings) {
-            String[] parts = warning.split(",");
-            var message = WarningMessageEntity.builder()
-                    .warningContent(warningMessageService.getMessage(warningCode.value(), (Object[]) parts))
-                    .warningLevel(WarningLevel.WARNING_LEVEL)
-                    .secondTrajectory(null)
-                    .warningCode(warningCode)
-                    .study(study)
-                    .trajectory(trajectory)
-                    .creationDate(LocalDateTime.now())
-                    .createdBy(userNni)
-                    .isAck(false)
-                    .build();
-            warningMessages.add(message);
-        }
+        var message = WarningMessageEntity.builder()
+                .warningContent(warningMessageService.getMessage(warningCode.value(), (Object[]) parts))
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .secondTrajectory(null)
+                .warningCode(warningCode)
+                .study(study)
+                .trajectory(trajectory)
+                .creationDate(LocalDateTime.now())
+                .createdBy(userNni)
+                .isAck(false)
+                .build();
+
+        warningMessages.add(message);
     }
+
+
+
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
         if (trajectory.getFileName() != null && trajectory.getFileName().length() > LINKS_FILE_NAME_MAX_SIZE) {
@@ -221,10 +253,15 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
 
-        areaNames.stream()
+        Set<String> missingAreas = areaNames.stream()
                 .filter(area -> !linkedAreas.contains(area))
-                .forEach(area -> addWarningMessage(warningMessages, area, study, trajectoryId, secondTrajectory, userNni));
+                .collect(Collectors.toSet());
+
+        if (!missingAreas.isEmpty()) {
+            addWarningMessage(warningMessages, String.join(", ", missingAreas), study, trajectoryId, secondTrajectory, userNni);
+        }
     }
+
 
     private String findUserNni() {
         return userService.getCurrentUserDetails().getNni();

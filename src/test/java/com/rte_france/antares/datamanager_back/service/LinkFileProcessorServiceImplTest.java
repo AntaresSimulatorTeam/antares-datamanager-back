@@ -26,10 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,7 +78,10 @@ class LinkFileProcessorServiceImplTest {
                         AreaConfigEntity.builder()
                                 .area(AreaEntity.builder().name("CH").build()).build(),
                         AreaConfigEntity.builder()
-                                .area(AreaEntity.builder().name("IT").build()).build()))
+                                .area(AreaEntity.builder().name("IT").build()).build(),
+                        AreaConfigEntity.builder()
+                                .area(AreaEntity.builder().name("GE").build()).build()))
+
                 .build();
         when(trajectoryRepository.findByTypeAndStudyId(any(), any())).thenReturn(List.of(trajectoryEntity));
 
@@ -144,7 +144,6 @@ class LinkFileProcessorServiceImplTest {
 
 
         linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
-
 
         verify(warningMessageService).getMessage(
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
@@ -253,4 +252,174 @@ class LinkFileProcessorServiceImplTest {
             return outputStream.toByteArray();
         }
     }
+
+
+    @Test
+    void testAccumulatedWarningsForAllZeros() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestFileWar.xlsx",
+                List.of("parameters", "2033-2034"),
+                List.of(
+                        List.of("", "2033-2034"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5
+                        )),
+                        List.of(
+                                List.of("CH-FR", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-IT", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFileWar.xlsx");
+        trajectory.setVersion(1);
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+                .thenReturn(Optional.of(trajectory));
+
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
+
+        verify(warningMessageService, times(1)).getMessage(
+                eq(WarningCode.LINKS_ALL_VALUES_ZERO.value()),
+                eq("2, 3"),
+                eq("1"),
+                eq("TestFileWar.xlsx")
+        );
+    }
+
+    @Test
+    void testAccumulatedWarningsForNotOrderedAlphabetically() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestFileWar.xlsx",
+                List.of("parameters", "2033-2034"),
+                List.of(
+                        List.of("", "2033-2034"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5
+                        )),
+                        List.of(
+                                List.of("GE-CH", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("IT-FR", 100, 200, 300, 400, 500, 600, 800, 800, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFileWar.xlsx");
+        trajectory.setVersion(1);
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+                .thenReturn(Optional.of(trajectory));
+
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
+
+        verify(warningMessageService, times(1)).getMessage(
+                eq(WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value()),
+                eq("IT-FR, GE-CH"),
+                eq("2, 3"),
+                eq("1"),
+                eq("TestFileWar.xlsx")
+        );
+    }
+
+    @Test
+    void testAccumulatedWarningsForAreaNotPresent() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestFileWar.xlsx",
+                List.of("parameters", "2033-2034"),
+                List.of(
+                        List.of("", "2033-2034"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5
+                        )),
+                        List.of(
+                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFileWar.xlsx");
+        trajectory.setVersion(1);
+
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+                .thenReturn(Optional.of(trajectory));
+
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
+
+        verify(warningMessageService, times(1)).getMessage(
+                eq(WarningCode.LINKS_AREA_NOT_PRESENT.value()),
+                eq("CH, GE")
+        );
+    }
+
+    @Test
+    void testWarningForUnilateralValuesZero() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestFileWar.xlsx",
+                List.of("parameters", "2033-2034"),
+                List.of(
+                        List.of("", "2033-2034"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5)),
+                        List.of(
+                                List.of("CH-FR", 0, 50, 0, 30, 0, 10, 0, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-IT", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-GE", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFileWar.xlsx");
+        trajectory.setVersion(1);
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+                .thenReturn(Optional.of(trajectory));
+
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
+
+        verify(warningMessageService).getMessage(
+                eq(WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value()),
+                eq("2, 3, 4"),
+                eq("1"),
+                eq("TestFileWar.xlsx")
+        );
+    }
+
+
+
+
+
+
 }
