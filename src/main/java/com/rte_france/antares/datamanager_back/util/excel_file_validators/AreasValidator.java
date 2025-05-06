@@ -1,8 +1,10 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,25 +18,36 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 public class AreasValidator {
 
     private static final int AREAS_MAX_LENGTH = 10;
-    public static void validateAreaColumns(Path path, String horizon) throws TechnicalAntaresDataMangerException {
+
+    public static void validateAreaColumns(Path path, String horizon) throws BusinessException {
         try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(path))) {
             Sheet sheet = workbook.getSheet(horizon);
             if (sheet == null) {
-                throw new TechnicalAntaresDataMangerException("Sheet '" + horizon + "' not found in file: " + path.getFileName());
+                throw BusinessException.builder()
+                        .message("Sheet {0} not found in file: {1}")
+                        // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                        .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
-           checkColumnsRules(sheet, path, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames());
-           checkAreasValuesLength(sheet, path, horizon, AreaColumns.AREAS.getDisplayName());
-           checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false);
+            checkColumnsRules(sheet, path, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames());
+            checkAreasValuesLength(sheet, path, horizon, AreaColumns.AREAS.getDisplayName());
+            checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false);
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("Error reading file: " + path.getFileName());
+            throw TechnicalException.builder()
+                    .message("Error reading file:  {0}")
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .cause(e.getCause())
+                    .build();
         }
     }
 
 
     private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> booleanColumns, List<String> stringColumns) {
-      checkBooleanColumns(sheet, path, horizon, booleanColumns);
-      stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
+        checkBooleanColumns(sheet, path, horizon, booleanColumns);
+        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
 
     }
 
@@ -58,9 +71,13 @@ public class AreasValidator {
                 .toList();
 
         if (!invalidRows.isEmpty()) {
-            throw new TechnicalAntaresDataMangerException(String.format(
-                    "Value too long for %s at row(s): %s in sheet '%s' in file: %s",
-                    columnName, String.join(", ", invalidRows), horizon, path.getFileName())+ " maximum length is 10 characters");
+            var invalidRowsJoin = String.join(", ", invalidRows);
+            throw BusinessException.builder()
+                    .message("Value too long for {} at row(s): {} in sheet {} in file: {} maximum length is 10 characters")
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .errorMessageArguments(List.of(columnName, invalidRowsJoin, horizon, path.getFileName().toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 }

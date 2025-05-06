@@ -3,8 +3,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
-import com.rte_france.antares.datamanager_back.exception.BadRequestException;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntity;
@@ -200,12 +199,13 @@ class ProjectServiceImplTest {
         when(pinnedProjectRepository.existsById(pinnedProjectEntityId)).thenReturn(false);
 
         // Then
-        ResourceNotFoundException exception = assertThrows(
-                ResourceNotFoundException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.deletePinnedProjectForGivenUser(userId, projectId)
         );
 
-        assertEquals("Pinned project not found for user: testUser, project ID: 2", exception.getMessage());
+        assertEquals("Pinned project not found for user: {0}, project ID: {1}", exception.getMessage());
+        assertEquals(List.of("testUser","2"), exception.getErrorMessageArguments());
         verify(pinnedProjectRepository, never()).deletePinnedProjectEntityById(pinnedProjectEntityId);
     }
 
@@ -250,8 +250,8 @@ class ProjectServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user1").firstName("JEAN").lastName("RORTEAU").build());
         when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.of(pinnedProjectEntity));
 
-        BadRequestException exception = assertThrows(
-                BadRequestException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.pinProjectForUser(userId, projectId)
         );
 
@@ -265,8 +265,8 @@ class ProjectServiceImplTest {
         Integer projectId = 1;
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user2").firstName("JEAN").lastName("RORTEAU").build());
 
-        BadRequestException exception = assertThrows(
-                BadRequestException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.pinProjectForUser(userId, projectId)
         );
 
@@ -282,12 +282,13 @@ class ProjectServiceImplTest {
         when(pinnedProjectRepository.findById(pinnedProjectEntityId)).thenReturn(Optional.empty());
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception = assertThrows(
-                ResourceNotFoundException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.pinProjectForUser(userId, projectId)
         );
 
-        assertEquals("Project not found with ID: 1", exception.getMessage());
+        assertEquals("Project not found with ID: {0}", exception.getMessage());
+        assertEquals(Collections.singletonList("1"), exception.getErrorMessageArguments());
         verify(pinnedProjectRepository, never()).save(any(PinnedProjectEntity.class));
     }
 
@@ -300,8 +301,8 @@ class ProjectServiceImplTest {
 
         when(pinnedProjectRepository.findByIdNni(userId)).thenReturn(pinnedProjects);
 
-        BadRequestException exception = assertThrows(
-                BadRequestException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.pinProjectForUser(userId, projectId)
         );
 
@@ -328,12 +329,13 @@ class ProjectServiceImplTest {
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception = assertThrows(
-                ResourceNotFoundException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.deleteProjectById(projectId)
         );
 
-        assertEquals("Project not found with ID: 1", exception.getMessage());
+        assertEquals("Project not found with ID: {0}", exception.getMessage());
+        assertEquals(Collections.singletonList("1"), exception.getErrorMessageArguments());
         verify(projectRepository, never()).deleteById(projectId);
     }
 
@@ -346,8 +348,8 @@ class ProjectServiceImplTest {
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
 
-        BadRequestException exception = assertThrows(
-                BadRequestException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.deleteProjectById(projectId)
         );
 
@@ -392,8 +394,8 @@ class ProjectServiceImplTest {
         ProjectInputDto projectInputDto = new ProjectInputDto();
         projectInputDto.setName("");
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.createProject(projectInputDto)
         );
 
@@ -407,8 +409,8 @@ class ProjectServiceImplTest {
 
         when(projectRepository.findByName(any(String.class))).thenReturn(Optional.of(new ProjectEntity()));
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.createProject(projectInputDto)
         );
 
@@ -421,8 +423,8 @@ class ProjectServiceImplTest {
         projectInputDto.setName("testProject");
         projectInputDto.setTags(List.of("tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7"));
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> projectService.createProject(projectInputDto)
         );
 

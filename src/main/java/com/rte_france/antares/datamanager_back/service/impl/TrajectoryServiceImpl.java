@@ -2,8 +2,8 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,13 +92,27 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public TrajectoryEntity saveLoadTrajectoriesInDb(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         if (area == null || trajectoryToUse == null || horizon == null) {
-            throw new IllegalArgumentException("Area, trajectory name, and horizon must not be null");
+            throw
+                    BusinessException.builder()
+                            .message("Area, trajectory name, and horizon must not be null")
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+
         }
-        areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() -> new ResourceNotFoundException("Area not found for studyId: " + studyId));
+        areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
+                BusinessException.builder()
+                        .message("Area not found for studyId: {0} ")
+                        .errorMessageArguments(List.of(studyId.toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
 
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
-                .orElseThrow(() -> new IllegalStateException("User NNI could not be determined"));
+                .orElseThrow(() ->
+                        BusinessException.builder()
+                                .message("User NNI could not be determined")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build());
 
         // Build and normalize the trajectory path
         Path trajectoryPath = buildTrajectoryPath(area, trajectoryToUse);
@@ -110,7 +125,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
 
             if (isSameLoadTrajectory(trajectoryPath, existingTrajectory)) {
-                throw new TechnicalAntaresDataMangerException("Trajectory already uploaded");
+                throw BusinessException.builder()
+                        .message("Trajectory already uploaded")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
             // Update version and save new trajectory
@@ -131,7 +149,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String loadDir = antaressDataManagerProperties.getLoadDirectory();
 
         if (nasDir == null || trajFilePath == null || loadDir == null) {
-            throw new IllegalStateException("Antaress path configuration is incomplete");
+            throw BusinessException.builder()
+                    .message("Antaress path configuration is incomplete")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
 
         return Paths.get(nasDir)
@@ -161,7 +182,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory) throws IOException {
         List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon);
         if (loadsFile.isEmpty()) {
-            throw new IllegalArgumentException("No valid load files found in the trajectory path");
+
+            throw BusinessException.builder()
+                    .message("No valid load files found in the trajectory path")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
         List<LoadEntity> loadEntities = loadsFile.stream()
                 .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).trajectory(loadTrajectory).build())
@@ -193,7 +218,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
             case THERMAL_COST ->
                     thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
-            default -> throw new IllegalArgumentException("The provided trajectory type is not supported.");
+            default -> throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
     }
 
@@ -305,30 +330,35 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
             case LOAD -> antaressDataManagerProperties.getLoadDirectory();
             case MISC ->
-                    throw new IllegalArgumentException("No directory defined for TrajectoryType: " + trajectoryType);
-            default -> throw new IllegalArgumentException("Invalid TrajectoryType: " + trajectoryType);
+                    throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
+            default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
 
     /**
-     * Links a trajectory to a study. If a trajectory of the same type is already linked to the study,
-     * the existing link is removed before creating the new link.
+     * Links a trajectory to a study.
      *
-     * @param trajectoryId the ID of the trajectory to link
-     * @param studyId      the ID of the study to link the trajectory to
+     * @param trajectoryId the ID of the trajectory
+     * @param studyId      the ID of the study
      * @param type         the type of the trajectory
      * @return the linked TrajectoryEntity
-     * @throws ResourceNotFoundException if the study or trajectory is not found
      */
     @Transactional
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 
         StudyEntity study = studyRepository.findById(studyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Study not found"));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Study not found")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
 
         TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Trajectory not found"));
+                .orElseThrow(() ->
+                        BusinessException.builder()
+                                .message("Trajectory not found")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build());
 
         // Vérifier si une trajectoire du même type est déjà associée à l'étude
         Optional<StudyTrajectoryEntity> existingLink = study.getStudyTrajectoryEntities().stream()
@@ -399,7 +429,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build())
                 .ifPresentOrElse(studyTrajectoryRepository::delete,
                         () -> {
-                            throw new ResourceNotFoundException("Link not found");
+                            throw BusinessException.builder()
+                                    .message("Link not found")
+                                    .httpStatus(HttpStatus.BAD_REQUEST)
+                                    .build();
                         });
     }
 
@@ -417,8 +450,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .map(LinkMapper::toLinkTrajectoryDataDTO)
                     .collect(Collectors.toList());
 
-            default ->
-                    throw new UnsupportedOperationException("TrajectoryType " + trajectoryType + " is not supported.");
+            default -> throw TechnicalException.builder()
+                    .message("TrajectoryType {0} is not supported.")
+                    .errorMessageArguments(List.of(trajectoryType.name()))
+                    .build();
         };
     }
 }

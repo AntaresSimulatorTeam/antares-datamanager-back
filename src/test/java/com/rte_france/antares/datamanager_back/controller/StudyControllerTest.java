@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
-import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
@@ -145,7 +145,7 @@ class StudyControllerTest {
     void createStudyThrowsBadRequestWhenNoProjectInfoProvided() throws Exception {
         StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
 
-        when(studyService.createStudy(any(StudyDTO.class))).thenThrow(new BadRequestException("Either project name or project ID must be provided."));
+        when(studyService.createStudy(any(StudyDTO.class))).thenThrow(BusinessException.builder().message("Either project name or project ID must be provided.").build());
 
         this.mockMvc.perform(post("/v1/study")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -173,7 +173,7 @@ class StudyControllerTest {
 
     @Test
     void deleteStudyByIdThrowsBadRequestWhenStudyNotFound() throws Exception {
-        doThrow(new BadRequestException("Study with id 1 not found.")).when(studyService).deleteStudyById(1);
+        doThrow(BusinessException.builder().message("Study with id 1 not found.").build()).when(studyService).deleteStudyById(1);
 
         this.mockMvc.perform(delete("/v1/study/1")
                         .contentType(MediaType.APPLICATION_JSON_VALUE))

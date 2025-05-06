@@ -1,10 +1,12 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,6 +16,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 @Slf4j
 @Getter
 public class ExcelCommonValidator {
@@ -30,12 +33,22 @@ public class ExcelCommonValidator {
 
             Sheet sheet = workbook.getSheet(horizon);
             if (sheet == null) {
-                throw new TechnicalAntaresDataMangerException("File '" + path.getFileName() + "' does not contain the expected sheet: '" + horizon + "'.");
+                throw BusinessException.builder()
+                        .message("File {0} does not contain the expected sheet: {1}")
+                        // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                        .errorMessageArguments(List.of(path.getFileName().toString(), horizon))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
             Row headerRow = sheet.getRow(0);
             if (headerRow == null) {
-                throw new TechnicalAntaresDataMangerException("File '" + path.getFileName() + "' does not contain a valid header row.");
+                throw BusinessException.builder()
+                        .message("File {0} does not contain a valid header row.")
+                        // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                        .errorMessageArguments(List.of(path.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
 
@@ -76,16 +89,23 @@ public class ExcelCommonValidator {
             }
 
             if (errorOccurred) {
-                throw new TechnicalAntaresDataMangerException(errorMessage.toString());
+                throw BusinessException.builder()
+                        .message(errorMessage.toString())
+                        // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
             checkAllRowsHaveValues(sheet, fileType.getColumnCount(), path, horizon);
 
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("Error reading file '" + path.getFileName() + "': " + e.getMessage());
+            throw TechnicalException.builder()
+                    .message("Error reading file {0}: " + path.getFileName())
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .cause(e.getCause())
+                    .build();
         }
     }
-
 
 
     /**
@@ -116,8 +136,12 @@ public class ExcelCommonValidator {
                 .toList();
 
         if (!emptyCells.isEmpty()) {
-            throw new TechnicalAntaresDataMangerException("Empty values found in sheet '" + horizon + "' in file: " + path.getFileName() +
-                    ". Locations: " + String.join(", ", emptyCells));
+            throw BusinessException.builder()
+                    .message("Empty values found in sheet {0} in file:  {1}  Locations: {2}")
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .errorMessageArguments(List.of(horizon, path.getFileName().toString(), String.join(", ", emptyCells)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
@@ -135,9 +159,9 @@ public class ExcelCommonValidator {
 
 
     /**
-     * @param sheet   to be read in Excel file
-     * @param path    trajectory file
-     * @param horizon make error clearer
+     * @param sheet          to be read in Excel file
+     * @param path           trajectory file
+     * @param horizon        make error clearer
      * @param booleanColumns booleans columns must be TRUE or FALSE
      */
     static void checkBooleanColumns(Sheet sheet, Path path, String horizon, List<String> booleanColumns) {
@@ -155,16 +179,19 @@ public class ExcelCommonValidator {
                 .toList();
 
         if (!invalidCells.isEmpty()) {
-            throw new TechnicalAntaresDataMangerException(String.format(
-                    "Invalid boolean values in sheet '%s' in file: %s - must be true/false. Locations: %s",
-                    horizon, path.getFileName(), String.join("; ", invalidCells)));
+            throw BusinessException.builder()
+                    .message("Invalid boolean values in sheet {0} in file:{1} - must be true/false. Locations: {2}")
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .errorMessageArguments(List.of(horizon, path.getFileName().toString(), String.join("; ", invalidCells)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
     /**
-     * @param sheet to verify strings
-     * @param path to file
-     * @param horizon sheet name
+     * @param sheet      to verify strings
+     * @param path       to file
+     * @param horizon    sheet name
      * @param columnName where we expect values to be strings and throw error if a number is found
      */
     public static void checkStringColumns(Sheet sheet, Path path, String horizon, String columnName) {
@@ -200,8 +227,12 @@ public class ExcelCommonValidator {
                 .toList();
 
         if (!invalidCells.isEmpty()) {
-            throw new TechnicalAntaresDataMangerException("Column '" + columnName + "' errors in sheet '" + horizon + "' in file: " + path.getFileName() +
-                    ". Locations: " + String.join(", ", invalidCells));
+            throw BusinessException.builder()
+                    .message("Column {0} errors in sheet {1} in file:{2}. Locations: {3}")
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .errorMessageArguments(List.of(columnName, horizon, path.getFileName().toString(), String.join("; ", invalidCells)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
@@ -210,6 +241,7 @@ public class ExcelCommonValidator {
         Boolean value = getBooleanCellValue(cell);
         return value != null;
     }
+
     /**
      * @param cell to check
      * @return boolean value expected and avoid null for formatted cells
@@ -229,6 +261,7 @@ public class ExcelCommonValidator {
         }
         return null;
     }
+
     /**
      * @param sheet      to be read
      * @param columnName column to be read
@@ -241,17 +274,20 @@ public class ExcelCommonValidator {
         return IntStream.range(0, headerRow.getPhysicalNumberOfCells())
                 .filter(i -> columnName.equalsIgnoreCase(headerRow.getCell(i).getStringCellValue()))
                 .findFirst()
-                .orElseThrow(() -> new TechnicalAntaresDataMangerException(
-                        "Column '" + columnName + "' not found in sheet '" + horizon + "' in file: " + path.getFileName()));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Column {0} not found in sheet {1} in file: {2}")
+                        .errorMessageArguments(List.of(columnName, horizon, path.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
     }
 
     /**
-     * @param sheet      to be read in Excel file
-     * @param columnName column to be read
-     * @param path       trajectory file
-     * @param horizon    to make error clearer
-     * @param checkSymmetric  true if links rule to be verified (AT-BE = BE-AT)
-     * Method to find  duplicated values in a specific column
+     * @param sheet          to be read in Excel file
+     * @param columnName     column to be read
+     * @param path           trajectory file
+     * @param horizon        to make error clearer
+     * @param checkSymmetric true if links rule to be verified (AT-BE = BE-AT)
+     *                       Method to find  duplicated values in a specific column
      */
     static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon, boolean checkSymmetric) {
         int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
@@ -269,13 +305,17 @@ public class ExcelCommonValidator {
 
                         // Avoid showing the same value twice if they are identical
                         if (checkSymmetric && !firstOccurrence.equals(cellValue)) {
-                            throw new TechnicalAntaresDataMangerException(
-                                    String.format("Duplicate value found in column '%s' in sheet '%s' in file: %s. Values '%s' and '%s' are considered identical.",
-                                            columnName, horizon, path.getFileName(), firstOccurrence, cellValue));
+                            throw BusinessException.builder()
+                                    .message("Duplicate value found in column {0} in sheet {1} in file: {2} Values {3} and {4} are considered identical.")
+                                    .errorMessageArguments(List.of(columnName, horizon, path.getFileName().toString(), firstOccurrence, cellValue))
+                                    .httpStatus(HttpStatus.BAD_REQUEST)
+                                    .build();
                         } else {
-                            throw new TechnicalAntaresDataMangerException(
-                                    String.format("Duplicate value '%s' found in column '%s' in sheet '%s' in file: %s.",
-                                            cellValue, columnName, horizon, path.getFileName()));
+                            throw BusinessException.builder()
+                                    .message("Duplicate value {0} found in column {1} in sheet {2} in file: {3}.")
+                                    .errorMessageArguments(List.of(cellValue, columnName, horizon, path.getFileName().toString()))
+                                    .httpStatus(HttpStatus.BAD_REQUEST)
+                                    .build();
                         }
                     }
 

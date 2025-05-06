@@ -5,7 +5,7 @@ import com.rte_france.antares.datamanager_back.dto.AreaTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
@@ -176,7 +177,7 @@ class TrajectoryControllerTest {
 
     @Test
     void unlinkTrajectoryFromStudy_returnsNotFoundWhenLinkDoesNotExist() throws Exception {
-        doThrow(new ResourceNotFoundException("Link between trajectory and study not found"))
+        doThrow(BusinessException.builder().message("Link between trajectory and study not found").httpStatus(HttpStatus.NOT_FOUND).build())
                 .when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
 
         this.mockMvc.perform(delete("/v1/trajectory/link")
@@ -234,7 +235,7 @@ class TrajectoryControllerTest {
                         .param("horizon", "invalid-horizon")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

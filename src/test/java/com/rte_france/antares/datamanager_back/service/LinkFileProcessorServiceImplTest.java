@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -20,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.util.CollectionUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -167,20 +168,22 @@ class LinkFileProcessorServiceImplTest {
     void validateLinkAreas_invalidLinkFormat() {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FRCH";
-        Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
-        assertEquals("Error: Link FRCH in LINKS file is not valid", exception.getMessage());
+        assertEquals("Error: Link {0} in LINKS file is not valid", exception.getMessage());
+        assertEquals(Collections.singletonList("FRCH"), exception.getErrorMessageArguments());
     }
 
     @Test
     void validateLinkAreas_areaNotInTrajectory() {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FR-ES";
-        Exception exception = assertThrows(TechnicalAntaresDataMangerException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
-        assertEquals("Error: Area ES in LINKS file is not present in AREA trajectory", exception.getMessage());
+        assertEquals("Error: Area {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
+        assertEquals(List.of("ES"), exception.getErrorMessageArguments());
     }
 
     @Test

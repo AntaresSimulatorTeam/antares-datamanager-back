@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -57,7 +58,7 @@ public class CreateExcelTestUtil {
 
     public static Path createExcelFileWithTwoSheets(@TempDir Path tempDir, String fileName, List<String> sheetNames, List<List<String>> headers, List<List<List<?>>> rows) throws IOException {
         if (sheetNames.size() != 2 || headers.size() != 2 || rows.size() != 2) {
-            throw new IllegalArgumentException("You must provide exactly two sheet names, headers, and rows.");
+            throw  TechnicalException.builder().message("You must provide exactly two sheet names, headers, and rows.").build();
         }
 
         Path filePath = tempDir.resolve(fileName);

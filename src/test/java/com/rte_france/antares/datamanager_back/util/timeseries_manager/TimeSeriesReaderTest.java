@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,7 +38,7 @@ class TimeSeriesReaderTest {
         var filePath = tempDir.resolve("empty.txt");
         Files.createFile(filePath);
 
-        var exception = assertThrows(IllegalArgumentException.class,
+        var exception = assertThrows(TechnicalException.class,
                 () -> timeSeriesReader.readFromTxt(filePath));
         assertEquals("File is empty", exception.getMessage());
     }

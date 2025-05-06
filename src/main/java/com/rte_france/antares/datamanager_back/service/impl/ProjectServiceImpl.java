@@ -2,8 +2,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
-import com.rte_france.antares.datamanager_back.exception.BadRequestException;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.mapper.ProjectMapper;
 import com.rte_france.antares.datamanager_back.repository.PinnedProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
@@ -20,13 +19,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
 
 @Slf4j
 @Service
@@ -48,7 +47,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public Page<ProjectEntity> findProjectsByCriteria(String search, Pageable paging) {
         Specification<ProjectEntity> spec = (root, query, criteriaBuilder) -> {
-            query.distinct(true); // 🔥 Forcer les résultats distincts
+            query.distinct(true);
 
             Predicate finalPredicate = criteriaBuilder.conjunction();
 
@@ -56,15 +55,12 @@ public class ProjectServiceImpl implements ProjectService {
                 Predicate namePredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), "%" + search.toLowerCase() + "%");
                 Predicate createdByPredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("createdBy")), "%" + search.toLowerCase() + "%");
 
-                // Join for tags
                 Join<ProjectEntity, String> tagsJoin = root.join("tags", JoinType.LEFT);
                 Predicate tagPredicate = criteriaBuilder.like(criteriaBuilder.lower(tagsJoin), "%" + search.toLowerCase() + "%");
 
-                // Join for studies
                 Join<ProjectEntity, StudyEntity> studyJoin = root.join("studies", JoinType.LEFT);
                 Predicate studyPredicate = criteriaBuilder.like(criteriaBuilder.lower(studyJoin.get("name")), "%" + search.toLowerCase() + "%");
 
-                // Handle creationDate if applicable
                 Predicate datePredicate = null;
                 if (Utils.hasValidDateFormat(search)) {
                     LocalDateTime creationDate = Utils.parseToLocalDateTime(search);
@@ -86,7 +82,6 @@ public class ProjectServiceImpl implements ProjectService {
         return projectRepository.findAll(spec, paging);
     }
 
-
     @Override
     public List<ProjectDto> searchProjectsByName(String partialName) {
         List<ProjectEntity> projectEntities = projectRepository.findByNameContainingIgnoreCase(partialName);
@@ -95,122 +90,121 @@ public class ProjectServiceImpl implements ProjectService {
                 .toList();
     }
 
-public static Specification<ProjectEntity> hasStudyName(String studyName) {
-    return (Root<ProjectEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
-        Join<ProjectEntity, StudyEntity> studies = root.join("studies", JoinType.LEFT);
-        return criteriaBuilder.like(studies.get("name"), "%" + studyName + "%");
-    };
-}
-
-    /**
-     * @param search if it is a LocalDateTime in format "yyyy-MM-dd'T'HH:mm:ss" the return is a Specification
-     * @return Specification to look by StudyEntity creation date
-     */
-    public static Specification<ProjectEntity> creationDateSpecification(String search) {
-        LocalDateTime creationDate;
-        if (Utils.hasValidDateFormat(search)) {
-            creationDate = Utils.parseToLocalDateTime(search);
-        } else {
-            creationDate = null;
-        }
-
-        Specification<ProjectEntity> creationDateSpec = null;
-        if (creationDate != null) {
-            creationDateSpec = (root, query, cb) -> cb.equal(root.get("creationDate"), creationDate);
-
-        }
-        return creationDateSpec;
-    }
-
-
     @Override
     public void deletePinnedProjectForGivenUser(String userId, Integer projectId) {
         PinnedProjectEntityId pinnedProjectEntityId = new PinnedProjectEntityId(userId, projectId);
 
-        boolean exists = pinnedProjectRepository.existsById(pinnedProjectEntityId);
-        if (!exists) {
-            throw new ResourceNotFoundException("Pinned project not found for user: " + userId + ", project ID: " + projectId);
+        if (!pinnedProjectRepository.existsById(pinnedProjectEntityId)) {
+            throw BusinessException.builder()
+                    .message("Pinned project not found for user: {0}, project ID: {1}")
+                    .errorMessageArguments(List.of(userId, projectId.toString()))
+                    .httpStatus(HttpStatus.NOT_FOUND)
+                    .build();
         }
         pinnedProjectRepository.deletePinnedProjectEntityById(pinnedProjectEntityId);
     }
 
     @Override
     public ProjectEntity findProjectById(Integer projectId) {
-        Optional<ProjectEntity> projectDetails = projectRepository.findById(projectId);
-        if (projectDetails.isPresent()) {
-            return projectDetails.get();
-        } else
-            throw new ResourceNotFoundException("Project with ID: " + projectId + " not found");
+        return projectRepository.findById(projectId)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project with ID: {0} not found")
+                        .errorMessageArguments(List.of(projectId.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
     }
 
     @Transactional
     public ProjectEntity pinProjectForUser(String userId, Integer projectId) {
         String nni = userService.getCurrentUserDetails().getNni();
 
-        // Check if the userId corresponds to the authenticated user's nni
         if (!userId.equals(nni)) {
-            throw new BadRequestException("User ID does not match the authenticated user's ID.");
+            throw BusinessException.builder()
+                    .message("User ID does not match the authenticated user's ID.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
-        checkIfUserHasALreadyMaxPinnedProjects(userId);
-        // Build the composite key for the PinnedProjectEntity
+
+        checkIfUserHasAlreadyMaxPinnedProjects(userId);
+
         PinnedProjectEntityId pinnedProjectEntityId = PinnedProjectEntityId.builder()
                 .projectId(projectId)
                 .nni(nni)
                 .build();
 
-        // Check if the project is already pinned for the user
         pinnedProjectRepository.findById(pinnedProjectEntityId).ifPresent(pinnedProject -> {
-            throw new BadRequestException(
-                    "Project already pinned"
-            );
+            throw BusinessException.builder()
+                    .message("Project already pinned")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
         });
 
-        // Fetch the project entity or throw an exception if not found
         ProjectEntity project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project not found with ID: {0}")
+                        .errorMessageArguments(List.of(projectId.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
 
-        // Create and save the pinned project entity
         PinnedProjectEntity pinnedProjectEntity = new PinnedProjectEntity();
         pinnedProjectEntity.setId(pinnedProjectEntityId);
         pinnedProjectEntity.setProject(project);
 
         pinnedProjectRepository.save(pinnedProjectEntity);
 
-        // Return the project associated with the pinned entity
         return project;
     }
 
     @Override
     public void deleteProjectById(Integer projectId) {
         ProjectEntity project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project not found with ID: {0}")
+                        .errorMessageArguments(List.of(projectId.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
+
         if (project.getStudies() != null && !project.getStudies().isEmpty()) {
-            throw new BadRequestException("Project contains studies and cannot be deleted");
+            throw BusinessException.builder()
+                    .message("Project contains studies and cannot be deleted")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
+
         projectRepository.deleteById(projectId);
     }
 
-    private void checkIfUserHasALreadyMaxPinnedProjects(String userId) {
+    private void checkIfUserHasAlreadyMaxPinnedProjects(String userId) {
         List<PinnedProjectEntity> pinnedProjects = pinnedProjectRepository.findByIdNni(userId);
         if (pinnedProjects.size() >= 3) {
-            throw new BadRequestException("Maximum number of pinned projects reached.");
+            throw BusinessException.builder()
+                    .message("Maximum number of pinned projects reached.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
     @Override
     public ProjectEntity createProject(ProjectInputDto projectInputDto) {
         if (StringUtils.isBlank(projectInputDto.getName())) {
-            throw new IllegalArgumentException("Project name is required.");
+            throw BusinessException.builder()
+                    .message("Project name is required.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
 
-        Optional<ProjectEntity> existingProject = projectRepository.findByName(projectInputDto.getName());
-
-        if (existingProject.isPresent()) {
-            throw new IllegalArgumentException("A project with the same name already exists.");
+        if (projectRepository.findByName(projectInputDto.getName()).isPresent()) {
+            throw BusinessException.builder()
+                    .message("A project with the same name already exists.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
         }
 
         if (projectInputDto.getTags() != null && projectInputDto.getTags().size() > 6) {
-            throw new IllegalArgumentException("A project cannot have more than 6 tags.");
+            throw BusinessException.builder()
+                    .message("A project cannot have more than 6 tags.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
 
         ProjectEntity newProject = new ProjectEntity();
@@ -221,5 +215,4 @@ public static Specification<ProjectEntity> hasStudyName(String studyName) {
         newProject.setTags(projectInputDto.getTags());
         return projectRepository.save(newProject);
     }
-
 }

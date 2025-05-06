@@ -6,6 +6,7 @@
  */
 package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -72,7 +73,7 @@ public final class TimeSeriesReader {
     try (var lines = Files.lines(filePath)) {
       var iterator = lines.iterator();
       if (!iterator.hasNext()) {
-        throw new IllegalArgumentException("File is empty");
+        throw TechnicalException.builder().message("File is empty").build();
       }
 
       var firstLine = iterator.next();

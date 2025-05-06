@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -87,7 +88,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
             }
             return areaConfigEntities;
         } catch (IOException e) {
-            throw new IOException("could not build area config list: " + e.getMessage());
+            throw TechnicalException.builder().message("could not build area config list: " + e.getMessage()).build();
         }
     }
 
