@@ -1,7 +1,8 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -17,6 +18,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -139,7 +141,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
         if (trajectory.getFileName() != null && trajectory.getFileName().length() > LINKS_FILE_NAME_MAX_SIZE) {
-            throw new IllegalArgumentException("Trajectory name cannot exceed 40 characters.");
+            throw  BusinessException.builder().message("Trajectory name cannot exceed 40 characters.").build();
         }
 
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
@@ -192,7 +194,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 }
             }
         } catch (IOException e) {
-            throw new IOException("could not build link list : " + e.getMessage());
+            throw  TechnicalException.builder().message("could not build link list : " + e.getMessage()).build();
         }
         return linkEntities;
     }
@@ -200,7 +202,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private int findCellIndexByHorizon(Sheet sheet, String horizon) {
         Row headerRow = sheet.getRow(0); // Récupère la ligne 0
         if (headerRow == null) {
-            throw new IllegalArgumentException("Header row is missing in the sheet.");
+            throw TechnicalException.builder().message("Header row is missing in the sheet.").build();
         }
 
         for (Cell cell : headerRow) {
@@ -209,7 +211,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             }
         }
 
-        throw new IllegalArgumentException("Horizon '" + horizon + "' not found in the header row.");
+        throw  TechnicalException.builder().message("Horizon '" + horizon + "' not found in the header row.").build();
     }
 
     public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId, Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni) {
@@ -256,19 +258,27 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param link      the link to validate
      * @param areaNames the list of valid area names
      * @return the validated link
-     * @throws TechnicalAntaresDataMangerException if the link is not valid or an area is not present
+     * @throws BusinessException if the link is not valid or an area is not present
      */
     public String validateLinkAreas(String link, List<String> areaNames) {
         String[] areas = link.split("-");
         if (areas.length != 2) {
-            throw new TechnicalAntaresDataMangerException("Error: Link " + link + " in LINKS file is not valid");
+            throw  BusinessException.builder()
+                    .message("Error: Link {0} in LINKS file is not valid")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .errorMessageArguments(List.of(link))
+                    .build();
         }
 
         for (String area : areas) {
             boolean found = areaNames.stream()
                     .anyMatch(existingArea -> existingArea.equalsIgnoreCase(area));
             if (!found) {
-                throw new TechnicalAntaresDataMangerException("Error: Area " + area + " in LINKS file is not present in AREA trajectory");
+                throw  BusinessException.builder()
+                        .message("Error: Area {0} in LINKS file is not present in AREA trajectory")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .errorMessageArguments(List.of(area))
+                        .build();
             }
         }
 

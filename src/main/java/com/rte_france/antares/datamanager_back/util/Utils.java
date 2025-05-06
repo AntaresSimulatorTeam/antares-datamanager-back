@@ -6,13 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,9 +25,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -56,7 +57,10 @@ public class Utils {
         try (InputStream inputStream = Files.newInputStream(Path.of(filePath))) {
             return DigestUtils.sha256Hex(inputStream);
         } catch (IOException e) {
-            throw new IOException("could not get file checksum : " + e.getMessage());
+            throw TechnicalException.builder()
+                    .message("could not get file checksum : {0}")
+                    .errorMessageArguments(List.of(filePath))
+                    .build();
         }
     }
 
@@ -73,7 +77,7 @@ public class Utils {
 
     public static boolean isSameLoadTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && ( trajectoryEntity.getLastModificationContentDate()
+                && (trajectoryEntity.getLastModificationContentDate()
                 .truncatedTo(ChronoUnit.SECONDS)
                 .isEqual(Files.getLastModifiedTime(path)
                         .toInstant()
@@ -83,7 +87,7 @@ public class Utils {
                 ;
     }
 
-    public static List<String> getValidLoadFileNamesWithHorizon(Path dir,String area, String expectedHorizon) throws IOException {
+    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon) throws IOException {
         String areaPattern = area.equals("EU") ? "[a-z]{2}" : area.toLowerCase();
         Pattern pattern = Pattern.compile("load_" + areaPattern + "_(\\d{4}-\\d{4})\\.txt");
         List<String> loadsFileNames = new ArrayList<>();
@@ -137,7 +141,11 @@ public class Utils {
             log.info("File already processed but with different content : {}", path.getFileName());
             return true;
         } else if (isSameFileWithSameContent(path, trajectoryEntity)) {
-            throw new AlreadyProcessedException("File already processed : " + path.getFileName());
+            throw BusinessException.builder()
+                    .message("File already processed  with same content : {0}")
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
         return false;
     }
@@ -145,7 +153,7 @@ public class Utils {
     public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
-            throw new IllegalArgumentException("Empty fileName");
+            throw  TechnicalException.builder().message("Empty fileName").build();
         }
         String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX :
                 Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
@@ -193,25 +201,36 @@ public class Utils {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             if (workbook.getSheet(horizon) == null)
-                throw new TechnicalAntaresDataMangerException("The horizon " + horizon + " does not exist in the file :" + path.getFileName().toString());
+                throw BusinessException.builder()
+                        .message("The horizon {0} does not exist in the file : {1}")
+                        .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("could not check if horizon exist : " + e.getMessage());
+            throw TechnicalException.builder()
+                    .message("could not check if horizon exist : {0}")
+                    .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
+                    .cause(e.getCause())
+                    .build();
         }
     }
 
     /**
-     * Parses a date string to a LocalDateTime object.
+     * Parses a string to a LocalDateTime object.
      *
-     * @param dateStr the string to be parsed, expected in the format "yyyy-MM-dd'T'HH:mm:ss"
-     * @return a LocalDateTime object representing the parsed date and time
-     * @throws TechnicalAntaresDataMangerException if the dateStr does not match the expected format
+     * @param dateStr the string to parse, expected in the format "yyyy-MM-dd'T'HH:mm:ss"
+     * @return the parsed LocalDateTime object
+     * @throws TechnicalException if the string cannot be parsed to a LocalDateTime
      */
     public static LocalDateTime parseToLocalDateTime(String dateStr) {
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
             return LocalDateTime.parse(dateStr, formatter);
         } catch (DateTimeParseException e) {
-            throw new TechnicalAntaresDataMangerException("Invalid date format: " + e.getMessage());
+            throw TechnicalException.builder()
+                    .message("Invalid date format")
+                    .cause(e.getCause())
+                    .build();
         }
     }
 
@@ -271,7 +290,7 @@ public class Utils {
 
             Sheet sheet = workbook.getSheet(sheetName);
             if (sheet == null) {
-                throw new IllegalArgumentException("Feuille '" + sheetName + "' non trouvée dans le fichier : " + filePath);
+                throw TechnicalException.builder().message("Feuille '" + sheetName + "' non trouvée dans le fichier : " + filePath).build();
             }
 
             StringBuilder sb = new StringBuilder();

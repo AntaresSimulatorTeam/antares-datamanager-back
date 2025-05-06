@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -72,7 +72,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 switch (trajectoryType) {
                     case "AREA" -> buildAreasDataMap(trajectory, areasMap);
                     case "LINK" -> buildLinksDataMap(trajectory, linksMap);
-                    default -> throw new IllegalArgumentException("Unexpected value: " + trajectoryType);
+                    default -> throw  TechnicalException.builder().message("Unexpected value: " + trajectoryType).build();
                 }
             }
 
@@ -84,7 +84,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             jsonForGenerator.put(studyName, innerGeneratorMap);
         } else {
-            throw new IllegalArgumentException("Study not found with ID: " + studyId);
+            throw TechnicalException.builder().message("Study not found with ID: " + studyId).build();
         }
 
         return jsonForGenerator;
@@ -185,7 +185,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     })
                     .block();
         } catch (RuntimeException ex) {
-            throw new TechnicalAntaresDataMangerException("Error while generating study: " + ex.getMessage());
+            throw TechnicalException.builder()
+                    .message("Error while generating study")
+                    .cause(ex.getCause())
+                    .build();
         }
     }
 }

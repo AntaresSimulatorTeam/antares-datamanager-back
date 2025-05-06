@@ -1,11 +1,13 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,21 +39,26 @@ public class LinksValidator {
                 checkColumnsRules(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()));
             }
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
+            throw TechnicalException.builder()
+                    .message("Could not check columns in file: {0}")
+                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .cause(e.getCause())
+                    .build();
         }
     }
 
     private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns) {
-         checkNumbersAreIntegers(sheet, path, horizon, numericColumns);
-         checkBooleanColumns(sheet, path, horizon, booleanColumns);
-         stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
+        checkNumbersAreIntegers(sheet, path, horizon, numericColumns);
+        checkBooleanColumns(sheet, path, horizon, booleanColumns);
+        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
     }
 
     /**
-     * @param sheet   to be read in Excel file
-     * @param path    trajectory file
-     * @param horizon to make error clearer
-     * @param numericColumns  numeric columns must be integers and positive values
+     * @param sheet          to be read in Excel file
+     * @param path           trajectory file
+     * @param horizon        to make error clearer
+     * @param numericColumns numeric columns must be integers and positive values
      */
     private static void checkNumbersAreIntegers(Sheet sheet, Path path, String horizon, List<String> numericColumns) {
         Map<String, Integer> columnIndexes = numericColumns.stream()
@@ -74,12 +81,13 @@ public class LinksValidator {
                 .toList();
 
         if (!invalidCells.isEmpty()) {
-            throw new TechnicalAntaresDataMangerException(String.format(
-                    "Invalid numeric values in sheet '%s' in file: %s. Details: %s",
-                    horizon, path.getFileName(), String.join("; ", invalidCells)));
+            throw BusinessException.builder()
+                    .message("Invalid numeric values in sheet {0} in file: {1}. Details: {2}")
+                    .errorMessageArguments(List.of(horizon, path.getFileName().toString(), String.join("; ", invalidCells)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
-
 
 
     private static boolean isInvalidNumber(Cell cell) {
@@ -144,16 +152,20 @@ public class LinksValidator {
             }
 
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("Could not check columns in file: " + e.getMessage());
+            throw TechnicalException.builder()
+                    .message("Could not check columns in file:  {0}")
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .cause(e.getCause())
+                    .build();
         }
 
         return parametersForWarnings;
     }
 
     /**
-     * @param path trajectory file
-     * @param horizon make error clearer
-     * @param columnName grouped by Direct or Indirect types
+     * @param path                  trajectory file
+     * @param horizon               make error clearer
+     * @param columnName            grouped by Direct or Indirect types
      * @param areasSavedForScenario to verify alphabetical order of links
      * @return parameters to be concatenated in warning areas.not_alphabetically_ordered
      */
@@ -183,7 +195,11 @@ public class LinksValidator {
                 }
             });
         } catch (IOException e) {
-            throw new TechnicalAntaresDataMangerException("Could not check links in file: " + path.getFileName());
+            throw TechnicalException.builder()
+                    .message("Could not check links in file: {0}")
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .cause(e.getCause())
+                    .build();
         }
 
         return parametersForWarnings;

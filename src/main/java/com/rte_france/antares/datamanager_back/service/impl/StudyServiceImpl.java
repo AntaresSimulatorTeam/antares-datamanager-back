@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
-import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -38,11 +39,8 @@ import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudy
 public class StudyServiceImpl implements StudyService {
 
     private final StudyRepository studyRepository;
-
     private final ProjectRepository projectRepository;
-
     private final TrajectoryRepository trajectoryRepository;
-
     private final UserService userService;
 
     @Override
@@ -51,42 +49,22 @@ public class StudyServiceImpl implements StudyService {
             query.distinct(true);
             Predicate predicate = cb.conjunction();
 
-            // Filtre sur l'id du projet
             if (idProject != null) {
                 Join<StudyEntity, ProjectEntity> project = root.join("project");
                 predicate = cb.and(predicate, cb.equal(project.get("id"), idProject));
             }
 
-            // Filtres liés au champ "search"
             if (StringUtils.isNotBlank(search)) {
                 Predicate searchPredicate = cb.disjunction();
+                searchPredicate = cb.or(searchPredicate, cb.like(cb.lower(root.get("name")), "%" + search.toLowerCase() + "%"));
+                searchPredicate = cb.or(searchPredicate, cb.isMember(search.toLowerCase(), root.get("tags")));
+                searchPredicate = cb.or(searchPredicate, cb.like(cb.lower(root.get("createdBy")), "%" + search.toLowerCase() + "%"));
+                searchPredicate = cb.or(searchPredicate, cb.like(cb.lower(root.get("status")), "%" + search.toLowerCase() + "%"));
+                searchPredicate = cb.or(searchPredicate, cb.like(cb.lower(root.get("horizon")), "%" + search.toLowerCase() + "%"));
 
-                // Recherche par nom
-                searchPredicate = cb.or(searchPredicate,
-                        cb.like(cb.lower(root.get("name")), "%" + search.toLowerCase() + "%"));
-
-                // Recherche par tags
-                searchPredicate = cb.or(searchPredicate,
-                        cb.isMember(search.toLowerCase(), root.get("tags")));
-
-                // Recherche par utilisateur
-                searchPredicate = cb.or(searchPredicate,
-                        cb.like(cb.lower(root.get("createdBy")), "%" + search.toLowerCase() + "%"));
-
-                // Recherche par status
-                searchPredicate = cb.or(searchPredicate,
-                        cb.like(cb.lower(root.get("status")), "%" + search.toLowerCase() + "%"));
-
-                // Recherche par horizon
-                searchPredicate = cb.or(searchPredicate,
-                        cb.like(cb.lower(root.get("horizon")), "%" + search.toLowerCase() + "%"));
-
-                // Recherche par nom du projet
                 Join<StudyEntity, ProjectEntity> projectJoin = root.join("project");
-                searchPredicate = cb.or(searchPredicate,
-                        cb.like(cb.lower(projectJoin.get("name")), "%" + search.toLowerCase() + "%"));
+                searchPredicate = cb.or(searchPredicate, cb.like(cb.lower(projectJoin.get("name")), "%" + search.toLowerCase() + "%"));
 
-                // Recherche par date de création si applicable
                 if (Utils.hasValidDateFormat(search)) {
                     LocalDateTime date = Utils.parseToLocalDateTime(search);
                     searchPredicate = cb.or(searchPredicate, cb.equal(root.get("creationDate"), date));
@@ -101,7 +79,6 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.findAll(spec, pageable);
     }
 
-
     @Override
     public List<String> searchKeywordsByPartialName(String partialName) {
         return studyRepository.findKeywordsByPartialName(partialName);
@@ -109,19 +86,27 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     public void deleteStudyById(Integer id) {
-        //delete study if exists
-        studyRepository.findById(id).ifPresentOrElse(studyRepository::delete, () -> {
-            throw new BadRequestException("Study with id " + id + " not found.");
-        });
+        studyRepository.findById(id).ifPresentOrElse(
+                studyRepository::delete,
+                () -> {
+                    throw BusinessException.builder()
+                            .message("Study with id {0} not found.")
+                            .errorMessageArguments(List.of(id.toString()))
+                            .httpStatus(HttpStatus.NOT_FOUND)
+                            .build();
+                }
+        );
     }
 
     @Override
     public StudyDTO findStudyById(Integer id) {
-        StudyEntity study = studyRepository.findById(id).orElse(null);
-        if (study != null) {
-            return StudyMapper.toStudyDTO(study);
-        }
-        return null;
+        return studyRepository.findById(id)
+                .map(StudyMapper::toStudyDTO)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Study with id {0} not found.")
+                        .errorMessageArguments(List.of(id.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
     }
 
     @Override
@@ -132,18 +117,23 @@ public class StudyServiceImpl implements StudyService {
 
         String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
         studyDTO.setName(studyName);
-        if (studyDTO.getProject() == null || studyDTO.getProject().isEmpty()) {
-            throw new BadRequestException("Project name must be provided.");
-        }
+
         validateHorizon(studyDTO);
         validateTags(studyDTO);
 
         if (studyExists(studyDTO.getName(), studyDTO.getProject())) {
-            throw new BadRequestException("A study with the same name already exists for the given project.");
+            throw BusinessException.builder()
+                    .message("A study with the same name already exists for the given project.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
         }
 
         ProjectEntity projectEntity = projectRepository.findByName(studyDTO.getProject())
-                .orElseThrow(() -> new BadRequestException("Project not found with name: " + studyDTO.getProject()));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project not found with name: {0}")
+                        .errorMessageArguments(List.of(studyDTO.getProject()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
 
         return toStudyDTO(buildAndSaveNewStudy(studyDTO, projectEntity));
     }
@@ -156,7 +146,11 @@ public class StudyServiceImpl implements StudyService {
                     studyRepository.save(studyEntity);
                 },
                 () -> {
-                    throw new IllegalArgumentException("Study not found with ID: " + studyId);
+                    throw BusinessException.builder()
+                            .message("Study not found with ID: {0}")
+                            .errorMessageArguments(List.of(studyId.toString()))
+                            .httpStatus(HttpStatus.NOT_FOUND)
+                            .build();
                 }
         );
     }
@@ -192,7 +186,10 @@ public class StudyServiceImpl implements StudyService {
 
     private static void validateTags(StudyDTO studyDTO) {
         if (studyDTO.getTags() != null && studyDTO.getTags().size() > 10) {
-            throw new BadRequestException("Tags list must not exceed 10 items.");
+            throw BusinessException.builder()
+                    .message("Tags list must not exceed 10 items.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
@@ -205,47 +202,16 @@ public class StudyServiceImpl implements StudyService {
         try {
             int horizonYear = Integer.parseInt(studyDTO.getHorizon());
             if (horizonYear < currentYear) {
-                throw new BadRequestException("Horizon year must be greater than the current year.");
+                throw BusinessException.builder()
+                        .message("Horizon year must be greater than the current year.")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         } catch (NumberFormatException e) {
-            throw new BadRequestException("Horizon must be a valid year.");
+            throw BusinessException.builder()
+                    .message("Horizon must be a valid year.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
-
-    public static Specification<StudyEntity> hasProjectName(String projectName) {
-        return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
-            Join<StudyEntity, ProjectEntity> project = root.join("project");
-            return criteriaBuilder.like(
-                    criteriaBuilder.lower(project.get("name")),
-                    "%" + projectName.toLowerCase() + "%"
-            );
-        };
-    }
-
-    public static Specification<StudyEntity> hasProjectId(Integer projectId) {
-        return (Root<StudyEntity> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
-            Join<StudyEntity, ProjectEntity> project = root.join("project");
-            return criteriaBuilder.equal(project.get("id"), projectId);
-        };
-    }
-
-    /**
-     * @param search if it is a LocalDateTime in format "yyyy-MM-dd'T'HH:mm:ss" the return is a Specification
-     * @return Specification to look by StudyEntity creation date
-     */
-    private static Specification<StudyEntity> creationDateSpecification(String search) {
-        LocalDateTime creationDate;
-        if (Utils.hasValidDateFormat(search)) {
-            creationDate = Utils.parseToLocalDateTime(search);
-        } else {
-            creationDate = null;
-        }
-
-        Specification<StudyEntity> creationDateSpec = null;
-        if (creationDate != null) {
-            creationDateSpec = (root, query, cb) -> cb.equal(root.get("creationDate"), creationDate);
-        }
-        return creationDateSpec;
-    }
-
 }

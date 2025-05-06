@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
@@ -46,7 +46,7 @@ class AreaFileValidatorTest {
                 )
         );
 
-        assertThrows(TechnicalAntaresDataMangerException.class, () ->
+        assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037"));
     }
 
@@ -59,7 +59,7 @@ class AreaFileValidatorTest {
                 )
         );
 
-        assertThrows(TechnicalAntaresDataMangerException.class, () ->
+        assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2037-2038"));
     }
 
@@ -80,8 +80,8 @@ class AreaFileValidatorTest {
             try {
                 ExcelCommonValidator.checkStringColumns(sheet, tempFile, "2037-2038", "areas");
                 fail("Expected TechnicalAntaresDataMangerException to be thrown");
-            } catch (TechnicalAntaresDataMangerException e) {
-                assertTrue(e.getMessage().contains("Invalid value: '123'"));
+            } catch (BusinessException e) {
+                assertTrue(e.getMessage().contains("Column {0} errors in sheet {1} in file:{2}. Locations: {3}"));
             }
         }
     }

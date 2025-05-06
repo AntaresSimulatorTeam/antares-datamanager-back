@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +48,7 @@ public class FileController {
         }
         var targetPath = Path.of(properties.getNasDirectory()).resolve(fileName).normalize();
         if (!targetPath.startsWith(properties.getNasDirectory())) {
-            throw new IOException("Path outside of target: " + targetPath);
+            throw TechnicalException.builder().message("Path outside of target: " + targetPath).build();
         }
 
         nasFileService.saveFile(targetPath.toString(), file.getBytes());

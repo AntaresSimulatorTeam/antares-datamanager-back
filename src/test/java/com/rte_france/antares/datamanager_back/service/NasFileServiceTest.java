@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,7 +58,7 @@ class NasFileServiceTest {
     var filename = "nonExistentFile.txt";
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/nas");
 
-    assertThrows(FileNotFoundException.class, () -> nasFileService.loadFile(filename));
+    assertThrows(TechnicalException.class, () -> nasFileService.loadFile(filename));
   }
 
   @TempDir
@@ -103,7 +104,7 @@ class NasFileServiceTest {
 
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
 
-    assertThrows(IOException.class, () -> nasFileService.saveFile(filename, content));
+    assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content));
   }
 
   @Test
@@ -116,6 +117,6 @@ class NasFileServiceTest {
     when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
     when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
 
-    assertThrows(IOException.class, () -> nasFileService.saveFile(filename, content));
+    assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content));
   }
 }

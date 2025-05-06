@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -118,7 +119,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 }
             }
         } catch (IOException e) {
-            throw new IOException("could not build thermal_capacity cluster  list : " + e.getMessage());
+            throw  TechnicalException.builder().message("could not build thermal_capacity cluster  list : " + e.getMessage()).build();
         }
         return thermalClusterCapacities;
     }
@@ -154,7 +155,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 }
             }
         } catch (IOException e) {
-            throw new IOException("could not build thermal cost list : " + e.getMessage());
+            throw  TechnicalException.builder().message("could not build thermal cost list : " + e.getMessage()).build();
         }
         return thermalCostEntities;
     }
@@ -230,7 +231,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 }
             }
         } catch (IOException e) {
-            throw new IOException("could not build thermal_capacity parameters  list : " + e.getMessage());
+            throw TechnicalException.builder().message("could not build thermal_capacity parameters  list : " + e.getMessage()).build();
         }
 
         long executionTime = System.currentTimeMillis() - start;

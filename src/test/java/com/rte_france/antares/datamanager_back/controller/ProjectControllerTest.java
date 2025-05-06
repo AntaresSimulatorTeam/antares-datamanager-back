@@ -3,8 +3,8 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
-import com.rte_france.antares.datamanager_back.exception.BadRequestException;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.AntaresException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
@@ -130,7 +131,7 @@ class ProjectControllerTest {
         String userId = "user1";
         Integer projectId = 1;
 
-        doThrow(new BadRequestException("Project already pinned for user")).when(projectService).pinProjectForUser(userId, projectId);
+        doThrow( BusinessException.builder().message("Project already pinned for user").build()).when(projectService).pinProjectForUser(userId, projectId);
 
         mockMvc.perform(post("/v1/project/pin")
                         .param("userId", userId)
@@ -172,7 +173,7 @@ void deleteProject_returnsNoContentWhenProjectDeleted() throws Exception {
 void deleteProject_returnsNotFoundWhenProjectDoesNotExist() throws Exception {
     Integer projectId = 1;
 
-    doThrow(new ResourceNotFoundException("Project not found")).when(projectService).deleteProjectById(projectId);
+    doThrow(BusinessException.builder().message("Project not found").httpStatus(HttpStatus.NOT_FOUND).build()).when(projectService).deleteProjectById(projectId);
 
     mockMvc.perform(delete("/v1/project/{id}", projectId)
                     .contentType(MediaType.APPLICATION_JSON))
@@ -183,11 +184,11 @@ void deleteProject_returnsNotFoundWhenProjectDoesNotExist() throws Exception {
 void deleteProject_returnsBadRequestWhenProjectContainsStudies() throws Exception {
     Integer projectId = 1;
 
-    doThrow(new BadRequestException("Project contains studies and cannot be deleted")).when(projectService).deleteProjectById(projectId);
+    doThrow(BusinessException.builder().message("Project contains studies and cannot be deleted").httpStatus(HttpStatus.BAD_REQUEST).build()).when(projectService).deleteProjectById(projectId);
 
     mockMvc.perform(delete("/v1/project/{id}", projectId)
                     .contentType(MediaType.APPLICATION_JSON))
-            .andExpect(status().isInternalServerError());
+            .andExpect(status().isBadRequest());
 }
 
     @Test

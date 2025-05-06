@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -33,7 +34,7 @@ public class NasFileService {
         if (resource.exists() || resource.isReadable()) {
             return resource;
         } else {
-            throw new FileNotFoundException("Fichier non trouvé ou illisible : " + filename);
+            throw TechnicalException.builder().message("Fichier non trouvé ou illisible : " + filename).build();
         }
     }
 
@@ -48,7 +49,7 @@ public class NasFileService {
         Objects.requireNonNull(filename);
         Objects.requireNonNull(content);
         if (filename.contains("..") || filename.isBlank()) {
-            throw new IOException("Invalid file name: " + filename);
+            throw TechnicalException.builder().message("Invalid file name: " + filename).build();
         }
         String nasDir = antaressDataManagerProperties.getNasDirectory();
         String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
@@ -59,7 +60,7 @@ public class NasFileService {
                 .normalize();
         var filePath = targetDirectory.resolve(filename).normalize();
         if (!filePath.startsWith(targetDirectory)) {
-            throw new IOException("Path outside of the NAS directory: " + filePath);
+            throw TechnicalException.builder().message("Path outside of the NAS directory: " + filePath).build();
         }
 
         Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);

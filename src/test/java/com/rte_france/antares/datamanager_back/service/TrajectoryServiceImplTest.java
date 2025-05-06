@@ -5,7 +5,8 @@ import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
-import com.rte_france.antares.datamanager_back.exception.ResourceNotFoundException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
@@ -187,7 +188,7 @@ class TrajectoryServiceImplTest {
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
+        assertThrows(BusinessException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
     }
 
     @Test
@@ -201,7 +202,7 @@ class TrajectoryServiceImplTest {
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
+        assertThrows(BusinessException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
     }
 
     @Test
@@ -255,7 +256,7 @@ class TrajectoryServiceImplTest {
 
         when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
+        assertThrows(BusinessException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
     }
 
     @Test
@@ -291,7 +292,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
-        assertThrows(IllegalArgumentException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024", 1));
+        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024", 1));
     }
 
     @Test
@@ -330,13 +331,14 @@ class TrajectoryServiceImplTest {
         TrajectoryType unsupportedType = TrajectoryType.LOAD;
 
 
-        UnsupportedOperationException exception = assertThrows(
-                UnsupportedOperationException.class,
+        TechnicalException exception = assertThrows(
+                TechnicalException.class,
                 () -> trajectoryService.getTrajectoryDataByTypeAndId(unsupportedType, 1)
         );
 
 
-        assertEquals("TrajectoryType LOAD is not supported.", exception.getMessage());
+        assertEquals("TrajectoryType {0} is not supported.", exception.getMessage());
+        assertEquals(Collections.singletonList("LOAD"), exception.getErrorMessageArguments());
     }
 
 
@@ -457,7 +459,7 @@ class TrajectoryServiceImplTest {
 
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
+        assertThrows(BusinessException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
     }
 
     @Test

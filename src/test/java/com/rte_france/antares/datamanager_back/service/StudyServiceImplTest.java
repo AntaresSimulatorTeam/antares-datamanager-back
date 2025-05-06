@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
-import com.rte_france.antares.datamanager_back.exception.BadRequestException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Year;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class StudyServiceImplTest {
 
+    public static final String EXISTING_PROJECT = "Existing Project";
     @Mock
     private StudyRepository studyRepository;
 
@@ -126,22 +128,23 @@ class StudyServiceImplTest {
 
     @Test
     void createStudyThrowsBadRequestWhenProjectWithSameNameExist() {
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2030").build();
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project(EXISTING_PROJECT).horizon("2030").build();
 
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             studyServiceImpl.createStudy(studyDTO);
         });
 
-        assertEquals("Project not found with name: Existing Project", exception.getMessage());
+        assertEquals("Project not found with name: {0}", exception.getMessage());
+        assertEquals("Project not found with name: {0}", exception.getMessage());
         verify(studyRepository, never()).save(any(StudyEntity.class));
     }
 
     @Test
     void createStudyThrowsBadRequestWhenStudyWithSameNameExists() {
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon("2050").build();
-        when(studyRepository.existsByNameAndProjectName("Study 1-2051", "Existing Project")).thenReturn(true);
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project(EXISTING_PROJECT).horizon("2050").build();
+        when(studyRepository.existsByNameAndProjectName("Study 1-2051", EXISTING_PROJECT)).thenReturn(true);
 
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             studyServiceImpl.createStudy(studyDTO);
         });
 
@@ -156,10 +159,10 @@ class StudyServiceImplTest {
         String horizon = currentYear + "-" + nextYear;
 
         String studyName = "Study 1-" + currentYear + "-" + nextYear + "ref";
-        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project("Existing Project").horizon(currentYear).build();
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project(EXISTING_PROJECT).horizon(currentYear).build();
         ProjectEntity existingProject = new ProjectEntity();
         existingProject.setId(1);
-        existingProject.setName("Existing Project");
+        existingProject.setName(EXISTING_PROJECT);
         StudyEntity studyEntity = new StudyEntity();
         studyEntity.setId(1);
         studyEntity.setName(studyName);
@@ -167,7 +170,7 @@ class StudyServiceImplTest {
         studyEntity.setProject(existingProject);
         studyEntity.setHorizon(horizon);
         studyEntity.setStatus(StudyStatus.IN_PROGRESS);
-        when(projectRepository.findByName("Existing Project")).thenReturn(Optional.of(existingProject));
+        when(projectRepository.findByName(EXISTING_PROJECT)).thenReturn(Optional.of(existingProject));
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(studyEntity);
 
         StudyDTO result = studyServiceImpl.createStudy(studyDTO);
@@ -176,7 +179,7 @@ class StudyServiceImplTest {
         assertEquals(studyName, result.getName());
         assertEquals("User 1", result.getCreatedBy());
         assertEquals(horizon, result.getHorizon());
-        verify(projectRepository, times(1)).findByName("Existing Project");
+        verify(projectRepository, times(1)).findByName(EXISTING_PROJECT);
         verify(studyRepository, times(1)).save(any(StudyEntity.class));
     }
 
@@ -207,14 +210,15 @@ class StudyServiceImplTest {
     }
 
     @Test
-    void deleteStudyByIdThrowsBadRequestExceptionWhenStudyNotFound() {
+    void deleteStudyByIdThrowsBusinessExceptionWhenStudyNotFound() {
         when(studyRepository.findById(1)).thenReturn(Optional.empty());
 
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             studyServiceImpl.deleteStudyById(1);
         });
 
-        assertEquals("Study with id 1 not found.", exception.getMessage());
+        assertEquals("Study with id {0} not found.", exception.getMessage());
+        assertEquals(Collections.singletonList("1"), exception.getErrorMessageArguments());
         verify(studyRepository, never()).delete(any(StudyEntity.class));
     }
 
@@ -236,11 +240,13 @@ class StudyServiceImplTest {
     void updateStudyStatusAsGenerated_throwsExceptionWhenStudyNotFound() {
         when(studyRepository.findById(1)).thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             studyServiceImpl.updateStudyStatusAsGenerated(1);
         });
 
-        assertEquals("Study not found with ID: 1", exception.getMessage());
+        assertEquals("Study not found with ID: {0}", exception.getMessage());
+        assertEquals(Collections.singletonList("1"), exception.getErrorMessageArguments());
+
         verify(studyRepository, never()).save(any(StudyEntity.class));
     }
 
@@ -263,7 +269,11 @@ class StudyServiceImplTest {
     @Test
     void findStudyByIdReturnNullWhenStudyNotFound() {
         when(studyRepository.findById(1)).thenReturn(Optional.empty());
-        var result =studyServiceImpl.findStudyById(1);
-        assertNull(result);
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            studyServiceImpl.findStudyById(1);
+        });
+
+        assertEquals("Study with id {0} not found.", exception.getMessage());
+        assertEquals(Collections.singletonList("1"), exception.getErrorMessageArguments());
     }
 }

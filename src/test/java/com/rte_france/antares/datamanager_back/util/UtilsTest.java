@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import com.rte_france.antares.datamanager_back.exception.AlreadyProcessedException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -103,7 +103,7 @@ class UtilsTest {
     void parseToLocalDateTime_invalidDate() {
         var invalidDate = "2023-10-15 10:15:30";
 
-        assertThrows(TechnicalAntaresDataMangerException.class, () -> Utils.parseToLocalDateTime(invalidDate));
+        assertThrows(TechnicalException.class, () -> Utils.parseToLocalDateTime(invalidDate));
     }
 
     @Test
@@ -116,7 +116,7 @@ class UtilsTest {
         trajectoryEntity.setHorizon(sheetName);
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(filePath.toString(), "2030-2031"));
 
-        assertThrows(AlreadyProcessedException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity));
+        assertThrows(BusinessException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity));
     }
 
     @Test

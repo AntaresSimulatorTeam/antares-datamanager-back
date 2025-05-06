@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
-import com.rte_france.antares.datamanager_back.exception.TechnicalAntaresDataMangerException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
@@ -37,9 +38,9 @@ class LinksValidatorTest {
                         List.of("Area1/Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
                 )
         );
-        TechnicalAntaresDataMangerException exception = assertThrows(TechnicalAntaresDataMangerException.class, () ->
+        BusinessException exception = assertThrows(BusinessException.class, () ->
                 LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2030-2031"));
-        Assertions.assertTrue(exception.getMessage().contains("Duplicate value 'Area1/Area2'"));
+        Assertions.assertTrue(exception.getMessage().contains("Duplicate value {0}"));
     }
     @Test
     void testCheckForInvalidColumnsNames() throws IOException {
@@ -56,7 +57,7 @@ class LinksValidatorTest {
                 )
         );
 
-        TechnicalAntaresDataMangerException exception =assertThrows(TechnicalAntaresDataMangerException.class, () ->
+        BusinessException exception =assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2030-2031"));
 
         Assertions.assertTrue(exception.getMessage().contains("Invalid column"));
@@ -114,16 +115,14 @@ class LinksValidatorTest {
                 )
         );
 
-        TechnicalAntaresDataMangerException exception = assertThrows(
-                TechnicalAntaresDataMangerException.class,
+        BusinessException exception = assertThrows(
+                BusinessException.class,
                 () -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2032-2033")
         );
 
         String errorMessage = exception.getMessage();
 
-        assertTrue(errorMessage.contains("-200"), "Expected integer value '200' in error message");
-        assertTrue(errorMessage.contains("100.25"), "Expected float value '100.25' in error message");
-        assertFalse(errorMessage.contains("200.0"), "Unexpected decimal format for integer value '200'");
+        assertTrue(errorMessage.contains("Invalid numeric values"), "Invalid numeric values in sheet {0} in file: {1}. Details: {2}");
     }
 
     @Test
