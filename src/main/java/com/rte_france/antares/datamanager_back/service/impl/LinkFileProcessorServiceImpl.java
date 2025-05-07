@@ -61,8 +61,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 
-        checkIfHorizonExist(path, horizon);
-        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon);
+        checkIfHorizonExist(path, horizon, TrajectoryType.LINK.name());
+        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon, TrajectoryType.LINK.name());
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(
@@ -312,7 +312,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                     .anyMatch(existingArea -> existingArea.equalsIgnoreCase(area));
             if (!found) {
                 throw  BusinessException.builder()
-                        .message("Error: Area {0} in LINKS file is not present in AREA trajectory")
+                        .message("Areas {0} in LINKS file is not present in AREA trajectory")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .errorMessageArguments(List.of(area))
                         .build();

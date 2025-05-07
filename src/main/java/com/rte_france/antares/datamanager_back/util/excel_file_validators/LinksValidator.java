@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
@@ -14,9 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.*;
 
@@ -35,8 +34,8 @@ public class LinksValidator {
 
             Sheet sheet = workbook.getSheet(horizon);
             if (fileType == ExcelFileType.LINKS) {
-                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon, true);
-                checkColumnsRules(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()));
+                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon, true, TrajectoryType.LINK.name());
+                checkColumnsRules(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -48,10 +47,10 @@ public class LinksValidator {
         }
     }
 
-    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns) {
+    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
         checkNumbersAreIntegers(sheet, path, horizon, numericColumns);
-        checkBooleanColumns(sheet, path, horizon, booleanColumns);
-        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
+        checkBooleanColumns(sheet, path, horizon, booleanColumns, trajectoryType);
+        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column, TrajectoryType.LINK.name()));
     }
 
     /**
@@ -61,45 +60,130 @@ public class LinksValidator {
      * @param numericColumns numeric columns must be integers and positive values
      */
     private static void checkNumbersAreIntegers(Sheet sheet, Path path, String horizon, List<String> numericColumns) {
-        Map<String, Integer> columnIndexes = numericColumns.stream()
-                .collect(Collectors.toMap(Function.identity(), column -> findColumnIndex(sheet, column, path, horizon)));
 
-        List<String> invalidCells = IntStream.range(1, sheet.getPhysicalNumberOfRows())
-                .mapToObj(sheet::getRow)
-                .filter(Objects::nonNull)
-                .flatMap(row -> columnIndexes.entrySet().stream()
-                        .map(entry -> {
-                            Cell cell = row.getCell(entry.getValue(), Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                            return (cell == null || cell.getCellType() == CellType.BLANK)
-                                    ? null
-                                    : Map.entry(entry.getKey(), cell);
-                        })
-                        .filter(Objects::nonNull)
-                        .filter(entry -> isInvalidNumber(entry.getValue()))
-                        .map(entry -> String.format("Column '%s', Row %d, Value: %s",
-                                entry.getKey(), row.getRowNum() + 1, getCellValue(entry.getValue()))))
-                .toList();
+            int nameColumnIndex = findColumnIndex(sheet, "Name", path, horizon, TrajectoryType.LINK.name());
 
-        if (!invalidCells.isEmpty()) {
+            Map<String, Set<String>> notNumericByColumn = new HashMap<>();
+            Map<String, Set<String>> notIntegerByColumn = new HashMap<>();
+            Map<String, Set<String>> negativeValuesByColumn = new HashMap<>();
+
+            for (String columnName : numericColumns) {
+                int columnIndex = findColumnIndex(sheet, columnName, path, horizon, TrajectoryType.LINK.name());
+                Set<String> notNumericLinks = new LinkedHashSet<>();
+                Set<String> notIntegerLinks = new LinkedHashSet<>();
+                Set<String> negativeLinks = new LinkedHashSet<>();
+
+                for (int rowIndex = 1; rowIndex < sheet.getPhysicalNumberOfRows(); rowIndex++) {
+                    Row row = sheet.getRow(rowIndex);
+                    if (row == null) continue;
+
+                    Cell nameCell = row.getCell(nameColumnIndex);
+                    Cell valueCell = row.getCell(columnIndex);
+
+                    if (nameCell != null) {
+                        String linkName = nameCell.getStringCellValue();
+                        if (valueCell == null || valueCell.getCellType() != CellType.NUMERIC) {
+                            notNumericLinks.add(linkName);
+                        } else {
+                            double value = valueCell.getNumericCellValue();
+                            if (value < 0) {
+                                negativeLinks.add(linkName);
+                            } else if (value % 1 != 0) {
+                                notIntegerLinks.add(linkName);
+                            }
+                        }
+                    }
+                }
+
+                if (!notNumericLinks.isEmpty()) {
+                    notNumericByColumn.put(columnName, notNumericLinks);
+                }
+                if (!notIntegerLinks.isEmpty()) {
+                    notIntegerByColumn.put(columnName, notIntegerLinks);
+                }
+                if (!negativeLinks.isEmpty()) {
+                    negativeValuesByColumn.put(columnName, negativeLinks);
+                }
+            }
+
+            if (!notNumericByColumn.isEmpty()) {
+                throwFormatError(notNumericByColumn);
+            }
+            if (!notIntegerByColumn.isEmpty()) {
+                throwNotIntegerError(notIntegerByColumn);
+            }
+            if (!negativeValuesByColumn.isEmpty()) {
+                throwNegativeError(negativeValuesByColumn);
+            }
+        }
+
+        private static void throwFormatError(Map<String, Set<String>> notNumericByColumn) {
+            String columnNames = notNumericByColumn.keySet().stream()
+                    .sorted()
+                    .collect(Collectors.joining(", "));
+
+            String linkNames = notNumericByColumn.values().stream()
+                    .flatMap(Set::stream)
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.joining(", "));
+
             throw BusinessException.builder()
-                    .message("Invalid numeric values in sheet {0} in file: {1}. Details: {2}")
-                    .errorMessageArguments(List.of(horizon, path.getFileName().toString(), String.join("; ", invalidCells)))
+                    .message("Waiting for Numeric Value(s) in column(s) {0} for link(s) in {1} LINK trajectory")
+                    .errorMessageArguments(List.of(columnNames, linkNames))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-    }
+
+        private static void throwNotIntegerError(Map<String, Set<String>> notIntegerByColumn) {
+            String columnNames = notIntegerByColumn.keySet().stream()
+                    .sorted()
+                    .collect(Collectors.joining(", "));
+
+            String linkNames = notIntegerByColumn.values().stream()
+                    .flatMap(Set::stream)
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.joining(", "));
+
+            throw BusinessException.builder()
+                    .message("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) in {1} LINK trajectory")
+                    .errorMessageArguments(List.of(columnNames, linkNames))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        private static void throwNegativeError(Map<String, Set<String>> negativeValuesByColumn) {
+            String columnNames = negativeValuesByColumn.keySet().stream()
+                    .sorted()
+                    .collect(Collectors.joining(", "));
+
+            String linkNames = negativeValuesByColumn.values().stream()
+                    .flatMap(Set::stream)
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.joining(", "));
+
+            throw BusinessException.builder()
+                    .message("Waiting for Positive Value(s) in column(s) {0} for link(s) in {1} LINK trajectory")
+                    .errorMessageArguments(List.of(columnNames, linkNames))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
 
 
-    private static boolean isInvalidNumber(Cell cell) {
-        return cell == null || cell.getCellType() != CellType.NUMERIC || cell.getNumericCellValue() < 0 || cell.getNumericCellValue() % 1 != 0;
-    }
 
 
-    /**
-     * @param path    trajectory file
-     * @param horizon make error clearer
-     * @return parameters to be concatenated in warning links.all_values_zero created
-     */
+
+
+
+
+
+        /**
+         * @param path    trajectory file
+         * @param horizon make error clearer
+         * @return parameters to be concatenated in warning links.all_values_zero created
+         */
 
     public static List<String> checkPowerColumnsForZeroValues(Path path, String horizon) {
         List<String> numericColumns = LinksColumns.getNumericColumnNames();
@@ -108,7 +192,7 @@ public class LinksValidator {
 
     private static boolean hasOnlyZeroValues(Row row, Sheet sheet, List<String> numericColumns, Path path, String horizon) {
         for (String column : numericColumns) {
-            int index = findColumnIndex(sheet, column, path, horizon);
+            int index = findColumnIndex(sheet, column, path, horizon, TrajectoryType.LINK.name());
             Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell != null && cell.getCellType() == CellType.NUMERIC && cell.getNumericCellValue() != 0) {
                 return false;
@@ -176,7 +260,7 @@ public class LinksValidator {
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheet(horizon);
-            int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
+            int columnIndex = findColumnIndex(sheet, columnName, path, horizon, TrajectoryType.LINK.name());
 
             sheet.forEach(row -> {
                 Cell cell = row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);

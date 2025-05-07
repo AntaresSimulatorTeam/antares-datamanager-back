@@ -99,6 +99,8 @@ class LinkFileProcessorServiceImplTest {
         verify(trajectoryRepository, times(1)).save(any());
     }
 
+
+
     @Test
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
@@ -181,7 +183,7 @@ class LinkFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
-        assertEquals("Error: Area {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
+        assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
         assertEquals(List.of("ES"), exception.getErrorMessageArguments());
     }
 

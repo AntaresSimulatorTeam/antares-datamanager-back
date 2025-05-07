@@ -1,15 +1,20 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.HttpStatus;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -190,4 +195,34 @@ class UtilsTest {
 
         assertEquals(expectedChecksum, actualChecksum);
     }
+
+    @Test
+    void checkIfHorizonExist_shouldThrowBusinessException_whenHorizonDoesNotExist() throws IOException {
+        // Given
+        var tempFile = Files.createFile(tempDir.resolve("testFile.xlsx"));
+        try (var workbook = new XSSFWorkbook()) {
+            workbook.createSheet("2040-2041");
+            try (var fos = new FileOutputStream(tempFile.toFile())) {
+                workbook.write(fos);
+            }
+        }
+
+        String horizon = "H1";
+        String trajectoryType = TrajectoryType.AREA.name();
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> Utils.checkIfHorizonExist(tempFile, horizon, trajectoryType));
+
+        assertAll(
+                () -> assertEquals("Horizon {0} does not exist in the {1} trajectory file : {2}",
+                        exception.getMessage()),
+                () -> assertEquals(List.of(horizon, trajectoryType, tempFile.getFileName().toString()),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+
+        );
+    }
+
+
 }

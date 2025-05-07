@@ -197,13 +197,13 @@ public class Utils {
         };
     }
 
-    public void checkIfHorizonExist(Path path, String horizon) {
+    public void checkIfHorizonExist(Path path, String horizon, String trajectoryType) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             if (workbook.getSheet(horizon) == null)
                 throw BusinessException.builder()
-                        .message("The horizon {0} does not exist in the file : {1}")
-                        .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
+                        .message("Horizon {0} does not exist in the {1} trajectory file : {2}")
+                        .errorMessageArguments(List.of(horizon, trajectoryType, path.getFileName().toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
         } catch (IOException e) {
