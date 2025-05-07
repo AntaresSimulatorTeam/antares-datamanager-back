@@ -1,18 +1,22 @@
 package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,7 +29,7 @@ class LinksValidatorTest {
 
 
     @Test
-    void testCheckForDuplicateLinks() throws IOException {
+    void testCheckForIdenticalDuplicateLinks() throws IOException {
 
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
@@ -34,13 +38,48 @@ class LinksValidatorTest {
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
                         "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
                 List.of(
-                        List.of("Area1/Area2", 100, 200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("Area1/Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
+                        List.of("Area1-Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
                 )
         );
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2030-2031"));
-        Assertions.assertTrue(exception.getMessage().contains("Duplicate value {0}"));
+        assertAll(
+                () -> assertEquals("Duplicate value for {0}(s): {1} for {2} trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        Arrays.asList("link", "Area1-Area2", TrajectoryType.LINK.name()),
+                        exception.getErrorMessageArguments()),
+
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+    }
+
+    @Test
+    void testCheckForSymmetricDuplicateLinks() throws IOException {
+
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                List.of(
+                        List.of("Area3-Area4", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95),
+                        List.of("Area4-Area3", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                )
+        );
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2030-2031"));
+        assertAll(
+                () -> assertEquals("Duplicate value in column 'Name' for horizon {0} in {1} trajectory. Values: {2} are considered identical",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        Arrays.asList("2030-2031", TrajectoryType.LINK.name(), "Area3-Area4, Area4-Area3"),
+                        exception.getErrorMessageArguments()),
+
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
     }
     @Test
     void testCheckForInvalidColumnsNames() throws IOException {
@@ -58,7 +97,7 @@ class LinksValidatorTest {
         );
 
         BusinessException exception =assertThrows(BusinessException.class, () ->
-                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2030-2031"));
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2030-2031", TrajectoryType.LINK.name()));
 
         Assertions.assertTrue(exception.getMessage().contains("Invalid column"));
     }
@@ -77,9 +116,9 @@ class LinksValidatorTest {
                         List.of("BE/GE", 110, 210, 160, 185, 310, 410, 260, 285, true,true, true, false)
                 )
         );
-        ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036");
+        ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036", TrajectoryType.LINK.name());
         LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2035-2036");
-        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036"));
+        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036",TrajectoryType.LINK.name()));
     }
 
     @Test
@@ -92,12 +131,12 @@ class LinksValidatorTest {
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
                         "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
                 List.of(
-                        List.of("AT/FR", 100, 200, 5, 150, 175, 300, 400, 250, "TRUE", "false", "true", "false"),
-                        List.of("BE/GE", 110, 210, 160, 185, 310, 410, 260, 285, "true","FALSE", "true", "false")
+                        List.of("AT-FR", 100, 200, 5, 150, 175, 300, 400, 250, "TRUE", "false", "true", "false"),
+                        List.of("BE-GE", 110, 210, 160, 185, 310, 410, 260, 285, "true","FALSE", "true", "false")
                 )
         );
         LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2035-2036");
-        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036"));
+        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036", TrajectoryType.LINK.name()));
     }
 
 
@@ -110,8 +149,8 @@ class LinksValidatorTest {
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
                         "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
                 List.of(
-                        List.of("Area1", 100.25, -200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("ES-FR", "A", "B", 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
+                        List.of("ES-IT", 110, 210,"C", 185, 310, 410, 260, 285, 510, 65, 80, 95)
                 )
         );
 
@@ -120,9 +159,78 @@ class LinksValidatorTest {
                 () -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2032-2033")
         );
 
-        String errorMessage = exception.getMessage();
+        assertAll(
+                () -> assertEquals("Waiting for Numeric Value(s) in column(s) {0} for link(s) in {1} LINK trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        Arrays.asList("Winter_HC_Direct_MW, Winter_HP_Direct_MW, Winter_HP_Indirect_MW", "ES-FR, ES-IT"),
+                        exception.getErrorMessageArguments()),
 
-        assertTrue(errorMessage.contains("Invalid numeric values"), "Invalid numeric values in sheet {0} in file: {1}. Details: {2}");
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+
+    }
+
+    @Test
+    void testLinksFileContainsPositiveNumericValues() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2032-2033",
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                List.of(
+                        List.of("ES-FR", -100, -300, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
+                        List.of("ES-IT", 110, 210,20, 185, 310, -410, 260, 285, 510, 65, 80, 95)
+                )
+        );
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2032-2033")
+        );
+
+        assertAll(
+                () -> assertEquals("Waiting for Positive Value(s) in column(s) {0} for link(s) in {1} LINK trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        Arrays.asList("Summer_HP_Indirect_MW, Winter_HP_Direct_MW, Winter_HP_Indirect_MW", "ES-FR, ES-IT"),
+                        exception.getErrorMessageArguments()),
+
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+
+    }
+
+    @Test
+    void testLinksFileContainsIntegerNumericValues() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2032-2033",
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                List.of(
+                        List.of("ES-FR", 100.3, 300, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
+                        List.of("ES-IT", 110, 210,20.2, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                )
+        );
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2032-2033")
+        );
+
+        assertAll(
+                () -> assertEquals("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) in {1} LINK trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        Arrays.asList("Winter_HC_Direct_MW, Winter_HP_Direct_MW", "ES-FR, ES-IT"),
+                        exception.getErrorMessageArguments()),
+
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+
     }
 
     @Test
@@ -190,6 +298,44 @@ class LinksValidatorTest {
         assertEquals(3, warnings.size());
 
     }
+
+    @Test
+    void shouldFailWhenInvalidBooleanValuesArePresentInLinks() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidBooleanLinks.xlsx", "2030-2031",
+                List.of("Name", "Winter_HP_Direct_MW", "Flowbased_perimeter", "HVDC",
+                         "Forced_Outage_HVAC", "Specific_TS"),
+                List.of(
+                        List.of("Link1-Link2", 100, 420, "True", "True", "False"),
+                        List.of("Link2-Link3", 200, "123", "False", 360, "True")
+                )
+        );
+
+        Sheet sheet = WorkbookFactory.create(tempFile.toFile()).getSheet("2030-2031");
+        List<String> booleanColumns = LinksColumns.getBooleanColumnNames();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkBooleanColumns(
+                        sheet,
+                        tempFile,
+                        "2030-2031",
+                        booleanColumns,
+                        TrajectoryType.LINK.name()
+                ));
+
+        assertAll(
+                () -> assertEquals("Waiting for boolean value(s) in column {0} for {1}(s): in {2} trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        List.of(
+                                "Flowbased_perimeter, HVDC, Specific_TS, Forced_Outage_HVAC",
+                                "Link1-Link2, Link2-Link3",
+                                "LINK"
+                        ),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+    }
+
 
 
 }

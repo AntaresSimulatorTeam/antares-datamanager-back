@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
@@ -31,9 +32,9 @@ public class AreasValidator {
                         .build();
             }
 
-            checkColumnsRules(sheet, path, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames());
+            checkColumnsRules(sheet, path, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames(), TrajectoryType.AREA.name());
             checkAreasValuesLength(sheet, path, horizon, AreaColumns.AREAS.getDisplayName());
-            checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false);
+            checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false, TrajectoryType.AREA.name());
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("Error reading file:  {0}")
@@ -45,15 +46,15 @@ public class AreasValidator {
     }
 
 
-    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> booleanColumns, List<String> stringColumns) {
-        checkBooleanColumns(sheet, path, horizon, booleanColumns);
-        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column));
+    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
+        checkBooleanColumns(sheet, path, horizon, booleanColumns, trajectoryType);
+        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column, TrajectoryType.AREA.name()));
 
     }
 
 
-    private static void checkAreasValuesLength(Sheet sheet, Path path, String horizon, String columnName) {
-        int columnIndex = findColumnIndex(sheet, columnName, path, horizon);
+    public static void checkAreasValuesLength(Sheet sheet, Path path, String horizon, String columnName) {
+        int columnIndex = findColumnIndex(sheet, columnName, path, horizon, TrajectoryType.AREA.name());
 
         List<String> invalidRows = IntStream.range(1, sheet.getPhysicalNumberOfRows())
                 .mapToObj(sheet::getRow)
@@ -67,15 +68,16 @@ public class AreasValidator {
                     }
                     return false;
                 })
-                .map(row -> "Row " + (row.getRowNum() + 1))
+                .map(row -> row.getCell(columnIndex).getStringCellValue().trim())
                 .toList();
+
 
         if (!invalidRows.isEmpty()) {
             var invalidRowsJoin = String.join(", ", invalidRows);
             throw BusinessException.builder()
-                    .message("Value too long for {} at row(s): {} in sheet {} in file: {} maximum length is 10 characters")
+                    .message("Value too long for area(s) : {0} in {1} trajectory")
                     // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
-                    .errorMessageArguments(List.of(columnName, invalidRowsJoin, horizon, path.getFileName().toString()))
+                    .errorMessageArguments(List.of(invalidRowsJoin, TrajectoryType.AREA.name()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

@@ -1,7 +1,9 @@
 package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.AreasValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -9,6 +11,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,7 +37,7 @@ class AreaFileValidatorTest {
                 )
         );
 
-        ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2035-2036");
+        ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2035-2036", TrajectoryType.AREA.name());
     }
 
     @Test
@@ -46,45 +49,198 @@ class AreaFileValidatorTest {
                 )
         );
 
-        assertThrows(BusinessException.class, () ->
-                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037"));
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037", TrajectoryType.AREA.name()));
+
+        assertAll(
+                () -> assertEquals("Columns: areas, Power To Gas, Stockage court terme not found. Invalid columns names: areastt, Gas Power, Storage for horizon '{0}' in {1} trajectory",
+                        exception.getMessage()),
+                () -> assertEquals(List.of("2036-2037", TrajectoryType.AREA.name()),
+                        exception.getErrorMessageArguments())
+        );
+
     }
 
     @Test
     void shouldFailWhenEmptyCellsArePresent() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFile(tempDir,"EmptyCells.xlsx","2037-2038",
-                List.of("areas", "Power to Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyCells.xlsx", "2037-2038",
+                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
                 List.of(
-                        List.of("A1", "10", "", "3", "4", "1", "2", "3")
+                        List.of("A1", "10", "", "", "4", "1", "2", "3"),
+                        List.of("A2", "10", "", "", "4", "1", "2", "3")
                 )
         );
 
-        assertThrows(BusinessException.class, () ->
-                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2037-2038"));
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2037-2038", TrajectoryType.AREA.name()));
+
+
+        assertAll(
+                () -> assertEquals("Empty values found for {0}(s): {1} for horizon {2} in {3} trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        List.of(TrajectoryType.AREA.name().toLowerCase(),"A1, A2", "2037-2038", "AREA"),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST,
+                        exception.getHttpStatus())
+        );
+
     }
+
 
     @Test
     void checkStringColumnsShouldThrowExceptionWhenDataIsInvalid() throws IOException {
-
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "ErrorFile.xlsx", "2035-2036",
                 List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
                 List.of(
                         List.of(123, "True", "True", "230", "420", "128", "260", "113"),
-                        List.of("Area2", "False", "True", "168", "650", "125", "265", "113")
+                        List.of(456, "False", "True", "168", "650", "125", "265", "113")
                 )
         );
 
         try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(tempFile))) {
             Sheet sheet = workbook.getSheet("2035-2036");
 
-            try {
-                ExcelCommonValidator.checkStringColumns(sheet, tempFile, "2037-2038", "areas");
-                fail("Expected TechnicalAntaresDataMangerException to be thrown");
-            } catch (BusinessException e) {
-                assertTrue(e.getMessage().contains("Column {0} errors in sheet {1} in file:{2}. Locations: {3}"));
-            }
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> ExcelCommonValidator.checkStringColumns(sheet, tempFile, "2035-2036", "areas", TrajectoryType.AREA.name()));
+
+            assertAll(
+                    () -> assertEquals("Waiting for String value for area(s): {3} in {4} trajectory",
+                            exception.getMessage()),
+                    () -> assertIterableEquals(
+                            List.of("areas", "2035-2036", "ErrorFile.xlsx", "123, 456", TrajectoryType.AREA.name()),
+                            exception.getErrorMessageArguments()),
+                    () -> assertEquals(HttpStatus.BAD_REQUEST,
+                            exception.getHttpStatus())
+            );
         }
     }
+
+
+    @Test
+    void shouldFailWhenInvalidBooleanValuesArePresent() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidBooleans.xlsx", "2037-2038",
+                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area2", 420, "360", "230", "420", "128", "260", "113"),
+                        List.of("Area3", "too", "True", "168", "650", "125", "265", "113")
+                )
+        );
+
+        Sheet sheet = WorkbookFactory.create(tempFile.toFile()).getSheet("2037-2038");
+        List<String> booleanColumns = List.of("Power To Gas", "Stockage court terme");
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkBooleanColumns(
+                        sheet,
+                        tempFile,
+                        "2037-2038",
+                        booleanColumns,
+                        TrajectoryType.AREA.name()
+                ));
+
+        assertAll(
+                () -> assertEquals("Waiting for boolean value(s) in column {0} for {1}(s): in {2} trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        List.of(
+                                "Power To Gas, Stockage court terme",
+                                "Area2, Area3",
+                                "AREA"),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST,
+                        exception.getHttpStatus())
+        );
+    }
+
+    @Test
+    void checkAreasValuesLengthShouldThrowExceptionWhenValueIsTooLong() throws IOException {
+
+        String longAreaName = "aBcDeFgHiJkLmNoPqR";
+        String longAreaName2 = "aBcDeFgHiJkLmNoPqR56";
+
+
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TooLongArea.xlsx", "2035-2036",
+                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of(longAreaName, "True", "True", "230", "420", "128", "260", "113"),
+                        List.of(longAreaName2, "False", "True", "168", "650", "125", "265", "113")
+                )
+        );
+
+        try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(tempFile))) {
+            Sheet sheet = workbook.getSheet("2035-2036");
+
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> AreasValidator.checkAreasValuesLength(sheet, tempFile, "2035-2036", "areas"));
+
+            assertAll(
+                    () -> assertEquals("Value too long for area(s) : {0} in {1} trajectory",
+                            exception.getMessage()),
+                    () -> assertIterableEquals(
+                            List.of(
+                                    String.format("%s, %s", longAreaName, longAreaName2),
+                                    TrajectoryType.AREA.name()
+                            ),
+                            exception.getErrorMessageArguments()),
+                    () -> assertEquals(HttpStatus.BAD_REQUEST,
+                            exception.getHttpStatus())
+            );
+        }
+    }
+
+    @Test
+    void checkColumnsDuplicated() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile( tempDir,"ValidFile.xlsx", "2035-2036",
+                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "True", "True", "230", "420", "128", "260", "113"),
+                        List.of("Area1", "False", "True", "168", "650", "125", "265", "113"),
+                        List.of("Area2", "False", "True", "168", "650", "125", "265", "113"),
+                        List.of("Area2", "False", "True", "168", "650", "125", "265", "113")
+                )
+        );
+        try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(tempFile))) {
+            Sheet sheet = workbook.getSheet("2035-2036");
+
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> ExcelCommonValidator.checkForDuplicateValues(sheet, "areas", tempFile,"2035-2036", false, TrajectoryType.AREA.name()));
+
+            assertAll(
+                    () -> assertEquals("Duplicate value for {0}(s): {1} for {2} trajectory",
+                            exception.getMessage()),
+                    () -> assertIterableEquals(
+                            List.of("area", "Area1, Area2", TrajectoryType.AREA.name()),
+                            exception.getErrorMessageArguments()),
+                    () -> assertEquals(HttpStatus.BAD_REQUEST,
+                            exception.getHttpStatus())
+            );
+        }
+
+
+    }
+
+    @Test
+    void testBusinessExceptionMessageTruncation() {
+
+        String longValue = "Area".repeat(100); // 400 caractères
+
+        BusinessException exception = BusinessException.builder()
+                .message("Test message with long value: {0}")
+                .errorMessageArguments(List.of(longValue))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+
+        assertAll(
+                () -> assertTrue(exception.getErrorMessageArguments().getFirst().length() <= 255),
+                () -> assertTrue(exception.getErrorMessageArguments().getFirst().endsWith("...")),
+                () -> assertEquals(255, exception.getErrorMessageArguments().getFirst().length()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+    }
+
+
+
 
 
 
