@@ -42,14 +42,17 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     @ExecutionTime
     @Override
-    public void buildJsonForStudyGeneration(Integer studyId) throws JsonProcessingException {
+    public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
         Map<String, Object> jsonForGenerator = jsonBuilder(studyId);
         ObjectMapper objectMapper = new ObjectMapper();
-        String generatorJson = objectMapper.writeValueAsString(jsonForGenerator);
         try {
+            String generatorJson = objectMapper.writeValueAsString(jsonForGenerator);
             nasFileService.saveFile(studyId + ".json", generatorJson.getBytes());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw TechnicalException.builder()
+                    .message("Erreur lors de la génération du fichier JSON : " + e.getMessage())
+                    .cause(e)
+                    .build();
         }
     }
 
