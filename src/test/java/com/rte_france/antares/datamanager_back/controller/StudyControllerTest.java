@@ -197,26 +197,7 @@ class StudyControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
 
-        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(studyId);
-        verify(studyGeneratorService, times(1)).callGenerateStudyService(studyId);
-    }
-
-    @Test
-    void generateStudyUpdatesStatusWhenSuccessful() throws Exception {
-        Integer studyId = 1234;
-
-        this.mockMvc.perform(post("/v1/study/generate")
-                        .param("id", String.valueOf(studyId))
-                        .contentType(MediaType.APPLICATION_JSON_VALUE)
-                        .content(Utils.asJsonString(studyId))
-                        .accept(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isCreated())
-                .andDo(MockMvcResultHandlers.print())
-                .andReturn();
-
-        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(studyId);
-        verify(studyGeneratorService, times(1)).callGenerateStudyService(studyId);
-        verify(studyService, times(1)).updateStudyStatusAsGenerated(studyId);
+        verify(studyService, times(1)).generateStudy(studyId);
     }
 
     @Test

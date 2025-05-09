@@ -22,4 +22,6 @@ public interface StudyService {
 
     StudyDTO findStudyById(Integer id);
 
+    void generateStudy(Integer studyId);
+
 }

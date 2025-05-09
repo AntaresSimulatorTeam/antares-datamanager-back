@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -10,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.*;
@@ -21,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
@@ -41,7 +44,8 @@ public class StudyServiceImpl implements StudyService {
     private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
     private final TrajectoryRepository trajectoryRepository;
-    private final UserService userService;
+    private final StudyGeneratorService studyGeneratorService;
+
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -107,6 +111,14 @@ public class StudyServiceImpl implements StudyService {
                         .errorMessageArguments(List.of(id.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
+    }
+
+    @Transactional
+    @Override
+    public void generateStudy(Integer studyId) throws TechnicalException {
+        studyGeneratorService.buildJsonForStudyGeneration(studyId);
+        studyGeneratorService.callGenerateStudyService(studyId);
+        updateStudyStatusAsGenerated(studyId);
     }
 
     @Override

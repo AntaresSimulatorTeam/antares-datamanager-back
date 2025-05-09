@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,7 +41,7 @@ public class StudyController {
             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
             @RequestParam(value = "sortColumn", required = false, defaultValue = DEFAULT_SORT_COLUMN) String sortColumn,
-            @RequestParam(value = "sortDirection", required = false, defaultValue = DEFAULT_SORT_DIRECTION) String sortDirection)  {
+            @RequestParam(value = "sortDirection", required = false, defaultValue = DEFAULT_SORT_DIRECTION) String sortDirection) {
 
         Sort sort = Sort.by(
                 Sort.Direction.fromString(sortDirection),
@@ -75,10 +75,8 @@ public class StudyController {
 
 
     @PostMapping("/generate")
-    public ResponseEntity<Void> generateStudy(@RequestParam Integer id) throws JsonProcessingException {
-        studyGeneratorService.buildJsonForStudyGeneration(id);
-        studyGeneratorService.callGenerateStudyService(id);
-        studyService.updateStudyStatusAsGenerated(id);
+    public ResponseEntity<Void> generateStudy(@RequestParam Integer id) throws TechnicalException {
+        studyService.generateStudy(id);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
