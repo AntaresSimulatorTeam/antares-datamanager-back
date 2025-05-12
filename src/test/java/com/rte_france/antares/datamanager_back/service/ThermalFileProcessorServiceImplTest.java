@@ -46,7 +46,7 @@ class ThermalFileProcessorServiceImplTest {
     private ThermalFileProcessorServiceImpl thermalFileProcessorService;
 
     @BeforeEach
-    public void setup() {
+     void setup() {
         MockitoAnnotations.openMocks(this);
     }
 

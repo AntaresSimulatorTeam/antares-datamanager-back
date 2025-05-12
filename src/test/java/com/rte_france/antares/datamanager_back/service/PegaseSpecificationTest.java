@@ -75,7 +75,7 @@ class PegaseSpecificationTest {
         when(builder.lower(join)).thenReturn(lowerExpr);
 
         Predicate mockPredicate = mock(Predicate.class);
-        when(builder.like(eq(lowerExpr), eq("%admin%"))).thenReturn(mockPredicate);
+        when(builder.like(lowerExpr, "%admin%")).thenReturn(mockPredicate);
 
         SearchCriteria criteria = new SearchCriteria("roles", "in", "admin");
         specification = new PegaseSpecification<>(criteria);
@@ -85,7 +85,7 @@ class PegaseSpecificationTest {
         assertNotNull(predicate);
         verify(root).join("roles");
         verify(builder).lower(join);
-        verify(builder).like(eq(lowerExpr), eq("%admin%"));
+        verify(builder).like(lowerExpr, "%admin%");
     }
 
 
