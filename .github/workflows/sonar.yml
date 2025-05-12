@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - develop
+      - fix/sonar-vul
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
