@@ -228,7 +228,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                // TODO: Change thermalCapacityArea according to the file tree structure
                 .resolve(getDirectoryByTrajectoryType(trajectoryType, ""))
                 .normalize();
 
