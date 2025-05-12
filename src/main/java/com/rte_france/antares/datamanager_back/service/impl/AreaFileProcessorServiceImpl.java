@@ -41,6 +41,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
 
+    @SuppressWarnings("java:S2083")
     @ExecutionTime
     @Transactional
     public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {

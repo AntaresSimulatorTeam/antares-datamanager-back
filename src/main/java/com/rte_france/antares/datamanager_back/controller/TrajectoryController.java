@@ -57,7 +57,9 @@ public class TrajectoryController {
     @Operation(summary = "import Trajectory file to database ")
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
-                                                          @RequestParam("trajectoryToUse") String trajectoryToUse,
+                                                          @RequestParam("trajectoryToUse")
+                                                          @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid trajectory file name")
+                                                          String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId) throws IOException {
