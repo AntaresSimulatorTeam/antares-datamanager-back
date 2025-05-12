@@ -15,7 +15,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -222,7 +224,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
-    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) {
+    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
@@ -233,7 +235,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (!baseDirectory.endsWith("/")) {
             baseDirectory = baseDirectory.resolve("");
         }
-        return baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
+
+        //download the file
+        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
+        if (!trajectoryFilePath.startsWith(baseDirectory)) {
+            throw new IOException("Path is outside of the target directory");
+        }
+        return trajectoryFilePath;
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains) {
