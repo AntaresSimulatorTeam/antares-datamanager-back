@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
-import com.rte_france.antares.datamanager_back.exception.AntaresException;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.service.ProjectService;
@@ -44,7 +43,7 @@ class ProjectControllerTest {
     ProjectService projectService;
 
     @BeforeEach
-    public void setup() {
+     void setup() {
         this.mockMvc = MockMvcBuilders
                 .webAppContextSetup(wac)
                 .build();

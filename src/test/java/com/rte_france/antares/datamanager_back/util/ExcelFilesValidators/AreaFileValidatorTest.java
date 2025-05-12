@@ -102,13 +102,13 @@ class AreaFileValidatorTest {
             Sheet sheet = workbook.getSheet("2035-2036");
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> ExcelCommonValidator.checkStringColumns(sheet, tempFile, "2035-2036", "areas", TrajectoryType.AREA.name()));
+                    () -> ExcelCommonValidator.checkStringColumns(sheet, "2035-2036", "areas", TrajectoryType.AREA.name()));
 
             assertAll(
                     () -> assertEquals("Waiting for String value for area(s): {3} in {4} trajectory",
                             exception.getMessage()),
                     () -> assertIterableEquals(
-                            List.of("areas", "2035-2036", "ErrorFile.xlsx", "123, 456", TrajectoryType.AREA.name()),
+                            List.of("areas", "2035-2036", "123, 456", TrajectoryType.AREA.name()),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
                             exception.getHttpStatus())
@@ -133,7 +133,6 @@ class AreaFileValidatorTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkBooleanColumns(
                         sheet,
-                        tempFile,
                         "2037-2038",
                         booleanColumns,
                         TrajectoryType.AREA.name()
@@ -172,7 +171,7 @@ class AreaFileValidatorTest {
             Sheet sheet = workbook.getSheet("2035-2036");
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> AreasValidator.checkAreasValuesLength(sheet, tempFile, "2035-2036", "areas"));
+                    () -> AreasValidator.checkAreasValuesLength(sheet, "2035-2036", "areas"));
 
             assertAll(
                     () -> assertEquals("Value too long for area(s) : {0} in {1} trajectory",

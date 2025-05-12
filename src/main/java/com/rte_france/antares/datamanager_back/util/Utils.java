@@ -156,7 +156,7 @@ public class Utils {
             throw  TechnicalException.builder().message("Empty fileName").build();
         }
         String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX :
-                Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
+                isLinkTypePrefix(trajectoryType);
 
         if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
             fileName = fileName.substring(prefix.length());
@@ -167,6 +167,10 @@ public class Utils {
         }
 
         return fileName.substring(0, lastDotIndex);
+    }
+
+    private static String isLinkTypePrefix(String trajectoryType) {
+        return Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
     }
 
 

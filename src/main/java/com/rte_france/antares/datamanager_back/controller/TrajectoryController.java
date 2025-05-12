@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
@@ -48,7 +48,7 @@ public class TrajectoryController {
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
             @Parameter(description = "parameter to use just in load case")
             @RequestParam(value = "zone", required = false) String loadZone,
-            @RequestParam(value = "fileNameContains", required = false) String fileNameContains) {
+            @RequestParam(value = "fileNameContains", required = false) String fileNameContains) throws TechnicalException {
 
         return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, loadZone, fileNameContains));
     }

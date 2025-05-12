@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public interface TrajectoryService {
 
     List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains);
 
-    List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType,String loadZone, String fileNameContains);
+    List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType,String loadZone, String fileNameContains) throws TechnicalException;
 
     List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId);
 

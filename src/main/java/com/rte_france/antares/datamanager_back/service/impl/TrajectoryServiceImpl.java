@@ -15,9 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -76,7 +74,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 String outputFileName = loadFileProcessorService.saveMatrixToNas(trajectoryPath.resolve(load.getFileName()));
                 load.setOutPutFileName(outputFileName);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw TechnicalException.builder().message(e.getMessage()).build();
             }
         });
 
@@ -253,7 +251,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String loadZone, String fileNameContains) {
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String loadZone, String fileNameContains) throws TechnicalException {
         String basePath = antaressDataManagerProperties.getNasDirectory();
         String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
         String typePath = trajectoryType.name().toLowerCase();
@@ -262,7 +260,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             typePath += "/load_" + loadZone.toUpperCase();
         }
 
-        Path directory = Path.of(basePath).resolve(subPath).resolve(typePath);
+        Path directory = Path.of(basePath).resolve(subPath).resolve(typePath).normalize();
+        if(!directory.endsWith("/")) {
+            directory = directory.resolve("");
+        }
 
         try (var stream = Files.list(directory)) {
             return stream

@@ -63,7 +63,7 @@ class LinkFileProcessorServiceImplTest {
     Path tempDir;
 
     @BeforeEach
-    public void setup(@TempDir Path tempDir) throws IOException {
+     void setup(@TempDir Path tempDir) throws IOException {
         MockitoAnnotations.openMocks(this);
 
         tempFile = tempDir.resolve("links_BP23_A_ref.xlsx");
@@ -290,10 +290,9 @@ class LinkFileProcessorServiceImplTest {
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
         verify(warningMessageService, times(1)).getMessage(
-                eq(WarningCode.LINKS_ALL_VALUES_ZERO.value()),
-                eq("2, 3"),
-                eq("1"),
-                eq("TestFileWar.xlsx")
+                WarningCode.LINKS_ALL_VALUES_ZERO.value(),
+                "2, 3",
+                "1", "TestFileWar.xlsx"
         );
     }
 
@@ -331,11 +330,11 @@ class LinkFileProcessorServiceImplTest {
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
         verify(warningMessageService, times(1)).getMessage(
-                eq(WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value()),
-                eq("IT-FR, GE-CH"),
-                eq("2, 3"),
-                eq("1"),
-                eq("TestFileWar.xlsx")
+                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(),
+                "IT-FR, GE-CH",
+                "2, 3",
+                "1",
+        "TestFileWar.xlsx"
         );
     }
 
@@ -373,8 +372,8 @@ class LinkFileProcessorServiceImplTest {
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
         verify(warningMessageService, times(1)).getMessage(
-                eq(WarningCode.LINKS_AREA_NOT_PRESENT.value()),
-                eq("CH, GE")
+                WarningCode.LINKS_AREA_NOT_PRESENT.value(),
+                "CH, GE"
         );
     }
 

@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
+import lombok.NoArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 
@@ -20,6 +21,10 @@ public class AreasValidator {
 
     private static final int AREAS_MAX_LENGTH = 10;
 
+    private AreasValidator() {
+
+    }
+
     public static void validateAreaColumns(Path path, String horizon) throws BusinessException {
         try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(path))) {
             Sheet sheet = workbook.getSheet(horizon);
@@ -32,8 +37,8 @@ public class AreasValidator {
                         .build();
             }
 
-            checkColumnsRules(sheet, path, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames(), TrajectoryType.AREA.name());
-            checkAreasValuesLength(sheet, path, horizon, AreaColumns.AREAS.getDisplayName());
+            checkColumnsRules(sheet, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames(), TrajectoryType.AREA.name());
+            checkAreasValuesLength(sheet, horizon, AreaColumns.AREAS.getDisplayName());
             checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false, TrajectoryType.AREA.name());
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -46,15 +51,15 @@ public class AreasValidator {
     }
 
 
-    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
-        checkBooleanColumns(sheet, path, horizon, booleanColumns, trajectoryType);
-        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column, TrajectoryType.AREA.name()));
+    private static void checkColumnsRules(Sheet sheet, String horizon, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
+        checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
+        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.AREA.name()));
 
     }
 
 
-    public static void checkAreasValuesLength(Sheet sheet, Path path, String horizon, String columnName) {
-        int columnIndex = findColumnIndex(sheet, columnName, path, horizon, TrajectoryType.AREA.name());
+    public static void checkAreasValuesLength(Sheet sheet, String horizon, String columnName) {
+        int columnIndex = findColumnIndex(sheet, columnName, horizon, TrajectoryType.AREA.name());
 
         List<String> invalidRows = IntStream.range(1, sheet.getPhysicalNumberOfRows())
                 .mapToObj(sheet::getRow)

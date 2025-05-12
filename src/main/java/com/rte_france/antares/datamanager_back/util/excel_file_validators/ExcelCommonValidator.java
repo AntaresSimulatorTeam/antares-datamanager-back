@@ -34,77 +34,86 @@ public class ExcelCommonValidator {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheet(horizon);
-            if (sheet == null) {
-                throw BusinessException.builder()
-                        .message("File {0} does not contain the expected sheet: {1}")
-                        // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
-                        .errorMessageArguments(List.of(path.getFileName().toString(), horizon))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+            Sheet sheet = getSheet(workbook, path, horizon);
+            Row headerRow = getHeaderRow(sheet, path);
 
-            Row headerRow = sheet.getRow(0);
-            if (headerRow == null) {
-                throw BusinessException.builder()
-                        .message("File {0} does not contain a valid header row.")
-                        // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
-                        .errorMessageArguments(List.of(path.getFileName().toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+            List<String> actualColumns = extractActualColumns(headerRow);
+            validateColumns(fileType, actualColumns, horizon, trajectoryType);
 
-
-            List<String> actualColumns = new ArrayList<>();
-            for (Cell cell : headerRow) {
-                if (cell.getCellType() == CellType.STRING && !cell.getStringCellValue().trim().isEmpty()) {
-                    actualColumns.add(cell.getStringCellValue().trim());
-                }
-            }
-
-            List<String> missingColumns = fileType.checkColumnNames(actualColumns);
-
-            List<String> expectedColumns = fileType.getColumnNames();
-            List<String> invalidColumns = actualColumns.stream()
-                    .filter(actual -> !expectedColumns.contains(ExcelFileType.normalizeColumnName(actual)))
-                    .toList();
-
-
-            if (!missingColumns.isEmpty() || !invalidColumns.isEmpty()) {
-                StringBuilder errorMessage = new StringBuilder();
-
-                if (!missingColumns.isEmpty()) {
-                    errorMessage.append("Columns: ")
-                            .append(String.join(", ", missingColumns))
-                            .append(" not found");
-                }
-
-                if (!invalidColumns.isEmpty()) {
-                    if (!missingColumns.isEmpty()) {
-                        errorMessage.append(". ");
-                    }
-                    errorMessage.append("Invalid columns names: ")
-                            .append(String.join(", ", invalidColumns));
-                }
-
-                errorMessage.append(" for horizon '{0}' in {1} trajectory");
-
-                throw BusinessException.builder()
-                        .message(errorMessage.toString())
-                        .errorMessageArguments(List.of(horizon, trajectoryType))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-
-
-            checkAllRowsHaveValues(sheet, fileType.getColumnCount(), path, horizon, trajectoryType);
+            checkAllRowsHaveValues(sheet, fileType.getColumnCount(), horizon, trajectoryType);
 
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("Error reading file {0}: " + path.getFileName())
-                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
                     .cause(e.getCause())
+                    .build();
+        }
+    }
+
+    private static Sheet getSheet(Workbook workbook, Path path, String horizon) {
+        Sheet sheet = workbook.getSheet(horizon);
+        if (sheet == null) {
+            throw BusinessException.builder()
+                    .message("File {0} does not contain the expected sheet: {1}")
+                    .errorMessageArguments(List.of(path.getFileName().toString(), horizon))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return sheet;
+    }
+
+    private static Row getHeaderRow(Sheet sheet, Path path) {
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            throw BusinessException.builder()
+                    .message("File {0} does not contain a valid header row.")
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return headerRow;
+    }
+
+    private static List<String> extractActualColumns(Row headerRow) {
+        List<String> actualColumns = new ArrayList<>();
+        for (Cell cell : headerRow) {
+            if (cell.getCellType() == CellType.STRING && !cell.getStringCellValue().trim().isEmpty()) {
+                actualColumns.add(cell.getStringCellValue().trim());
+            }
+        }
+        return actualColumns;
+    }
+
+    private static void validateColumns(ExcelFileType fileType, List<String> actualColumns, String horizon, String trajectoryType) {
+        List<String> missingColumns = fileType.checkColumnNames(actualColumns);
+        List<String> expectedColumns = fileType.getColumnNames();
+        List<String> invalidColumns = actualColumns.stream()
+                .filter(actual -> !expectedColumns.contains(ExcelFileType.normalizeColumnName(actual)))
+                .toList();
+
+        if (!missingColumns.isEmpty() || !invalidColumns.isEmpty()) {
+            StringBuilder errorMessage = new StringBuilder();
+
+            if (!missingColumns.isEmpty()) {
+                errorMessage.append("Columns: ")
+                        .append(String.join(", ", missingColumns))
+                        .append(" not found");
+            }
+
+            if (!invalidColumns.isEmpty()) {
+                if (!missingColumns.isEmpty()) {
+                    errorMessage.append(". ");
+                }
+                errorMessage.append("Invalid columns names: ")
+                        .append(String.join(", ", invalidColumns));
+            }
+
+            errorMessage.append(" for horizon '{0}' in {1} trajectory");
+
+            throw BusinessException.builder()
+                    .message(errorMessage.toString())
+                    .errorMessageArguments(List.of(horizon, trajectoryType))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
@@ -147,7 +156,7 @@ public class ExcelCommonValidator {
         }
     }
 
-    private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, Path path, String horizon, String trajectoryType) {
+    private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, String horizon, String trajectoryType) {
         Set<String> areaValues = new HashSet<>();
 
         List<String> emptyCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
@@ -156,7 +165,7 @@ public class ExcelCommonValidator {
                 .flatMap(row -> {
                     String prefix = "";
                     if (TrajectoryType.AREA.name().equals(trajectoryType)) {
-                        int areasColumnIndex = findColumnIndex(sheet, "areas", path, horizon, trajectoryType);
+                        int areasColumnIndex = findColumnIndex(sheet, "areas", horizon, trajectoryType);
                         String areaValue = Optional.ofNullable(row.getCell(areasColumnIndex))
                                 .map(ExcelCommonValidator::getCellValue)
                                 .orElse("");
@@ -215,40 +224,9 @@ public class ExcelCommonValidator {
     }
 
 
-    /**
-     * @param sheet          to be read in Excel file
-     * @param path           trajectory file
-     * @param horizon        make error clearer
-     * @param booleanColumns booleans columns must be TRUE or FALSE
-     */
-    public static void checkBooleanColumns2(Sheet sheet, Path path, String horizon, List<String> booleanColumns, String trajectoryType) {
+    public static void checkBooleanColumns(Sheet sheet, String horizon, List<String> booleanColumns, String trajectoryType) {
         Map<String, Integer> columnIndexes = booleanColumns.stream()
-                .collect(Collectors.toMap(Function.identity(), column -> ExcelCommonValidator.findColumnIndex(sheet, column, path, horizon, trajectoryType)));
-
-        List<String> invalidCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
-                .mapToObj(sheet::getRow)
-                .filter(Objects::nonNull)
-                .flatMap(row -> columnIndexes.entrySet().stream()
-                        .map(entry -> Map.entry(entry.getKey(),
-                                Map.entry(row.getRowNum() + 1, row.getCell(entry.getValue(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))))
-                        .filter(entry -> !isValidBoolean(entry.getValue().getValue()))
-                        .map(entry -> String.format("Row %d - Column %d",
-                                entry.getValue().getKey(),
-                                entry.getValue().getValue().getColumnIndex() + 1)))
-                .toList();
-
-        if (!invalidCells.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Waiting for boolean value(s) in column {0} for {1}(s): in {2} trajectory")
-                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
-                    .errorMessageArguments(List.of(String.join(", ", invalidCells), path.getFileName().toString(), trajectoryType))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-    public static void checkBooleanColumns(Sheet sheet, Path path, String horizon, List<String> booleanColumns, String trajectoryType) {
-        Map<String, Integer> columnIndexes = booleanColumns.stream()
-                .collect(Collectors.toMap(Function.identity(), column -> ExcelCommonValidator.findColumnIndex(sheet, column, path, horizon, trajectoryType)));
+                .collect(Collectors.toMap(Function.identity(), column -> ExcelCommonValidator.findColumnIndex(sheet, column, horizon, trajectoryType)));
 
         String identifierColumn = (TrajectoryType.AREA.name().equals(trajectoryType))
                 ? AreaColumns.AREAS.name()
@@ -258,7 +236,7 @@ public class ExcelCommonValidator {
 
 
         int identifierColumnIndex = identifierColumn != null
-                ? findColumnIndex(sheet, identifierColumn, path, horizon, trajectoryType)
+                ? findColumnIndex(sheet, identifierColumn, horizon, trajectoryType)
                 : -1;
 
         List<String> invalidIdentifiers = IntStream.rangeClosed(1, sheet.getLastRowNum())
@@ -292,12 +270,11 @@ public class ExcelCommonValidator {
 
     /**
      * @param sheet      to verify strings
-     * @param path       to file
      * @param horizon    sheet name
      * @param columnName where we expect values to be strings and throw error if a number is found
      */
-    public static void checkStringColumns(Sheet sheet, Path path, String horizon, String columnName, String trajectoryType) {
-        int columnIndex = findColumnIndex(sheet, columnName, path, horizon, trajectoryType);
+    public static void checkStringColumns(Sheet sheet, String horizon, String columnName, String trajectoryType) {
+        int columnIndex = findColumnIndex(sheet, columnName, horizon, trajectoryType);
 
         List<String> invalidCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
                 .mapToObj(sheet::getRow)
@@ -334,7 +311,7 @@ public class ExcelCommonValidator {
                     .message("areas".equals(columnName) ?
                             "Waiting for String value for area(s): {3} in {4} trajectory" :
                             "Column {0} errors in sheet {1} in file:{2}. Locations: {3}")
-                    .errorMessageArguments(List.of(columnName, horizon, path.getFileName().toString(), String.join(", ", invalidCells),trajectoryType))
+                    .errorMessageArguments(List.of(columnName, horizon, String.join(", ", invalidCells),trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -370,11 +347,10 @@ public class ExcelCommonValidator {
     /**
      * @param sheet      to be read
      * @param columnName column to be read
-     * @param path       trajectory file
      * @param horizon    to make error clearer
      * @return column index to be found
      */
-    static int findColumnIndex(Sheet sheet, String columnName, Path path, String horizon, String trajectoryType) {
+    static int findColumnIndex(Sheet sheet, String columnName, String horizon, String trajectoryType) {
         Row headerRow = sheet.getRow(0);
         return IntStream.range(0, headerRow.getPhysicalNumberOfCells())
                 .filter(i -> columnName.equalsIgnoreCase(headerRow.getCell(i).getStringCellValue()))
@@ -386,49 +362,8 @@ public class ExcelCommonValidator {
                         .build());
     }
 
-    /**
-     * @param sheet          to be read in Excel file
-     * @param columnName     column to be read
-     * @param path           trajectory file
-     * @param horizon        to make error clearer
-     * @param checkSymmetric true if links rule to be verified (AT-BE = BE-AT)
-     *                       Method to find  duplicated values in a specific column
-     */
-//    public static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon, boolean checkSymmetric, String trajectoryType) {
-//        int columnIndex = findColumnIndex(sheet, columnName, path, horizon, trajectoryType);
-//        Map<String, String> seenValues = new HashMap<>();
-//
-//        sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
-//                .map(ExcelCommonValidator::getCellValue)
-//                .map(String::trim)
-//                .filter(cellValue -> !cellValue.isEmpty())
-//                .ifPresent(cellValue -> {
-//                    String normalizedValue = checkSymmetric ? normalizeSymmetricValue(cellValue) : cellValue;
-//
-//                    if (seenValues.containsKey(normalizedValue)) {
-//                        String firstOccurrence = seenValues.get(normalizedValue);
-//
-//                        // Avoid showing the same value twice if they are identical
-//                        if (checkSymmetric && firstOccurrence.equals(cellValue)) {
-//                            throw BusinessException.builder()
-//                                    .message("Duplicate value for {0}(s): {1} for {2} trajectory")
-//                                    .errorMessageArguments(List.of(trajectoryType.toLowerCase(), cellValue, trajectoryType))
-//                                    .httpStatus(HttpStatus.BAD_REQUEST)
-//                                    .build();
-//                        } else {
-//                            throw BusinessException.builder()
-//                                    .message("Duplicate value for {0}(s): {1} for horizon {2}")
-//                                    .errorMessageArguments(List.of(trajectoryType.toLowerCase(), cellValue, horizon))
-//                                    .httpStatus(HttpStatus.BAD_REQUEST)
-//                                    .build();
-//                        }
-//                    }
-//
-//                    seenValues.put(normalizedValue, cellValue);
-//                }));
-//    }
     public static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon, boolean checkSymmetric, String trajectoryType) {
-        int columnIndex = findColumnIndex(sheet, columnName, path, horizon, trajectoryType);
+        int columnIndex = findColumnIndex(sheet, columnName, horizon, trajectoryType);
         Map<String, String> seenValues = new HashMap<>();
         Set<String> identicalDuplicates = new TreeSet<>();
         Set<String> symmetricDuplicates = new TreeSet<>();

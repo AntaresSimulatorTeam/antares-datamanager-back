@@ -35,7 +35,7 @@ public class LinksValidator {
             Sheet sheet = workbook.getSheet(horizon);
             if (fileType == ExcelFileType.LINKS) {
                 checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon, true, TrajectoryType.LINK.name());
-                checkColumnsRules(sheet, path, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
+                checkColumnsRules(sheet, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -47,75 +47,91 @@ public class LinksValidator {
         }
     }
 
-    private static void checkColumnsRules(Sheet sheet, Path path, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
-        checkNumbersAreIntegers(sheet, path, horizon, numericColumns);
-        checkBooleanColumns(sheet, path, horizon, booleanColumns, trajectoryType);
-        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, path, horizon, column, TrajectoryType.LINK.name()));
+    private static void checkColumnsRules(Sheet sheet, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
+        checkNumbersAreIntegers(sheet, horizon, numericColumns);
+        checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
+        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.LINK.name()));
     }
 
     /**
      * @param sheet          to be read in Excel file
-     * @param path           trajectory file
      * @param horizon        to make error clearer
      * @param numericColumns numeric columns must be integers and positive values
      */
-    private static void checkNumbersAreIntegers(Sheet sheet, Path path, String horizon, List<String> numericColumns) {
+    private static void checkNumbersAreIntegers(Sheet sheet, String horizon, List<String> numericColumns) {
+        int nameColumnIndex = findColumnIndex(sheet, "Name", horizon, TrajectoryType.LINK.name());
 
-            int nameColumnIndex = findColumnIndex(sheet, "Name", path, horizon, TrajectoryType.LINK.name());
+        Map<String, Set<String>> notNumericByColumn = new HashMap<>();
+        Map<String, Set<String>> notIntegerByColumn = new HashMap<>();
+        Map<String, Set<String>> negativeValuesByColumn = new HashMap<>();
 
-            Map<String, Set<String>> notNumericByColumn = new HashMap<>();
-            Map<String, Set<String>> notIntegerByColumn = new HashMap<>();
-            Map<String, Set<String>> negativeValuesByColumn = new HashMap<>();
+        for (String columnName : numericColumns) {
+            int columnIndex = findColumnIndex(sheet, columnName, horizon, TrajectoryType.LINK.name());
+            processColumn(sheet, nameColumnIndex, columnIndex, columnName, notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
+        }
 
-            for (String columnName : numericColumns) {
-                int columnIndex = findColumnIndex(sheet, columnName, path, horizon, TrajectoryType.LINK.name());
-                Set<String> notNumericLinks = new LinkedHashSet<>();
-                Set<String> notIntegerLinks = new LinkedHashSet<>();
-                Set<String> negativeLinks = new LinkedHashSet<>();
+        handleErrors(notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
+    }
 
-                for (int rowIndex = 1; rowIndex < sheet.getPhysicalNumberOfRows(); rowIndex++) {
-                    Row row = sheet.getRow(rowIndex);
-                    if (row == null) continue;
+    private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIndex, String columnName,
+                                      Map<String, Set<String>> notNumericByColumn,
+                                      Map<String, Set<String>> notIntegerByColumn,
+                                      Map<String, Set<String>> negativeValuesByColumn) {
+        Set<String> notNumericLinks = new LinkedHashSet<>();
+        Set<String> notIntegerLinks = new LinkedHashSet<>();
+        Set<String> negativeLinks = new LinkedHashSet<>();
 
-                    Cell nameCell = row.getCell(nameColumnIndex);
-                    Cell valueCell = row.getCell(columnIndex);
+        for (int rowIndex = 1; rowIndex < sheet.getPhysicalNumberOfRows(); rowIndex++) {
+            Row row = sheet.getRow(rowIndex);
+            if (row == null) continue;
 
-                    if (nameCell != null) {
-                        String linkName = nameCell.getStringCellValue();
-                        if (valueCell == null || valueCell.getCellType() != CellType.NUMERIC) {
-                            notNumericLinks.add(linkName);
-                        } else {
-                            double value = valueCell.getNumericCellValue();
-                            if (value < 0) {
-                                negativeLinks.add(linkName);
-                            } else if (value % 1 != 0) {
-                                notIntegerLinks.add(linkName);
-                            }
-                        }
-                    }
+            validateCell(row, nameColumnIndex, columnIndex, notNumericLinks, notIntegerLinks, negativeLinks);
+        }
+
+        if (!notNumericLinks.isEmpty()) {
+            notNumericByColumn.put(columnName, notNumericLinks);
+        }
+        if (!notIntegerLinks.isEmpty()) {
+            notIntegerByColumn.put(columnName, notIntegerLinks);
+        }
+        if (!negativeLinks.isEmpty()) {
+            negativeValuesByColumn.put(columnName, negativeLinks);
+        }
+    }
+
+    private static void validateCell(Row row, int nameColumnIndex, int columnIndex,
+                                     Set<String> notNumericLinks, Set<String> notIntegerLinks, Set<String> negativeLinks) {
+        Cell nameCell = row.getCell(nameColumnIndex);
+        Cell valueCell = row.getCell(columnIndex);
+
+        if (nameCell != null) {
+            String linkName = nameCell.getStringCellValue();
+            if (valueCell == null || valueCell.getCellType() != CellType.NUMERIC) {
+                notNumericLinks.add(linkName);
+            } else {
+                double value = valueCell.getNumericCellValue();
+                if (value < 0) {
+                    negativeLinks.add(linkName);
+                } else if (value % 1 != 0) {
+                    notIntegerLinks.add(linkName);
                 }
-
-                if (!notNumericLinks.isEmpty()) {
-                    notNumericByColumn.put(columnName, notNumericLinks);
-                }
-                if (!notIntegerLinks.isEmpty()) {
-                    notIntegerByColumn.put(columnName, notIntegerLinks);
-                }
-                if (!negativeLinks.isEmpty()) {
-                    negativeValuesByColumn.put(columnName, negativeLinks);
-                }
-            }
-
-            if (!notNumericByColumn.isEmpty()) {
-                throwFormatError(notNumericByColumn);
-            }
-            if (!notIntegerByColumn.isEmpty()) {
-                throwNotIntegerError(notIntegerByColumn);
-            }
-            if (!negativeValuesByColumn.isEmpty()) {
-                throwNegativeError(negativeValuesByColumn);
             }
         }
+    }
+
+    private static void handleErrors(Map<String, Set<String>> notNumericByColumn,
+                                     Map<String, Set<String>> notIntegerByColumn,
+                                     Map<String, Set<String>> negativeValuesByColumn) {
+        if (!notNumericByColumn.isEmpty()) {
+            throwFormatError(notNumericByColumn);
+        }
+        if (!notIntegerByColumn.isEmpty()) {
+            throwNotIntegerError(notIntegerByColumn);
+        }
+        if (!negativeValuesByColumn.isEmpty()) {
+            throwNegativeError(negativeValuesByColumn);
+        }
+    }
 
         private static void throwFormatError(Map<String, Set<String>> notNumericByColumn) {
             String columnNames = notNumericByColumn.keySet().stream()
@@ -190,9 +206,9 @@ public class LinksValidator {
         return findZeroValues(path, horizon, numericColumns);
     }
 
-    private static boolean hasOnlyZeroValues(Row row, Sheet sheet, List<String> numericColumns, Path path, String horizon) {
+    private static boolean hasOnlyZeroValues(Row row, Sheet sheet, List<String> numericColumns, String horizon) {
         for (String column : numericColumns) {
-            int index = findColumnIndex(sheet, column, path, horizon, TrajectoryType.LINK.name());
+            int index = findColumnIndex(sheet, column, horizon, TrajectoryType.LINK.name());
             Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell != null && cell.getCellType() == CellType.NUMERIC && cell.getNumericCellValue() != 0) {
                 return false;
@@ -225,7 +241,7 @@ public class LinksValidator {
             for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
                 Row row = sheet.getRow(i);
 
-                if (row != null && hasOnlyZeroValues(row, sheet, columns, path, horizon)) {
+                if (row != null && hasOnlyZeroValues(row, sheet, columns, horizon)) {
 
                     String location = String.format("%d,%d", i + 1, 0);
                     if (!warningLocations.contains(location)) {
@@ -260,7 +276,7 @@ public class LinksValidator {
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheet(horizon);
-            int columnIndex = findColumnIndex(sheet, columnName, path, horizon, TrajectoryType.LINK.name());
+            int columnIndex = findColumnIndex(sheet, columnName, horizon, TrajectoryType.LINK.name());
 
             sheet.forEach(row -> {
                 Cell cell = row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);

@@ -7,5 +7,6 @@ import java.nio.file.Path;
 import java.util.List;
 @FunctionalInterface
 public interface ThermalBuilder {
+    @SuppressWarnings("unchecked")
     List<? extends ThermalBaseEntity> build(Path path) throws IOException;
 }

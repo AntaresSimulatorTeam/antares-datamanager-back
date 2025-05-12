@@ -316,7 +316,6 @@ class LinksValidatorTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkBooleanColumns(
                         sheet,
-                        tempFile,
                         "2030-2031",
                         booleanColumns,
                         TrajectoryType.LINK.name()
