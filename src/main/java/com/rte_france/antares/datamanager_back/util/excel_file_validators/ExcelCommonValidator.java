@@ -25,6 +25,8 @@ import java.util.stream.IntStream;
 public class ExcelCommonValidator {
 
 
+    public static final String AREAS = "areas";
+
     /**
      * @param path     trajectory file
      * @param fileType to verify columns names using ColumnEnums
@@ -118,44 +120,6 @@ public class ExcelCommonValidator {
         }
     }
 
-
-    /**
-     * @param sheet       to be read
-     * @param columnCount index of column to check if there is not any empty values
-     * @param path        trajectory file
-     * @param horizon     to make error clearer
-     */
-    private static void checkAllRowsHaveValues2(Sheet sheet, int columnCount, Path path, String horizon, String trajectoryType) {
-        List<String> emptyCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
-                .mapToObj(sheet::getRow)
-                .filter(row -> row != null && !isRowEmpty(row))
-                .flatMap(row -> IntStream.range(0, columnCount)
-                        .mapToObj(colIndex -> Map.entry(row.getRowNum() + 1, colIndex + 1))
-                        .filter(entry -> {
-                            Cell cell = row.getCell(entry.getValue() - 1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                            if (cell == null) return true;
-
-                            return switch (cell.getCellType()) {
-                                case STRING -> cell.getStringCellValue().trim().isEmpty();
-                                case NUMERIC, BOOLEAN, FORMULA -> false;
-                                case BLANK -> true;
-                                default -> true;
-                            };
-                        })
-                )
-                .map(entry -> "Row " + entry.getKey() + " - Column " + entry.getValue())
-                .toList();
-
-        if (!emptyCells.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Empty values found for {0}(s) for horizon {1} in {2} trajectory")
-                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
-                    .errorMessageArguments(List.of(trajectoryType.toLowerCase(), horizon, trajectoryType))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
     private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, String horizon, String trajectoryType) {
         Set<String> areaValues = new HashSet<>();
 
@@ -165,7 +129,7 @@ public class ExcelCommonValidator {
                 .flatMap(row -> {
                     String prefix = "";
                     if (TrajectoryType.AREA.name().equals(trajectoryType)) {
-                        int areasColumnIndex = findColumnIndex(sheet, "areas", horizon, trajectoryType);
+                        int areasColumnIndex = findColumnIndex(sheet, AREAS, horizon, trajectoryType);
                         String areaValue = Optional.ofNullable(row.getCell(areasColumnIndex))
                                 .map(ExcelCommonValidator::getCellValue)
                                 .orElse("");
@@ -300,7 +264,7 @@ public class ExcelCommonValidator {
                 })
                 .map(entry -> {
                     String actualValue = getCellValue(entry.getValue());
-                    return "areas".equals(columnName) ?
+                    return AREAS.equals(columnName) ?
                             actualValue :
                             "row " + entry.getKey() + ", Column " + (columnIndex + 1) + ": '" + actualValue + "'";
                 })
@@ -308,7 +272,7 @@ public class ExcelCommonValidator {
 
         if (!invalidCells.isEmpty()) {
             throw BusinessException.builder()
-                    .message("areas".equals(columnName) ?
+                    .message(AREAS.equals(columnName) ?
                             "Waiting for String value for area(s): {3} in {4} trajectory" :
                             "Column {0} errors in sheet {1} in file:{2}. Locations: {3}")
                     .errorMessageArguments(List.of(columnName, horizon, String.join(", ", invalidCells),trajectoryType))
@@ -328,6 +292,7 @@ public class ExcelCommonValidator {
      * @param cell to check
      * @return boolean value expected and avoid null for formatted cells
      */
+    @SuppressWarnings("unchecked")
     public static Boolean getBooleanCellValue(Cell cell) {
         // If the cell is null or blank, we return null to indicate an invalid or undefined value
         if (cell == null || cell.getCellType() == CellType.BLANK) return null;

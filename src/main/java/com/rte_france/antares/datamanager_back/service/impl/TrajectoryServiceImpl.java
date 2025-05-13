@@ -218,7 +218,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
             case THERMAL_COST ->
                     thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
-            default -> throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
+            default ->
+                    throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
     }
 
@@ -252,20 +253,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String loadZone, String fileNameContains) throws TechnicalException {
-        String basePath = antaressDataManagerProperties.getNasDirectory();
-        String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
-        String typePath = trajectoryType.name().toLowerCase();
-
-        if (trajectoryType == TrajectoryType.LOAD && loadZone != null) {
-            typePath += "/load_" + loadZone.toUpperCase();
-        }
-
-        Path directory = Path.of(basePath).resolve(subPath).resolve(typePath).normalize();
-        if(!directory.endsWith("/")) {
-            directory = directory.resolve("");
-        }
-
-        try (var stream = Files.list(directory)) {
+        Path directory = normalizeAndValidateDirectory(trajectoryType, loadZone);
+        try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> isRelevantFile(path, trajectoryType))
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
@@ -281,6 +270,30 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String loadZone) {
+        String basePath = antaressDataManagerProperties.getNasDirectory();
+        String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
+        Path baseDirectory = Path.of(basePath).resolve(subPath).normalize();
+
+        if (!baseDirectory.endsWith("/")) {
+            baseDirectory = baseDirectory.resolve("");
+        }
+        String typePath = trajectoryType.name().toLowerCase();
+
+        if (trajectoryType == TrajectoryType.LOAD && loadZone != null) {
+            typePath += "/load_" + loadZone.toUpperCase();
+        }
+
+
+        Path directory = baseDirectory.resolve(typePath);
+
+
+        if (!directory.startsWith(baseDirectory)) {
+            throw TechnicalException.builder().message("Entry is outside of the target directory").build();
+        }
+        return directory.normalize();
     }
 
     private boolean isRelevantFile(Path path, TrajectoryType trajectoryType) {

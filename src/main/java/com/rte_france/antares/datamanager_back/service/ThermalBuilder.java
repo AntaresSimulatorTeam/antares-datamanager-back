@@ -7,6 +7,6 @@ import java.nio.file.Path;
 import java.util.List;
 @FunctionalInterface
 public interface ThermalBuilder {
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("squid:S1452")
     List<? extends ThermalBaseEntity> build(Path path) throws IOException;
 }
