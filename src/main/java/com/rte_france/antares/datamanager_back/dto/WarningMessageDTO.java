@@ -33,4 +33,7 @@ public class WarningMessageDTO {
 
     @JsonProperty("secondTrajectory")
     private String secondTrajectory;
+
+    @JsonProperty("isAck")
+    private Boolean isAck;
 }

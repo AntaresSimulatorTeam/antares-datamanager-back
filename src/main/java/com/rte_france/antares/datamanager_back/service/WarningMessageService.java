@@ -7,4 +7,6 @@ public interface WarningMessageService {
 
     String getNotFoundMessage();
 
-}
+    void acknowledgeWarning(Integer id);
+
+    }
