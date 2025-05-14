@@ -27,7 +27,7 @@ class TrajectoryRepositoryTest {
     @Test
     void findFirstByFileNameOrderByVersionDesc_returnsTrajectoryEntity() {
 
-        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("testFile.txt", "2023-2024");
+        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("testFile.txt", "2023-2024", "AREA");
 
         assertThat(foundEntity).isPresent();
         assertThat(foundEntity.get().getFileName()).isEqualTo("testFile.txt");
@@ -36,7 +36,7 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findFirstByFileNameOrderByVersionDesc_returnsEmptyOptionalForNonExistentFile() {
-        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("nonExistentFile.txt", "2023-2024");
+        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("nonExistentFile.txt", "2023-2024", "AREA");
         assertThat(foundEntity).isNotPresent();
     }
 

@@ -92,7 +92,7 @@ class LinkFileProcessorServiceImplTest {
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
@@ -104,7 +104,7 @@ class LinkFileProcessorServiceImplTest {
     @Test
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
@@ -141,7 +141,7 @@ class LinkFileProcessorServiceImplTest {
         trajectory.setVersion(1);
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFile.xlsx", "2032-2033"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFile.xlsx", "2032-2033", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
 
@@ -284,7 +284,7 @@ class LinkFileProcessorServiceImplTest {
         trajectory.setVersion(1);
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
@@ -324,7 +324,7 @@ class LinkFileProcessorServiceImplTest {
         trajectory.setVersion(1);
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
@@ -366,7 +366,7 @@ class LinkFileProcessorServiceImplTest {
 
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
@@ -405,7 +405,7 @@ class LinkFileProcessorServiceImplTest {
         trajectory.setVersion(1);
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc("TestFileWar.xlsx", "2033-2034"))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
