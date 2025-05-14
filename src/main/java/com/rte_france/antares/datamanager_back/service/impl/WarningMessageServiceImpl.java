@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
@@ -36,7 +37,7 @@ public class WarningMessageServiceImpl implements WarningMessageService {
 
     public void acknowledgeWarning(Integer id) {
         WarningMessageEntity warning = warningMessageRepository.findById(id)
-                .orElseThrow(() ->  BusinessException.builder().message("Warning message not found with id: " + id).build());
+                .orElseThrow(() ->  BusinessException.builder().message("Warning message not found with id: " + id).httpStatus(HttpStatus.NOT_FOUND).build());
         warning.setIsAck(true);
         warningMessageRepository.save(warning);
     }
