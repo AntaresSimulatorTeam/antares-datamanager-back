@@ -1,6 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,7 @@ import java.util.Locale;
 public class WarningMessageServiceImpl implements WarningMessageService {
 
     private final MessageSource messageSource;
+    private final WarningMessageRepository warningMessageRepository;
 
     @Override
     public String getMessage(String code, Object... args) {
@@ -28,5 +32,12 @@ public class WarningMessageServiceImpl implements WarningMessageService {
     @Override
     public String getNotFoundMessage() {
         return getMessage(WarningCode.DATA_NOT_FOUND.value());
+    }
+
+    public void acknowledgeWarning(Integer id) {
+        WarningMessageEntity warning = warningMessageRepository.findById(id)
+                .orElseThrow(() ->  BusinessException.builder().message("Warning message not found with id: " + id).build());
+        warning.setIsAck(true);
+        warningMessageRepository.save(warning);
     }
 }

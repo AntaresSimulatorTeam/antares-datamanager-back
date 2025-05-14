@@ -33,6 +33,7 @@ public class WarningMessageMapper {
                 .generatedAt(entity.getCreationDate())
                 .generatedBy(entity.getCreatedBy())
                 .secondTrajectory(entity.getSecondTrajectory() != null ? entity.getSecondTrajectory().getFileName() : null)
+                .isAck(entity.getIsAck())
                 .build();
     }
 
