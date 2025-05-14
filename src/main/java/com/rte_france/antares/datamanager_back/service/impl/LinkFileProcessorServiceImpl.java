@@ -75,6 +75,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<LinkEntity> listLink = buildLinkList(path, horizon, areaNames);
 
         TrajectoryEntity trajectory;
+        log.info("trajectoryEntity.isPresent() : " + trajectoryEntity.isPresent());
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
             trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.LINK);
         } else {
