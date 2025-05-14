@@ -66,11 +66,15 @@ public class Utils {
 
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+        log.info("check isSameFileWithSameContent");
+        log.info("changed file name : {}", getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()));
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+        log.info("check isSameFileWithDifferentContent");
+        log.info("changed file name : {}", getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()));
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && !trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
     }
@@ -141,32 +145,39 @@ public class Utils {
             log.info("File already processed but with different content : {}", path.getFileName());
             return true;
         } else if (isSameFileWithSameContent(path, trajectoryEntity)) {
+            log.info("check isSameFileWithSameContent");
             throw BusinessException.builder()
                     .message("File already processed  with same content : {0}")
                     .errorMessageArguments(List.of(path.getFileName().toString()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+        log.info("checkTrajectoryVersion return false");
         return false;
     }
 
     public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
-            throw  TechnicalException.builder().message("Empty fileName").build();
+            throw TechnicalException.builder().message("Empty fileName").build();
         }
         String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX :
                 isLinkTypePrefix(trajectoryType);
-
+        log.info("prefix:" + prefix);
         if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
             fileName = fileName.substring(prefix.length());
+            log.info("fileName 1:" + fileName);
+
         }
         var lastDotIndex = fileName.lastIndexOf('.');
-        if (lastDotIndex <= 0) { // takes into account files with already no extension or hidden files (.gitignore)
+        if (lastDotIndex <= 0) {
+            log.info("fileName 2:" + fileName);
+// takes into account files with already no extension or hidden files (.gitignore)
             return fileName;
         }
-
-        return fileName.substring(0, lastDotIndex);
+        var lastUnderscoreIndex = fileName.substring(0, lastDotIndex);
+        log.info("getFileNameWithoutExtensionAndWithoutPrefix:" + lastUnderscoreIndex);
+        return lastUnderscoreIndex;
     }
 
     private static String isLinkTypePrefix(String trajectoryType) {
