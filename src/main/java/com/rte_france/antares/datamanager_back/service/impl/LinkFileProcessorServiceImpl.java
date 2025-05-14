@@ -65,8 +65,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon, TrajectoryType.LINK.name());
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
 
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name()), horizon
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name()), horizon, TrajectoryType.LINK.name()
         );
         String createdBy = userService.getCurrentUserDetails().getNni();
 
@@ -75,7 +75,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<LinkEntity> listLink = buildLinkList(path, horizon, areaNames);
 
         TrajectoryEntity trajectory;
-        log.info("trajectoryEntity.isPresent() : " + trajectoryEntity.isPresent());
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
             trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.LINK);
         } else {

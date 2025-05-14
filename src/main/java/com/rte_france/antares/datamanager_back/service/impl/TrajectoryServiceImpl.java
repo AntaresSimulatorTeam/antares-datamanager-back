@@ -119,7 +119,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
-                .findFirstByFileNameAndHorizonOrderByVersionDesc(trajectoryToUse, horizon);
+                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD.name());
 
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();

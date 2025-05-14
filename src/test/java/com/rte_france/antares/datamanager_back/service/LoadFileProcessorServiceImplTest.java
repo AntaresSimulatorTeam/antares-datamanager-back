@@ -65,7 +65,7 @@ class LoadFileProcessorServiceImplTest {
         Files.writeString(tempFile, "This is the content to be written to the file.");
         var trajectoryEntity = new TrajectoryEntity();
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
         when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
         when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
 
@@ -82,7 +82,7 @@ class LoadFileProcessorServiceImplTest {
         Files.createFile(tempFile);
         Files.writeString(tempFile, "This is the content to be written to the file.");
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(anyString(), anyString())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
         when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
         when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
 

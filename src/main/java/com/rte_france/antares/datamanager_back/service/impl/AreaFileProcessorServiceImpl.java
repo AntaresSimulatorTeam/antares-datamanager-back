@@ -49,7 +49,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon, TrajectoryType.AREA.name());
         AreasValidator.validateAreaColumns(path, horizon);
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.AREA.name());
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(fileName, horizon);
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, TrajectoryType.AREA.name());
 
         String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)

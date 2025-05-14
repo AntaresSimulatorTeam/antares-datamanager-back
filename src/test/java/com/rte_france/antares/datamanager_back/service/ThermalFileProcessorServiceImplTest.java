@@ -137,7 +137,7 @@ class ThermalFileProcessorServiceImplTest {
         var tempFile = mockExcelFile(tempDir, THERMAL_CAPACITY_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCapacityExcelFile);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(),any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
         var horizon = "2023-2024";
         thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, TrajectoryType.THERMAL_CAPACITY);
 
@@ -148,7 +148,7 @@ class ThermalFileProcessorServiceImplTest {
     void processThermalCapacityFile_whenTrajectoryDoesNotExist(@TempDir Path tempDir) throws Exception {
         var tempFile = mockExcelFile(tempDir, THERMAL_CAPACITY_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCapacityExcelFile);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
         var horizon = "2023-2024";
         thermalFileProcessorService.processThermalFile(tempFile, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, TrajectoryType.THERMAL_PARAMETER);
 
@@ -171,7 +171,7 @@ class ThermalFileProcessorServiceImplTest {
                 .build();
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME + ".xlsx", horizon))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME + ".xlsx", horizon, TrajectoryType.THERMAL_PARAMETER.name()))
                 .thenReturn(Optional.of(expectedTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(expectedTrajectory);
 
@@ -180,7 +180,7 @@ class ThermalFileProcessorServiceImplTest {
 
         // Then
         verify(trajectoryRepository, times(1))
-                .findFirstByFileNameAndHorizonOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME, horizon);
+                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(THERMAL_PARAMETERS_FILE_NAME, horizon, TrajectoryType.THERMAL_PARAMETER.name());
 
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
 
@@ -192,7 +192,7 @@ class ThermalFileProcessorServiceImplTest {
         var tempFile = mockExcelFile(tempDir, THERMAL_COSTS_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCostExcelFile);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.of(trajectoryEntity));
         String horizon = "2025";
 
         // When
@@ -207,7 +207,7 @@ class ThermalFileProcessorServiceImplTest {
         // Given
         var tempFile = mockExcelFile(tempDir, THERMAL_COSTS_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCostExcelFile);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonOrderByVersionDesc(any(), any())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
         String horizon = "2025";
 
         // When
