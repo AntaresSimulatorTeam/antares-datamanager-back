@@ -336,7 +336,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
         return trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
-                .map(TrajectoryMapper::toTrajectoryDTO)
+                .map(trajectory -> {
+                    trajectory.setWarningMessages(
+                            trajectory.getWarningMessages().stream()
+                                    .filter(warning -> warning.getStudy().getId().equals(studyId))
+                                    .collect(Collectors.toSet())
+                    );
+                    return TrajectoryMapper.toTrajectoryDTO(trajectory);
+                })
                 .toList();
     }
 
