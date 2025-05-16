@@ -335,17 +335,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
-        return trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
-                .map(trajectory -> {
-                    trajectory.setWarningMessages(
-                            trajectory.getWarningMessages().stream()
-                                    .filter(warning -> warning.getStudy().getId().equals(studyId))
-                                    .collect(Collectors.toSet())
-                    );
-                    return TrajectoryMapper.toTrajectoryDTO(trajectory);
-                })
-                .toList();
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
+                .peek(trajectory ->
+                        trajectory.setWarningMessages(getWarningMessages(studyId, trajectory))).toList();
+        return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
+
+    private static LinkedHashSet<WarningMessageEntity> getWarningMessages(Integer studyId, TrajectoryEntity trajectory) {
+        return trajectory.getWarningMessages().stream()
+                .filter(warning -> warning.getStudy().getId().equals(studyId))
+                .sorted(Comparator
+                        .comparing(WarningMessageEntity::getIsAck) // ack = true d'abord
+                        .thenComparing(WarningMessageEntity::getCreationDate, Comparator.reverseOrder()) // tri décroissant par date
+                )
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
 
     private String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String thermalCapacityArea) {
         return switch (trajectoryType) {

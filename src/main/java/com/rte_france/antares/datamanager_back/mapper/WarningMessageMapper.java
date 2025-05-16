@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Value
@@ -21,7 +21,7 @@ public class WarningMessageMapper {
         }
         return entities.stream()
                 .map(WarningMessageMapper::toWarningMessageDTO)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new)); // préserve l'ordre
     }
 
     static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
