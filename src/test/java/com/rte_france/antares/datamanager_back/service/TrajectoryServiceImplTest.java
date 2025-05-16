@@ -1,10 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
@@ -25,6 +22,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -481,5 +479,81 @@ class TrajectoryServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
     }
+    @Test
+    void findTrajectoriesByTypeAndStudyId_returnsSortedWarningsByAckAndDate() {
+        Integer studyId = 1;
+        String trajectoryType = "AREA";
 
+        WarningMessageEntity warning1 = WarningMessageEntity.builder()
+                .isAck(false)
+                .creationDate(LocalDateTime.of(2023, 10, 1, 10, 0))
+                .study(StudyEntity.builder().id(studyId).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .build();
+
+        WarningMessageEntity warning2 = WarningMessageEntity.builder()
+                .isAck(true)
+                .creationDate(LocalDateTime.of(2023, 10, 2, 10, 0))
+                .study(StudyEntity.builder().id(studyId).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .build();
+
+        WarningMessageEntity warning3 = WarningMessageEntity.builder()
+                .isAck(false)
+                .creationDate(LocalDateTime.of(2023, 10, 3, 10, 0))
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .study(StudyEntity.builder().id(studyId).build())
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(trajectoryType)
+                .warningMessages(Set.of(warning1, warning2, warning3))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId)).thenReturn(List.of(trajectory));
+
+        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
+
+        assertEquals(1, result.size());
+        Set<WarningMessageDTO> sortedWarnings = result.getFirst().getMessages();
+        assertEquals(3, sortedWarnings.size());
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndStudyId_filtersWarningsByStudyId() {
+        Integer studyId = 1;
+        String trajectoryType = "LINK";
+
+        WarningMessageEntity warning1 = WarningMessageEntity.builder()
+                .isAck(true)
+                .creationDate(LocalDateTime.of(2023, 10, 1, 10, 0))
+                .study(StudyEntity.builder().id(studyId).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .build();
+
+        WarningMessageEntity warning2 = WarningMessageEntity.builder()
+                .isAck(false)
+                .creationDate(LocalDateTime.of(2023, 10, 2, 10, 0))
+                .study(StudyEntity.builder().id(2).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(trajectoryType)
+                .warningMessages(Set.of(warning1, warning2))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId)).thenReturn(List.of(trajectory));
+
+        List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
+
+        assertEquals(1, result.size());
+        Set<WarningMessageDTO> filteredWarnings = result.getFirst().getMessages();
+        assertEquals(1, filteredWarnings.size());
+    }
 }
