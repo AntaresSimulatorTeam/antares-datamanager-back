@@ -22,11 +22,6 @@ public class BusinessException extends AntaresException {
                 httpStatus);
     }
 
-    public String getFormattedMessage() {
-        return MessageFormat.format(getMessage(), getErrorMessageArguments().toArray());
-    }
-
-
     private static List<String> truncateMessageArguments(List<String> arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return arguments;

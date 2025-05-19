@@ -81,11 +81,29 @@ public class LinksValidator {
         Set<String> notIntegerLinks = new LinkedHashSet<>();
         Set<String> negativeLinks = new LinkedHashSet<>();
 
-        for (int rowIndex = 1; rowIndex < sheet.getPhysicalNumberOfRows(); rowIndex++) {
+        int lastRowNum = sheet.getLastRowNum();
+
+        for (int rowIndex = 1; rowIndex <= lastRowNum; rowIndex++) {
             Row row = sheet.getRow(rowIndex);
             if (row == null) continue;
 
-            validateCell(row, nameColumnIndex, columnIndex, notNumericLinks, notIntegerLinks, negativeLinks);
+            Cell nameCell = row.getCell(nameColumnIndex);
+            if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
+                String linkName = nameCell.getStringCellValue().trim();
+                if (!linkName.isEmpty()) {
+                    Cell valueCell = row.getCell(columnIndex);
+                    if (valueCell == null || valueCell.getCellType() != CellType.NUMERIC) {
+                        notNumericLinks.add(linkName);
+                    } else {
+                        double value = valueCell.getNumericCellValue();
+                        if (value < 0) {
+                            negativeLinks.add(linkName);
+                        } else if (value % 1 != 0) {
+                            notIntegerLinks.add(linkName);
+                        }
+                    }
+                }
+            }
         }
 
         if (!notNumericLinks.isEmpty()) {
@@ -96,26 +114,6 @@ public class LinksValidator {
         }
         if (!negativeLinks.isEmpty()) {
             negativeValuesByColumn.put(columnName, negativeLinks);
-        }
-    }
-
-    private static void validateCell(Row row, int nameColumnIndex, int columnIndex,
-                                     Set<String> notNumericLinks, Set<String> notIntegerLinks, Set<String> negativeLinks) {
-        Cell nameCell = row.getCell(nameColumnIndex);
-        Cell valueCell = row.getCell(columnIndex);
-
-        if (nameCell != null) {
-            String linkName = nameCell.getStringCellValue();
-            if (valueCell == null || valueCell.getCellType() != CellType.NUMERIC) {
-                notNumericLinks.add(linkName);
-            } else {
-                double value = valueCell.getNumericCellValue();
-                if (value < 0) {
-                    negativeLinks.add(linkName);
-                } else if (value % 1 != 0) {
-                    notIntegerLinks.add(linkName);
-                }
-            }
         }
     }
 
@@ -133,25 +131,25 @@ public class LinksValidator {
         }
     }
 
-        private static void throwFormatError(Map<String, Set<String>> notNumericByColumn) {
-            String columnNames = notNumericByColumn.keySet().stream()
-                    .sorted()
-                    .collect(Collectors.joining(", "));
+    private static void throwFormatError(Map<String, Set<String>> notNumericByColumn) {
+        String columnNames = notNumericByColumn.keySet().stream()
+                .sorted()
+                .collect(Collectors.joining(", "));
 
-            String linkNames = notNumericByColumn.values().stream()
-                    .flatMap(Set::stream)
-                    .distinct()
-                    .sorted()
-                    .collect(Collectors.joining(", "));
+        String linkNames = notNumericByColumn.values().stream()
+                .flatMap(Set::stream)
+                .distinct()
+                .sorted()
+                .collect(Collectors.joining(", "));
 
-            throw BusinessException.builder()
-                    .message("Waiting for Numeric Value(s) in column(s) {0} for link(s) {1} in LINK trajectory")
-                    .errorMessageArguments(List.of(columnNames, linkNames))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        throw BusinessException.builder()
+                .message("Waiting for Numeric Value(s) in column(s) {0} for link(s) {1} in LINK trajectory")
+                .errorMessageArguments(List.of(columnNames, linkNames))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
 
-        private static void throwNotIntegerError(Map<String, Set<String>> notIntegerByColumn) {
+    private static void throwNotIntegerError(Map<String, Set<String>> notIntegerByColumn) {
             String columnNames = notIntegerByColumn.keySet().stream()
                     .sorted()
                     .collect(Collectors.joining(", "));
@@ -163,7 +161,7 @@ public class LinksValidator {
                     .collect(Collectors.joining(", "));
 
             throw BusinessException.builder()
-                    .message("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) in {1} LINK trajectory")
+                    .message("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) {1} in LINK trajectory")
                     .errorMessageArguments(List.of(columnNames, linkNames))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -181,7 +179,7 @@ public class LinksValidator {
                     .collect(Collectors.joining(", "));
 
             throw BusinessException.builder()
-                    .message("Waiting for Positive Value(s) in column(s) {0} for link(s) in {1} LINK trajectory")
+                    .message("Waiting for Positive Value(s) in column(s) {0} for link(s) {1} in LINK trajectory")
                     .errorMessageArguments(List.of(columnNames, linkNames))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -222,42 +220,41 @@ public class LinksValidator {
         return findZeroValues(path, horizon, columns);
     }
 
-private static List<String> findZeroValues(Path path, String horizon, List<String> columns) {
-    List<String> isolatedLinks = new ArrayList<>();
+    private static List<String> findZeroValues(Path path, String horizon, List<String> columns) {
+        List<String> isolatedLinks = new ArrayList<>();
 
-    try (InputStream inputStream = Files.newInputStream(path);
-         Workbook workbook = WorkbookFactory.create(inputStream)) {
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-        Sheet sheet = workbook.getSheet(horizon);
-        Set<String> processedLinks = new HashSet<>();
+            Sheet sheet = workbook.getSheet(horizon);
+            Set<String> processedLinks = new HashSet<>();
+            int lastRowNum = sheet.getLastRowNum();
 
-        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
-            Row row = sheet.getRow(i);
-
-            if (row != null && hasOnlyZeroValues(row, sheet, columns, horizon)) {
-                Cell nameCell = row.getCell(0);
-                if (nameCell != null) {
-                    String linkName = nameCell.getStringCellValue();
-                    if (!processedLinks.contains(linkName)) {
-                        isolatedLinks.add(linkName);
-                        processedLinks.add(linkName);
+            for (int i = 1; i <= lastRowNum; i++) {
+                Row row = sheet.getRow(i);
+                if (row != null) {
+                    Cell nameCell = row.getCell(0);
+                    if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
+                        String linkName = nameCell.getStringCellValue().trim();
+                        if (!linkName.isEmpty() && !processedLinks.contains(linkName) &&
+                                hasOnlyZeroValues(row, sheet, columns, horizon)) {
+                            isolatedLinks.add(linkName);
+                            processedLinks.add(linkName);
+                        }
                     }
                 }
             }
+
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .message("Could not check columns in file:  {0}")
+                    .errorMessageArguments(List.of(path.getFileName().toString()))
+                    .cause(e.getCause())
+                    .build();
         }
 
-    } catch (IOException e) {
-        throw TechnicalException.builder()
-                .message("Could not check columns in file:  {0}")
-                .errorMessageArguments(List.of(path.getFileName().toString()))
-                .cause(e.getCause())
-                .build();
+        return isolatedLinks;
     }
-
-    return isolatedLinks;
-}
-
-
 
 
     /**

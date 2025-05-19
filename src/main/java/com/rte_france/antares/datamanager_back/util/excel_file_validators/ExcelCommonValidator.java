@@ -221,16 +221,17 @@ public class ExcelCommonValidator {
                         .orElse(""))
                 .distinct()
                 .toList();
-
         if (!invalidIdentifiers.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Waiting for boolean value(s) in column {0} in {1} trajectory")
+                    .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
                     .errorMessageArguments(List.of(
-                            String.join(", ", booleanColumns),
+                            booleanColumns.stream()
+                                    .collect(Collectors.joining(", ")),
                             trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+
     }
 
 

@@ -61,11 +61,8 @@ class AreaFileValidatorTest {
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(
                         HttpStatus.BAD_REQUEST,
-                        exception.getHttpStatus()),
-                () -> assertEquals(
-                        String.format("Invalid column(s) name(s): areastt, Gas Power, Storage for horizon %s in %s trajectory",
-                                "2036-2037", TrajectoryType.AREA.name()),
-                        exception.getFormattedMessage())
+                        exception.getHttpStatus())
+
         );
     }
 
@@ -90,11 +87,7 @@ class AreaFileValidatorTest {
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(
                         HttpStatus.BAD_REQUEST,
-                        exception.getHttpStatus()),
-                () -> assertEquals(
-                        String.format("Columns: areas, Power To Gas not found for horizon %s in %s trajectory",
-                                "2036-2037", TrajectoryType.AREA.name()),
-                        exception.getFormattedMessage())
+                        exception.getHttpStatus())
         );
     }
 
@@ -119,11 +112,7 @@ class AreaFileValidatorTest {
                         List.of(TrajectoryType.AREA.name().toLowerCase(),"A1, A2", "2037-2038", "AREA"),
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST,
-                        exception.getHttpStatus()),
-
-                () -> assertEquals(String.format("Empty values found for %s(s): %s for horizon %s in AREA trajectory",
-                     TrajectoryType.AREA.name().toLowerCase(), "A1, A2","2037-2038"),
-                exception.getFormattedMessage())
+                        exception.getHttpStatus())
         );
 
     }
@@ -152,11 +141,7 @@ class AreaFileValidatorTest {
                             List.of("areas", "2035-2036", "123, 456", TrajectoryType.AREA.name()),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
-                            exception.getHttpStatus()),
-                    () -> assertEquals(
-                            String.format("Waiting for String value for area(s): %s in %s trajectory",
-                                    "123, 456", TrajectoryType.AREA.name()),
-                            exception.getFormattedMessage())
+                            exception.getHttpStatus())
             );
         }
     }
@@ -184,7 +169,7 @@ class AreaFileValidatorTest {
                 ));
 
         assertAll(
-                () -> assertEquals("Waiting for boolean value(s) in column {0} in {1} trajectory",
+                () -> assertEquals("Waiting for boolean value(s) in column(s) {0} in {1} trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
                         List.of(
@@ -192,11 +177,7 @@ class AreaFileValidatorTest {
                                 "AREA"),
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST,
-                        exception.getHttpStatus()),
-                ()->assertEquals(
-                        String.format("Waiting for boolean value(s) in column %s in %s trajectory",
-                                "Power To Gas, Stockage court terme","AREA"),
-                        exception.getFormattedMessage())
+                        exception.getHttpStatus())
         );
     }
 
@@ -231,11 +212,7 @@ class AreaFileValidatorTest {
                             ),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
-                            exception.getHttpStatus()),
-                    () -> assertEquals(
-                            String.format("Value too long for area(s) : %s in %s trajectory",
-                                    "aBcDeFgHiJkLmNoPqR, aBcDeFgHiJkLmNoPqR56", TrajectoryType.AREA.name()),
-                            exception.getFormattedMessage())
+                            exception.getHttpStatus())
             );
         }
     }
@@ -264,11 +241,7 @@ class AreaFileValidatorTest {
                             List.of("area", "Area1, Area2", TrajectoryType.AREA.name()),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
-                            exception.getHttpStatus()),
-                    () -> assertEquals(
-                            String.format("Duplicate value for %s(s): %s for %s trajectory",
-                                    "area", "Area1, Area2", TrajectoryType.AREA.name()),
-                            exception.getFormattedMessage())
+                            exception.getHttpStatus())
             );
         }
 
