@@ -42,7 +42,7 @@ class AreaFileValidatorTest {
 
     @Test
     void shouldFailWhenColumnNamesAreInvalid() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFile( tempDir,"InvalidColumns.xlsx", "2036-2037",
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidColumns.xlsx", "2036-2037",
                 List.of("areastt", "Gas Power", "Storage", "x", "y", "r", "g", "b"),
                 List.of(
                         List.of("Area1", "false", "true", "131", "425", "125", "230", "125")
@@ -53,12 +53,49 @@ class AreaFileValidatorTest {
                 ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037", TrajectoryType.AREA.name()));
 
         assertAll(
-                () -> assertEquals("Columns: areas, Power To Gas, Stockage court terme not found. Invalid columns names: areastt, Gas Power, Storage for horizon '{0}' in {1} trajectory",
+                () -> assertEquals(
+                        "Invalid column(s) name(s): areastt, Gas Power, Storage for horizon {0} in {1} trajectory",
                         exception.getMessage()),
-                () -> assertEquals(List.of("2036-2037", TrajectoryType.AREA.name()),
-                        exception.getErrorMessageArguments())
+                () -> assertEquals(
+                        List.of("2036-2037", TrajectoryType.AREA.name()),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(
+                        HttpStatus.BAD_REQUEST,
+                        exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Invalid column(s) name(s): areastt, Gas Power, Storage for horizon %s in %s trajectory",
+                                "2036-2037", TrajectoryType.AREA.name()),
+                        exception.getFormattedMessage())
+        );
+    }
+
+    @Test
+    void shouldFailWhenColumnAreMissing() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidColumns.xlsx", "2036-2037",
+                List.of("", "", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "false", "true", "131", "425", "125", "230", "125")
+                )
         );
 
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2036-2037", TrajectoryType.AREA.name()));
+
+        assertAll(
+                () -> assertEquals(
+                        "Columns: areas, Power To Gas not found for horizon {0} in {1} trajectory",
+                        exception.getMessage()),
+                () -> assertEquals(
+                        List.of("2036-2037", TrajectoryType.AREA.name()),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(
+                        HttpStatus.BAD_REQUEST,
+                        exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Columns: areas, Power To Gas not found for horizon %s in %s trajectory",
+                                "2036-2037", TrajectoryType.AREA.name()),
+                        exception.getFormattedMessage())
+        );
     }
 
     @Test
@@ -82,7 +119,11 @@ class AreaFileValidatorTest {
                         List.of(TrajectoryType.AREA.name().toLowerCase(),"A1, A2", "2037-2038", "AREA"),
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST,
-                        exception.getHttpStatus())
+                        exception.getHttpStatus()),
+
+                () -> assertEquals(String.format("Empty values found for %s(s): %s for horizon %s in AREA trajectory",
+                     TrajectoryType.AREA.name().toLowerCase(), "A1, A2","2037-2038"),
+                exception.getFormattedMessage())
         );
 
     }
@@ -105,13 +146,17 @@ class AreaFileValidatorTest {
                     () -> ExcelCommonValidator.checkStringColumns(sheet, "2035-2036", "areas", TrajectoryType.AREA.name()));
 
             assertAll(
-                    () -> assertEquals("Waiting for String value for area(s): {3} in {4} trajectory",
+                    () -> assertEquals("Waiting for String value for area(s): {2} in {3} trajectory",
                             exception.getMessage()),
                     () -> assertIterableEquals(
                             List.of("areas", "2035-2036", "123, 456", TrajectoryType.AREA.name()),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
-                            exception.getHttpStatus())
+                            exception.getHttpStatus()),
+                    () -> assertEquals(
+                            String.format("Waiting for String value for area(s): %s in %s trajectory",
+                                    "123, 456", TrajectoryType.AREA.name()),
+                            exception.getFormattedMessage())
             );
         }
     }
@@ -139,16 +184,19 @@ class AreaFileValidatorTest {
                 ));
 
         assertAll(
-                () -> assertEquals("Waiting for boolean value(s) in column {0} for {1}(s): in {2} trajectory",
+                () -> assertEquals("Waiting for boolean value(s) in column {0} in {1} trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
                         List.of(
                                 "Power To Gas, Stockage court terme",
-                                "Area2, Area3",
                                 "AREA"),
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST,
-                        exception.getHttpStatus())
+                        exception.getHttpStatus()),
+                ()->assertEquals(
+                        String.format("Waiting for boolean value(s) in column %s in %s trajectory",
+                                "Power To Gas, Stockage court terme","AREA"),
+                        exception.getFormattedMessage())
         );
     }
 
@@ -183,7 +231,11 @@ class AreaFileValidatorTest {
                             ),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
-                            exception.getHttpStatus())
+                            exception.getHttpStatus()),
+                    () -> assertEquals(
+                            String.format("Value too long for area(s) : %s in %s trajectory",
+                                    "aBcDeFgHiJkLmNoPqR, aBcDeFgHiJkLmNoPqR56", TrajectoryType.AREA.name()),
+                            exception.getFormattedMessage())
             );
         }
     }
@@ -212,7 +264,11 @@ class AreaFileValidatorTest {
                             List.of("area", "Area1, Area2", TrajectoryType.AREA.name()),
                             exception.getErrorMessageArguments()),
                     () -> assertEquals(HttpStatus.BAD_REQUEST,
-                            exception.getHttpStatus())
+                            exception.getHttpStatus()),
+                    () -> assertEquals(
+                            String.format("Duplicate value for %s(s): %s for %s trajectory",
+                                    "area", "Area1, Area2", TrajectoryType.AREA.name()),
+                            exception.getFormattedMessage())
             );
         }
 

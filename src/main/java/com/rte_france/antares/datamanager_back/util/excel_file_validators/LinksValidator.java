@@ -145,7 +145,7 @@ public class LinksValidator {
                     .collect(Collectors.joining(", "));
 
             throw BusinessException.builder()
-                    .message("Waiting for Numeric Value(s) in column(s) {0} for link(s) in {1} LINK trajectory")
+                    .message("Waiting for Numeric Value(s) in column(s) {0} for link(s) {1} in LINK trajectory")
                     .errorMessageArguments(List.of(columnNames, linkNames))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -189,12 +189,6 @@ public class LinksValidator {
 
 
 
-
-
-
-
-
-
         /**
          * @param path    trajectory file
          * @param horizon make error clearer
@@ -228,39 +222,43 @@ public class LinksValidator {
         return findZeroValues(path, horizon, columns);
     }
 
-    private static List<String> findZeroValues(Path path, String horizon, List<String> columns) {
-        List<String> parametersForWarnings = new ArrayList<>();
+private static List<String> findZeroValues(Path path, String horizon, List<String> columns) {
+    List<String> isolatedLinks = new ArrayList<>();
 
-        try (InputStream inputStream = Files.newInputStream(path);
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
+    try (InputStream inputStream = Files.newInputStream(path);
+         Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheet(horizon);
-            Set<String> warningLocations = new HashSet<>();
+        Sheet sheet = workbook.getSheet(horizon);
+        Set<String> processedLinks = new HashSet<>();
 
+        for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
+            Row row = sheet.getRow(i);
 
-            for (int i = 1; i < sheet.getPhysicalNumberOfRows(); i++) {
-                Row row = sheet.getRow(i);
-
-                if (row != null && hasOnlyZeroValues(row, sheet, columns, horizon)) {
-
-                    String location = String.format("%d,%d", i + 1, 0);
-                    if (!warningLocations.contains(location)) {
-                        parametersForWarnings.add(String.format("%d,%d,%s", i + 1, 1, path.getFileName()));
-                        warningLocations.add(location);
+            if (row != null && hasOnlyZeroValues(row, sheet, columns, horizon)) {
+                Cell nameCell = row.getCell(0);
+                if (nameCell != null) {
+                    String linkName = nameCell.getStringCellValue();
+                    if (!processedLinks.contains(linkName)) {
+                        isolatedLinks.add(linkName);
+                        processedLinks.add(linkName);
                     }
                 }
             }
-
-        } catch (IOException e) {
-            throw TechnicalException.builder()
-                    .message("Could not check columns in file:  {0}")
-                    .errorMessageArguments(List.of(path.getFileName().toString()))
-                    .cause(e.getCause())
-                    .build();
         }
 
-        return parametersForWarnings;
+    } catch (IOException e) {
+        throw TechnicalException.builder()
+                .message("Could not check columns in file:  {0}")
+                .errorMessageArguments(List.of(path.getFileName().toString()))
+                .cause(e.getCause())
+                .build();
     }
+
+    return isolatedLinks;
+}
+
+
+
 
     /**
      * @param path                  trajectory file
@@ -289,7 +287,7 @@ public class LinksValidator {
                         String area2 = parts[1].trim();
 
                         if (area1.compareTo(area2) > 0 && areasSavedForScenario.contains(area1) && areasSavedForScenario.contains(area2)) {
-                            parametersForWarnings.add(String.format("%s,%d,%d,%s", value, row.getRowNum() + 1, columnIndex + 1, path.getFileName()));
+                            parametersForWarnings.add(value);
                         }
                     }
                 }

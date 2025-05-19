@@ -51,7 +51,11 @@ class LinksValidatorTest {
                         Arrays.asList("link", "Area1-Area2", TrajectoryType.LINK.name()),
                         exception.getErrorMessageArguments()),
 
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
+        () -> assertEquals(
+                String.format("Duplicate value for %s(s): %s for %s trajectory",
+                        "link","Area1-Area2", TrajectoryType.LINK.name()),
+                exception.getFormattedMessage())
         );
     }
 
@@ -78,7 +82,11 @@ class LinksValidatorTest {
                         Arrays.asList("2030-2031", TrajectoryType.LINK.name(), "Area3-Area4, Area4-Area3"),
                         exception.getErrorMessageArguments()),
 
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Duplicate value in column Name for horizon %s in %s trajectory. Values: %s are considered identical",
+                                "2030-2031", TrajectoryType.LINK.name(),  "Area3-Area4, Area4-Area3"),
+                        exception.getFormattedMessage())
         );
     }
     @Test
@@ -86,9 +94,9 @@ class LinksValidatorTest {
 
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
                 List.of("name", "winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
-                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_nb_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
-                        "Summer_HC_Direct_MW", "Summer_hc_Indirect_MW",
+                        "rosa_Direct_MW", "Summer_hc_Indirect_MW",
                         "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
                 List.of(
                         List.of("Area1/Area2", 100, 200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
@@ -160,13 +168,17 @@ class LinksValidatorTest {
         );
 
         assertAll(
-                () -> assertEquals("Waiting for Numeric Value(s) in column(s) {0} for link(s) in {1} LINK trajectory",
+                () -> assertEquals("Waiting for Numeric Value(s) in column(s) {0} for link(s) {1} in LINK trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
                         Arrays.asList("Winter_HC_Direct_MW, Winter_HP_Direct_MW, Winter_HP_Indirect_MW", "ES-FR, ES-IT"),
                         exception.getErrorMessageArguments()),
 
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Waiting for Numeric Value(s) in column(s) %s for link(s) %s in LINK trajectory",
+                                "Winter_HC_Direct_MW, Winter_HP_Direct_MW, Winter_HP_Indirect_MW","ES-FR, ES-IT"),
+                        exception.getFormattedMessage())
         );
 
     }
@@ -228,7 +240,11 @@ class LinksValidatorTest {
                         Arrays.asList("Winter_HC_Direct_MW, Winter_HP_Direct_MW", "ES-FR, ES-IT"),
                         exception.getErrorMessageArguments()),
 
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Waiting for Integer Value(s) (no decimal) in column(s) %s for link(s) in %s LINK trajectory",
+                                "Winter_HC_Direct_MW, Winter_HP_Direct_MW", "ES-FR, ES-IT"),
+                        exception.getFormattedMessage())
         );
 
     }
@@ -250,7 +266,6 @@ class LinksValidatorTest {
         List<String> parameterForWarning = LinksValidator.checkPowerColumnsForZeroValues(tempFile, "2030-2031");
 
         assertEquals(1, parameterForWarning.size());
-        assertTrue(parameterForWarning.get(0).contains("TestFile.xlsx"));
 
     }
 
@@ -272,7 +287,6 @@ class LinksValidatorTest {
 
 
         assertEquals(1, parameterForWarning.size());
-        assertTrue(parameterForWarning.get(0).contains("TestFile.xlsx"));
     }
 
     @Test
@@ -322,16 +336,19 @@ class LinksValidatorTest {
                 ));
 
         assertAll(
-                () -> assertEquals("Waiting for boolean value(s) in column {0} for {1}(s): in {2} trajectory",
+                () -> assertEquals("Waiting for boolean value(s) in column {0} in {1} trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
                         List.of(
                                 "Flowbased_perimeter, HVDC, Specific_TS, Forced_Outage_HVAC",
-                                "Link1-Link2, Link2-Link3",
                                 "LINK"
                         ),
                         exception.getErrorMessageArguments()),
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Waiting for boolean value(s) in column %s in %s trajectory",
+                                "Flowbased_perimeter, HVDC, Specific_TS, Forced_Outage_HVAC", "LINK"),
+                        exception.getFormattedMessage())
         );
     }
 

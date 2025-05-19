@@ -204,12 +204,14 @@ public class Utils {
     public void checkIfHorizonExist(Path path, String horizon, String trajectoryType) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            if (workbook.getSheet(horizon) == null)
+            if (workbook.getSheet(horizon) == null) {
                 throw BusinessException.builder()
-                        .message("Horizon {0} does not exist in the {1} trajectory file : {2}")
-                        .errorMessageArguments(List.of(horizon, trajectoryType, path.getFileName().toString()))
+                        .message("Horizon {0} does not exist in the {1} trajectory")
+                        .errorMessageArguments(List.of(horizon, trajectoryType))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
+            }
+
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("could not check if horizon exist : {0}")

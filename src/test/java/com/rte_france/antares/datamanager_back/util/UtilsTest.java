@@ -215,11 +215,16 @@ class UtilsTest {
                 () -> Utils.checkIfHorizonExist(tempFile, horizon, trajectoryType));
 
         assertAll(
-                () -> assertEquals("Horizon {0} does not exist in the {1} trajectory file : {2}",
+                () -> assertEquals("Horizon {0} does not exist in the {1} trajectory",
                         exception.getMessage()),
-                () -> assertEquals(List.of(horizon, trajectoryType, tempFile.getFileName().toString()),
+                () -> assertEquals(List.of(horizon, trajectoryType),
                         exception.getErrorMessageArguments()),
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
+                () -> assertEquals(
+                        String.format("Horizon %s does not exist in the %s trajectory",
+                                horizon, trajectoryType),
+                        exception.getFormattedMessage())
+
 
         );
     }
