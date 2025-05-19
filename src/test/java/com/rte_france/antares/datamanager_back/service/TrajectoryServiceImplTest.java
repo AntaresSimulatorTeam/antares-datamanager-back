@@ -144,7 +144,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // Then
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR", "test");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "test");
 
         assertEquals(1, result.size());
         assertEquals("areas_testFile.xlsx", result.get(0).getFileName());
@@ -154,7 +154,7 @@ class TrajectoryServiceImplTest {
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR", "area"));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "area"));
     }
 
     @Test
@@ -396,7 +396,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "FR", null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null);
 
         // Then
         assertEquals(1, result.size());
@@ -416,7 +416,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK, "FR", null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK, null);
 
         // Then
         assertEquals(0, result.size());
@@ -446,7 +446,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.getLoadEntities().size());
-        assertEquals("outputFileName", result.getLoadEntities().get(0).getOutPutFileName());
+        assertEquals("outputFileName", result.getLoadEntities().getFirst().getOutPutFileName());
         verify(loadFileProcessorService, times(1)).saveMatrixToNas(any());
     }
 

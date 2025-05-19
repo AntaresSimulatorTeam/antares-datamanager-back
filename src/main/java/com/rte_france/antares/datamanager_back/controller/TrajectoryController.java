@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,7 +29,6 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
-    private final LoadFileProcessorService loadFileProcessorService;
 
     @Operation(summary = "Get Trajectories by type and fileNameContains from Database ")
     @GetMapping(value = "/db")
@@ -51,7 +49,7 @@ public class TrajectoryController {
             @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid area name")String loadZone,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) throws TechnicalException {
 
-        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, loadZone, fileNameContains));
+        return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
     }
 
 
