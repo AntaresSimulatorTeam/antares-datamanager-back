@@ -68,7 +68,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         TrajectoryEntity savedTrajectory = saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
-        Path trajectoryPath = buildTrajectoryPath(area, trajectoryToUse);
+        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
         savedTrajectory.getLoadEntities().forEach(load -> {
             try {
                 String outputFileName = loadFileProcessorService.saveMatrixToNas(trajectoryPath.resolve(load.getFileName()));
@@ -115,7 +115,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .build());
 
         // Build and normalize the trajectory path
-        Path trajectoryPath = buildTrajectoryPath(area, trajectoryToUse);
+        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
 
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
@@ -143,7 +143,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     // Utility method to build trajectory path with checks
-    private Path buildTrajectoryPath(String area, String trajectoryToUse) {
+    private Path buildTrajectoryPath(String trajectoryToUse) {
         String nasDir = antaressDataManagerProperties.getNasDirectory();
         String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
         String loadDir = antaressDataManagerProperties.getLoadDirectory();
@@ -158,7 +158,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return Paths.get(nasDir)
                 .resolve(trajFilePath)
                 .resolve(loadDir)
-                .resolve("load_" + area.toUpperCase())
                 .resolve(trajectoryToUse)
                 .normalize();
     }
@@ -252,8 +251,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String loadZone, String fileNameContains) throws TechnicalException {
-        Path directory = normalizeAndValidateDirectory(trajectoryType, loadZone);
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String fileNameContains) throws TechnicalException {
+        Path directory = normalizeAndValidateDirectory(trajectoryType);
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> isRelevantFile(path, trajectoryType))
@@ -272,7 +271,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String loadZone) {
+    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType) {
         String basePath = antaressDataManagerProperties.getNasDirectory();
         String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
         Path baseDirectory = Path.of(basePath).resolve(subPath).normalize();
@@ -281,10 +280,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             baseDirectory = baseDirectory.resolve("");
         }
         String typePath = trajectoryType.name().toLowerCase();
-
-        if (trajectoryType == TrajectoryType.LOAD && loadZone != null) {
-            typePath += "/load_" + loadZone.toUpperCase();
-        }
 
 
         Path directory = baseDirectory.resolve(typePath);
