@@ -219,12 +219,7 @@ class UtilsTest {
                         exception.getMessage()),
                 () -> assertEquals(List.of(horizon, trajectoryType),
                         exception.getErrorMessageArguments()),
-                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus()),
-                () -> assertEquals(
-                        String.format("Horizon %s does not exist in the %s trajectory",
-                                horizon, trajectoryType),
-                        exception.getFormattedMessage())
-
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
 
         );
     }

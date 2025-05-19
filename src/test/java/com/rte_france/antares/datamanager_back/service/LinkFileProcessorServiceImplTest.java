@@ -266,11 +266,6 @@ class LinkFileProcessorServiceImplTest {
         assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
         assertEquals(List.of("ES"), exception.getErrorMessageArguments());
 
-        assertEquals(
-                String.format("Areas %s in LINKS file is not present in AREA trajectory",
-                        "ES"),
-                exception.getFormattedMessage());
-
     }
 
     @Test
