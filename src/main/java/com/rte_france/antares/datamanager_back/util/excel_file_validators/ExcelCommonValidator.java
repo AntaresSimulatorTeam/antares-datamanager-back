@@ -87,38 +87,41 @@ public class ExcelCommonValidator {
     }
 
     private static void validateColumns(ExcelFileType fileType, List<String> actualColumns, String horizon, String trajectoryType) {
-        List<String> missingColumns = fileType.checkColumnNames(actualColumns);
         List<String> expectedColumns = fileType.getColumnNames();
-        List<String> invalidColumns = actualColumns.stream()
-                .filter(actual -> !expectedColumns.contains(ExcelFileType.normalizeColumnName(actual)))
+
+        List<String> wrongColumnName = actualColumns.stream()
+                .filter(actual -> actual != null && !actual.trim().isEmpty() &&
+                        expectedColumns.stream()
+                                .noneMatch(expected -> expected.equalsIgnoreCase(actual)))
                 .toList();
 
-        if (!missingColumns.isEmpty() || !invalidColumns.isEmpty()) {
-            StringBuilder errorMessage = new StringBuilder();
+        List<String> missingColumns = expectedColumns.stream()
+                .filter(expected -> actualColumns.stream()
+                        .noneMatch(actual -> actual != null &&
+                                !actual.trim().isEmpty() &&
+                                expected.equalsIgnoreCase(actual)))
+                .toList();
 
-            if (!missingColumns.isEmpty()) {
-                errorMessage.append("Columns: ")
-                        .append(String.join(", ", missingColumns))
-                        .append(" not found");
-            }
-
-            if (!invalidColumns.isEmpty()) {
-                if (!missingColumns.isEmpty()) {
-                    errorMessage.append(". ");
-                }
-                errorMessage.append("Invalid columns names: ")
-                        .append(String.join(", ", invalidColumns));
-            }
-
-            errorMessage.append(" for horizon '{0}' in {1} trajectory");
-
+        if (!wrongColumnName.isEmpty()) {
             throw BusinessException.builder()
-                    .message(errorMessage.toString())
+                    .message("Invalid column(s) name(s): " + String.join(", ", wrongColumnName) +
+                            " for horizon {0} in {1} trajectory")
+                    .errorMessageArguments(List.of(horizon, trajectoryType))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        } else if (!missingColumns.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Columns: " + String.join(", ", missingColumns) +
+                            " not found for horizon {0} in {1} trajectory")
                     .errorMessageArguments(List.of(horizon, trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
+
+
+
+
 
     private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, String horizon, String trajectoryType) {
         Set<String> areaValues = new HashSet<>();
@@ -221,10 +224,9 @@ public class ExcelCommonValidator {
 
         if (!invalidIdentifiers.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Waiting for boolean value(s) in column {0} for {1}(s): in {2} trajectory")
+                    .message("Waiting for boolean value(s) in column {0} in {1} trajectory")
                     .errorMessageArguments(List.of(
                             String.join(", ", booleanColumns),
-                            String.join(", ", invalidIdentifiers),
                             trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -270,10 +272,11 @@ public class ExcelCommonValidator {
                 })
                 .toList();
 
+
         if (!invalidCells.isEmpty()) {
             throw BusinessException.builder()
                     .message(AREAS.equals(columnName) ?
-                            "Waiting for String value for area(s): {3} in {4} trajectory" :
+                            "Waiting for String value for area(s): {2} in {3} trajectory" :
                             "Column {0} errors in sheet {1} in file:{2}. Locations: {3}")
                     .errorMessageArguments(List.of(columnName, horizon, String.join(", ", invalidCells),trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -321,7 +324,7 @@ public class ExcelCommonValidator {
                 .filter(i -> columnName.equalsIgnoreCase(headerRow.getCell(i).getStringCellValue()))
                 .findFirst()
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Column {0} not found for horizon {1} in  trajectory: {2}")
+                        .message("Column {0} not found for horizon {1} in trajectory: {2}")
                         .errorMessageArguments(List.of(columnName, horizon, trajectoryType))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());

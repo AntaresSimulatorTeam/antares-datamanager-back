@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.http.HttpStatus;
 
+import java.text.MessageFormat;
 import java.util.List;
 
 @Getter
@@ -20,6 +21,11 @@ public class BusinessException extends AntaresException {
                 truncateMessageArguments(errorMessageArguments),
                 httpStatus);
     }
+
+    public String getFormattedMessage() {
+        return MessageFormat.format(getMessage(), getErrorMessageArguments().toArray());
+    }
+
 
     private static List<String> truncateMessageArguments(List<String> arguments) {
         if (arguments == null || arguments.isEmpty()) {

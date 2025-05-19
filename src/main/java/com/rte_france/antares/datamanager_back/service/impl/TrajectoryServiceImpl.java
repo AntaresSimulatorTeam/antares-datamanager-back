@@ -427,15 +427,37 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         warningMessageRepository.saveAll(warningMessageEntities);
     }
 
-    private void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
-        var listLink = trajectory.getLinkEntities();
-        List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
-        if (!areasSavedForScenario.isEmpty()) {
-            listLink.forEach(link -> linkFileProcessorService.validateLinkAreas(link.getName(), areasSavedForScenario));
-            TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
-            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
+public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
+    var listLink = trajectory.getLinkEntities();
+    List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
+    if (!areasSavedForScenario.isEmpty()) {
+
+        Set<String> allMissingAreas = new HashSet<>();
+        for (LinkEntity link : listLink) {
+            String[] areas = link.getName().split("-");
+            for (String area : areas) {
+                if (areasSavedForScenario.stream()
+                        .noneMatch(existingArea -> existingArea.equalsIgnoreCase(area))) {
+                    allMissingAreas.add(area);
+                }
+            }
         }
+
+        if (!allMissingAreas.isEmpty()) {
+            String missingAreasString = String.join(", ", allMissingAreas);
+            throw BusinessException.builder()
+                    .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .errorMessageArguments(List.of(missingAreasString))
+                    .build();
+        }
+
+        TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId)
+                .stream().findFirst().orElse(null);
+        linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario,
+                warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
     }
+}
 
     private void checkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()

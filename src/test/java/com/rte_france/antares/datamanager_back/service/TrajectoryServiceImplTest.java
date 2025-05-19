@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -507,7 +508,6 @@ class TrajectoryServiceImplTest {
                 .warningCode(WarningCode.DATA_NOT_FOUND)
                 .study(StudyEntity.builder().id(studyId).build())
                 .build();
-
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type(trajectoryType)
                 .warningMessages(Set.of(warning1, warning2, warning3))
@@ -521,6 +521,7 @@ class TrajectoryServiceImplTest {
         Set<WarningMessageDTO> sortedWarnings = result.getFirst().getMessages();
         assertEquals(3, sortedWarnings.size());
     }
+
 
     @Test
     void findTrajectoriesByTypeAndStudyId_filtersWarningsByStudyId() {
@@ -556,4 +557,33 @@ class TrajectoryServiceImplTest {
         Set<WarningMessageDTO> filteredWarnings = result.getFirst().getMessages();
         assertEquals(1, filteredWarnings.size());
     }
+
+@Test
+void checkLinkCoherence_whenAreasAreMissing_shouldThrowBusinessException() {
+    //Given
+    Integer studyId = 1;
+    Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
+    String userNni = "testUser";
+
+    TrajectoryEntity trajectory = new TrajectoryEntity();
+    List<LinkEntity> links = Arrays.asList(
+            LinkEntity.builder().trajectory(trajectory).name("BE-FR").build(),
+            LinkEntity.builder().trajectory(trajectory).name("RE-ZE").build()
+    );
+    trajectory.setLinkEntities(links);
+
+    List<String> savedAreas = Arrays.asList("BE", "ZE");
+    when(linkFileProcessorService.findListArea(studyId)).thenReturn(savedAreas);
+
+    //When
+    BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> trajectoryService.checkLinkCoherence(studyId, warningMessageEntities, trajectory, userNni)
+    );
+
+    //Then
+    assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
+    assertEquals(List.of("RE, FR"), exception.getErrorMessageArguments());
+}
 }

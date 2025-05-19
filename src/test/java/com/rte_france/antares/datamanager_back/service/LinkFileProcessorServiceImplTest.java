@@ -113,7 +113,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testProcessLinkFileWithWarning() throws IOException {
+    void testProcessLinkFileWithAllZeroWarning() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
@@ -130,8 +130,9 @@ class LinkFileProcessorServiceImplTest {
                         List.of(List.of("Hurdle Costs", 0, 5
                         )),
                         List.of(
-                                List.of("FR-CH", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("FR-IT", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                                List.of("CH-IT", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("CH-FR", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-GE", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE")
                         )
                 ));
 
@@ -148,12 +149,91 @@ class LinkFileProcessorServiceImplTest {
         linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
         verify(warningMessageService).getMessage(
-                WarningCode.LINKS_ALL_VALUES_ZERO.value(), "2", "1", "TestFile.xlsx"
-        );
-        verify(warningMessageService).getMessage(
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH", "2", "1", "TestFile.xlsx"
+                WarningCode.LINKS_ALL_VALUES_ZERO.value(), "CH-IT, FR-GE"
         );
 
+    }
+
+    @Test
+    void testProcessLinkFileWithUnilateralWarnings() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestFile.xlsx",
+                List.of("parameters", "2032-2033"),
+                List.of(
+                        List.of("", "2032-2033"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5
+                        )),
+                        List.of(
+                                List.of("CH-IT", 0, 15, 0, 20, 0, 30, 0, 50, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("CH-FR", 10, 0, 30, 0, 50, 0, 70, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-GE", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFile.xlsx");
+        trajectory.setVersion(1);
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFile.xlsx", "2032-2033", TrajectoryType.LINK.name()))
+                .thenReturn(Optional.of(trajectory));
+
+
+        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
+
+        verify(warningMessageService).getMessage(
+                WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value(), "CH-IT, CH-FR"
+        );
+    }
+
+    @Test
+    void testProcessLinkFileAlphebaticallyOrderedWarning() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestFile.xlsx",
+                List.of("parameters", "2032-2033"),
+                List.of(
+                        List.of("", "2032-2033"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5
+                        )),
+                        List.of(
+                                List.of("CH-IT", 10, 15, 10, 20, 10, 30, 10, 50, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-CH", 10, 50, 30, 530, 50, 20, 70, 30, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("GE-FR", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestFile.xlsx");
+        trajectory.setVersion(1);
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFile.xlsx", "2032-2033",TrajectoryType.LINK.name()))
+                .thenReturn(Optional.of(trajectory));
+
+
+        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
+
+        verify(warningMessageService).getMessage(
+                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH, GE-FR"
+        );
     }
 
     @Test
@@ -178,13 +258,19 @@ class LinkFileProcessorServiceImplTest {
 
     @Test
     void validateLinkAreas_areaNotInTrajectory() {
-        List<String> areaNames = List.of("FR", "CH", "IT");
+        List<String> areaNames = List.of("FR", "CH", "IT", "ZE", "OT");
         String link = "FR-ES";
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             linkFileProcessorService.validateLinkAreas(link, areaNames);
         });
         assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
         assertEquals(List.of("ES"), exception.getErrorMessageArguments());
+
+        assertEquals(
+                String.format("Areas %s in LINKS file is not present in AREA trajectory",
+                        "ES"),
+                exception.getFormattedMessage());
+
     }
 
     @Test
@@ -291,8 +377,8 @@ class LinkFileProcessorServiceImplTest {
 
         verify(warningMessageService, times(1)).getMessage(
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(),
-                "2, 3",
-                "1", "TestFileWar.xlsx"
+                "CH-FR, FR-IT"
+
         );
     }
 
@@ -331,10 +417,7 @@ class LinkFileProcessorServiceImplTest {
 
         verify(warningMessageService, times(1)).getMessage(
                 WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(),
-                "IT-FR, GE-CH",
-                "2, 3",
-                "1",
-        "TestFileWar.xlsx"
+                "GE-CH, IT-FR"
         );
     }
 
@@ -412,9 +495,7 @@ class LinkFileProcessorServiceImplTest {
 
         verify(warningMessageService).getMessage(
                 eq(WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value()),
-                eq("2, 3, 4"),
-                eq("1"),
-                eq("TestFileWar.xlsx")
+                eq("CH-FR, FR-IT, FR-GE")
         );
     }
 
