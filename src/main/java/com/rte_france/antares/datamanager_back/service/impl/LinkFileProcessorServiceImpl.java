@@ -120,53 +120,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY, studyId, userNni, trajectory);
     }
 
-//    private void addWarning(Set<WarningMessageEntity> warningMessages,
-//                           List<String> warnings,
-//                           WarningCode warningCode,
-//                           Integer studyId,
-//                           String userNni,
-//                           TrajectoryEntity trajectory) {
-//        if (warnings.isEmpty()) {
-//            return;
-//        }
-//
-//        List<String[]> splitWarnings = warnings.stream()
-//                .map(warning -> warning.split(","))
-//                .toList();
-//
-//
-//        String[] parts = new String[splitWarnings.getFirst().length];
-//
-//
-//        for (int i = 0; i < parts.length; i++) {
-//            int finalI = i;
-//            Set<String> uniqueValues = splitWarnings.stream()
-//                    .map(w -> w[finalI])
-//                    .collect(Collectors.toSet());
-//
-//            if (i == parts.length - 1 || uniqueValues.size() == 1) {
-//                parts[i] = uniqueValues.iterator().next();
-//            } else {
-//                parts[i] = String.join(", ", uniqueValues);
-//            }
-//        }
-//
-//        StudyEntity study = studyRepository.findById(studyId).orElseThrow();
-//
-//        var message = WarningMessageEntity.builder()
-//                .warningContent(warningMessageService.getMessage(warningCode.value(), (Object[]) parts))
-//                .warningLevel(WarningLevel.WARNING_LEVEL)
-//                .secondTrajectory(null)
-//                .warningCode(warningCode)
-//                .study(study)
-//                .trajectory(trajectory)
-//                .creationDate(LocalDateTime.now())
-//                .createdBy(userNni)
-//                .isAck(false)
-//                .build();
-//
-//        warningMessages.add(message);
-//    }
 
     private void addWarning(Set<WarningMessageEntity> warningMessages,
                             List<String> warnings,
