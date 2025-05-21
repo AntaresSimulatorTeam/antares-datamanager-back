@@ -35,8 +35,9 @@ public class TrajectoryController {
     public ResponseEntity<List<TrajectoryDTO>> findTrajectoriesByTypeFromDb(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                                             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                             @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                                            @RequestParam(value = "fileNameContains", required = false) String fileNameContains) {
-        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains)), HttpStatus.OK);
+                                                                            @RequestParam(value = "fileNameContains", required = false) String fileNameContains,
+                                                                            @RequestParam(value = "loadArea", required = false) String loadArea) {
+        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains, loadArea)), HttpStatus.OK);
     }
 
 

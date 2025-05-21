@@ -25,6 +25,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                 WHERE t.type = :type\s
                 AND t.horizon = :horizon
                 AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
+                AND (:loadArea IS NULL OR LOWER(t.loadArea) LIKE LOWER(CONCAT('%', :loadArea, '%')))
                 AND t.version = (
                     SELECT MAX(t1.version)\s
                     FROM Trajectory t1\s
@@ -34,7 +35,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                 )
                 ORDER BY t.creationDate DESC
            \s""")
-    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains);
+    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains, @Param("loadArea") String loadArea);
 
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);

@@ -70,7 +70,7 @@ class TrajectoryControllerTest {
 
     @Test
     void findTrajectoriesByTypeFromDb_returnsTrajectories() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
 
         this.mockMvc.perform(get("/v1/trajectory/db")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -83,7 +83,7 @@ class TrajectoryControllerTest {
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any());
+        verify(trajectoryServiceImpl, times(1)).findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any(), any());
     }
 
     @Test
