@@ -42,26 +42,26 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("nonExistentType", "2023-2024", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("nonExistentType", "2023-2024", "test","FR");
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNonExistentFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("AREA", "2023-2024", "nonExistentStart");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("AREA", "2023-2024", "nonExistentStart", "FR");
         assertThat(trajectoryEntities).isEmpty();
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsNonEmptyListForExistentTypeAndFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("AREA", "2023-2024", "TEst");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("AREA", "2023-2024", "TEst", null);
         assertThat(trajectoryEntities).isNotEmpty();
-        assertThat(trajectoryEntities.get(0).getFileName()).startsWith("test");
+        assertThat(trajectoryEntities.getFirst().getFileName()).startsWith("test");
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsEmptyListForNullType() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(null, "2023-2024", "test");
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(null, "2023-2024", "test", "FR");
         assertThat(trajectoryEntities).isEmpty();
     }
 
@@ -69,7 +69,7 @@ class TrajectoryRepositoryTest {
     void findByTypeAndStudyId_returnsNonEmptyListForExistentTypeAndStudyId() {
         List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 1);
         assertThat(trajectoryEntities).isNotEmpty();
-        assertThat(trajectoryEntities.get(0).getType()).isEqualTo("AREA");
+        assertThat(trajectoryEntities.getFirst().getType()).isEqualTo("AREA");
     }
 
     @Test
@@ -87,7 +87,7 @@ class TrajectoryRepositoryTest {
     @Test
     void findByTypeAndStudyId_returnsListForNullType() {
         List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId("", 1);
-        assertThat(trajectoryEntities.get(0).getType()).isEqualTo("AREA");
+        assertThat(trajectoryEntities.getFirst().getType()).isEqualTo("AREA");
     }
 
     @Test
