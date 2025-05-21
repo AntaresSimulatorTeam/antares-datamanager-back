@@ -25,7 +25,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                 WHERE t.type = :type\s
                 AND t.horizon = :horizon
                 AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
-                AND (:loadArea IS NULL OR LOWER(t.loadArea) LIKE LOWER(CONCAT('%', :loadArea, '%')))
+                AND (:loadArea IS NULL OR t.loadArea= :loadArea)
                 AND t.version = (
                     SELECT MAX(t1.version)\s
                     FROM Trajectory t1\s
