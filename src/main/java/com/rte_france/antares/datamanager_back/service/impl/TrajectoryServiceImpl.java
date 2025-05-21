@@ -169,7 +169,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .fileName(trajectoryToUse)
                 .fileSize(Files.size(trajectoryPath))
                 .createdBy(userNni)
-                .version(0)
+                .version(1)
                 .lastModificationContentDate(Files.getLastModifiedTime(trajectoryPath).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
                 .horizon(horizon)
                 .checksum("NA")
