@@ -119,7 +119,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
-                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD.name());
+                .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
 
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
@@ -183,7 +183,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (loadsFile.isEmpty()) {
 
             throw BusinessException.builder()
-                    .message("No valid load files found in the trajectory path")
+                    .errorMessageArguments(List.of(area, horizon))
+                    .message("No valid load files found in the trajectory path for area: {0} and horizon: {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
