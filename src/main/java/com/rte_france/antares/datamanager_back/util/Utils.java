@@ -87,9 +87,9 @@ public class Utils {
                 ;
     }
 
-    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon) throws IOException {
-        String areaPattern = area.equals("EU") ? "[a-z]{2}" : area.toLowerCase();
-        Pattern pattern = Pattern.compile("load_" + areaPattern + "_(\\d{4}-\\d{4})\\.txt");
+    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> listCustomLoadFilesAlreadyChoosed) throws IOException {
+        String areaPattern = area.equals("OTHERS") ? "[a-z]{2}" : area.toLowerCase();
+        Pattern pattern = Pattern.compile("load_(" + areaPattern + ")_(\\d{4}-\\d{4})\\.txt");
         List<String> loadsFileNames = new ArrayList<>();
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.txt")) {
@@ -97,8 +97,9 @@ public class Utils {
                 String fileName = file.getFileName().toString();
                 Matcher matcher = pattern.matcher(fileName);
                 if (matcher.matches()) {
-                    String horizon = matcher.group(1); // extract horizon
-                    if (horizon.equals(expectedHorizon)) {
+                    String areaFromFile = matcher.group(1);
+                    String horizon = matcher.group(2);
+                    if (horizon.equals(expectedHorizon) && !listCustomLoadFilesAlreadyChoosed.contains(areaFromFile.toUpperCase())) {
                         loadsFileNames.add(fileName);
                     }
                 }

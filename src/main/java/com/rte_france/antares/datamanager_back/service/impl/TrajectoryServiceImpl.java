@@ -99,12 +99,15 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .build();
 
         }
-        areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
-                BusinessException.builder()
-                        .message("Area not found for studyId: {0} ")
-                        .errorMessageArguments(List.of(studyId.toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build());
+
+        if (!area.equals("OTHERS")) {
+            areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
+                    BusinessException.builder()
+                            .message("Area not found for studyId: {0} ")
+                            .errorMessageArguments(List.of(studyId.toString()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build());
+        }
 
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
@@ -134,12 +137,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             // Update version and save new trajectory
             TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
-            return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory);
+            return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId);
         }
 
         // No existing trajectory: create and save new
         TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
-        return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory);
+        return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId);
     }
 
     // Utility method to build trajectory path with checks
@@ -178,8 +181,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .build();
     }
 
-    private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory) throws IOException {
-        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon);
+    private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId) throws IOException {
+        List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
+        if (area.equals("OTHERS")) {
+            listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
+                    .stream()
+                    .map(TrajectoryEntity::getLoadArea)
+                    .filter(loadArea -> !loadArea.equals("OTHERS"))
+                    .toList();
+        }
+
+        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed);
         if (loadsFile.isEmpty()) {
 
             throw BusinessException.builder()
@@ -428,37 +440,37 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         warningMessageRepository.saveAll(warningMessageEntities);
     }
 
-public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
-    var listLink = trajectory.getLinkEntities();
-    List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
-    if (!areasSavedForScenario.isEmpty()) {
+    public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
+        var listLink = trajectory.getLinkEntities();
+        List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
+        if (!areasSavedForScenario.isEmpty()) {
 
-        Set<String> allMissingAreas = new HashSet<>();
-        for (LinkEntity link : listLink) {
-            String[] areas = link.getName().split("-");
-            for (String area : areas) {
-                if (areasSavedForScenario.stream()
-                        .noneMatch(existingArea -> existingArea.equalsIgnoreCase(area))) {
-                    allMissingAreas.add(area);
+            Set<String> allMissingAreas = new HashSet<>();
+            for (LinkEntity link : listLink) {
+                String[] areas = link.getName().split("-");
+                for (String area : areas) {
+                    if (areasSavedForScenario.stream()
+                            .noneMatch(existingArea -> existingArea.equalsIgnoreCase(area))) {
+                        allMissingAreas.add(area);
+                    }
                 }
             }
-        }
 
-        if (!allMissingAreas.isEmpty()) {
-            String missingAreasString = String.join(", ", allMissingAreas);
-            throw BusinessException.builder()
-                    .message("Areas {0} in LINKS file is not present in AREA trajectory")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .errorMessageArguments(List.of(missingAreasString))
-                    .build();
-        }
+            if (!allMissingAreas.isEmpty()) {
+                String missingAreasString = String.join(", ", allMissingAreas);
+                throw BusinessException.builder()
+                        .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .errorMessageArguments(List.of(missingAreasString))
+                        .build();
+            }
 
-        TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId)
-                .stream().findFirst().orElse(null);
-        linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario,
-                warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
+            TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId)
+                    .stream().findFirst().orElse(null);
+            linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(listLink, areasSavedForScenario,
+                    warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
+        }
     }
-}
 
     private void checkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()
