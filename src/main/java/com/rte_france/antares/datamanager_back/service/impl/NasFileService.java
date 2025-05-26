@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NasFileService {
@@ -42,27 +44,46 @@ public class NasFileService {
      * Saves a file with the given content.
      *
      * @param filename the name of the file to save
-     * @param content the content to save in the file
+     * @param content  the content to save in the file
      * @throws IOException if an I/O error occurs or if the file name is invalid
      */
     public void saveFile(String filename, byte[] content) throws IOException {
-        Objects.requireNonNull(filename);
-        Objects.requireNonNull(content);
+        Objects.requireNonNull(filename, "filename must not be null");
+        Objects.requireNonNull(content, "content must not be null");
+
         if (filename.contains("..") || filename.isBlank()) {
-            throw TechnicalException.builder().message("Invalid file name: " + filename).build();
-        }
-        String nasDir = antaressDataManagerProperties.getNasDirectory();
-        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
-        String loadDir = antaressDataManagerProperties.getLoadDirectory();
-        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
-        var targetDirectory = Path.of(nasDir).resolve(trajFilePath).resolve(loadDir).resolve(outputLoadDir)
-                .toAbsolutePath()
-                .normalize();
-        var filePath = targetDirectory.resolve(filename).normalize();
-        if (!filePath.startsWith(targetDirectory)) {
-            throw TechnicalException.builder().message("Path outside of the NAS directory: " + filePath).build();
+            throw TechnicalException.builder()
+                    .message("Invalid file name: " + filename)
+                    .build();
         }
 
+        String nasDir = antaressDataManagerProperties.getNasDirectory();
+        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
+
+        Path nasPath = Path.of(nasDir).toAbsolutePath().normalize();
+
+        Path relativeOutputDir = Path.of(outputLoadDir);
+        if (relativeOutputDir.isAbsolute()) {
+            throw TechnicalException.builder()
+                    .message("Output directory must be a relative path: " + outputLoadDir)
+                    .build();
+        }
+
+        Path targetDirectory = nasPath.resolve(relativeOutputDir).normalize();
+        Path filePath = targetDirectory.resolve(filename).normalize();
+
+        // Vérification que le fichier reste bien dans le répertoire NAS
+        if (!filePath.startsWith(nasPath)) {
+            throw TechnicalException.builder()
+                    .message("Path outside of the NAS directory: " + filePath)
+                    .build();
+        }
+
+        // Création du dossier cible si nécessaire
+        Files.createDirectories(targetDirectory);
+
+        // Écriture du fichier
         Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
+
 }

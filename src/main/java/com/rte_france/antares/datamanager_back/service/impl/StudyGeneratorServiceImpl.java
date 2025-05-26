@@ -50,7 +50,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             nasFileService.saveFile(studyId + ".json", generatorJson.getBytes());
         } catch (IOException e) {
             throw TechnicalException.builder()
-                    .message("Erreur lors de la génération du fichier JSON : " + e.getMessage())
+                    .message("Erreur lors de la génération du fichier JSON : " + e)
                     .cause(e)
                     .build();
         }
