@@ -20,7 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.util.CollectionUtils;
+import org.springframework.http.HttpStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -417,7 +417,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testAccumulatedWarningsForAreaNotPresent() throws IOException {
+    void testErrorForAreaNotPresent() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFileWar.xlsx",
@@ -434,7 +434,11 @@ class LinkFileProcessorServiceImplTest {
                         List.of(List.of("Hurdle Costs", 0, 5
                         )),
                         List.of(
-                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE")
+                                List.of("FR-CH", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-ITsar", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-RU", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE")
+
                         )
                 ));
 
@@ -447,12 +451,15 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
-        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
-
-        verify(warningMessageService, times(1)).getMessage(
-                WarningCode.LINKS_AREA_NOT_PRESENT.value(),
-                "CH, GE"
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1)
         );
+
+        assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals(Arrays.asList("ITsar","RU"), exception.getErrorMessageArguments());
+
+
     }
 
     @Test
@@ -493,10 +500,5 @@ class LinkFileProcessorServiceImplTest {
                 eq("CH-FR, FR-IT, FR-GE")
         );
     }
-
-
-
-
-
 
 }

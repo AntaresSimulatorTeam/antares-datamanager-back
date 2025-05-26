@@ -215,7 +215,7 @@ class LinksValidatorTest {
                         "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
                 List.of(
                         List.of("ES-FR", 100.3, 300, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("ES-IT", 110, 210,20.2, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("ES-IT", 110, 210,20.2, 185, 310, 410, "26,3", 285, 510, 65, 80, 95)
                 )
         );
 
@@ -228,7 +228,7 @@ class LinksValidatorTest {
                 () -> assertEquals("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) {1} in LINK trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
-                        Arrays.asList("Winter_HC_Direct_MW, Winter_HP_Direct_MW", "ES-FR, ES-IT"),
+                        Arrays.asList("Summer_HC_Direct_MW, Winter_HC_Direct_MW, Winter_HP_Direct_MW", "ES-FR, ES-IT"),
                         exception.getErrorMessageArguments()),
 
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
@@ -337,6 +337,35 @@ class LinksValidatorTest {
         );
     }
 
+    @Test
+    void shouldFailWhenEmptyCellsArePresent() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyCells.xlsx", "2037-2038",
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                List.of(
+                        List.of("Area1/Area2", "", 0, "", 0, 10, 0, 10, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
+                        List.of("Area3/Area4", 10, 20, 30, 40, "", 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE"),
+                        List.of("Area5/Area6", 10, 20, 30, 40, 200, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                )
+        );
 
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2037-2038", TrajectoryType.LINK.name()));
+
+
+        assertAll(
+                () -> assertEquals("Empty values found for {0}(s): {1} for horizon {2} in {3} trajectory",
+                        exception.getMessage()),
+                () -> assertIterableEquals(
+                        List.of(TrajectoryType.LINK.name().toLowerCase(),"Area1/Area2, Area3/Area4", "2037-2038", "LINK"),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST,
+                        exception.getHttpStatus())
+        );
+
+    }
 
 }

@@ -73,39 +73,93 @@ public class LinksValidator {
         handleErrors(notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
     }
 
-    private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIndex, String columnName,
-                                      Map<String, Set<String>> notNumericByColumn,
-                                      Map<String, Set<String>> notIntegerByColumn,
-                                      Map<String, Set<String>> negativeValuesByColumn) {
-        Set<String> notNumericLinks = new LinkedHashSet<>();
-        Set<String> notIntegerLinks = new LinkedHashSet<>();
-        Set<String> negativeLinks = new LinkedHashSet<>();
+/**
+  * @param sheet The Excel sheet to process
+  * @param nameColumnIndex Index of the column containing link names
+  * @param columnIndex Index of the column to validate
+  * @param columnName Name of the column to validate
+  * @param notNumericByColumn Map to store links with non-numeric values by column
+  * @param notIntegerByColumn Map to store links with non-integer values by column
+  * @param negativeValuesByColumn Map to store links with negative values by column
+ **/
 
-        int lastRowNum = sheet.getLastRowNum();
+private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIndex, String columnName,
+                                  Map<String, Set<String>> notNumericByColumn,
+                                  Map<String, Set<String>> notIntegerByColumn,
+                                  Map<String, Set<String>> negativeValuesByColumn) {
+    Set<String> notNumericLinks = new LinkedHashSet<>();
+    Set<String> notIntegerLinks = new LinkedHashSet<>();
+    Set<String> negativeLinks = new LinkedHashSet<>();
 
-        for (int rowIndex = 1; rowIndex <= lastRowNum; rowIndex++) {
-            Row row = sheet.getRow(rowIndex);
-            if (row == null) continue;
+    int lastRowNum = sheet.getLastRowNum();
 
-            Cell nameCell = row.getCell(nameColumnIndex);
-            if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
-                String linkName = nameCell.getStringCellValue().trim();
-                if (!linkName.isEmpty()) {
-                    Cell valueCell = row.getCell(columnIndex);
-                    if (valueCell == null || valueCell.getCellType() != CellType.NUMERIC) {
-                        notNumericLinks.add(linkName);
-                    } else {
-                        double value = valueCell.getNumericCellValue();
-                        if (value < 0) {
-                            negativeLinks.add(linkName);
-                        } else if (value % 1 != 0) {
-                            notIntegerLinks.add(linkName);
-                        }
-                    }
-                }
+    for (int rowIndex = 1; rowIndex <= lastRowNum; rowIndex++) {
+        Row row = sheet.getRow(rowIndex);
+        if (row == null) continue;
+
+        Cell nameCell = row.getCell(nameColumnIndex);
+        if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
+            String linkName = nameCell.getStringCellValue().trim();
+            if (!linkName.isEmpty()) {
+                processValueCell(row.getCell(columnIndex), linkName, notNumericLinks, notIntegerLinks, negativeLinks);
             }
         }
+    }
 
+    addNonEmptyResults(columnName, notNumericLinks, notIntegerLinks, negativeLinks,
+            notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
+}
+    /**
+     * Processes a value cell and checks its compliance with validation rules.
+     * Handles empty cells, text cells, and numeric cells.
+     * For text cells, attempts to parse numeric values considering both dots and commas as decimal separators.
+     *
+     * @param valueCell The cell to check
+     * @param linkName The name of the link associated with the cell
+     * @param notNumericLinks Set of links with non-numeric values
+     * @param notIntegerLinks Set of links with non-integer values
+     * @param negativeLinks Set of links with negative values
+     */
+
+    private static void processValueCell(Cell valueCell, String linkName,
+                                         Set<String> notNumericLinks, Set<String> notIntegerLinks, Set<String> negativeLinks) {
+        if (valueCell == null) {
+            notNumericLinks.add(linkName);
+            return;
+        }
+
+        if (valueCell.getCellType() == CellType.STRING) {
+            String stringValue = valueCell.getStringCellValue().trim();
+            try {
+                double value = Double.parseDouble(stringValue.replace(",", "."));
+                checkNumericValue(value, linkName, notIntegerLinks, negativeLinks);
+            } catch (NumberFormatException e) {
+                notNumericLinks.add(linkName);
+            }
+        } else if (valueCell.getCellType() == CellType.NUMERIC) {
+            checkNumericValue(valueCell.getNumericCellValue(), linkName, notIntegerLinks, negativeLinks);
+        } else {
+            notNumericLinks.add(linkName);
+        }
+    }
+    /**
+     * Adds non-empty results to the error collection maps.
+     * Only updates maps if errors were found.
+     *
+     * @param columnName Name of the processed column
+     * @param notNumericLinks Set of links with non-numeric values
+     * @param notIntegerLinks Set of links with non-integer values
+     * @param negativeLinks Set of links with negative values
+     * @param notNumericByColumn Destination map for non-numeric errors
+     * @param notIntegerByColumn Destination map for non-integer errors
+     * @param negativeValuesByColumn Destination map for negative value errors
+     */
+
+    private static void addNonEmptyResults(String columnName,
+                                           Set<String> notNumericLinks, Set<String> notIntegerLinks, Set<String> negativeLinks,
+                                           Map<String, Set<String>> notNumericByColumn,
+                                           Map<String, Set<String>> notIntegerByColumn,
+                                           Map<String, Set<String>> negativeValuesByColumn) {
         if (!notNumericLinks.isEmpty()) {
             notNumericByColumn.put(columnName, notNumericLinks);
         }
@@ -116,6 +170,25 @@ public class LinksValidator {
             negativeValuesByColumn.put(columnName, negativeLinks);
         }
     }
+    /**
+     * Checks if a numeric value complies with validation rules.
+     * A value must be positive and integer.
+     *
+     * @param value The numeric value to check
+     * @param linkName The name of the link associated with the value
+     * @param notIntegerLinks Set of links with non-integer values
+     * @param negativeLinks Set of links with negative values
+     */
+
+    private static void checkNumericValue(double value, String linkName,
+                                          Set<String> notIntegerLinks, Set<String> negativeLinks) {
+        if (value < 0) {
+            negativeLinks.add(linkName);
+        } else if (value % 1 != 0) {
+            notIntegerLinks.add(linkName);
+        }
+    }
+
 
     private static void handleErrors(Map<String, Set<String>> notNumericByColumn,
                                      Map<String, Set<String>> notIntegerByColumn,
