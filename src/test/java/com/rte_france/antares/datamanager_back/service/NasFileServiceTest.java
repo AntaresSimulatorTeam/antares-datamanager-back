@@ -67,12 +67,10 @@ class NasFileServiceTest {
   void saveFile_validInput() throws IOException {
     var filename = "validFile.txt";
     var content = "test content".getBytes();
-    var targetDirectory = tempDir.resolve("trajectory/load/output");
+    var targetDirectory = tempDir.resolve("output");
     Files.createDirectories(targetDirectory);
 
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-    when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectory");
-    when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
     when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
 
     nasFileService.saveFile(filename, content);
