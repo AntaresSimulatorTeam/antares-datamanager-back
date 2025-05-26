@@ -96,7 +96,7 @@ class AreaFileValidatorTest {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyCells.xlsx", "2037-2038",
                 List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
                 List.of(
-                        List.of("A1", "10", "", "", "4", "1", "2", "3"),
+                        List.of("B1", "10", "", "", "4", "1", "2", "3"),
                         List.of("A2", "10", "", "", "4", "1", "2", "3")
                 )
         );
@@ -109,7 +109,7 @@ class AreaFileValidatorTest {
                 () -> assertEquals("Empty values found for {0}(s): {1} for horizon {2} in {3} trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
-                        List.of(TrajectoryType.AREA.name().toLowerCase(),"A1, A2", "2037-2038", "AREA"),
+                        List.of(TrajectoryType.AREA.name().toLowerCase(),"A2, B1", "2037-2038", "AREA"),
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST,
                         exception.getHttpStatus())

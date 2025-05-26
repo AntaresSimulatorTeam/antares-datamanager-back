@@ -120,31 +120,33 @@ public class ExcelCommonValidator {
     }
 
 
-
-
-
     private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, String horizon, String trajectoryType) {
-        Set<String> areaValues = new HashSet<>();
+        Set<String> emptyRowIdentifiers = new TreeSet<>();
 
         List<String> emptyCells = IntStream.rangeClosed(1, sheet.getLastRowNum())
                 .mapToObj(sheet::getRow)
                 .filter(row -> row != null && !isRowEmpty(row))
                 .flatMap(row -> {
-                    String prefix = "";
+                    String identifier = "";
                     if (TrajectoryType.AREA.name().equals(trajectoryType)) {
                         int areasColumnIndex = findColumnIndex(sheet, AREAS, horizon, trajectoryType);
-                        String areaValue = Optional.ofNullable(row.getCell(areasColumnIndex))
+                        identifier = Optional.ofNullable(row.getCell(areasColumnIndex))
                                 .map(ExcelCommonValidator::getCellValue)
                                 .orElse("");
-                        areaValues.add(areaValue);
+                    } else if (TrajectoryType.LINK.name().equals(trajectoryType)) {
+                        int nameColumnIndex = findColumnIndex(sheet, "Name", horizon, trajectoryType);
+                        identifier = Optional.ofNullable(row.getCell(nameColumnIndex))
+                                .map(ExcelCommonValidator::getCellValue)
+                                .orElse("");
                     }
 
-                    String finalPrefix = prefix;
+                    final String finalIdentifier = identifier;
                     return IntStream.range(0, columnCount)
                             .mapToObj(colIndex -> {
                                 Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                                 if (cell == null || isCellEmpty(cell)) {
-                                    return finalPrefix + "Row " + (row.getRowNum() + 1) + " - Column " + (colIndex + 1);
+                                    emptyRowIdentifiers.add(finalIdentifier);
+                                    return "Row " + (row.getRowNum() + 1) + " - Column " + (colIndex + 1);
                                 }
                                 return null;
                             })
@@ -153,22 +155,19 @@ public class ExcelCommonValidator {
                 .toList();
 
         if (!emptyCells.isEmpty()) {
-            String areasMessage = TrajectoryType.AREA.name().equals(trajectoryType)
-                    ? String.join(", ", areaValues)
-                    : "";
+            String identifiersMessage = String.join(", ", emptyRowIdentifiers);
 
             throw BusinessException.builder()
                     .message("Empty values found for {0}(s): {1} for horizon {2} in {3} trajectory")
                     .errorMessageArguments(List.of(
                             trajectoryType.toLowerCase(),
-                            areasMessage,
+                            identifiersMessage,
                             horizon,
                             trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
-
 
     private static boolean isCellEmpty(Cell cell) {
         return switch (cell.getCellType()) {

@@ -187,7 +187,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
-                            .name(validateLinkAreas(row.getCell(0).getStringCellValue(), listArea))
+                            .name(row.getCell(0).getStringCellValue())
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
                             .winterHcDirectMw(row.getCell(2).getNumericCellValue())
@@ -232,14 +232,15 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
 
-        StudyEntity study = studyRepository.findById(studyId).orElseThrow();
-
-        Set<String> missingAreas = areaNames.stream()
-                .filter(area -> !linkedAreas.contains(area))
+        Set<String> missingAreas = linkedAreas.stream()
+                .filter(area -> !areaNames.contains(area))
                 .collect(Collectors.toSet());
 
-        if (!missingAreas.isEmpty()) {
-            addWarningMessage(warningMessages, String.join(", ", missingAreas), study, trajectoryId, secondTrajectory, userNni);
+        if (!missingAreas.isEmpty()) { throw  BusinessException.builder()
+                .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .errorMessageArguments(missingAreas.stream().sorted().toList())
+                .build();
         }
     }
 
@@ -270,7 +271,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     /**
      * Validates the link areas by checking if the link contains exactly two areas
      * and if both areas are present in the provided list of area names
-     * If an area from the list is not present in the link, a warning message is added.
+     * If an area from the list is not present in the link, an error is throw
      * This method is case-insensitive
      *
      * @param link      the link to validate
