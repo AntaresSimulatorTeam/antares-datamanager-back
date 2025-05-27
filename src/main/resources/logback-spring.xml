@@ -7,7 +7,13 @@
             <includeMarkers>true</includeMarkers>
         </encoder>
     </appender>
-    <root additivity="false">
+
+    <!-- Réduction des logs de Spring Security (authentification échouée = 401) -->
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.security.web.access" level="WARN"/>
+    <logger name="org.springframework.security.web.authentication" level="WARN"/>
+
+    <root level="INFO" additivity="false">
         <appender-ref ref="JSON_CONSOLE"/>
     </root>
 </configuration>
