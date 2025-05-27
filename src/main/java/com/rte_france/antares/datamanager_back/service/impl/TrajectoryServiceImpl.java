@@ -386,7 +386,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     @Transactional
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
-        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
+        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
         StudyEntity study = studyRepository.findById(studyId)
                 .orElseThrow(() -> BusinessException.builder()
@@ -402,15 +402,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .build());
 
         // Vérifier si une trajectoire du même type est déjà associée à l'étude
-        Optional<StudyTrajectoryEntity> existingLink = study.getStudyTrajectoryEntities().stream()
-                .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
-                .findFirst();
+        Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
+        if (!TrajectoryType.LOAD.equals(type)) {
+            existingLink = study.getStudyTrajectoryEntities().stream()
+                    .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
+                    .findFirst();
+        }
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-        // check area link
+        // Vérifier la cohérence des liens
         checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
-
 
         // Supprimer l'ancienne association si elle existe
         existingLink.ifPresent(studyTrajectoryRepository::delete);
