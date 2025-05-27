@@ -146,7 +146,7 @@ class TrajectoryServiceImplTest {
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "test");
 
         assertEquals(1, result.size());
-        assertEquals("areas_testFile.xlsx", result.get(0).getFileName());
+        assertEquals("areas_testFile.xlsx", result.getFirst().getFileName());
     }
 
     @Test
@@ -234,6 +234,45 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void linkTrajectoryToStudy_doesNotFindExistingLinkWhenTypeIsLOAD() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.LOAD;
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+
+        Optional<StudyTrajectoryEntity> existingLink = study.getStudyTrajectoryEntities().stream()
+                .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
+                .findFirst();
+
+        assertTrue(existingLink.isEmpty());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_findsExistingLinkWhenTypeIsNotLOAD() {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.AREA;
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        StudyTrajectoryEntity existingLink = StudyTrajectoryEntity.builder().trajectory(trajectory).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Set.of(existingLink)).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+
+        Optional<StudyTrajectoryEntity> foundLink = study.getStudyTrajectoryEntities().stream()
+                .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
+                .findFirst();
+
+        assertTrue(foundLink.isPresent());
+        assertEquals(existingLink, foundLink.get());
+    }
+    @Test
     void unlinkTrajectoryFromStudy_unlinksWhenLinkExists() {
         Integer trajectoryId = 1;
         Integer studyId = 1;
@@ -305,7 +344,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertTrue(result.get(0).toString().contains("Germany"));
+        assertTrue(result.getFirst().toString().contains("Germany"));
 
     }
 
@@ -320,7 +359,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertTrue(result.get(0).toString().contains("DE-SU"));
+        assertTrue(result.getFirst().toString().contains("DE-SU"));
 
     }
 
@@ -399,7 +438,7 @@ class TrajectoryServiceImplTest {
 
         // Then
         assertEquals(1, result.size());
-        assertEquals("areas_test1.txt", result.get(0).getFileName());
+        assertEquals("areas_test1.txt", result.getFirst().getFileName());
     }
 
     @Test
