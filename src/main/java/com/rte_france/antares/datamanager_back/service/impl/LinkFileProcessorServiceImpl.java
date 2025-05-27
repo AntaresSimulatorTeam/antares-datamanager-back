@@ -236,12 +236,15 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 .filter(area -> !areaNames.contains(area))
                 .collect(Collectors.toSet());
 
-        if (!missingAreas.isEmpty()) { throw  BusinessException.builder()
-                .message("Areas {0} in LINKS file is not present in AREA trajectory")
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .errorMessageArguments(missingAreas.stream().sorted().toList())
-                .build();
+        if (!missingAreas.isEmpty()) {
+            String missingAreasString = String.join(", ", missingAreas.stream().sorted().toList());
+            throw BusinessException.builder()
+                    .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .errorMessageArguments(List.of(missingAreasString))
+                    .build();
         }
+
     }
 
 
