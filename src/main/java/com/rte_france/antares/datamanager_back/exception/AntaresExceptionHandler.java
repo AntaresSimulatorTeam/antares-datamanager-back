@@ -61,11 +61,10 @@ public class AntaresExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<AntaresExceptionDto> runtimeExceptionHandler(RuntimeException ex) {
-        log.error("RuntimeException attrapée : {}", ex.getMessage(), ex);
+        log.error(ex.toString(), ex);
         if (ex.getCause() != null) {
             log.error("Cause profonde : {}", ex.getCause().toString(), ex.getCause());
-        }
-        return ResponseEntity
+        }        return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new AntaresExceptionDto(ex));
     }
