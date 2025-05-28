@@ -51,7 +51,8 @@ public class AntaresExceptionHandler extends ResponseEntityExceptionHandler {
         log.error("TechnicalException attrapée : {}", ex.getMessage(), ex);
         if (ex.getCause() != null) {
             log.error("Cause profonde : {}", ex.getCause().toString(), ex.getCause());
-        }        log.debug(technicalException.toString(), technicalException);
+        }
+        log.debug(technicalException.toString(), technicalException);
         AntaresExceptionDto antaresExceptionDto = new AntaresExceptionDto(technicalException.getMessage(), technicalException.getAntaresErrorCode(), technicalException.getErrorMessageArguments(), technicalException.getDate(), AntaresErrorType.TECHNICAL.name());
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

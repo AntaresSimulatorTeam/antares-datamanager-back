@@ -74,7 +74,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 String outputFileName = loadFileProcessorService.saveMatrixToNas(trajectoryPath.resolve(load.getFileName()));
                 load.setOutPutFileName(outputFileName);
             } catch (IOException e) {
-                throw TechnicalException.builder().message(e.getMessage()).build();
+                throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
             }
         });
 
