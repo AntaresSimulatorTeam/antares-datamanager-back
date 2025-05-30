@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
+import com.rte_france.antares.datamanager_back.configuration.gaia.LdapClientEmployeeService;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
@@ -29,6 +31,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class TrajectoryController {
 
     private final TrajectoryService trajectoryService;
+    private final LdapClientEmployeeService ldapClientEmployeeService;
 
     @Operation(summary = "Get Trajectories by type and fileNameContains from Database ")
     @GetMapping(value = "/db")
@@ -37,6 +40,8 @@ public class TrajectoryController {
                                                                             @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                                             @RequestParam(value = "fileNameContains", required = false) String fileNameContains,
                                                                             @RequestParam(value = "loadArea", required = false) String loadArea) {
+
+
         return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains, loadArea)), HttpStatus.OK);
     }
 
@@ -47,9 +52,10 @@ public class TrajectoryController {
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
             @Parameter(description = "parameter to use just in load case")
             @RequestParam(value = "zone", required = false)
-            @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid area name")String loadZone,
+            @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid area name") String loadZone,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) throws TechnicalException {
-
+        Employee user = ldapClientEmployeeService.getUserByNni("CF93131T");
+        log.info("user info:" + user.toString());
         return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
     }
 
