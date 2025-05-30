@@ -39,19 +39,19 @@ values ('me00247', 1),
        ('no0099', 2);
 
 insert into public.trajectory(id, file_name, file_size, checksum, type, version, created_by, creation_date,
-                              last_modification_content_date, horizon)
+                              last_modification_content_date, horizon, area)
 values (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07',
-        '2023-2024'),
+        '2023-2024','FR'),
        (2, 'testFile.txt', 100, '123', 'AREA', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026'),
+        '2025-2026', 'AT'),
        (3, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07',
-        '2023-2024'),
+        '2023-2024', 'FR'),
        (4, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026'),
+        '2025-2026', 'AT'),
        (5, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026'),
+        '2025-2026','CH'),
        (8, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026');
+        '2025-2026','ES');
 
 insert into public.area_config(id, power_to_gas, short_term_storage, area_id, trajectory_id)
 values (1, 1, 1, 4, 1),
