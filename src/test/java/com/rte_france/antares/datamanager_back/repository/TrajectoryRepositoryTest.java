@@ -54,7 +54,7 @@ class TrajectoryRepositoryTest {
 
     @Test
     void findTrajectoriesByTypeAndFileNameStartsWith_returnsNonEmptyListForExistentTypeAndFileNameStartsWith() {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("AREA", "2023-2024", "TEst", null);
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains("AREA", "2023-2024", "TEst", "FR");
         assertThat(trajectoryEntities).isNotEmpty();
         assertThat(trajectoryEntities.getFirst().getFileName()).startsWith("test");
     }
