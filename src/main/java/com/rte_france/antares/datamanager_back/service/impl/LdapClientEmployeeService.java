@@ -1,10 +1,11 @@
-package com.rte_france.antares.datamanager_back.configuration.gaia;
+package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
+import com.rte_france.antares.datamanager_back.configuration.gaia.EmployeeMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.query.ContainerCriteria;
-import org.springframework.ldap.query.LdapQuery;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -18,27 +19,6 @@ import static org.springframework.ldap.query.LdapQueryBuilder.query;
 public class LdapClientEmployeeService {
 
     private final LdapTemplate ldapTemplate;
-
-    public List<Employee> getPersonNamesByLastName(String lastName) {
-
-        LdapQuery query = query()
-                .attributes(RTE_LDAP_ATTR)
-                .where(RTE_LDAP_ATTRIBUTE_OBJECT_CLASS).is(RTE_LDAP_PERSON_OBJECT)
-                .and(RTE_LDAP_ATTRIBUTE_SN).like(lastName);
-
-        return ldapTemplate.search(query, new EmployeeMapper());
-    }
-
-    public List<Employee> getRtePersons() {
-        LdapQuery query = query()
-                .attributes(RTE_LDAP_ATTR)
-                .where(RTE_LDAP_ATTRIBUTE_OBJECT_CLASS).is("rtePerson")
-                .and(RTE_LDAP_ATTRIBUTE_MAIL).isPresent()
-                .and(RTE_LDAP_ATTRIBUTE_RTE_RHO_LIB).isPresent()
-                .and(RTE_LDAP_ATTRIBUTE_RTE_RHO_LIB).not().is("Non Affectes");
-
-        return ldapTemplate.search(query, new EmployeeMapper());
-    }
 
     /**
      * Get list of User by their nni/name from snp and dch
@@ -79,7 +59,7 @@ public class LdapClientEmployeeService {
 
 
     /**
-     * Get list of User by their nni from snp and dch
+     * Get list of User by their nni from GAIA
      *
      * @param listNni list of nni
      * @return list of User
