@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
-import com.rte_france.antares.datamanager_back.configuration.gaia.LdapClientEmployeeService;
+import com.rte_france.antares.datamanager_back.service.impl.LdapClientEmployeeService;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
