@@ -34,7 +34,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                     WHERE t1.fileName = t.fileName\s
                     AND t1.type = :type\s
                     AND t1.horizon = :horizon\s 
-                    AND t1.loadArea= :loadArea\s 
+                    AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t1.loadArea = :loadArea)\s 
                 )
                 ORDER BY t.creationDate DESC
            \s""")
