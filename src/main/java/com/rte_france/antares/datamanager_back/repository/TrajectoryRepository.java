@@ -22,22 +22,22 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
 
 
     @Query("""
-                SELECT t
-                FROM Trajectory t
-                WHERE t.type = :type\s
-                AND t.horizon = :horizon
-                AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
-                AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t.loadArea = :loadArea)
-                AND t.version = (
-                    SELECT MAX(t1.version)\s
-                    FROM Trajectory t1\s
-                    WHERE t1.fileName = t.fileName\s
-                    AND t1.type = :type\s
-                    AND t1.horizon = :horizon\s 
-                    AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t1.loadArea = :loadArea)\s 
-                )
-                ORDER BY t.creationDate DESC
-           \s""")
+                 SELECT t
+                 FROM Trajectory t
+                 WHERE t.type = :type\s
+                 AND t.horizon = :horizon
+                 AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
+                 AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t.loadArea = :loadArea)
+                 AND t.version = (
+                     SELECT MAX(t1.version)\s
+                     FROM Trajectory t1\s
+                     WHERE t1.fileName = t.fileName\s
+                     AND t1.type = :type\s
+                     AND t1.horizon = :horizon \s
+                     AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t1.loadArea = :loadArea) \s
+                 )
+                 ORDER BY t.creationDate DESC
+            \s""")
     List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains, @Param("loadArea") String loadArea);
 
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
