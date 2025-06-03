@@ -127,7 +127,7 @@ public class StudyServiceImpl implements StudyService {
         Assert.notNull(studyDTO.getProject(), "Project name must be provided.");
         Assert.notNull(studyDTO.getHorizon(), "Horizon year must be provided.");
 
-        String studyName = studyDTO.getName() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
+        String studyName = studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon()));
         studyDTO.setName(studyName);
 
         validateHorizon(studyDTO);
@@ -168,7 +168,7 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
-        String horizon = studyDTO.getHorizon() + "-" + (Integer.parseInt(studyDTO.getHorizon()) + 1);
+        String horizon = (Integer.parseInt(studyDTO.getHorizon()) - 1) + "-" + studyDTO.getHorizon() ;
         Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())
                 ? Collections.emptySet()
                 : convertToTrajectoryEntities(studyDTO.getTrajectoryIds());

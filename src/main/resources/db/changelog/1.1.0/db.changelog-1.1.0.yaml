@@ -10,3 +10,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V04-add_outputfilename_load_column.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V05-add_area_column_to_trajectory_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V06-alter_name_length_scenario_table.sql
