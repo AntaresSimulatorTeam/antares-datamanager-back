@@ -1,0 +1,127 @@
+dn: o=rte
+objectClass: top
+o: rte
+
+dn: ou=people,o=rte
+objectClass: top
+ou: people
+
+dn: ou=groups,o=rte
+objectClass: top
+ou: groups
+
+dn: cn=LL75140T,ou=people,o=rte
+departmentDN: cn=00001822,cn=00000206,cn=00001093,cn=00001866,cn=00000001,ou=hierarchicalO,ou=organization,o=rte
+employeeType: CHARGE D'ETUDES EXPERTISE
+rteADUPN: lakehallye@bureaupfref.sipfref.local
+givenName: Lyes
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: rtePerson
+objectClass: rteExternal
+departmentNumber: 00001822
+rteRHOLib:: UlRFfFDDtGxlIENsaWVudHMgQ29uY2VwdGlvbiBldCBPcMOpcmF0aW9uIGRlcyBTeXN0w6htZXN8RGlyZWN0aW9uIFN5c3TDqG1lIGQnaW5mb3JtYXRpb24gZXQgVMOpbMOpY29tfERQT0l8UExBU01B
+uid: lakehall
+mail: lyes.lakehal@rte-france.com
+cn: LL75140T
+rteADGUID: OKtizD5UyUqAsagGz1MzMw==
+DirXML-ADAliasName: lakehallye
+manager: cn=G81157,ou=people,o=rte
+fullName: Lyes LAKEHAL
+sn: LAKEHAL
+rteInDate: 20210409000000Z
+juridicalDepartmentNumber: nonassigned
+title: M.
+groupMembership: cn=users,ou=users,ou=9060,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0710,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=webitac,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0885,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0662,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0283,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0672,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0557,ou=application,o=rte
+groupMembership: cn=utilisateur_secours,ou=roles,ou=0662,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0899,ou=application,o=rte
+groupMembership: cn=web200,ou=roles,ou=adsweb.1,ou=application,o=rte
+groupMembership: cn=utilisateur_sequestre,ou=roles,ou=0662,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=rtenet.1,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0798,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=9284,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0388,ou=application,o=rte
+groupMembership: cn=utilisateur_coffrefort,ou=roles,ou=0662,ou=application,o=rte
+groupMembership: cn=nonassigned,ou=hierarchicalJ,ou=organization,o=rte
+groupMembership: cn=00001822,cn=00000206,cn=00001093,cn=00001866,cn=00000001,ou=hierarchicalO,ou=organization,o=rte
+groupMembership: cn=GSL_TER_MARS_COORDONNER,ou=roles,ou=9325,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=9325,ou=application,o=rte
+groupMembership: cn=GSL_TER_MARS_CM-MARSEILLE,ou=roles,ou=9325,ou=application,o=rte
+company:: UlRFIFLDqXNlYXUgZGUgdHJhbnNwb3J0IGQnw6lsZWN0cmljaXTDqQ==
+rteOutDate: 05/10/2022 12:00:00 AM CESTZ
+userPassword:: e1NIQTI1Nn05UVVtZ0c5U0FoWVV2UGkrR1dFTm9VdzFseFZBRGd6dU5sbEZ0aEt3enA0PQ==
+
+dn: cn=CG66752T,ou=people,o=rte
+departmentDN: cn=00001197,cn=00001484,cn=00001865,cn=00000001,ou=hierarchicalO,ou=organization,o=rte
+employeeType: CHARGE DE PROJETS MAINTENANCE EXPLOITATION SI
+rteADUPN: gaycha@bureaupfref.sipfref.local
+givenName: Charly
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: rtePerson
+objectClass: rteExternal
+userPassword:: e1NIQTI1Nn1qbnE3eHRUazhKbGpoS3Z6c21tWk10WUZ5bEJhRXFzK1hDNzJDNUxUektzPQ==
+departmentNumber: 00001197
+rteRHOLib:: UlRFfFDDtGxlIEdlc3Rpb24gZGUgbCdJbmZyYXN0cnVjdHVyZXxEaXJlY3Rpb24gTWFpbnRlbmFuY2V8RMOpcGFydGVtZW50IE1haW50ZW5hbmNlIFLDqXNlYXV4IFBhdHJpbW9pbmU=
+uid: gaych
+cn: CG66752T
+rteADGUID: s8Acg8ak8EmlP1hSY85CXw==
+DirXML-ADAliasName: gaycha
+manager: cn=H14347,ou=people,o=rte
+fullName: GAY Charly
+sn: GAY
+rteInDate: 20210412000000Z
+juridicalDepartmentNumber: nonassigned
+title: M.
+groupMembership: cn=users,ou=users,ou=9060,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0710,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=webitac,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0885,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0662,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0283,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0672,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0557,ou=application,o=rte
+groupMembership: cn=utilisateur_secours,ou=roles,ou=0662,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0899,ou=application,o=rte
+groupMembership: cn=web200,ou=roles,ou=adsweb.1,ou=application,o=rte
+groupMembership: cn=utilisateur_sequestre,ou=roles,ou=0662,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=rtenet.1,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0798,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=9284,ou=application,o=rte
+groupMembership: cn=users,ou=users,ou=0388,ou=application,o=rte
+groupMembership: cn=utilisateur_coffrefort,ou=roles,ou=0662,ou=application,o=rte
+groupMembership: cn=nonassigned,ou=hierarchicalJ,ou=organization,o=rte
+groupMembership: cn=00001197,cn=00001484,cn=00001865,cn=00000001,ou=hierarchicalO,ou=organization,o=rte
+groupMembership: cn=users,ou=users,ou=9325,ou=application,o=rte
+groupMembership: cn=GSL_TER_MARS_CM-MARSEILLE,ou=roles,ou=9325,ou=application,o=rte
+groupMembership: cn=GSL_TER_MARS_EXPLOITER,ou=roles,ou=9325,ou=application,o=rte
+company:: UlRFIFLDqXNlYXUgZGUgdHJhbnNwb3J0IGQnw6lsZWN0cmljaXTDqQ==
+rteOutDate: 05/13/2022 12:00:00 AM CESTZ
+
+
+
+dn: cn=developers,ou=groups,o=rte
+objectclass: top
+objectclass: rteGroup
+cn: developers
+ou: developer
+member: cn=LL75140T,ou=people,o=rte
+member: cn=CG66752T,ou=people,o=rte
+
+dn: cn=managers,ou=groups,o=rte
+objectclass: top
+objectclass: rteGroup
+cn: managers
+ou: manager
+member: cn=CG66752T,ou=people,o=rte
