@@ -54,8 +54,6 @@ public class TrajectoryController {
             @RequestParam(value = "zone", required = false)
             @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid area name") String loadZone,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) throws TechnicalException {
-        Employee user = ldapClientEmployeeService.getUserByNni("CF93131T");
-        log.info("user info:" + user.toString());
         return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
     }
 

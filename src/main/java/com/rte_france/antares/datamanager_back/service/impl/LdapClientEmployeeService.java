@@ -21,26 +21,6 @@ public class LdapClientEmployeeService {
     private final LdapTemplate ldapTemplate;
 
     /**
-     * Get list of User by their nni/name from snp and dch
-     *
-     * @param nameList list of name
-     * @return list of User
-     */
-    public List<Employee> getUsersByName(List<String> nameList) {
-        String[] nameArray = nameList.toArray(new String[0]);
-
-        ContainerCriteria initQuery = query()
-                .where(RTE_LDAP_ATTRIBUTE_OBJECT_CLASS).is(RTE_LDAP_PERSON_OBJECT);
-        ContainerCriteria cnCriteria = query().where(RTE_LDAP_ATTRIBUTE_CN).is(nameArray[0]);
-
-        Arrays.stream(nameArray).skip(1).forEach(name -> cnCriteria.or(RTE_LDAP_ATTRIBUTE_CN).is(name));
-
-        initQuery.and(cnCriteria);
-
-        return ldapTemplate.search(initQuery, new EmployeeMapper());
-    }
-
-    /**
      * Get User  by id
      *
      * @return user Employee
@@ -77,9 +57,4 @@ public class LdapClientEmployeeService {
 
         return ldapTemplate.search(initQuery, new EmployeeMapper());
     }
-
-
-
-
-
 }

@@ -19,7 +19,7 @@ public class LdapMapper {
         }
         return employees.stream()
                 .map(this::toUserDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public UserInfoDto toUserDto(Employee employee) {

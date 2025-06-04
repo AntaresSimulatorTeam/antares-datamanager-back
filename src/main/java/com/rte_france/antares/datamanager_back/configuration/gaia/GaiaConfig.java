@@ -12,9 +12,7 @@ import java.util.logging.Logger;
 
 @Getter
 @Configuration
-public class LdapConfig {
-
-    private static final Logger LOGGER = Logger.getLogger("com.rte_france.plasma.event.ldap.client.config.LdapConfig");
+public class GaiaConfig {
 
     @Value(PropertyManagement.RTE_LDAP_URLS)
     private String ldapUrl;
@@ -28,10 +26,7 @@ public class LdapConfig {
     @Value(PropertyManagement.RTE_LDAP_PASSWORD)
     private String ldapPassword;
 
-    @Value(PropertyManagement.RTE_ENV)
-    private String rteEnv;
-
-    @Bean
+    @Bean(name = "gaiaContextSource") // ou "ldapContextSourceTest"
     public LdapContextSource ldapContextSource() throws TechnicalException {
         LdapContextSource contextSource = new LdapContextSource();
         contextSource.setUrl(ldapUrl);
@@ -43,7 +38,7 @@ public class LdapConfig {
         return contextSource;
     }
 
-    @Bean
+    @Bean(name = "gaiaTemplate") // ou "ldapContextSourceTest"
     public LdapTemplate ldapTemplate() throws TechnicalException {
         return new LdapTemplate(ldapContextSource());
     }
