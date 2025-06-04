@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.mapper.LdapMapper;
 import com.rte_france.antares.datamanager_back.service.impl.LdapClientEmployeeService;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,10 +48,8 @@ import static org.mockito.Mockito.when;
     void getUserByNniReturnsUserWhenFound() throws Exception {
         // Given
         String nni = "12345";
-        UserInfoDto user = UserInfoDto.builder().nni(nni).build();
         Employee employee = Employee.builder().nni(nni).cn("John Doe").build();
         when(ldapClientEmployeeService.getUserByNni(nni)).thenReturn(employee);
-        when(ldapMapper.toUserDto(employee)).thenReturn(user);
 
         // When
         mockMvc.perform(get("/v1/user/{nni}", nni)
@@ -64,7 +61,6 @@ import static org.mockito.Mockito.when;
                 .andDo(MockMvcResultHandlers.print());
 
         verify(ldapClientEmployeeService, times(1)).getUserByNni(nni);
-        verify(ldapMapper, times(1)).toUserDto(employee);
     }
 
     @Test
@@ -72,7 +68,6 @@ import static org.mockito.Mockito.when;
         // Given
         String nni = "12345";
         when(ldapClientEmployeeService.getUserByNni(nni)).thenReturn(null);
-        when(ldapMapper.toUserDto(null)).thenReturn(null);
 
         // When
         mockMvc.perform(get("/v1/user/{nni}", nni)
@@ -83,17 +78,14 @@ import static org.mockito.Mockito.when;
                 .andDo(MockMvcResultHandlers.print());
 
         verify(ldapClientEmployeeService, times(1)).getUserByNni(nni);
-        verify(ldapMapper, times(1)).toUserDto(null);
     }
 
     @Test
     void getUsersByListNniReturnsListOfUsers() throws Exception {
         // Given
         List<String> nniList = List.of("12345", "67890");
-        UserInfoDto user1 = UserInfoDto.builder().nni("12345").build();
         Employee employee1 = Employee.builder().nni("12345").cn("John Doe").build();
         when(ldapClientEmployeeService.getUserByNni("12345")).thenReturn(employee1);
-        when(ldapMapper.toUserDto(employee1)).thenReturn(user1);
 
         // When
         mockMvc.perform(post("/v1/user/list")
@@ -112,7 +104,6 @@ import static org.mockito.Mockito.when;
         // Given
         List<String> nniList = List.of("12345", "67890");
         when(ldapClientEmployeeService.getUsersByListNni(nniList)).thenReturn(List.of());
-        when(ldapMapper.toUsersDto(List.of())).thenReturn(List.of());
 
         // When
         mockMvc.perform(post("/v1/user/list")
@@ -125,6 +116,5 @@ import static org.mockito.Mockito.when;
                 .andDo(MockMvcResultHandlers.print());
 
         verify(ldapClientEmployeeService, times(1)).getUsersByListNni(nniList);
-        verify(ldapMapper, times(1)).toUsersDto(List.of());
     }
 }

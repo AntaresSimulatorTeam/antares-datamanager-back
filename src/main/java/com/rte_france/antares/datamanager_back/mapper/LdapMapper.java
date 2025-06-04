@@ -7,45 +7,29 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class LdapMapper {
 
-    public List<UserInfoDto> toUsersDto(List<Employee> employees) {
+    public static List<UserInfoDto> toUsersDto(List<Employee> employees) {
         if (employees == null) {
             return Collections.emptyList();
         }
         return employees.stream()
-                .map(this::toUserDto)
+                .map(LdapMapper::toUserDto)
                 .toList();
     }
 
-    public UserInfoDto toUserDto(Employee employee) {
+    public static UserInfoDto toUserDto(Employee employee) {
+        if( employee == null) {
+            return null;
+        }
         return UserInfoDto.builder()
                 .nni(employee.getNni())
                 .firstName(employee.getFirstName())
                 .lastName(employee.getLastName())
                 .email(employee.getEmail())
                 .build();
-    }
-
-    public UserInfoDto toLdapUserModel(Employee userFromLdap) {
-        return UserInfoDto.builder()
-                .nni(userFromLdap.getNni())
-                .firstName(userFromLdap.getFirstName())
-                .lastName(userFromLdap.getLastName())
-                .email(userFromLdap.getEmail())
-                .build();
-    }
-
-    public List<UserInfoDto> toLdapUserModels(List<Employee> userList) {
-        if (userList == null) {
-            return Collections.emptyList();
-        }
-        return userList.stream()
-                .map(this::toLdapUserModel)
-                .collect(Collectors.toList());
     }
 }
