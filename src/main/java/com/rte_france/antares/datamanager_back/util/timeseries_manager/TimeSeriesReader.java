@@ -27,46 +27,6 @@ import java.util.Objects;
 public final class TimeSeriesReader {
   private static final int ROW_COUNT = 8760;
 
-  /**
-   * Reads a time series matrix from an Arrow file.
-   *
-   * @param filePath the path to the Arrow file
-   * @return the time series matrix
-   * @throws IOException if an I/O error occurs
-   */
-  public TimeSeriesMatrix read(Path filePath) throws IOException {
-    Objects.requireNonNull(filePath);
-
-    try (var channel = Files.newByteChannel(filePath);
-         var allocator = new RootAllocator();
-         var reader = new ArrowFileReader(channel, allocator)) {
-
-      reader.loadNextBatch();
-      var root = reader.getVectorSchemaRoot();
-      var fields = root.getSchema().getFields();
-
-      var columns = new ArrayList<TimeSeriesMatrixColumn>();
-      fillMatrixColumns(fields, root, columns);
-
-      return new TimeSeriesMatrix(columns);
-    }
-  }
-
-  private static void fillMatrixColumns(List<Field> fields, VectorSchemaRoot root, ArrayList<TimeSeriesMatrixColumn> columns) {
-    for (var field : fields) {
-      var vector = root.getVector(field.getName());
-      var values = new double[vector.getValueCount()];
-      for (var i = 0; i < vector.getValueCount(); i++) {
-        if (vector instanceof Float8Vector f) {
-          values[i] = f.get(i);
-        } else {
-          throw new IllegalStateException();
-        }
-      }
-      columns.add(new TimeSeriesMatrixColumn(field.getName(), values));
-    }
-  }
-
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
     Objects.requireNonNull(filePath);
 
