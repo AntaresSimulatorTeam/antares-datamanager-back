@@ -349,14 +349,23 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
 
-    private static LinkedHashSet<WarningMessageEntity> getWarningMessages(Integer studyId, TrajectoryEntity trajectory) {
+    private LinkedHashSet<WarningMessageEntity> getWarningMessages(Integer studyId, TrajectoryEntity trajectory) {
         return trajectory.getWarningMessages().stream()
-                .filter(warning -> warning.getStudy().getId().equals(studyId))
+                .filter(warning -> warning.getStudy().getId().equals(studyId) && isStudyTrajectoryExistById(studyId, warning))
                 .sorted(Comparator
                         .comparing(WarningMessageEntity::getIsAck) // ack = true d'abord
                         .thenComparing(WarningMessageEntity::getCreationDate, Comparator.reverseOrder()) // tri décroissant par date
                 )
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    public boolean isStudyTrajectoryExistById(Integer studyId, WarningMessageEntity warning) {
+        Integer secondTrajectoryId = warning.getSecondTrajectory().getId();
+        return secondTrajectoryId != null && studyTrajectoryRepository.findById(StudyTrajectoryKey.builder()
+                        .trajectoryId(secondTrajectoryId)
+                        .scenarioId(studyId)
+                        .build())
+                .isPresent();
     }
 
 

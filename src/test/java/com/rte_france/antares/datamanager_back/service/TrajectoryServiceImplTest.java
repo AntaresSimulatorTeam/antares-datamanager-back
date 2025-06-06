@@ -272,6 +272,7 @@ class TrajectoryServiceImplTest {
         assertTrue(foundLink.isPresent());
         assertEquals(existingLink, foundLink.get());
     }
+
     @Test
     void unlinkTrajectoryFromStudy_unlinksWhenLinkExists() {
         Integer trajectoryId = 1;
@@ -519,6 +520,7 @@ class TrajectoryServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
     }
+
     @Test
     void findTrajectoriesByTypeAndStudyId_returnsSortedWarningsByAckAndDate() {
         Integer studyId = 1;
@@ -530,6 +532,7 @@ class TrajectoryServiceImplTest {
                 .study(StudyEntity.builder().id(studyId).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
                 .build();
 
         WarningMessageEntity warning2 = WarningMessageEntity.builder()
@@ -538,6 +541,7 @@ class TrajectoryServiceImplTest {
                 .study(StudyEntity.builder().id(studyId).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
                 .build();
 
         WarningMessageEntity warning3 = WarningMessageEntity.builder()
@@ -546,6 +550,7 @@ class TrajectoryServiceImplTest {
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
                 .study(StudyEntity.builder().id(studyId).build())
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
                 .build();
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type(trajectoryType)
@@ -553,6 +558,7 @@ class TrajectoryServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId)).thenReturn(List.of(trajectory));
+        when(studyTrajectoryRepository.findById(any())).thenReturn(Optional.of(StudyTrajectoryEntity.builder().build()));
 
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
 
@@ -573,6 +579,7 @@ class TrajectoryServiceImplTest {
                 .study(StudyEntity.builder().id(studyId).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
                 .build();
 
         WarningMessageEntity warning2 = WarningMessageEntity.builder()
@@ -581,6 +588,7 @@ class TrajectoryServiceImplTest {
                 .study(StudyEntity.builder().id(2).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -589,7 +597,7 @@ class TrajectoryServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId)).thenReturn(List.of(trajectory));
-
+        when(studyTrajectoryRepository.findById(any())).thenReturn(Optional.of(StudyTrajectoryEntity.builder().build()));
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
 
         assertEquals(1, result.size());
@@ -597,32 +605,32 @@ class TrajectoryServiceImplTest {
         assertEquals(1, filteredWarnings.size());
     }
 
-@Test
-void checkLinkCoherence_whenAreasAreMissing_shouldThrowBusinessException() {
-    //Given
-    Integer studyId = 1;
-    Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
-    String userNni = "testUser";
+    @Test
+    void checkLinkCoherence_whenAreasAreMissing_shouldThrowBusinessException() {
+        //Given
+        Integer studyId = 1;
+        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
+        String userNni = "testUser";
 
-    TrajectoryEntity trajectory = new TrajectoryEntity();
-    List<LinkEntity> links = Arrays.asList(
-            LinkEntity.builder().trajectory(trajectory).name("BE-FR").build(),
-            LinkEntity.builder().trajectory(trajectory).name("RE-ZE").build()
-    );
-    trajectory.setLinkEntities(links);
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<LinkEntity> links = Arrays.asList(
+                LinkEntity.builder().trajectory(trajectory).name("BE-FR").build(),
+                LinkEntity.builder().trajectory(trajectory).name("RE-ZE").build()
+        );
+        trajectory.setLinkEntities(links);
 
-    List<String> savedAreas = Arrays.asList("BE", "ZE");
-    when(linkFileProcessorService.findListArea(studyId)).thenReturn(savedAreas);
+        List<String> savedAreas = Arrays.asList("BE", "ZE");
+        when(linkFileProcessorService.findListArea(studyId)).thenReturn(savedAreas);
 
-    //When
-    BusinessException exception = assertThrows(
-            BusinessException.class,
-            () -> trajectoryService.checkLinkCoherence(studyId, warningMessageEntities, trajectory, userNni)
-    );
+        //When
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> trajectoryService.checkLinkCoherence(studyId, warningMessageEntities, trajectory, userNni)
+        );
 
-    //Then
-    assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-    assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
-    assertEquals(List.of("RE, FR"), exception.getErrorMessageArguments());
-}
+        //Then
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
+        assertEquals(List.of("RE, FR"), exception.getErrorMessageArguments());
+    }
 }
