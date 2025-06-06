@@ -1,6 +1,14 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
@@ -13,7 +21,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 
-import java.util.UUID;
+import java.util.*;
+
+import static org.apache.xmlbeans.impl.schema.StscState.addWarning;
 
 
 @Slf4j
@@ -23,6 +33,9 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
   private final NasFileService nasFileService;
   private final TimeSeriesReader reader;
   private final TimeSeriesWriter writer;
+  private final TrajectoryRepository trajectoryRepository;
+  private final AreaRepository areaRepository;
+  private final WarningMessageService warningMessageService;
 
   /**
    *
@@ -56,6 +69,51 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
   private void setFilePermissions(Path path) throws IOException {
     var permissions = PosixFilePermissions.fromString("rw-------");
     Files.setPosixFilePermissions(path, permissions);
+  }
+
+  public Set<WarningMessageEntity> checkForMissingLoadFiles(Path trajectoryPath, String horizon, Integer studyId, String userNni, TrajectoryEntity trajectory)
+
+  {
+    List<String> studyAreas = areaRepository.findAllByStudyId(studyId)
+            .stream()
+            .map(AreaEntity::getName)
+            .toList();
+
+    Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+    // Récupérer la liste des zones qui ont déjà une trajectoire
+    List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
+            .stream()
+            .map(TrajectoryEntity::getLoadArea)
+            .toList();
+
+    // Filtrer les zones qui n'ont pas encore de trajectoire
+    List<String> areasWithoutTrajectory = studyAreas.stream()
+            .filter(area -> !areasWithTrajectory.contains(area))
+            .toList();
+
+
+    List<String> missingLoadFiles = areasWithoutTrajectory.stream()
+            .filter(area -> {
+              Path loadFile = trajectoryPath.resolve("load_" + area.toLowerCase() + "_" + horizon + ".txt");
+              return !Files.exists(loadFile);
+            })
+            .toList();
+
+    if (!missingLoadFiles.isEmpty()) {
+      warningMessageService.addWarning(warningMessages,
+              Arrays.asList(
+                      String.join(", ", missingLoadFiles),
+                      trajectory.getFileName()
+              ),
+              WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS,
+              studyId,
+              userNni,
+              trajectory
+      );
+    }
+    return warningMessages;
+
   }
 
 }

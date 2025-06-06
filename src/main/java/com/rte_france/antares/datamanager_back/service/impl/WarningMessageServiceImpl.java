@@ -1,9 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
-import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
-import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -21,6 +24,7 @@ public class WarningMessageServiceImpl implements WarningMessageService {
 
     private final MessageSource messageSource;
     private final WarningMessageRepository warningMessageRepository;
+    private final StudyRepository studyRepository;
 
     @Override
     public String getMessage(String code, Object... args) {
@@ -41,4 +45,46 @@ public class WarningMessageServiceImpl implements WarningMessageService {
         warning.setIsAck(true);
         warningMessageRepository.save(warning);
     }
+
+    public void addWarning(Set<WarningMessageEntity> warningMessages,
+                           List<String> warnings,
+                           WarningCode warningCode,
+                           Integer studyId,
+                           String userNni,
+                           TrajectoryEntity trajectory) {
+        if (warnings.isEmpty()) {
+            return;
+        }
+
+        StudyEntity study = studyRepository.findById(studyId).orElseThrow();
+
+        // Si la liste ne contient qu'un seul élément, l'utiliser directement
+        // Sinon, joindre tous les éléments avec des virgules
+        Object[] messageArgs;
+        if (warnings.size() == 1) {
+            messageArgs = new Object[]{warnings.get(0)};
+        } else if (warnings.size() > 1) {
+            messageArgs = new Object[]{String.join(", ", warnings)};
+            if (warningCode == WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS) {
+                messageArgs = new Object[]{warnings.get(0), warnings.get(1)};
+            }
+        } else {
+            return;
+        }
+
+        var message = WarningMessageEntity.builder()
+                .warningContent(getMessage(warningCode.value(), messageArgs))
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .secondTrajectory(null)
+                .warningCode(warningCode)
+                .study(study)
+                .trajectory(trajectory)
+                .creationDate(LocalDateTime.now())
+                .createdBy(userNni)
+                .isAck(false)
+                .build();
+
+        warningMessages.add(message);
+    }
+
 }

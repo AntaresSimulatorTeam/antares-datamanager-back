@@ -63,6 +63,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
+    private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
     @Override
@@ -91,6 +92,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity saveLoadTrajectoriesInDb(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
         if (area == null || trajectoryToUse == null || horizon == null) {
             throw
                     BusinessException.builder()
@@ -120,6 +122,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // Build and normalize the trajectory path
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
 
+
+
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
@@ -137,13 +141,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             // Update version and save new trajectory
             TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
-            return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId);
+            return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, null);
         }
 
         // No existing trajectory: create and save new
         TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
-        return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId);
+        if (area.equals("OTHERS")) {
+             warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
+        }
+        return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
     }
+
 
     // Utility method to build trajectory path with checks
     private Path buildTrajectoryPath(String trajectoryToUse) {
@@ -181,7 +189,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .build();
     }
 
-    private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId) throws IOException {
+    private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
         if (area.equals("OTHERS")) {
             listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
@@ -205,6 +213,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .toList();
         loadTrajectory.setLoadEntities(loadEntities);
         loadTrajectory.setLoadArea(area.toUpperCase());
+        loadTrajectory.setWarningMessages(warningMessageEntities);
         return trajectoryRepository.save(loadTrajectory);
     }
 
