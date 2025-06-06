@@ -2,14 +2,13 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,10 +40,7 @@ class StudyServiceImplTest {
     private ProjectRepository projectRepository;
 
     @Mock
-    private UserService userService;
-
-    @Mock
-    private StudyMapper studyMapper;
+    private StudyGeneratorService studyGeneratorService;
 
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;
@@ -275,5 +271,56 @@ class StudyServiceImplTest {
 
         assertEquals("Study with id {0} not found.", exception.getMessage());
         assertEquals(Collections.singletonList("1"), exception.getErrorMessageArguments());
+    }
+
+
+
+    @Test
+    void generateStudyExecutesAllStepsSuccessfully() throws TechnicalException {
+        StudyEntity studyEntity = new StudyEntity();
+        studyEntity.setId(1);
+        studyEntity.setStatus(StudyStatus.IN_PROGRESS);
+
+        doNothing().when(studyGeneratorService).buildJsonForStudyGeneration(1);
+        doNothing().when(studyGeneratorService).callGenerateStudyService(1);
+        when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(studyEntity);
+
+        studyServiceImpl.generateStudy(1);
+
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(1);
+        verify(studyGeneratorService, times(1)).callGenerateStudyService(1);
+        verify(studyRepository, times(1)).save(any(StudyEntity.class));
+    }
+
+    @Test
+    void generateStudyThrowsTechnicalExceptionWhenJsonGenerationFails() throws TechnicalException {
+        doThrow( TechnicalException.builder().message("Error during JSON generation").build())
+                .when(studyGeneratorService).buildJsonForStudyGeneration(1);
+
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            studyServiceImpl.generateStudy(1);
+        });
+
+        assertEquals("Error during JSON generation", exception.getMessage());
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(1);
+        verify(studyGeneratorService, never()).callGenerateStudyService(1);
+        verify(studyRepository, never()).save(any(StudyEntity.class));
+    }
+
+    @Test
+    void generateStudyThrowsTechnicalExceptionWhenServiceCallFails() throws TechnicalException {
+        doNothing().when(studyGeneratorService).buildJsonForStudyGeneration(1);
+        doThrow(TechnicalException.builder().message("Error during service call").build())
+                .when(studyGeneratorService).callGenerateStudyService(1);
+
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            studyServiceImpl.generateStudy(1);
+        });
+
+        assertEquals("Error during service call", exception.getMessage());
+        verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(1);
+        verify(studyGeneratorService, times(1)).callGenerateStudyService(1);
+        verify(studyRepository, never()).save(any(StudyEntity.class));
     }
 }
