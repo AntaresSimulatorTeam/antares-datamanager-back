@@ -360,7 +360,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     public boolean isStudyTrajectoryExistById(Integer studyId, WarningMessageEntity warning) {
-        return warning.getSecondTrajectory() != null && studyTrajectoryRepository.findById(StudyTrajectoryKey.builder()
+        return warning.getSecondTrajectory() == null || studyTrajectoryRepository.findById(StudyTrajectoryKey.builder()
                         .trajectoryId(warning.getSecondTrajectory().getId())
                         .scenarioId(studyId)
                         .build())
