@@ -1,9 +1,14 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
@@ -20,7 +25,9 @@ import org.mockito.MockitoAnnotations;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -34,6 +41,9 @@ class LoadFileProcessorServiceImplTest {
 
     @Mock
     private LoadRepository loadRepository;
+
+    @Mock
+    private AreaRepository areaRepository;
 
     @Mock
     private TimeSeriesReader timeSeriesReader;
@@ -50,12 +60,29 @@ class LoadFileProcessorServiceImplTest {
     @Mock
     private UserService userService;
 
-  @TempDir
-  private Path tempDir;
+    @Mock
+    private WarningMessageService warningMessageService;
+
+
+    @TempDir
+    private Path tempDir;
+
+    private String horizon;
+    private Integer studyId;
+    private String userNni;
+    private TrajectoryEntity trajectory;
+
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        horizon = "2023-2024";
+        studyId = 1;
+        userNni = "testUser";
+        trajectory = TrajectoryEntity.builder()
+                .fileName("testTrajectory")
+                .build();
+
     }
 
     @Test
@@ -93,5 +120,103 @@ class LoadFileProcessorServiceImplTest {
         verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
     }
 
+    @Test
+    void shouldThrowBusinessExceptionWhenAllFilesAreMissing() throws IOException {
+        // Given
+        List<String> studyAreas = List.of("AREA1", "AREA2");
+        List<AreaEntity> areaEntities = studyAreas.stream()
+                .map(name -> AreaEntity.builder().name(name).build())
+                .toList();
+
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+                .thenReturn(List.of());
+
+        Path trajectoryPath = tempDir.resolve("testTrajectory");
+        Files.createDirectory(trajectoryPath);
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                loadFileProcessorService.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, trajectory));
+
+        assertEquals("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}", exception.getMessage());
+        assertEquals(List.of("AREA1, AREA2", "testTrajectory"), exception.getErrorMessageArguments());
+        verify(warningMessageService, never()).addWarning(any(), any(), any(), any(), any(), any());
+
+        verify(warningMessageService, never()).addWarning(any(), any(), any(), any(), any(), any());
+    }
+
+
+    @Test
+    void shouldAddWarningWhenSomeFilesAreMissing() throws IOException {
+        // Given
+        List<String> studyAreas = List.of("AREA1", "AREA2", "AREA3" );
+        List<AreaEntity> areaEntities = studyAreas.stream()
+                .map(name -> AreaEntity.builder().name(name).build())
+                .toList();
+
+
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+                .thenReturn(List.of());
+
+        Path trajectoryPath = tempDir.resolve("testTrajectory");
+        Files.createDirectory(trajectoryPath);
+
+        Path loadArea1File = trajectoryPath.resolve("load_area1_" + horizon + ".txt");
+        Files.writeString(loadArea1File, "test content");
+
+        //When
+        Set<WarningMessageEntity> result = loadFileProcessorService.checkForMissingLoadFiles(
+                trajectoryPath, horizon, studyId, userNni, trajectory);
+
+        //Then
+        verify(warningMessageService).addWarning(
+                eq(result),
+                argThat(warnings -> warnings.size() == 2 &&
+                        warnings.getFirst().equals("AREA2, AREA3") &&
+                        warnings.get(1).equals("testTrajectory")),
+                eq(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS),
+                eq(studyId),
+                eq(userNni),
+                eq(trajectory)
+        );
+
+
+        assertTrue(Files.exists(loadArea1File));
+        assertTrue(Files.isRegularFile(loadArea1File));
+        assertEquals("test content", Files.readString(loadArea1File));
+    }
+
+    @Test
+    void shouldReturnEmptyWarningSetWhenAllFilesExist() throws IOException {
+        // Given
+        List<String> studyAreas = List.of("AREA1", "AREA2");
+        List<AreaEntity> areaEntities = studyAreas.stream()
+                .map(name -> AreaEntity.builder().name(name).build())
+                .toList();
+
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+                .thenReturn(List.of());
+
+        Path trajectoryPath = tempDir.resolve("testTrajectory");
+        Files.createDirectory(trajectoryPath);
+
+
+        for (String area : studyAreas) {
+            Path areaFile = trajectoryPath.resolve("load_" + area.toLowerCase() + "_" + horizon + ".txt");
+            Files.writeString(areaFile, "test content");
+        }
+
+        // When
+        Set<WarningMessageEntity> result = loadFileProcessorService.checkForMissingLoadFiles(
+                trajectoryPath, horizon, studyId, userNni, trajectory);
+
+        // Then
+        assertTrue(result.isEmpty());
+        verify(warningMessageService, never()).getMessage(anyString(), any());
+        verify(warningMessageService, never()).addWarning(any(), any(), any(), any(), any(), any());
+    }
 
 }

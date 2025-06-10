@@ -58,8 +58,6 @@ public class WarningMessageServiceImpl implements WarningMessageService {
 
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
 
-        // Si la liste ne contient qu'un seul élément, l'utiliser directement
-        // Sinon, joindre tous les éléments avec des virgules
         Object[] messageArgs;
         if (warnings.size() == 1) {
             messageArgs = new Object[]{warnings.get(0)};
