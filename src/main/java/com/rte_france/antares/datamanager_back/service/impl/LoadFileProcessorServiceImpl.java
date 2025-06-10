@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
@@ -14,6 +15,7 @@ import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSerie
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -81,13 +83,12 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     Set<WarningMessageEntity> warningMessages = new HashSet<>();
 
-    // Récupérer la liste des zones qui ont déjà une trajectoire
+
     List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
             .stream()
             .map(TrajectoryEntity::getLoadArea)
             .toList();
 
-    // Filtrer les zones qui n'ont pas encore de trajectoire
     List<String> areasWithoutTrajectory = studyAreas.stream()
             .filter(area -> !areasWithTrajectory.contains(area))
             .toList();
@@ -99,6 +100,17 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
               return !Files.exists(loadFile);
             })
             .toList();
+    if (!areasWithoutTrajectory.isEmpty() && missingLoadFiles.size() == areasWithoutTrajectory.size()) {
+      throw BusinessException.builder()
+              .message("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}")
+              .errorMessageArguments(Arrays.asList(
+                      String.join(", ", areasWithoutTrajectory),
+                      trajectory.getFileName()
+              ))
+              .httpStatus(HttpStatus.BAD_REQUEST)
+              .build();
+    }
+
 
     if (!missingLoadFiles.isEmpty()) {
       warningMessageService.addWarning(warningMessages,
