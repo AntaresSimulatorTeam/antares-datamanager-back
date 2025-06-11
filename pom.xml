@@ -1,59 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.11</version>
-    <relativePath/>
+    <version>3.2.7</version>
+    <relativePath/> <!-- lookup parent from repository -->
   </parent>
-
   <groupId>com.rte_france.antares</groupId>
   <artifactId>antares-datamanager-back</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <name>antares-datamanager-back</name>
-  <description>Pegase belongs to ANTARES project</description>
-
+  <description>pegase belongs to ANTARES project</description>
+  <url/>
+  <licenses>
+    <license/>
+  </licenses>
+  <developers>
+    <developer/>
+  </developers>
+  <scm>
+    <connection/>
+    <developerConnection/>
+    <tag/>
+    <url/>
+  </scm>
   <properties>
     <java.version>21</java.version>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <open-api-doc.version>2.0.3</open-api-doc.version>
     <arrow.version>18.1.0</arrow.version>
-    <ecs-logging-java.version>1.3.2</ecs-logging-java.version>
-    <logback-core.version>1.4.12</logback-core.version>
-    <logback-access.version>1.4.14</logback-access.version>
-    <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
-    <guava.version>32.1.2-jre</guava.version>
-    <poi-ooxml.version>5.2.3</poi-ooxml.version>
-    <commons-codec.version>1.15</commons-codec.version>
-    <jsch.version>0.1.55</jsch.version>
-    <eddsa.version>0.3.0</eddsa.version>
-    <springdoc-openapi.version>2.1.0</springdoc-openapi.version>
-    <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
-    <sonar-maven-plugin.version>5.0.0.4389</sonar-maven-plugin.version>
-    <maven-surefire-plugin.version>3.0.0-M9</maven-surefire-plugin.version>
     <sonar.organization>antaressimulatorteam</sonar.organization>
     <sonar.projectKey>AntaresSimulatorTeam_antares-datamanager-back</sonar.projectKey>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-    <sonar.coverage.jacoco.xmlReportPaths>../antares-datamanager-back/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    <ecs-logging-java.version>1.3.2</ecs-logging-java.version>
+    <sonar.coverage.jacoco.xmlReportPaths>
+      ../antares-datamanager-back/target/site/jacoco/jacoco.xml
+    </sonar.coverage.jacoco.xmlReportPaths>
     <sonar.exclusions>
-      **/repository/model/**,
-      **/exception/**,
-      **/configuration/**,
-      **/dto/**,
-      **/PegaseBackApplication.java,
-      **/service/impl/SearchCriteria.java
+      **com/rte_france/antares/datamanager_back/repository/model/**,
+      **com/rte_france/antares/datamanager_back/exception/**,
+      **com/rte_france/antares/datamanager_back/configuration/**,
+      **com/rte_france/antares/datamanager_back/repository/model/**,
+      **com/rte_france/antares/datamanager_back/dto/**,
+      **com/rte_france/antares/datamanager_back/PegaseBackApplication.java,
+      **/com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java
     </sonar.exclusions>
+    <!--    For Apache Arrow -->
     <argLine>--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED</argLine>
   </properties>
-
   <dependencies>
-
-    <!-- Spring Boot Starters -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -61,6 +59,11 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>pl.project13.maven</groupId>
+      <artifactId>git-commit-id-plugin</artifactId>
+      <version>4.0.4</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -83,12 +86,6 @@
       <artifactId>spring-boot-starter-data-ldap</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-integration</artifactId>
-    </dependency>
-
-    <!-- LDAP & Test -->
-    <dependency>
       <groupId>com.unboundid</groupId>
       <artifactId>unboundid-ldapsdk</artifactId>
       <scope>test</scope>
@@ -98,8 +95,10 @@
       <artifactId>spring-ldap-test</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <!-- Integration -->
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.integration</groupId>
       <artifactId>spring-integration-http</artifactId>
@@ -108,20 +107,36 @@
       <groupId>org.springframework.integration</groupId>
       <artifactId>spring-integration-jpa</artifactId>
     </dependency>
+    <!-- Spring Boot Integration Starter -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-integration</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>32.1.2-jre</version>
+    </dependency>
+
+    <!-- Spring Integration File -->
     <dependency>
       <groupId>org.springframework.integration</groupId>
       <artifactId>spring-integration-file</artifactId>
     </dependency>
+    <!-- Apache POI for Excel Processing -->
     <dependency>
-      <groupId>org.springframework.integration</groupId>
-      <artifactId>spring-integration-sftp</artifactId>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.3</version>
     </dependency>
 
-    <!-- Data & DB -->
     <dependency>
-      <groupId>org.liquibase</groupId>
-      <artifactId>liquibase-core</artifactId>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.15</version>
     </dependency>
+
+    <!-- HikariCP for Connection Pooling -->
     <dependency>
       <groupId>com.zaxxer</groupId>
       <artifactId>HikariCP</artifactId>
@@ -136,8 +151,53 @@
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.integration</groupId>
+      <artifactId>spring-integration-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Springdoc OpenAPI UI dependency -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>7.4</version>
+    </dependency>
+    <!-- Spring Integration SFTP -->
+    <dependency>
+      <groupId>org.springframework.integration</groupId>
+      <artifactId>spring-integration-sftp</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>net.i2p.crypto</groupId>
+      <artifactId>eddsa</artifactId>
+      <version>0.3.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.jcraft</groupId>
+      <artifactId>jsch</artifactId>
+      <version>0.1.55</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
 
-    <!-- Timeseries / Apache Arrow -->
+    <!--    Timeseries manager -->
     <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>arrow-vector</artifactId>
@@ -154,86 +214,26 @@
       <version>${arrow.version}</version>
     </dependency>
 
-    <!-- Logging -->
     <dependency>
       <groupId>co.elastic.logging</groupId>
       <artifactId>logback-ecs-encoder</artifactId>
       <version>${ecs-logging-java.version}</version>
     </dependency>
     <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-access</artifactId>
+      <version>1.4.14</version>
+    </dependency>
+    <dependency>
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
-      <version>${logstash-logback-encoder.version}</version>
+      <version>7.0.1</version>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-core</artifactId>
-      <version>${logback-core.version}</version>
+      <version>1.4.12</version>
     </dependency>
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-access</artifactId>
-      <version>${logback-access.version}</version>
-    </dependency>
-
-    <!-- Utils -->
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.poi</groupId>
-      <artifactId>poi-ooxml</artifactId>
-      <version>${poi-ooxml.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-      <version>${commons-codec.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.jcraft</groupId>
-      <artifactId>jsch</artifactId>
-      <version>${jsch.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>net.i2p.crypto</groupId>
-      <artifactId>eddsa</artifactId>
-      <version>${eddsa.version}</version>
-    </dependency>
-
-    <!-- SpringDoc -->
-    <dependency>
-      <groupId>org.springdoc</groupId>
-      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-      <version>${springdoc-openapi.version}</version>
-    </dependency>
-
-    <!-- Lombok -->
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Tests -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.integration</groupId>
-      <artifactId>spring-integration-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
 
   <build>
@@ -242,7 +242,8 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
-          <jvmArguments>${argLine}</jvmArguments>
+          <!--   For Apache Arrow   -->
+          <jvmArguments>--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED</jvmArguments>
           <excludes>
             <exclude>
               <groupId>org.projectlombok</groupId>
@@ -258,25 +259,25 @@
           </execution>
         </executions>
       </plugin>
-
       <plugin>
+        <!-- https://mvnrepository.com/artifact/org.sonarsource.scanner.maven/sonar-maven-plugin -->
         <groupId>org.sonarsource.scanner.maven</groupId>
         <artifactId>sonar-maven-plugin</artifactId>
-        <version>${sonar-maven-plugin.version}</version>
-      </plugin>
+        <version>5.0.0.4389</version>
 
+      </plugin>
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>${jacoco-maven-plugin.version}</version>
+        <version>0.8.10</version>
         <configuration>
           <excludes>
-            <exclude>**/exception/**</exclude>
-            <exclude>**/configuration/**</exclude>
-            <exclude>**/repository/model/**</exclude>
-            <exclude>**/dto/**</exclude>
-            <exclude>**/PegaseBackApplication.java</exclude>
-            <exclude>**/service/impl/SearchCriteria.java</exclude>
+            <exclude>com/rte_france/antares/datamanager_back/exception/**</exclude>
+            <exclude>com/rte_france/antares/datamanager_back/configuration/**</exclude>
+            <exclude>com/rte_france/antares/datamanager_back/repository/model/**</exclude>
+            <exclude>com/rte_france/antares/datamanager_back/dto/**</exclude>
+            <exclude>com/rte_france/antares/datamanager_back/PegaseBackApplication.java</exclude>
+            <exclude>com/rte_france/antares/datamanager_back/service/impl/SearchCriteria.java</exclude>
           </excludes>
         </configuration>
         <executions>
@@ -294,20 +295,18 @@
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven-surefire-plugin.version}</version>
+        <version>3.0.0-M9</version>
       </plugin>
-
       <plugin>
+        <!-- Add git info to /actuator/info endpoint -->
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
-
   <repositories>
     <repository>
       <id>spring-snapshots</id>
@@ -318,7 +317,6 @@
       </releases>
     </repository>
   </repositories>
-
   <pluginRepositories>
     <pluginRepository>
       <id>spring-snapshots</id>
