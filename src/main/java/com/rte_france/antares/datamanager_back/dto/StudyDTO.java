@@ -30,6 +30,9 @@ public class StudyDTO {
     @JsonProperty("project")
     String project;
 
+    @JsonProperty("projectId")
+    String projectId;
+
     @JsonProperty("status")
     String status;
 
