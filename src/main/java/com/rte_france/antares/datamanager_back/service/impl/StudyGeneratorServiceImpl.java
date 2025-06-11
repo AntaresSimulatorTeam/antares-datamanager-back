@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
@@ -75,6 +74,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 switch (trajectoryType) {
                     case "AREA" -> buildAreasDataMap(trajectory, areasMap);
                     case "LINK" -> buildLinksDataMap(trajectory, linksMap);
+                    case "LOAD" ->  log.warn("Load trajectory type is not supported in the generator, skipping trajectory: {}", trajectory.getFileName());
+
                     default -> throw  TechnicalException.builder().message("Unexpected value: " + trajectoryType).build();
                 }
             }
