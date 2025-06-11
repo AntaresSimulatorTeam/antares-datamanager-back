@@ -26,6 +26,7 @@ public class StudyMapper {
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
                 .project(entity.getProject().getName())
+                .projectId(String.valueOf(entity.getProject().getId()))
                 .tags(entity.getTags())
                 .horizon(entity.getHorizon())
                 .status(entity.getStatus().name())

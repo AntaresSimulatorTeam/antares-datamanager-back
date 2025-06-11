@@ -18,6 +18,9 @@ class StudyMapperTest {
 
 @Test
 void toStudyDTO_returnsCorrectDTO() {
+
+    ProjectEntity projectEntity = ProjectEntity.builder().name("project12").id(3).build();
+
     StudyEntity entity = new StudyEntity();
     entity.setId(1);
     entity.setName("testStudy");
@@ -27,6 +30,9 @@ void toStudyDTO_returnsCorrectDTO() {
     entity.setTags(Arrays.asList("tag1", "tag2"));
     entity.setHorizon("testHorizon");
     entity.setStatus(StudyStatus.IN_PROGRESS);
+    entity.setProject(projectEntity);
+
+
 
     StudyDTO dto = StudyMapper.toStudyDTO(entity);
 
@@ -38,6 +44,7 @@ void toStudyDTO_returnsCorrectDTO() {
     assertEquals(entity.getTags(), dto.getTags());
     assertEquals(entity.getHorizon(), dto.getHorizon());
     assertEquals(entity.getStatus().name(), dto.getStatus());
+    assertEquals(String.valueOf(entity.getProject().getId()), dto.getProjectId());
 }
 
 @Test
