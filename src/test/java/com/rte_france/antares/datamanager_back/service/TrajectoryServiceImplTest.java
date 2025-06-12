@@ -166,6 +166,7 @@ class TrajectoryServiceImplTest {
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name())
                 .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
+                .warningMessages(new HashSet<>()) // <-- Ajouté pour éviter le NPE
                 .build();
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
@@ -219,6 +220,7 @@ class TrajectoryServiceImplTest {
         study.setStudyTrajectoryEntities(Set.of(existingLink));
 
         TrajectoryEntity newTrajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name())
+                .warningMessages(new HashSet<>())
                 .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
                 .build();
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
