@@ -123,7 +123,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
 
 
-
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
@@ -147,7 +146,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // No existing trajectory: create and save new
         TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
         if (area.equals("OTHERS")) {
-             warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
+            warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
         }
         return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
     }
@@ -354,12 +353,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
         List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
                 .peek(trajectory ->
-                        trajectory.setWarningMessages(getWarningMessages(studyId, trajectory))).toList();
+                        trajectory.setWarningMessages(getWarningMessages(studyId, trajectory.getWarningMessages()))).toList();
         return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
 
-    private LinkedHashSet<WarningMessageEntity> getWarningMessages(Integer studyId, TrajectoryEntity trajectory) {
-        return trajectory.getWarningMessages().stream()
+    private LinkedHashSet<WarningMessageEntity> getWarningMessages(Integer studyId, Set<WarningMessageEntity> warningMessages) {
+        return warningMessages.stream()
                 .filter(warning -> warning.getStudy().getId().equals(studyId) && isStudyTrajectoryExistById(studyId, warning))
                 .sorted(Comparator
                         .comparing(WarningMessageEntity::getIsAck) // ack = true d'abord
@@ -405,20 +404,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
+        // Récupération de l'étude
         StudyEntity study = studyRepository.findById(studyId)
                 .orElseThrow(() -> BusinessException.builder()
                         .message("Study not found")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
+        // Récupération de la trajectoire
         TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId)
-                .orElseThrow(() ->
-                        BusinessException.builder()
-                                .message("Trajectory not found")
-                                .httpStatus(HttpStatus.BAD_REQUEST)
-                                .build());
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Trajectory not found")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
 
-        // Vérifier si une trajectoire du même type est déjà associée à l'étude
+        // Vérification si une trajectoire du même type est déjà associée à l'étude
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
         if (!TrajectoryType.LOAD.equals(type)) {
             existingLink = study.getStudyTrajectoryEntities().stream()
@@ -426,15 +426,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .findFirst();
         }
 
+        // Récupération de l'utilisateur courant
         String userNni = userService.getCurrentUserDetails().getNni();
 
-        // Vérifier la cohérence des liens
+        // Vérification de la cohérence des zones
         checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
 
-        // Supprimer l'ancienne association si elle existe
+        // Suppression de l'association existante, si présente
+        // Avant la suppression du lien existant
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
-        // Créer une nouvelle association
+        // Création de la nouvelle association
         StudyTrajectoryEntity newStudyTrajectoryEntity = StudyTrajectoryEntity.builder()
                 .id(StudyTrajectoryKey.builder()
                         .trajectoryId(trajectoryId)
@@ -444,15 +446,33 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .trajectory(trajectory)
                 .build();
 
-        StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
+        // Sauvegarde de l'association
+        studyTrajectoryRepository.save(newStudyTrajectoryEntity);
 
-        // Recharger les warnings depuis la base pour cohérence avec findTrajectoriesByTypeAndStudyId
-        TrajectoryEntity result = savedStudyTrajectoryEntity.getTrajectory();
-        Set<WarningMessageEntity> warnings = getWarningMessages(studyId, result);
-        result.getWarningMessages().clear();
-        result.getWarningMessages().addAll(warnings);
-        return result;
+        return filterTrajectoryWarnings(trajectory, studyId);
     }
+    private TrajectoryEntity filterTrajectoryWarnings(TrajectoryEntity trajectory, Integer studyId) {
+        if (trajectory == null || studyId == null || trajectory.getWarningMessages() == null) {
+            return trajectory;
+        }
+
+        Set<WarningMessageEntity> filteredWarnings = trajectory.getWarningMessages().stream()
+                .filter(warning ->
+                        warning.getStudy() != null &&
+                                studyId.equals(warning.getStudy().getId()) &&
+                                isStudyTrajectoryExistById(studyId, warning)
+                )
+                .sorted(
+                        Comparator.comparing(WarningMessageEntity::getIsAck)
+                                .thenComparing(WarningMessageEntity::getCreationDate, Comparator.reverseOrder())
+                )
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        return trajectory.toBuilder()
+                .warningMessages(filteredWarnings)
+                .build();
+    }
+
 
     public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
@@ -461,6 +481,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             checkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
         warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
+        log.info("filteredWarningMessages size: {}", warningMessageEntities.size());
         warningMessageRepository.saveAll(warningMessageEntities);
     }
 
