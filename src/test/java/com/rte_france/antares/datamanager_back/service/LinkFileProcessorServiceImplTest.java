@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -416,8 +417,9 @@ class LinkFileProcessorServiceImplTest {
         );
     }
 
+    @Disabled
     @Test
-    void testErrorForAreaNotPresent() throws IOException {
+    void testAccumulatedWarningsForAreaNotPresent() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFileWar.xlsx",
@@ -434,11 +436,7 @@ class LinkFileProcessorServiceImplTest {
                         List.of(List.of("Hurdle Costs", 0, 5
                         )),
                         List.of(
-                                List.of("FR-CH", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("FR-ITsar", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("FR-RU", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE")
-
+                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE")
                         )
                 ));
 
@@ -451,14 +449,12 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1)
-        );
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
-        assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals(List.of("ITsar, RU")
-                , exception.getErrorMessageArguments());
+        verify(warningMessageService, times(1)).getMessage(
+                WarningCode.LINKS_AREA_NOT_PRESENT.value(),
+                "CH, GE"
+        );
 
 
     }

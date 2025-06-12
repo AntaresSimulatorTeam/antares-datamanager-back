@@ -228,48 +228,42 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
     public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId, Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni) {
+      log.info("areaNames from AREA trajectory: {}", areaNames);
         Set<String> linkedAreas = linkEntities.stream()
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
+        log.info("Linked areas from LINKS file: {}", linkedAreas);
 
-        Set<String> missingAreas = linkedAreas.stream()
-                .filter(area -> !areaNames.contains(area))
+        StudyEntity study = studyRepository.findById(studyId).orElseThrow();
+        Set<String> missingAreas = areaNames.stream()
+                .filter(area -> !linkedAreas.contains(area))
                 .collect(Collectors.toSet());
 
         if (!missingAreas.isEmpty()) {
+            log.info("Missing areas in LINKS file: {}", missingAreas);
             String missingAreasString = String.join(", ", missingAreas.stream().sorted().toList());
-            throw BusinessException.builder()
-                    .message("Areas {0} in LINKS file is not present in AREA trajectory")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .errorMessageArguments(List.of(missingAreasString))
-                    .build();
+            String warningContent = warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), missingAreasString);
+            log.warn("Warning: {}", warningContent);
+            boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, study.getId());
+            if (!warningExists) {
+                warningMessages.add(WarningMessageEntity.builder()
+                        .warningCode(WarningCode.LINKS_AREA_NOT_PRESENT)
+                        .warningContent(warningContent)
+                        .warningLevel(WarningLevel.WARNING_LEVEL)
+                        .creationDate(LocalDateTime.now())
+                        .createdBy(userNni)
+                        .study(study)
+                        .secondTrajectory(secondTrajectory)
+                        .isAck(false)
+                        .build());
+            }
         }
-
     }
 
 
     private String findUserNni() {
         return userService.getCurrentUserDetails().getNni();
     }
-
-    private void addWarningMessage(Set<WarningMessageEntity> warningMessages, String area, StudyEntity study, Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni) {
-        String warningContent = warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), area);
-        boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, study.getId());
-
-        if (!warningExists) {
-            warningMessages.add(WarningMessageEntity.builder()
-                    .warningCode(WarningCode.LINKS_AREA_NOT_PRESENT)
-                    .warningContent(warningContent)
-                    .warningLevel(WarningLevel.WARNING_LEVEL)
-                    .creationDate(LocalDateTime.now())
-                    .createdBy(userNni)
-                    .study(study)
-                    .secondTrajectory(secondTrajectory)
-                    .isAck(false)
-                    .build());
-        }
-    }
-
 
     /**
      * Validates the link areas by checking if the link contains exactly two areas

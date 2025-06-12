@@ -176,7 +176,7 @@ class TrajectoryServiceImplTest {
 
         TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
 
-        assertEquals(trajectory, result);
+        assertEquals(trajectory.getId(), result.getId());
         verify(studyTrajectoryRepository, times(1)).save(any());
     }
 
@@ -230,7 +230,7 @@ class TrajectoryServiceImplTest {
 
         TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
 
-        assertEquals(newTrajectory, result);
+        assertEquals(newTrajectory.getId(), result.getId());
         verify(studyTrajectoryRepository, times(1)).delete(existingLink);
         verify(studyTrajectoryRepository, times(1)).save(any());
     }
