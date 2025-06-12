@@ -446,7 +446,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
 
-        return savedStudyTrajectoryEntity.getTrajectory();
+        // Recharger les warnings depuis la base pour cohérence avec findTrajectoriesByTypeAndStudyId
+        TrajectoryEntity result = savedStudyTrajectoryEntity.getTrajectory();
+        Set<WarningMessageEntity> warnings = getWarningMessages(studyId, result);
+        result.getWarningMessages().clear();
+        result.getWarningMessages().addAll(warnings);
+        return result;
     }
 
     public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
