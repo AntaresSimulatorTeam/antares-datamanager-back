@@ -417,7 +417,6 @@ class LinkFileProcessorServiceImplTest {
         );
     }
 
-    @Disabled
     @Test
     void testAccumulatedWarningsForAreaNotPresent() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
