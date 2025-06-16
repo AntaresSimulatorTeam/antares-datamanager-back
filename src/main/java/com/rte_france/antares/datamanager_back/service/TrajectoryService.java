@@ -22,7 +22,7 @@ public interface TrajectoryService {
 
     List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId);
 
-    TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type);
+    TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException;
 
     void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
 

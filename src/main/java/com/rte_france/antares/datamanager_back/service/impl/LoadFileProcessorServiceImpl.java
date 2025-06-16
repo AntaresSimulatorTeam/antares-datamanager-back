@@ -76,12 +76,12 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     @Override
     public Set<WarningMessageEntity> checkForMissingLoadByAreaFromDb(String horizon, Integer studyId,
-                                                                     String userNni, TrajectoryEntity trajectory) {
+                                                                     String userNni, TrajectoryEntity trajectory, Path trajectoryPath) {
         return checkMissingLoad(
                 studyId,
                 userNni,
                 trajectory,
-                getFileCheckerByDatabase(horizon, trajectory)
+                getFileCheckerByDatabase(horizon, trajectory, trajectoryPath)
         );
     }
 
@@ -91,18 +91,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     private Set<WarningMessageEntity> checkMissingLoad(Integer studyId, String userNni,
                                                        TrajectoryEntity trajectory,
                                                        LoadChecker loadChecker) {
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
-                .map(AreaEntity::getName)
-                .toList();
-
-        List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
-                .stream()
-                .map(TrajectoryEntity::getLoadArea)
-                .toList();
-
-        List<String> areasWithoutTrajectory = studyAreas.stream()
-                .filter(area -> !areasWithTrajectory.contains(area))
-                .toList();
+        List<String> areasWithoutTrajectory = getAreasLoadWithoutTrajectorySelected(studyId);
 
         List<String> missingLoadFiles = areasWithoutTrajectory.stream()
                 .filter(area -> !loadChecker.exists(area))
@@ -133,6 +122,21 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
         return warningMessages;
     }
 
+    private List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
+                .map(AreaEntity::getName)
+                .toList();
+
+        List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
+                .stream()
+                .map(TrajectoryEntity::getLoadArea)
+                .toList();
+
+        return studyAreas.stream()
+                .filter(area -> !areasWithTrajectory.contains(area))
+                .toList();
+    }
+
     /**
      * Returns a LoadChecker that checks for file existence on disk.
      */
@@ -141,13 +145,25 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     }
 
     /**
-     * Returns a LoadChecker that checks for file existence in the DB.
+     * Returns a LoadChecker that checks for file existence in the database.
+     * If the file does not exist, it creates a new LoadEntity and saves it.
      */
-    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory) {
-        return area -> loadRepository.existsByFileNameAndTrajectory_Id(
-                "load_" + area.toLowerCase() + "_" + horizon + ".txt",
-                trajectory.getId()
-        );
+    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory, Path trajectoryPath) {
+        LoadChecker fileChecker = getFileCheckerByPath(trajectoryPath, horizon);
+        return area -> {
+            String fileName = "load_" + area.toLowerCase() + "_" + horizon + ".txt";
+            if (loadRepository.existsByFileNameAndTrajectory_Id(fileName, trajectory.getId())) {
+                return true;
+            }
+            if (fileChecker.exists(area)) {
+                LoadEntity load = new LoadEntity();
+                load.setFileName(fileName);
+                load.setTrajectory(trajectory);
+                loadRepository.save(load);
+                return true;
+            }
+            return false;
+        };
     }
 
     @FunctionalInterface

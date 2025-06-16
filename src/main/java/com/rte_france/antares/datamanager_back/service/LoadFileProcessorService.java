@@ -36,5 +36,5 @@ public interface LoadFileProcessorService {
    * @param trajectory the trajectory entity
    * @return a set of warning messages for missing load files
    */
-  Set<WarningMessageEntity> checkForMissingLoadByAreaFromDb(String horizon, Integer studyId, String userNni, TrajectoryEntity trajectory) ;
+  Set<WarningMessageEntity> checkForMissingLoadByAreaFromDb(String horizon, Integer studyId, String userNni, TrajectoryEntity trajectory, Path trajectoryPath) throws IOException;
 }

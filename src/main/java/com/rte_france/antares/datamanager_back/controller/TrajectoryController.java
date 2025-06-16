@@ -89,7 +89,7 @@ public class TrajectoryController {
     @PutMapping("/link")
     public ResponseEntity<TrajectoryDTO> linkTrajectoryToStudy(@RequestParam TrajectoryType type,
                                                                @RequestParam Integer trajectoryId,
-                                                               @RequestParam Integer studyId) {
+                                                               @RequestParam Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type)), HttpStatus.OK);
     }
 

@@ -140,7 +140,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build();
             }
 
-            // Update version and save new trajectory
+            // Update a version and save new trajectory
             TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
             return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, null);
@@ -156,7 +156,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     // Utility method to build trajectory path with checks
-    private Path buildTrajectoryPath(String trajectoryToUse) {
+    public Path buildTrajectoryPath(String trajectoryToUse) {
         String nasDir = antaressDataManagerProperties.getNasDirectory();
         String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
         String loadDir = antaressDataManagerProperties.getLoadDirectory();
@@ -404,7 +404,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the linked TrajectoryEntity
      */
     @Transactional
-    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) {
+    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
         StudyEntity study = studyRepository.findById(studyId)
@@ -431,7 +431,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String userNni = userService.getCurrentUserDetails().getNni();
 
         // Vérifier la cohérence des liens
-        checkTrajctoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
+        checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
 
         // Supprimer l'ancienne association si elle existe
         existingLink.ifPresent(studyTrajectoryRepository::delete);
@@ -451,14 +451,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return savedStudyTrajectoryEntity.getTrajectory();
     }
 
-    public void checkTrajctoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) {
+    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
         switch (trajectory.getType()) {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
             default -> {
                 if (OTHER_AREAS.equals(trajectory.getLoadArea())) {
                     warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
-                            trajectory.getHorizon(), studyId, userNni, trajectory);
+                            trajectory.getHorizon(), studyId, userNni, trajectory, buildTrajectoryPath(trajectory.getFileName()));
                 }
             }
         }
