@@ -41,7 +41,7 @@ public class WarningMessageServiceImpl implements WarningMessageService {
 
     public void acknowledgeWarning(Integer id) {
         WarningMessageEntity warning = warningMessageRepository.findById(id)
-                .orElseThrow(() ->  BusinessException.builder().message("Warning message not found with id: " + id).httpStatus(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> BusinessException.builder().message("Warning message not found with id: " + id).httpStatus(HttpStatus.NOT_FOUND).build());
         warning.setIsAck(true);
         warningMessageRepository.save(warning);
     }
@@ -60,7 +60,7 @@ public class WarningMessageServiceImpl implements WarningMessageService {
 
         Object[] messageArgs;
         if (warnings.size() == 1) {
-            messageArgs = new Object[]{warnings.get(0)};
+            messageArgs = new Object[]{warnings.getFirst()};
         } else if (warnings.size() > 1) {
             messageArgs = new Object[]{String.join(", ", warnings)};
             if (warningCode == WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS) {
@@ -69,20 +69,23 @@ public class WarningMessageServiceImpl implements WarningMessageService {
         } else {
             return;
         }
+        var messageContent = getMessage(warningCode.value(), messageArgs);
+        boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(messageContent, trajectory.getId(), studyId);
+        if (!warningExists) {
+            var message = WarningMessageEntity.builder()
+                    .warningContent(messageContent)
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
+                    .secondTrajectory(null)
+                    .warningCode(warningCode)
+                    .study(study)
+                    .trajectory(trajectory)
+                    .creationDate(LocalDateTime.now())
+                    .createdBy(userNni)
+                    .isAck(false)
+                    .build();
 
-        var message = WarningMessageEntity.builder()
-                .warningContent(getMessage(warningCode.value(), messageArgs))
-                .warningLevel(WarningLevel.WARNING_LEVEL)
-                .secondTrajectory(null)
-                .warningCode(warningCode)
-                .study(study)
-                .trajectory(trajectory)
-                .creationDate(LocalDateTime.now())
-                .createdBy(userNni)
-                .isAck(false)
-                .build();
-
-        warningMessages.add(message);
+            warningMessages.add(message);
+        }
     }
 
 }
