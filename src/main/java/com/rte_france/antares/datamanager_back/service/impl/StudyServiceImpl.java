@@ -45,6 +45,8 @@ public class StudyServiceImpl implements StudyService {
     private final ProjectRepository projectRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final StudyGeneratorService studyGeneratorService;
+    private final static int HORIZON_LOWER_BOUND = 2000;
+    private final static int HORIZON_UPPER_BOUND = 9000;
 
 
     @Override
@@ -210,12 +212,11 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private static void validateHorizon(StudyDTO studyDTO) {
-        int currentYear = LocalDateTime.now().getYear();
         try {
             int horizonYear = Integer.parseInt(studyDTO.getHorizon());
-            if (horizonYear < currentYear) {
+            if (horizonYear < HORIZON_LOWER_BOUND || horizonYear > HORIZON_UPPER_BOUND) {
                 throw BusinessException.builder()
-                        .message("Horizon year must be greater than the current year.")
+                        .message("Horizon must be between 2000 and 9999")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
