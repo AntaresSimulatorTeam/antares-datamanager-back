@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 
 import java.time.Year;
 import java.util.Collections;
@@ -323,4 +325,42 @@ class StudyServiceImplTest {
         verify(studyGeneratorService, times(1)).callGenerateStudyService(1);
         verify(studyRepository, never()).save(any(StudyEntity.class));
     }
+
+    @Test
+    void validateHorizon_shouldThrowException_whenYearAboveUpperBound() {
+
+        StudyDTO studyDTO = new StudyDTO();
+        studyDTO.setName("HorizonUpperBound");
+        studyDTO.setHorizon("10000");
+        studyDTO.setProject("project");
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> studyServiceImpl.createStudy(studyDTO)
+        );
+
+        assertAll(
+                () -> assertEquals("Horizon must be between 2000 and 9999", exception.getMessage()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+    }
+
+    @Test
+    void validateHorizon_shouldThrowException_whenNotANumber() {
+
+        StudyDTO studyDTO = new StudyDTO();
+        studyDTO.setName("HorizonString");
+        studyDTO.setHorizon("abc");
+        studyDTO.setProject("project");
+
+
+        assertThrows(
+                NumberFormatException.class,
+                () -> studyServiceImpl.createStudy(studyDTO)
+        );
+
+    }
+
 }
+
+
