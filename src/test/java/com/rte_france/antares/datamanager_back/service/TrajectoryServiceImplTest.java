@@ -157,7 +157,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_linksTrajectoryWhenStudyAndTrajectoryExist() {
+    void linkTrajectoryToStudy_linksTrajectoryWhenStudyAndTrajectoryExist() throws IOException {
         Integer trajectoryId = 1;
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
@@ -206,7 +206,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_replacesExistingLinkWhenSameTypeExists() {
+    void linkTrajectoryToStudy_replacesExistingLinkWhenSameTypeExists() throws IOException {
         Integer trajectoryId = 1;
         Integer studyId = 1;
         TrajectoryType type = TrajectoryType.AREA;
@@ -384,7 +384,7 @@ class TrajectoryServiceImplTest {
 
 
     @Test
-    void checkLinkAreaCoherence_whenTrajectoryTypeIsLink() {
+    void checkLinkAreaCoherence_whenTrajectoryTypeIsLink() throws IOException {
         Integer studyId = 1;
         String userNni = "me0000";
         TrajectoryEntity trajectory = new TrajectoryEntity();
@@ -394,14 +394,14 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListArea(studyId)).thenReturn(List.of("FR", "CH", "IT"));
 
-        trajectoryService.checkTrajctoryCoherence(studyId, warningMessages, trajectory, userNni);
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
 
     @Test
-    void checkTrajctory() {
+    void checkTrajctory() throws IOException {
         Integer studyId = 1;
         String userNni = "me0000";
 
@@ -415,7 +415,7 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListLink(studyId)).thenReturn(List.of(LinkEntity.builder().name("FR-CH").build(), LinkEntity.builder().name("FR-IT").build()));
 
-        trajectoryService.checkTrajctoryCoherence(studyId, warningMessages, trajectory, userNni);
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));
