@@ -151,10 +151,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     }
 
 
-
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
         if (trajectory.getFileName() != null && trajectory.getFileName().length() > LINKS_FILE_NAME_MAX_SIZE) {
-            throw  BusinessException.builder().message("Trajectory name cannot exceed 40 characters.").build();
+            throw BusinessException.builder().message("Trajectory name cannot exceed 40 characters.").build();
         }
 
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);
@@ -207,7 +206,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 }
             }
         } catch (IOException e) {
-            throw  TechnicalException.builder().message("could not build link list : " + e.getMessage()).build();
+            throw TechnicalException.builder().message("could not build link list : " + e.getMessage()).build();
         }
         return linkEntities;
     }
@@ -224,11 +223,15 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             }
         }
 
-        throw  TechnicalException.builder().message("Horizon '" + horizon + "' not found in the header row.").build();
+        throw BusinessException.builder()
+                .message("Horizon {0} not found in the header row.")
+                .errorMessageArguments(Collections.singletonList(horizon))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
     public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId, Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni) {
-      log.info("areaNames from AREA trajectory: {}", areaNames);
+        log.info("areaNames from AREA trajectory: {}", areaNames);
         Set<String> linkedAreas = linkEntities.stream()
                 .flatMap(link -> Arrays.stream(link.getName().split("-")))
                 .collect(Collectors.toSet());
@@ -279,7 +282,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     public String validateLinkAreas(String link, List<String> areaNames) {
         String[] areas = link.split("-");
         if (areas.length != 2) {
-            throw  BusinessException.builder()
+            throw BusinessException.builder()
                     .message("Error: Link {0} in LINKS file is not valid")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .errorMessageArguments(List.of(link))
@@ -290,7 +293,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             boolean found = areaNames.stream()
                     .anyMatch(existingArea -> existingArea.equalsIgnoreCase(area));
             if (!found) {
-                throw  BusinessException.builder()
+                throw BusinessException.builder()
                         .message("Areas {0} in LINKS file is not present in AREA trajectory")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .errorMessageArguments(List.of(area))
