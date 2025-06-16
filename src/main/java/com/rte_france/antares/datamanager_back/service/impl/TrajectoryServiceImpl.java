@@ -454,6 +454,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             checkLinkCoherence(studyId, warningMessageEntities, trajectory, userNni);
         } else if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
             checkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
+        } else if(trajectory.getLoadArea() != null && trajectory.getLoadArea().equals("OTHERS")) {
+            warningMessageEntities = loadFileProcessorService.checkForMissingLoadByAreaFromDb(trajectory.getHorizon(), studyId, userNni, trajectory);
         }
         warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
         warningMessageRepository.saveAll(warningMessageEntities);
