@@ -394,14 +394,14 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListArea(studyId)).thenReturn(List.of("FR", "CH", "IT"));
 
-        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+        trajectoryService.checkTrajctoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningMessageRepository, times(1)).saveAll(warningMessages);
     }
 
     @Test
-    void checkLinkAreaCoherence_whenTrajectoryTypeIsArea() {
+    void checkTrajctory() {
         Integer studyId = 1;
         String userNni = "me0000";
 
@@ -415,7 +415,7 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListLink(studyId)).thenReturn(List.of(LinkEntity.builder().name("FR-CH").build(), LinkEntity.builder().name("FR-IT").build()));
 
-        trajectoryService.checkLinkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+        trajectoryService.checkTrajctoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));

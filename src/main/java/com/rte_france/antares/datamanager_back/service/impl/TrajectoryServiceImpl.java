@@ -35,6 +35,8 @@ import static com.rte_france.antares.datamanager_back.util.Utils.isSameLoadTraje
 @RequiredArgsConstructor
 public class TrajectoryServiceImpl implements TrajectoryService {
 
+    public static final String OTHERS = "OTHERS";
+    public static final String OTHER_AREAS = OTHERS;
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
@@ -102,7 +104,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         }
 
-        if (!area.equals("OTHERS")) {
+        if (!area.equals(OTHER_AREAS)) {
             areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
                     BusinessException.builder()
                             .message("Area not found for studyId: {0} ")
@@ -146,7 +148,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // No existing trajectory: create and save new
         TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
-        if (area.equals("OTHERS")) {
+        if (area.equals(OTHER_AREAS)) {
              warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
         }
         return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
@@ -191,11 +193,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
-        if (area.equals("OTHERS")) {
+        if (area.equals(OTHER_AREAS)) {
             listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
                     .stream()
                     .map(TrajectoryEntity::getLoadArea)
-                    .filter(loadArea -> !loadArea.equals("OTHERS"))
+                    .filter(loadArea -> !loadArea.equals(OTHER_AREAS))
                     .toList();
         }
 
@@ -429,7 +431,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String userNni = userService.getCurrentUserDetails().getNni();
 
         // Vérifier la cohérence des liens
-        checkLinkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
+        checkTrajctoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
 
         // Supprimer l'ancienne association si elle existe
         existingLink.ifPresent(studyTrajectoryRepository::delete);
@@ -449,16 +451,19 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return savedStudyTrajectoryEntity.getTrajectory();
     }
 
-    public void checkLinkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
-        if (trajectory.getType().equals(TrajectoryType.LINK.name())) {
-            checkLinkCoherence(studyId, warningMessageEntities, trajectory, userNni);
-        } else if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
-            checkAreaCoherence(studyId, warningMessageEntities, trajectory, userNni);
-        } else if(trajectory.getLoadArea() != null && trajectory.getLoadArea().equals("OTHERS")) {
-            warningMessageEntities = loadFileProcessorService.checkForMissingLoadByAreaFromDb(trajectory.getHorizon(), studyId, userNni, trajectory);
+    public void checkTrajctoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) {
+        switch (trajectory.getType()) {
+            case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
+            case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+            default -> {
+                if (OTHER_AREAS.equals(trajectory.getLoadArea())) {
+                    warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
+                            trajectory.getHorizon(), studyId, userNni, trajectory);
+                }
+            }
         }
-        warningMessageEntities.forEach(warning -> warning.setTrajectory(trajectory));
-        warningMessageRepository.saveAll(warningMessageEntities);
+        warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
+        warningMessageRepository.saveAll(warningMessages);
     }
 
     public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {

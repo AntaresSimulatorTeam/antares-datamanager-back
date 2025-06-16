@@ -5,10 +5,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
-import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.WarningMessageService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
@@ -25,11 +22,11 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
+
     private final NasFileService nasFileService;
     private final TimeSeriesReader reader;
     private final TimeSeriesWriter writer;
@@ -39,26 +36,22 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     private final LoadRepository loadRepository;
 
     /**
-     * @param inputPath
-     * @return
-     * @throws IOException
+     * Saves a time series matrix read from the given path to NAS with a unique filename.
+     *
+     * @param inputPath Path to input .txt file
+     * @return Saved filename
+     * @throws IOException on read/write failure
      */
-
     public String saveMatrixToNas(Path inputPath) throws IOException {
         var matrix = reader.readFromTxt(inputPath);
         var outputFileName = generateUniqueFileName(inputPath);
-
         saveMatrix(outputFileName, matrix);
         setFilePermissions(inputPath);
-
         return outputFileName;
     }
 
     private String generateUniqueFileName(Path inputPath) {
-        String baseName = inputPath.getFileName().toString();
-        String extension = writer.getDefaultFileExtension();
-        String uuid = UUID.randomUUID().toString();
-        return baseName + "." + uuid + "." + extension;
+        return inputPath.getFileName() + "." + UUID.randomUUID() + "." + writer.getDefaultFileExtension();
     }
 
     private void saveMatrix(String fileName, TimeSeriesMatrix matrix) throws IOException {
@@ -67,89 +60,52 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     }
 
     private void setFilePermissions(Path path) throws IOException {
-        var permissions = PosixFilePermissions.fromString("rw-------");
-        Files.setPosixFilePermissions(path, permissions);
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
     }
 
-    public Set<WarningMessageEntity> checkForMissingLoadFiles(Path trajectoryPath, String horizon, Integer studyId, String userNni, TrajectoryEntity trajectory) {
-        // Retrieve all areas associated with the study in area& link tab
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId)
-                .stream()
+    @Override
+    public Set<WarningMessageEntity> checkForMissingLoadFiles(Path trajectoryPath, String horizon, Integer studyId,
+                                                              String userNni, TrajectoryEntity trajectory) {
+        return checkMissingLoad(
+                studyId,
+                userNni,
+                trajectory,
+                getFileCheckerByPath(trajectoryPath, horizon)
+        );
+    }
+
+    @Override
+    public Set<WarningMessageEntity> checkForMissingLoadByAreaFromDb(String horizon, Integer studyId,
+                                                                     String userNni, TrajectoryEntity trajectory) {
+        return checkMissingLoad(
+                studyId,
+                userNni,
+                trajectory,
+                getFileCheckerByDatabase(horizon, trajectory)
+        );
+    }
+
+    /**
+     * Main logic for both checkForMissingLoadFiles and checkForMissingLoadByAreaFromDb
+     */
+    private Set<WarningMessageEntity> checkMissingLoad(Integer studyId, String userNni,
+                                                       TrajectoryEntity trajectory,
+                                                       LoadChecker loadChecker) {
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
                 .map(AreaEntity::getName)
                 .toList();
 
-        Set<WarningMessageEntity> warningMessages = new HashSet<>();
-
-
-        // Find areas that have been used selected by user in LOAD trajectory
         List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
                 .stream()
                 .map(TrajectoryEntity::getLoadArea)
                 .toList();
-        // area without load
+
         List<String> areasWithoutTrajectory = studyAreas.stream()
                 .filter(area -> !areasWithTrajectory.contains(area))
                 .toList();
 
-        //check if load file exists for each area
         List<String> missingLoadFiles = areasWithoutTrajectory.stream()
-                .filter(area -> {
-                    Path loadFile = trajectoryPath.resolve("load_" + area.toLowerCase() + "_" + horizon + ".txt");
-                    return !Files.exists(loadFile);
-                })
-                .toList();
-        if (!areasWithoutTrajectory.isEmpty() && missingLoadFiles.size() == areasWithoutTrajectory.size()) {
-            throw BusinessException.builder()
-                    .message("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}")
-                    .errorMessageArguments(Arrays.asList(
-                            String.join(", ", areasWithoutTrajectory),
-                            trajectory.getFileName()
-                    ))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-
-        if (!missingLoadFiles.isEmpty()) {
-            warningMessageService.addWarning(warningMessages,
-                    Arrays.asList(
-                            String.join(", ", missingLoadFiles),
-                            trajectory.getFileName()
-                    ),
-                    WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS,
-                    studyId,
-                    userNni,
-                    trajectory
-            );
-        }
-        return warningMessages;
-
-    }
-
-    public Set<WarningMessageEntity> checkForMissingLoadByAreaFromDb(String horizon, Integer studyId, String userNni, TrajectoryEntity trajectory) {
-        // Retrieve all areas associated with the study in area& link tab
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId)
-                .stream()
-                .map(AreaEntity::getName)
-                .toList();
-
-        Set<WarningMessageEntity> warningMessages = new HashSet<>();
-
-
-        // Find areas that have been used selected by user in LOAD trajectory
-        List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
-                .stream()
-                .map(TrajectoryEntity::getLoadArea)
-                .toList();
-        // area without load
-        List<String> areasWithoutTrajectory = studyAreas.stream()
-                .filter(area -> !areasWithTrajectory.contains(area))
-                .toList();
-
-        //check if load file exists for each area
-        List<String> missingLoadFiles = areasWithoutTrajectory.stream()
-                .map(area -> "load_" + area.toLowerCase() + "_" + horizon + ".txt")
-                .filter(fileName -> !loadRepository.existsByFileNameAndTrajectory_Id(fileName, trajectory.getId()))
+                .filter(area -> !loadChecker.exists(area))
                 .toList();
 
         if (!areasWithoutTrajectory.isEmpty() && missingLoadFiles.size() == areasWithoutTrajectory.size()) {
@@ -163,21 +119,39 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
                     .build();
         }
 
-
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
         if (!missingLoadFiles.isEmpty()) {
             warningMessageService.addWarning(warningMessages,
-                    Arrays.asList(
-                            String.join(", ", missingLoadFiles),
-                            trajectory.getFileName()
-                    ),
+                    Arrays.asList(String.join(", ", missingLoadFiles), trajectory.getFileName()),
                     WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS,
                     studyId,
                     userNni,
                     trajectory
             );
         }
-        return warningMessages;
 
+        return warningMessages;
     }
 
+    /**
+     * Returns a LoadChecker that checks for file existence on disk.
+     */
+    private LoadChecker getFileCheckerByPath(Path trajectoryPath, String horizon) {
+        return area -> Files.exists(trajectoryPath.resolve("load_" + area.toLowerCase() + "_" + horizon + ".txt"));
+    }
+
+    /**
+     * Returns a LoadChecker that checks for file existence in the DB.
+     */
+    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory) {
+        return area -> loadRepository.existsByFileNameAndTrajectory_Id(
+                "load_" + area.toLowerCase() + "_" + horizon + ".txt",
+                trajectory.getId()
+        );
+    }
+
+    @FunctionalInterface
+    private interface LoadChecker {
+        boolean exists(String area);
+    }
 }
