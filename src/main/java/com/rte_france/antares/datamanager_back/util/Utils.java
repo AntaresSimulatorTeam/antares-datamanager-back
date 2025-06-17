@@ -103,8 +103,8 @@ public class Utils {
                     String areaFromFile = matcher.group(1);
                     String horizon = matcher.group(2);
                     boolean isValid = horizon.equals(expectedHorizon) &&
-                            ((!areaLoadAlreadyChosen.isEmpty() && !areaLoadAlreadyChosen.contains(areaFromFile.toUpperCase())) ||
-                                    (areaLoadAlreadyChosen.isEmpty() && areaWithStudy.contains(areaFromFile.toUpperCase())));
+                            ((!areaLoadAlreadyChosen.isEmpty() && !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase())) ||
+                                    (areaLoadAlreadyChosen.isEmpty() && areaWithStudy.contains(areaFromFile.toLowerCase())));
                     if (isValid) {
                         loadsFileNames.add(fileName);
                     }

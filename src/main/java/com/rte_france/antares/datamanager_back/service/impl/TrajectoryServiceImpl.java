@@ -196,9 +196,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .stream()
                     .map(TrajectoryEntity::getLoadArea)
                     .filter(loadArea -> !loadArea.equals(OTHER_AREA))
+                    .map(String::toLowerCase)
                     .toList();
         }
-        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(AreaEntity::getName).toList();
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy->areaStudy.getName().toLowerCase()).toList();
 
         List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
