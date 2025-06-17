@@ -35,8 +35,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.isSameLoadTraje
 @RequiredArgsConstructor
 public class TrajectoryServiceImpl implements TrajectoryService {
 
-    public static final String OTHERS = "OTHERS";
-    public static final String OTHER_AREAS = OTHERS;
+    public static final String OTHER_AREA = "OTHERS";
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
@@ -104,7 +103,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         }
 
-        if (!area.equals(OTHER_AREAS)) {
+        if (!area.equals(OTHER_AREA)) {
             areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
                     BusinessException.builder()
                             .message("Area not found for studyId: {0} ")
@@ -123,7 +122,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // Build and normalize the trajectory path
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
-
 
 
         // Try to find existing trajectory
@@ -148,8 +146,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // No existing trajectory: create and save new
         TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
-        if (area.equals(OTHER_AREAS)) {
-             warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
+        if (area.equals(OTHER_AREA)) {
+            warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
         }
         return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
     }
@@ -193,15 +191,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
-        if (area.equals(OTHER_AREAS)) {
+        if (area.equals(OTHER_AREA)) {
             listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
                     .stream()
                     .map(TrajectoryEntity::getLoadArea)
-                    .filter(loadArea -> !loadArea.equals(OTHER_AREAS))
+                    .filter(loadArea -> !loadArea.equals(OTHER_AREA))
                     .toList();
         }
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(AreaEntity::getName).toList();
 
-        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed);
+        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
 
             throw BusinessException.builder()
@@ -456,7 +455,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
             default -> {
-                if (OTHER_AREAS.equals(trajectory.getLoadArea())) {
+                if (OTHER_AREA.equals(trajectory.getLoadArea())) {
                     warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
                             trajectory.getHorizon(), studyId, userNni, trajectory);
                 }
