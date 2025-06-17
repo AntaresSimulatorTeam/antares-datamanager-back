@@ -95,7 +95,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
         List<String> areasWithoutTrajectory = getAreasLoadWithoutTrajectorySelected(studyId);
 
         List<String> missingLoadFiles = areasWithoutTrajectory.stream()
-                .filter(area -> !loadChecker.exists(area))
+                .filter(area -> !loadChecker.exists(area.toLowerCase()))
                 .toList();
 
         if (!areasWithoutTrajectory.isEmpty() && missingLoadFiles.size() == areasWithoutTrajectory.size()) {
