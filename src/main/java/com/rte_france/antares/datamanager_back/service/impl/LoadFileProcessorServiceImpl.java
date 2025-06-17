@@ -77,12 +77,12 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     @Override
     public Set<WarningMessageEntity> checkForMissingLoadByAreaFromDb(String horizon, Integer studyId,
-                                                                     String userNni, TrajectoryEntity trajectory, Path trajectoryPath) {
+                                                                     String userNni, TrajectoryEntity trajectory) {
         return checkMissingLoad(
                 studyId,
                 userNni,
                 trajectory,
-                getFileCheckerByDatabase(horizon, trajectory, trajectoryPath)
+                getFileCheckerByDatabase(horizon, trajectory)
         );
     }
 
@@ -149,24 +149,14 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
      * Returns a LoadChecker that checks for file existence in the database.
      * If the file does not exist, it creates a new LoadEntity and saves it.
      */
-    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory, Path trajectoryPath) {
-        LoadChecker fileChecker = getFileCheckerByPath(trajectoryPath, horizon);
-        return area -> {
-            String fileName = String.format("load_%s_%s.txt", area.toLowerCase(), horizon);
-            if (loadRepository.existsByFileNameAndTrajectory_Id(fileName, trajectory.getId())) {
-                return true;
-            }
-            if (fileChecker.exists(area)) {
-                try {
-                    String outputFileName = saveMatrixToNas(trajectoryPath.resolve(fileName));
-                    loadRepository.save(LoadEntity.builder().fileName(fileName).trajectory(trajectory).outPutFileName(outputFileName).build());
-                    return true;
-                } catch (IOException e) {
-                    throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
-                }
-            }
-            return false;
-        };
+    /**
+     * Returns a LoadChecker that checks for file existence in the DB.
+     */
+    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory) {
+        return area -> loadRepository.existsByFileNameAndTrajectory_Id(
+                "load_" + area.toLowerCase() + "_" + horizon + ".txt",
+                trajectory.getId()
+        );
     }
 
     @FunctionalInterface

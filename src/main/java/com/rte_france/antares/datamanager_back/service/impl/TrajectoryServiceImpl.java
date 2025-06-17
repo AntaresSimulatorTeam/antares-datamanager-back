@@ -458,7 +458,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             default -> {
                 if (OTHER_AREAS.equals(trajectory.getLoadArea())) {
                     warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
-                            trajectory.getHorizon(), studyId, userNni, trajectory, buildTrajectoryPath(trajectory.getFileName()));
+                            trajectory.getHorizon(), studyId, userNni, trajectory);
                 }
             }
         }
