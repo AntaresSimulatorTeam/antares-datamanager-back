@@ -8,6 +8,7 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -88,7 +89,14 @@ public class Utils {
     }
 
     public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> listCustomLoadFilesAlreadyChoosed) throws IOException {
-        String areaPattern = area.equals("OTHERS") ? "[a-z]{2}" : area.toLowerCase();
+//        if(area.equals("OTHERS") && listCustomLoadFilesAlreadyChoosed.isEmpty()) {
+//            List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
+//                    .map(AreaEntity::getName)
+//                    .toList();
+//
+//        }
+
+        String areaPattern = area.equals("OTHERS") ? "[a-z0-9]+" : area.toLowerCase();
         Pattern pattern = Pattern.compile("load_(" + areaPattern + ")_(\\d{4}-\\d{4})\\.txt");
         List<String> loadsFileNames = new ArrayList<>();
 
