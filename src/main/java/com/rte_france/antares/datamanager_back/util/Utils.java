@@ -47,6 +47,8 @@ public class Utils {
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
 
+    public static final String OTHERS_AREA = "OTHERS";
+
     /**
      * Calculates and returns the SHA-256 checksum of a file.
      *
@@ -88,16 +90,9 @@ public class Utils {
                 ;
     }
 
-    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> listCustomLoadFilesAlreadyChoosed) throws IOException {
-//        if(area.equals("OTHERS") && listCustomLoadFilesAlreadyChoosed.isEmpty()) {
-//            List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
-//                    .map(AreaEntity::getName)
-//                    .toList();
-//
-//        }
-
-        String areaPattern = area.equals("OTHERS") ? "[a-z0-9]+" : area.toLowerCase();
-        Pattern pattern = Pattern.compile("load_(" + areaPattern + ")_(\\d{4}-\\d{4})\\.txt");
+    public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) throws IOException {
+        String areaPattern = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : area.toLowerCase();
+        Pattern pattern = Pattern.compile(String.format("load_(%s)_(\\d{4}-\\d{4})\\.txt", areaPattern));
         List<String> loadsFileNames = new ArrayList<>();
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.txt")) {
@@ -107,13 +102,15 @@ public class Utils {
                 if (matcher.matches()) {
                     String areaFromFile = matcher.group(1);
                     String horizon = matcher.group(2);
-                    if (horizon.equals(expectedHorizon) && !listCustomLoadFilesAlreadyChoosed.contains(areaFromFile.toUpperCase())) {
+                    boolean isValid = horizon.equals(expectedHorizon) &&
+                            ((!areaLoadAlreadyChosen.isEmpty() && !areaLoadAlreadyChosen.contains(areaFromFile.toUpperCase())) ||
+                                    (areaLoadAlreadyChosen.isEmpty() && areaWithStudy.contains(areaFromFile.toUpperCase())));
+                    if (isValid) {
                         loadsFileNames.add(fileName);
                     }
                 }
             }
         }
-
         return loadsFileNames;
     }
 
@@ -124,7 +121,8 @@ public class Utils {
      * @return the built trajectory
      * @throws IOException if an I/O error occurs
      */
-    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String createdBy, TrajectoryType trajectoryType) throws IOException {
+    public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
+            createdBy, TrajectoryType trajectoryType) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))

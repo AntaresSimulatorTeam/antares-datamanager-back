@@ -474,6 +474,7 @@ class TrajectoryServiceImplTest {
                 .loadEntities(List.of(LoadEntity.builder().fileName("load1").build()))
                 .build();
 
+        when(areaRepository.findAllByStudyId(any())).thenReturn(Collections.singletonList(AreaEntity.builder().name("FR").build()));
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
         when(antaressDataManagerProperties.getLoadDirectory())
