@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -151,16 +152,18 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory, Path trajectoryPath) {
         LoadChecker fileChecker = getFileCheckerByPath(trajectoryPath, horizon);
         return area -> {
-            String fileName = "load_" + area.toLowerCase() + "_" + horizon + ".txt";
+            String fileName = String.format("load_%s_%s.txt", area.toLowerCase(), horizon);
             if (loadRepository.existsByFileNameAndTrajectory_Id(fileName, trajectory.getId())) {
                 return true;
             }
             if (fileChecker.exists(area)) {
-                LoadEntity load = new LoadEntity();
-                load.setFileName(fileName);
-                load.setTrajectory(trajectory);
-                loadRepository.save(load);
-                return true;
+                try {
+                    String outputFileName = saveMatrixToNas(trajectoryPath.resolve(fileName));
+                    loadRepository.save(LoadEntity.builder().fileName(fileName).trajectory(trajectory).outPutFileName(outputFileName).build());
+                    return true;
+                } catch (IOException e) {
+                    throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
+                }
             }
             return false;
         };
