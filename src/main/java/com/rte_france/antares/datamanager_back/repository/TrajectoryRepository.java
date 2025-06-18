@@ -9,12 +9,16 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, Integer> {
 
-    Optional<TrajectoryEntity> findTrajectoryEntityById(Integer id);
-
+    @Query("SELECT DISTINCT t FROM Trajectory t " +
+            "LEFT JOIN FETCH t.warningMessages " +
+            "LEFT JOIN FETCH t.scenarioEntities " +
+            "WHERE t.id IN :ids")
+    Set<TrajectoryEntity> findAllByIdWithWarnings(@Param("ids") List<Integer> ids);
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(String fileName, String horizon, String type);
 
