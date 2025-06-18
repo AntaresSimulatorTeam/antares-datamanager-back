@@ -28,11 +28,8 @@ public class StudyController {
 
     private static final String DEFAULT_SORT_COLUMN = "creationDate";
     private static final String DEFAULT_SORT_DIRECTION = "DESC";
-    private static final Map<String, String> COLUMN_NAME_MAPPING = Map.of(
-            "project", "project.name"
-    );
+    private static final Map<String, String> COLUMN_NAME_MAPPING = Map.of("project", "project.name");
     private final StudyService studyService;
-    private final StudyGeneratorService studyGeneratorService;
 
     @GetMapping("/search")
     public ResponseEntity<Page<StudyDTO>> searchStudies(

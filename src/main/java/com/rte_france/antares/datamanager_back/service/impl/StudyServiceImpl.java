@@ -7,14 +7,12 @@ import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import com.rte_france.antares.datamanager_back.util.Utils;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -28,11 +26,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
 
@@ -45,8 +39,8 @@ public class StudyServiceImpl implements StudyService {
     private final ProjectRepository projectRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final StudyGeneratorService studyGeneratorService;
-    private final static int HORIZON_LOWER_BOUND = 2000;
-    private final static int HORIZON_UPPER_BOUND = 9999;
+    private static final  int HORIZON_LOWER_BOUND = 2000;
+    private static final  int HORIZON_UPPER_BOUND = 9999;
 
 
     @Override
@@ -152,6 +146,72 @@ public class StudyServiceImpl implements StudyService {
         return toStudyDTO(buildAndSaveNewStudy(studyDTO, projectEntity));
     }
 
+    private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
+        String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+
+        Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())
+                ? Collections.emptySet()
+                : trajectoryRepository.findAllByIdWithWarnings(studyDTO.getTrajectoryIds());
+
+        StudyEntity studyEntity = createBaseStudyEntity(studyDTO, projectEntity, horizon, trajectories);
+
+        Set<WarningMessageEntity> clonedWarnings = cloneUniqueWarningsFromTrajectories(trajectories, studyDTO, studyEntity);
+        studyEntity.getWarningMessages().addAll(clonedWarnings);
+
+        return studyRepository.save(studyEntity);
+    }
+
+    private StudyEntity createBaseStudyEntity(StudyDTO studyDTO, ProjectEntity projectEntity, String horizon, Set<TrajectoryEntity> trajectories) {
+        return StudyEntity.builder()
+                .name(studyDTO.getName())
+                .createdBy(studyDTO.getCreatedBy())
+                .creationDate(LocalDateTime.now())
+                .project(projectEntity)
+                .horizon(horizon)
+                .status(StudyStatus.IN_PROGRESS)
+                .tags(studyDTO.getTags())
+                .warningMessages(new HashSet<>())
+                .trajectories(trajectories)
+                .build();
+    }
+
+    private Set<WarningMessageEntity> cloneUniqueWarningsFromTrajectories(Set<TrajectoryEntity> trajectories, StudyDTO studyDTO, StudyEntity studyEntity) {
+        Set<WarningMessageEntity> clonedWarnings = new HashSet<>();
+        Set<String> seenKeys = new HashSet<>();
+
+        for (TrajectoryEntity trajectory : trajectories) {
+            trajectory.getScenarioEntities().add(studyEntity);
+
+            for (WarningMessageEntity originalWarning : trajectory.getWarningMessages()) {
+                String key = generateWarningKey(trajectory.getId(), originalWarning.getWarningContent());
+
+                if (seenKeys.add(key)) {
+                    clonedWarnings.add(cloneWarningMessage(originalWarning, studyDTO, studyEntity, trajectory));
+                }
+            }
+        }
+
+        return clonedWarnings;
+    }
+
+    private String generateWarningKey(Integer trajectoryId, String warningContent) {
+        return trajectoryId + "::" + warningContent;
+    }
+
+    private WarningMessageEntity cloneWarningMessage(WarningMessageEntity original, StudyDTO dto, StudyEntity study, TrajectoryEntity trajectory) {
+        return WarningMessageEntity.builder()
+                .warningCode(original.getWarningCode())
+                .warningLevel(original.getWarningLevel())
+                .warningContent(original.getWarningContent())
+                .createdBy(dto.getCreatedBy())
+                .creationDate(LocalDateTime.now())
+                .trajectory(trajectory)
+                .study(study)
+                .isAck(false)
+                .build();
+    }
+
+
     @Override
     public void updateStudyStatusAsGenerated(Integer studyId) {
         studyRepository.findById(studyId).ifPresentOrElse(
@@ -167,35 +227,6 @@ public class StudyServiceImpl implements StudyService {
                             .build();
                 }
         );
-    }
-
-    private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
-        String horizon = (Integer.parseInt(studyDTO.getHorizon()) - 1) + "-" + studyDTO.getHorizon() ;
-        Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())
-                ? Collections.emptySet()
-                : convertToTrajectoryEntities(studyDTO.getTrajectoryIds());
-
-        StudyEntity studyEntity = StudyEntity.builder()
-                .name(studyDTO.getName())
-                .createdBy(studyDTO.getCreatedBy())
-                .creationDate(LocalDateTime.now())
-                .project(projectEntity)
-                .horizon(horizon)
-                .status(StudyStatus.IN_PROGRESS)
-                .tags(studyDTO.getTags())
-                .trajectories(trajectories)
-                .build();
-
-        trajectories.forEach(trajectory -> trajectory.getScenarioEntities().add(studyEntity));
-        return studyRepository.save(studyEntity);
-    }
-
-    private Set<TrajectoryEntity> convertToTrajectoryEntities(List<Integer> trajectoryIds) {
-        return trajectoryIds.stream()
-                .map(trajectoryRepository::findTrajectoryEntityById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toSet());
     }
 
     private static void validateTags(StudyDTO studyDTO) {
