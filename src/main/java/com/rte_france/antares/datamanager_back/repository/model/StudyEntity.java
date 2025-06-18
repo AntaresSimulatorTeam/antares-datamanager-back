@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -53,6 +54,10 @@ public class StudyEntity {
     @CollectionTable(name = "scenario_tags", joinColumns = @JoinColumn(name = "scenario_id"))
     @Column(name = "tag")
     private List<String> tags;
+
+    @OneToMany(mappedBy = "study", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
 
     //une etude  = un horizon  ex (2030:2031)
 }
