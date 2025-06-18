@@ -8,8 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.core.support.LdapContextSource;
 
-import java.util.logging.Logger;
-
 @Getter
 @Configuration
 public class GaiaConfig {
