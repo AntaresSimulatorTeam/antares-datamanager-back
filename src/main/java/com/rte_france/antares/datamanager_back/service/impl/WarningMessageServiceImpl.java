@@ -63,7 +63,9 @@ public class WarningMessageServiceImpl implements WarningMessageService {
             messageArgs = new Object[]{warnings.getFirst()};
         } else if (warnings.size() > 1) {
             messageArgs = new Object[]{String.join(", ", warnings)};
-            if (warningCode == WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS) {
+            if (warningCode == WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS ||
+                    warningCode == WarningCode.DUPLICATION_MISSING_TRAJECTORIES
+            ) {
                 messageArgs = new Object[]{warnings.get(0), warnings.get(1)};
             }
         } else {

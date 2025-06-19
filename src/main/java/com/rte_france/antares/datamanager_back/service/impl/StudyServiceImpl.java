@@ -1,15 +1,19 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
+
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
+import com.rte_france.antares.datamanager_back.service.WarningMessageService;
+import com.rte_france.antares.datamanager_back.util.DuplicationTrajectoryUtils;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
@@ -25,7 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
@@ -38,11 +45,16 @@ public class StudyServiceImpl implements StudyService {
     private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
     private final TrajectoryRepository trajectoryRepository;
+    private final WarningMessageRepository warningMessageRepository;
+    private final WarningMessageService warningMessageService;
     private final StudyGeneratorService studyGeneratorService;
     private final TrajectoryServiceImpl trajectoryServiceImpl;
     private static final  int HORIZON_LOWER_BOUND = 2000;
     private static final  int HORIZON_UPPER_BOUND = 9999;
     private final UserService userService;
+    private final TrajectoryServiceImpl trajectoryService;
+    private final static int HORIZON_LOWER_BOUND = 2000;
+    private final static int HORIZON_UPPER_BOUND = 9999;
 
 
     @Override
@@ -118,6 +130,43 @@ public class StudyServiceImpl implements StudyService {
         studyGeneratorService.callGenerateStudyService(studyId);
         updateStudyStatusAsGenerated(studyId);
     }
+    @Override
+    @Transactional
+    public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
+        List<TrajectoryEntity> trajectories = trajectoryRepository.findMostRecentTrajectoriesByHorizon(studyDTO.getHorizon());
+        List<TrajectoryEntity> trajectoriesAvailable = DuplicationTrajectoryUtils.getTrajectoriesForHorizon(trajectories, studyDTO.getHorizon());
+
+
+        DuplicationTrajectoryUtils.validateAreaTrajectory(trajectoriesAvailable, studyDTO.getHorizon());
+
+
+        studyDTO.setHorizon(DuplicationTrajectoryUtils.getMaxHorizonYear(studyDTO.getHorizon()));
+        studyDTO.setTrajectoryIds(new ArrayList<>());
+        StudyDTO savedStudyDTO = createStudy(studyDTO);
+
+        DuplicationTrajectoryUtils.TrajectoryProcessingResult result = DuplicationTrajectoryUtils.processAndLinkTrajectories(
+                trajectoriesAvailable,
+                savedStudyDTO,
+                trajectoryService,
+                studyDTO.getCreatedBy()
+        );
+
+        if (!result.missingTrajectoryTypes().isEmpty()) {
+            warningMessageService.addWarning(
+                    result.warningMessages(),
+                    Arrays.asList(String.join(", ", result.missingTrajectoryTypes()), studyDTO.getHorizon()),
+                    WarningCode.DUPLICATION_MISSING_TRAJECTORIES,
+                    savedStudyDTO.getId(),
+                    studyDTO.getCreatedBy(),
+                    result.areaTrajectory()
+            );
+            warningMessageRepository.saveAll(result.warningMessages());
+
+        }
+
+        return savedStudyDTO;
+    }
+
 
     @Override
     public StudyDTO createStudy(StudyDTO studyDTO) {

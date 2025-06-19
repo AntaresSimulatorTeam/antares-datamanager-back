@@ -9,7 +9,8 @@ public enum WarningCode {
     LINKS_UNILATERAL_VALUES_ZERO("links.unilateral_values_zero"),
     LINKS_AREA_NOT_PRESENT("links.area_not_present"),
     AREAS_NOT_ORDERED_ALPHABETICALLY("areas.not_alphabetically_ordered"),
-    LOAD_MISSING_TRAJECTORY_FOR_AREAS("load.missing_trajectories_for_areas");
+    LOAD_MISSING_TRAJECTORY_FOR_AREAS("load.missing_trajectories_for_areas"),
+    DUPLICATION_MISSING_TRAJECTORIES("duplication.missing_trajectories");
 
     private final String value;
 

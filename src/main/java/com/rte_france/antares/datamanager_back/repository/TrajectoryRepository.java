@@ -47,5 +47,19 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);
 
+
+    @Query("""
+        SELECT t FROM Trajectory t 
+        WHERE t.horizon = :horizon 
+        AND t.version = (
+            SELECT MAX(t2.version) 
+            FROM Trajectory t2 
+            WHERE t2.fileName = t.fileName 
+            AND t2.horizon = t.horizon
+        )
+        ORDER BY t.creationDate DESC
+    """)
+    List<TrajectoryEntity> findMostRecentTrajectoriesByHorizon(@Param("horizon") String horizon);
+
 }
 
