@@ -423,9 +423,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // Vérifier si une trajectoire du même type est déjà associée à l'étude
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
-        if (!TrajectoryType.LOAD.equals(type)) {
+        if (!TrajectoryType.LOAD.equals(type) && study.getStudyTrajectoryEntities() != null) {
             existingLink = study.getStudyTrajectoryEntities().stream()
-                    .filter(studyTrajectory -> studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
+                    .filter(studyTrajectory -> studyTrajectory.getTrajectory() != null
+                            && studyTrajectory.getTrajectory().getType() != null
+                            && studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
                     .findFirst();
         }
 

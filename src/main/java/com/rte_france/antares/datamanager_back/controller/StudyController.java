@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -81,5 +82,11 @@ public class StudyController {
     @GetMapping("/{id}")
     public ResponseEntity<StudyDTO> findStudyById(@PathVariable Integer id) {
         return new ResponseEntity<>(studyService.findStudyById(id), HttpStatus.OK);
+    }
+
+    @PostMapping("/duplicate")
+    public ResponseEntity<StudyDTO> duplicateStudy(@RequestBody StudyDTO studyDTO) throws IOException {
+        StudyDTO duplicatedStudy = studyService.duplicateStudy(studyDTO);
+        return new ResponseEntity<>(duplicatedStudy, HttpStatus.CREATED);
     }
 }

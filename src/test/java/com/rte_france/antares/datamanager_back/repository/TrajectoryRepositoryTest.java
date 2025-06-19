@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql")
+@Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_test_trajectories.sql")
 @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql")
 class TrajectoryRepositoryTest {
 
@@ -95,4 +97,36 @@ class TrajectoryRepositoryTest {
         List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), null);
         assertThat(trajectoryEntities).isEmpty();
     }
+
+    @Test
+    void findMostRecentTrajectoriesByHorizon_shouldReturnMostRecentVersions() {
+        // Exécution
+        String horizon = "2023-2024"; // Utiliser l'horizon qui existe dans vos données de test
+        List<TrajectoryEntity> result = trajectoryRepository.findMostRecentTrajectoriesByHorizon(horizon);
+
+        // Vérifications
+        assertThat(result).isNotEmpty();
+
+        // Vérifier que chaque trajectoire a la version la plus récente
+        result.forEach(trajectory -> {
+            List<TrajectoryEntity> allVersions = trajectoryRepository.findAll().stream()
+                    .filter(t -> t.getFileName().equals(trajectory.getFileName())
+                            && t.getHorizon().equals(trajectory.getHorizon()))
+                    .toList();
+
+            int maxVersion = allVersions.stream()
+                    .mapToInt(TrajectoryEntity::getVersion)
+                    .max()
+                    .orElse(0);
+
+            assertThat(trajectory.getVersion()).isEqualTo(maxVersion);
+        });
+
+        // Vérifier que les résultats sont triés par date de création
+        assertThat(result).isSortedAccordingTo(
+                Comparator.comparing(TrajectoryEntity::getCreationDate).reversed()
+        );
+    }
 }
+
+
