@@ -53,6 +53,7 @@ public class StudyServiceImpl implements StudyService {
     private static final  int HORIZON_UPPER_BOUND = 9999;
     private final UserService userService;
     private final TrajectoryServiceImpl trajectoryService;
+    private final  LoadFileProcessorServiceImpl loadFileProcessorService;
     private final static int HORIZON_LOWER_BOUND = 2000;
     private final static int HORIZON_UPPER_BOUND = 9999;
 
@@ -133,14 +134,14 @@ public class StudyServiceImpl implements StudyService {
     @Override
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
-        List<TrajectoryEntity> trajectories = trajectoryRepository.findMostRecentTrajectoriesByHorizon(studyDTO.getHorizon());
+        validateHorizon(studyDTO);
+        String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+        List<TrajectoryEntity> trajectories = trajectoryRepository.findMostRecentTrajectoriesByHorizon(horizon);
         List<TrajectoryEntity> trajectoriesAvailable = DuplicationTrajectoryUtils.getTrajectoriesForHorizon(trajectories, studyDTO.getHorizon());
 
 
         DuplicationTrajectoryUtils.validateAreaTrajectory(trajectoriesAvailable, studyDTO.getHorizon());
 
-
-        studyDTO.setHorizon(DuplicationTrajectoryUtils.getMaxHorizonYear(studyDTO.getHorizon()));
         studyDTO.setTrajectoryIds(new ArrayList<>());
         StudyDTO savedStudyDTO = createStudy(studyDTO);
 
@@ -148,6 +149,7 @@ public class StudyServiceImpl implements StudyService {
                 trajectoriesAvailable,
                 savedStudyDTO,
                 trajectoryService,
+                loadFileProcessorService,
                 studyDTO.getCreatedBy()
         );
 
