@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class DuplicationTrajectoryUtils {
             TrajectoryType.LINK,
             TrajectoryType.LOAD
     );
+     LoadFileProcessorServiceImpl loadFileProcessorService;
 
 
     /**
@@ -106,19 +108,20 @@ public class DuplicationTrajectoryUtils {
      * Processes a list of trajectory entities by linking area trajectories,
      * processing other trajectory types, and generating warnings for missing trajectories.
      *
-     * @param trajectoriesAvailable The list of available trajectories to be processed and linked.
-     * @param studyDTO The DTO representing the study for which the trajectories are being processed.
-     * @param trajectoryService The service used for trajectory-related operations.
-     * @param createdBy The user or system identifier that initiated the process.
+     * @param trajectoriesAvailable    The list of available trajectories to be processed and linked.
+     * @param studyDTO                 The DTO representing the study for which the trajectories are being processed.
+     * @param trajectoryService        The service used for trajectory-related operations.
+     * @param loadFileProcessorService
+     * @param createdBy                The user or system identifier that initiated the process.
      * @return A result object containing information about missing trajectory types, the linked area trajectory,
-     *         and any warning messages generated during processing.
+     * and any warning messages generated during processing.
      * @throws IOException If an input or output operation fails during the linking or processing.
      */
     public static TrajectoryProcessingResult processAndLinkTrajectories(
             List<TrajectoryEntity> trajectoriesAvailable,
             StudyDTO studyDTO,
             TrajectoryServiceImpl trajectoryService,
-            String createdBy) throws IOException {
+            LoadFileProcessorServiceImpl loadFileProcessorService, String createdBy) throws IOException {
 
         List<String> missingTrajectoryTypes = new ArrayList<>();
         Set<WarningMessageEntity> warningMessages = new HashSet<>();
@@ -135,6 +138,7 @@ public class DuplicationTrajectoryUtils {
                 studyDTO.getId(),
                 trajectoryService,
                 warningMessages,
+                 loadFileProcessorService,
                 missingTrajectoryTypes,
                 createdBy);
 
@@ -165,6 +169,7 @@ public class DuplicationTrajectoryUtils {
             Integer studyId,
             TrajectoryServiceImpl trajectoryService,
             Set<WarningMessageEntity> warningMessages,
+            LoadFileProcessorServiceImpl loadFileProcessorService,
             List<String> missingTrajectoryTypes,
             String createdBy) {
 
@@ -180,6 +185,7 @@ public class DuplicationTrajectoryUtils {
                                     type,
                                     studyId,
                                     trajectoryService,
+                                    loadFileProcessorService,
                                     warningMessages,
                                     missingTrajectoryTypes,
                                     createdBy
@@ -194,48 +200,33 @@ public class DuplicationTrajectoryUtils {
             TrajectoryType type,
             Integer studyId,
             TrajectoryServiceImpl trajectoryService,
-            Set<WarningMessageEntity> warningMessages,
+            LoadFileProcessorServiceImpl loadFileProcessorService, Set<WarningMessageEntity> warningMessages,
             List<String> missingTrajectoryTypes,
             String createdBy) {
 
         try {
+            // Pour les trajectoires LOAD, vérifier que la zone existe dans l'étude
+            if (type == TrajectoryType.LOAD && trajectory.getLoadArea() != null) {
+                List<String> areasWithoutTrajectory = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
+
+                boolean areaExists = !areasWithoutTrajectory.contains(trajectory.getLoadArea().toUpperCase());
+
+                if (areaExists) {
+                    missingTrajectoryTypes.add(type.name());
+                    return;
+                }
+            }
+
             trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, type);
+
             if (type == TrajectoryType.LINK) {
                 trajectoryService.checkLinkCoherence(studyId, warningMessages, trajectory, createdBy);
             }
+
         } catch (IOException e) {
             missingTrajectoryTypes.add(type.name());
         }
-
-
     }
 
-    /**
-     * Determines the maximum year from a given horizon value string.
-     * The horizon value is expected to be in the format of either "YYYY" or "YYYY-YYYY".
-     * If the given input is null, empty, or invalid, an empty string is returned.
-     *
-     * @param horizonValue the input string representing the horizon year(s).
-     *                     It can either be a single year or a range of years separated by a hyphen.
-     * @return the maximum year in the input string as a string.
-     *         Returns an empty string if the input is null, empty, or invalid.
-     */
-    public static String getMaxHorizonYear(String horizonValue) {
-        if (horizonValue == null || horizonValue.trim().isEmpty()) {
-            return "";
-        }
-
-        String[] years = horizonValue.trim().split("-");
-        if (years.length == 1) {
-            return years[0].trim();
-        }
-
-        int maxYear = Math.max(
-                Integer.parseInt(years[0].trim()),
-                Integer.parseInt(years[1].trim())
-        );
-
-        return String.valueOf(maxYear);
-    }
 
 }

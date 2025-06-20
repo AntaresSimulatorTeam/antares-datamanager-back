@@ -122,7 +122,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
         return warningMessages;
     }
 
-    private List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
+    public List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
                 .map(AreaEntity::getName)
                 .toList();
