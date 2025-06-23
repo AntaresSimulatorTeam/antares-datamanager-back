@@ -102,9 +102,7 @@ public class Utils {
                 if (matcher.matches()) {
                     String areaFromFile = matcher.group(1);
                     String horizon = matcher.group(2);
-                    boolean isValid = horizon.equals(expectedHorizon) &&
-                            ((!areaLoadAlreadyChosen.isEmpty() && !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase())) ||
-                                    (areaLoadAlreadyChosen.isEmpty() && areaWithStudy.contains(areaFromFile.toLowerCase())));
+                    boolean isValid = isValidLoadFile(horizon, expectedHorizon, areaFromFile, areaLoadAlreadyChosen, areaWithStudy);
                     if (isValid) {
                         loadsFileNames.add(fileName);
                     }
@@ -112,6 +110,12 @@ public class Utils {
             }
         }
         return loadsFileNames;
+    }
+
+    private static boolean isValidLoadFile(String horizon, String expectedHorizon, String areaFromFile, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) {
+        boolean isAreaValid = areaWithStudy.contains(areaFromFile.toLowerCase());
+        boolean isAreaNotChosen = areaLoadAlreadyChosen.isEmpty() || !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase());
+        return horizon.equals(expectedHorizon) && isAreaValid && isAreaNotChosen;
     }
 
     /**
