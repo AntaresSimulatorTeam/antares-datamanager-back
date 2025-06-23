@@ -13,11 +13,11 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "load")
 public class LoadEntity {
-  @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "load_seq_gen")
-  @SequenceGenerator(name = "load_seq_gen", sequenceName = "load_sequence", allocationSize = 1)
-  @Column(name = "id", nullable = false)
-  private Integer id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "load_seq_gen")
+    @SequenceGenerator(name = "load_seq_gen", sequenceName = "load_sequence", allocationSize = 1)
+    @Column(name = "id", nullable = false)
+    private Integer id;
 
     @Column(name = "file_name", nullable = false)
     private String fileName;
@@ -25,8 +25,12 @@ public class LoadEntity {
     @Column(name = "output_file_name")
     private String outPutFileName;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "trajectory_id")
-  private TrajectoryEntity trajectory;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trajectory_id")
+    private TrajectoryEntity trajectory;
+
+    @ManyToOne
+    @JoinColumn(name = "study_id", nullable = false)
+    private StudyEntity study;
 
 }

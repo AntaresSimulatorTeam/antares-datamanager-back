@@ -210,8 +210,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+        StudyEntity studyEntity = studyRepository.findById(studyId).orElse(null);
         List<LoadEntity> loadEntities = loadsFile.stream()
-                .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).trajectory(loadTrajectory).build())
+                .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).study(studyEntity).trajectory(loadTrajectory).build())
                 .toList();
         loadTrajectory.setLoadEntities(loadEntities);
         loadTrajectory.setLoadArea(area.toUpperCase());

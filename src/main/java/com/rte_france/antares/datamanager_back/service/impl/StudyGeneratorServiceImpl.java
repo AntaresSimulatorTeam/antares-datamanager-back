@@ -18,6 +18,8 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -42,10 +44,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     @ExecutionTime
     @Override
     public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
-        Map<String, Object> jsonForGenerator = jsonBuilder(studyId);
+        Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGeneration(studyId);
         ObjectMapper objectMapper = new ObjectMapper();
         try {
-            String generatorJson = objectMapper.writeValueAsString(jsonForGenerator);
+            String generatorJson = objectMapper.writeValueAsString(jsonStudyDataForGeneration);
             nasFileService.saveFile(studyId + ".json", generatorJson.getBytes());
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -55,15 +57,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
     }
 
-    private Map<String, Object> jsonBuilder(Integer studyId) {
+    private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) {
         Map<String, Object> jsonForGenerator = new TreeMap<>();
-        String studyName;
 
         Optional<StudyEntity> studyEntity = studyRepository.findById(studyId);
 
         if (studyEntity.isPresent()) {
-            Set<TrajectoryEntity> trajectories = studyEntity.get().getTrajectories();
-            studyName = studyEntity.get().getName();
+            StudyEntity study = studyEntity.get();
+            Set<TrajectoryEntity> trajectories = study.getTrajectories();
+
 
             Map<String, Object> areasMap = new TreeMap<>();
             Map<String, Object> linksMap = new TreeMap<>();
@@ -72,11 +74,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 var trajectoryType = trajectory.getType();
 
                 switch (trajectoryType) {
-                    case "AREA" -> buildAreasDataMap(trajectory, areasMap);
+                    case "AREA" -> buildAreasDataMap(study, trajectory, areasMap);
                     case "LINK" -> buildLinksDataMap(trajectory, linksMap);
-                    case "LOAD" ->  log.warn("Load trajectory type is not supported in the generator, skipping trajectory: {}", trajectory.getFileName());
+                    case "LOAD" ->
+                            log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
 
-                    default -> throw  TechnicalException.builder().message("Unexpected value: " + trajectoryType).build();
+                    default ->
+                            throw TechnicalException.builder().message("Unexpected value: " + trajectoryType).build();
                 }
             }
 
@@ -86,7 +90,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             innerGeneratorMap.put("areas", areasMap);
             innerGeneratorMap.put("links", linksMap);
 
-            jsonForGenerator.put(studyName, innerGeneratorMap);
+            jsonForGenerator.put(study.getName(), innerGeneratorMap);
         } else {
             throw TechnicalException.builder().message("Study not found with ID: " + studyId).build();
         }
@@ -94,8 +98,35 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return jsonForGenerator;
     }
 
+    private Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
+        Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
+        return studyEntity.getTrajectories().stream()
+                .filter(trajectory -> "LOAD".equals(trajectory.getType()) && trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty())
+                .flatMap(trajectory -> {
+                    if ("OTHERS".equals(trajectory.getLoadArea())) {
+                        // Pour chaque outputFileName, extraire le loadArea du nom de fichier
+                        return trajectory.getLoadEntities().stream()
+                                .filter(loadEntity -> loadEntity.getStudy().getId().equals(studyEntity.getId()))
+                                .map(loadEntity -> {
+                                    String fileName = loadEntity.getOutPutFileName();
+                                    Matcher matcher = pattern.matcher(fileName);
+                                    String area = matcher.find() ? matcher.group(1) : "OTHERS";
+                                    return Map.entry(area.toUpperCase(), fileName);
+                                });
+                    } else {
+                        // Cas classique
+                        return trajectory.getLoadEntities().stream()
+                                .map(loadEntity -> Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName()));
+                    }
+                })
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
+    }
 
-    private void buildAreasDataMap(TrajectoryEntity trajectory, Map<String, Object> areasMap) {
+
+    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
 
         List<AreaConfigEntity> areaList = trajectory.getAreaConfigEntities();
 
@@ -106,12 +137,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         List<AreaDTO> areaDTOs = AreaMapper.toAreaDTOs(areasEntities);
 
-        Map<String, Object> generatedAreas = areasMapGenerator();
-
+        Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
-                        areaDTO -> generatedAreas
+                        areaDTO -> areasMapGenerator(listArrowLoadFilesByArea.get(areaDTO.getName()))
                 ));
 
         areasMap.putAll(areasDataMap);
@@ -146,7 +176,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator() {
+    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea) {
+        // This is a placeholder for the actual AreaUI and AreaProperties classes
+        // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
         areaMap.put("ui", "AreaUI class as JSON");
         areaMap.put(PROPERTIES, "AreaProperties as JSON");
@@ -156,6 +188,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
         areaMap.put("hydro", hydroMap);
+        areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
         return areaMap;
     }
 
@@ -179,10 +212,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     .uri(url)
                     .exchangeToMono(resp -> {
                         if (resp.statusCode().equals(HttpStatus.OK)) {
-                            log.debug(String.format("Study {%s} has been successfully generated", studyId));
+                            log.debug("Study {} has been successfully generated", studyId);
                             return resp.bodyToMono(String.class);
                         } else {
-                            log.error(String.format("Error while generating study {%s}", studyId));
+                            log.error("Error while generating study {{}}", studyId);
                             return resp.createException().flatMap(Mono::error);
                         }
 
@@ -190,7 +223,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     .block();
         } catch (RuntimeException ex) {
             throw TechnicalException.builder()
-                    .message("Error while generating study")
+                    .message("Error while call Generate study from generator " + studyId + ": " + ex.getMessage())
                     .cause(ex.getCause())
                     .build();
         }

@@ -17,7 +17,7 @@ public class AreaMapper {
 
     public static AreaDTO toAreaDto(AreaEntity areaEntity) {
         return AreaDTO.builder()
-                .name(areaEntity.getName())
+                .name(areaEntity.getName().toUpperCase())
                 .build();
     }
 
