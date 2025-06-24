@@ -356,11 +356,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
         List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
                 .peek(trajectory ->
-                        trajectory.setWarningMessages(getWarningMessages(studyId, trajectory.getWarningMessages()))).toList();
+                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()))).toList();
         return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
 
-    private LinkedHashSet<WarningMessageEntity> getWarningMessages(Integer studyId, Set<WarningMessageEntity> warningMessages) {
+    private Set<WarningMessageEntity> filterWarningMessages(Integer studyId, Set<WarningMessageEntity> warningMessages) {
         return warningMessages.stream()
                 .filter(warning -> warning.getStudy().getId().equals(studyId) && isStudyTrajectoryExistById(studyId, warning))
                 .sorted(Comparator
