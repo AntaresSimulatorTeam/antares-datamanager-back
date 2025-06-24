@@ -39,8 +39,10 @@ public class StudyServiceImpl implements StudyService {
     private final ProjectRepository projectRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final StudyGeneratorService studyGeneratorService;
+    private final TrajectoryServiceImpl trajectoryServiceImpl;
     private static final  int HORIZON_LOWER_BOUND = 2000;
     private static final  int HORIZON_UPPER_BOUND = 9999;
+    private final UserService userService;
 
 
     @Override
@@ -177,16 +179,12 @@ public class StudyServiceImpl implements StudyService {
 
     private Set<WarningMessageEntity> cloneUniqueWarningsFromTrajectories(Set<TrajectoryEntity> trajectories, StudyDTO studyDTO, StudyEntity studyEntity) {
         Set<WarningMessageEntity> clonedWarnings = new HashSet<>();
-        Set<String> seenKeys = new HashSet<>();
-
         for (TrajectoryEntity trajectory : trajectories) {
             trajectory.getScenarioEntities().add(studyEntity);
 
             for (WarningMessageEntity originalWarning : trajectory.getWarningMessages()) {
-                String key = generateWarningKey(trajectory.getId(), originalWarning.getWarningContent());
-
-                if (seenKeys.add(key)) {
-                    clonedWarnings.add(cloneWarningMessage(originalWarning, studyDTO, studyEntity, trajectory));
+                if (originalWarning.getStudy().getId().equals(studyDTO.getId()) && trajectoryServiceImpl.isStudyTrajectoryExistById(studyDTO.getId(), originalWarning)) {
+                    clonedWarnings.add(cloneWarningMessage(originalWarning, studyEntity, trajectory));
                 }
             }
         }
@@ -194,20 +192,16 @@ public class StudyServiceImpl implements StudyService {
         return clonedWarnings;
     }
 
-    private String generateWarningKey(Integer trajectoryId, String warningContent) {
-        return trajectoryId + "::" + warningContent;
-    }
-
-    private WarningMessageEntity cloneWarningMessage(WarningMessageEntity original, StudyDTO dto, StudyEntity study, TrajectoryEntity trajectory) {
+    private WarningMessageEntity cloneWarningMessage(WarningMessageEntity original, StudyEntity study, TrajectoryEntity trajectory) {
         return WarningMessageEntity.builder()
                 .warningCode(original.getWarningCode())
                 .warningLevel(original.getWarningLevel())
                 .warningContent(original.getWarningContent())
-                .createdBy(dto.getCreatedBy())
+                .createdBy(userService.getCurrentUserDetails().getNni())
                 .creationDate(LocalDateTime.now())
                 .trajectory(trajectory)
                 .study(study)
-                .isAck(false)
+                .isAck(original.getIsAck())
                 .secondTrajectory(original.getSecondTrajectory())
                 .build();
     }
