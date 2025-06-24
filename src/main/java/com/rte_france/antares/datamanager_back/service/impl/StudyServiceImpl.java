@@ -208,6 +208,7 @@ public class StudyServiceImpl implements StudyService {
                 .trajectory(trajectory)
                 .study(study)
                 .isAck(false)
+                .secondTrajectory(original.getSecondTrajectory())
                 .build();
     }
 
