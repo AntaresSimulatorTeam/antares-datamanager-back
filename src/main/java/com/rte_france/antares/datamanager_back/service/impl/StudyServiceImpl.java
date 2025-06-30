@@ -136,7 +136,9 @@ public class StudyServiceImpl implements StudyService {
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
         String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
-        List<TrajectoryEntity> trajectories = trajectoryRepository.findMostRecentTrajectoriesByHorizon(horizon);
+        List<TrajectoryEntity> trajectories = trajectoryRepository
+                .findMostRecentTrajectoriesForDuplicationByStudyId(studyDTO.getId(), horizon);
+
         List<TrajectoryEntity> trajectoriesAvailable = DuplicationTrajectoryUtils.getTrajectoriesForHorizon(trajectories, studyDTO.getHorizon());
 
 

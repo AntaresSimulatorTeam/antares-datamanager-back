@@ -164,54 +164,99 @@ public class DuplicationTrajectoryUtils {
         return areaTrajectory;
     }
 
-    private static void processRemainingTrajectoryTypes(
-            List<TrajectoryEntity> trajectories,
-            Integer studyId,
-            TrajectoryServiceImpl trajectoryService,
-            Set<WarningMessageEntity> warningMessages,
-            LoadFileProcessorServiceImpl loadFileProcessorService,
-            List<String> missingTrajectoryTypes,
-            String createdBy) {
+//    private static void processRemainingTrajectoryTypes(
+//            List<TrajectoryEntity> trajectories,
+//            Integer studyId,
+//            TrajectoryServiceImpl trajectoryService,
+//            Set<WarningMessageEntity> warningMessages,
+//            LoadFileProcessorServiceImpl loadFileProcessorService,
+//            List<String> missingTrajectoryTypes,
+//            String createdBy) {
+//
+//        for (TrajectoryType type : SUPPORTED_TRAJECTORY_TYPES) {
+//            if (type == TrajectoryType.AREA) continue;
+//
+//            trajectories.stream()
+//                    .filter(t -> type.name().equals(t.getType()))
+//                    .forEach(trajectory -> trajectoryForLinks(
+//                            trajectory,
+//                            type,
+//                            studyId,
+//                            trajectoryService,
+//                            loadFileProcessorService,
+//                            warningMessages,
+//                            missingTrajectoryTypes,
+//                            createdBy
+//                    ));
+//        }
+//
+//    }
+private static void processRemainingTrajectoryTypes(
+        List<TrajectoryEntity> trajectories,
+        Integer studyId,
+        TrajectoryServiceImpl trajectoryService,
+        Set<WarningMessageEntity> warningMessages,
+        LoadFileProcessorServiceImpl loadFileProcessorService,
+        List<String> missingTrajectoryTypes,
+        String createdBy) {
 
-        for (TrajectoryType type : SUPPORTED_TRAJECTORY_TYPES) {
-            if (type == TrajectoryType.AREA) continue;
+    for (TrajectoryType type : SUPPORTED_TRAJECTORY_TYPES) {
+        if (type == TrajectoryType.AREA) continue;
 
-            trajectories.stream()
-                    .filter(t -> type.name().equals(t.getType()))
-                    .findFirst()
-                    .ifPresentOrElse(
-                            trajectory -> trajectoryForLinks(
-                                    trajectory,
-                                    type,
-                                    studyId,
-                                    trajectoryService,
-                                    loadFileProcessorService,
-                                    warningMessages,
-                                    missingTrajectoryTypes,
-                                    createdBy
-                            ),
-                            () -> missingTrajectoryTypes.add(type.name())
-                    );
+        List<TrajectoryEntity> typeTrajectories = trajectories.stream()
+                .filter(t -> type.name().equals(t.getType()))
+                .toList();
+
+        if (typeTrajectories.isEmpty()) {
+            missingTrajectoryTypes.add(type.name());
+        } else {
+            if (type == TrajectoryType.LOAD) {
+                // LOAD we can have several trajectories for one study
+                typeTrajectories.forEach(trajectory ->
+                        trajectoryForLinks(
+                                trajectory,
+                                type,
+                                studyId,
+                                trajectoryService,
+                                loadFileProcessorService,
+                                warningMessages,
+                                missingTrajectoryTypes,
+                                createdBy
+                        )
+                );
+            } else {
+
+                trajectoryForLinks(
+                        typeTrajectories.getFirst(),
+                        type,
+                        studyId,
+                        trajectoryService,
+                        loadFileProcessorService,
+                        warningMessages,
+                        missingTrajectoryTypes,
+                        createdBy
+                );
+            }
         }
     }
+}
 
     private static void trajectoryForLinks(
             TrajectoryEntity trajectory,
             TrajectoryType type,
             Integer studyId,
             TrajectoryServiceImpl trajectoryService,
-            LoadFileProcessorServiceImpl loadFileProcessorService, Set<WarningMessageEntity> warningMessages,
+            LoadFileProcessorServiceImpl loadFileProcessorService,
+            Set<WarningMessageEntity> warningMessages,
             List<String> missingTrajectoryTypes,
             String createdBy) {
 
         try {
-            // Pour les trajectoires LOAD, vérifier que la zone existe dans l'étude
+
             if (type == TrajectoryType.LOAD && trajectory.getLoadArea() != null) {
-                List<String> areasWithoutTrajectory = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
+                List<String> availableAreas = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
 
-                boolean areaExists = !areasWithoutTrajectory.contains(trajectory.getLoadArea().toUpperCase());
-
-                if (areaExists) {
+                if (!availableAreas.contains(trajectory.getLoadArea().toUpperCase())) {
                     missingTrajectoryTypes.add(type.name());
                     return;
                 }
