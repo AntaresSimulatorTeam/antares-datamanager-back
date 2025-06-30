@@ -98,7 +98,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return jsonForGenerator;
     }
 
-    private Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
+    public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
         return studyEntity.getTrajectories().stream()
                 .filter(trajectory -> "LOAD".equals(trajectory.getType()) && trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty())
