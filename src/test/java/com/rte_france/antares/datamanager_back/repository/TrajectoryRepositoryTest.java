@@ -99,34 +99,52 @@ class TrajectoryRepositoryTest {
     }
 
     @Test
-    void findMostRecentTrajectoriesByHorizon_shouldReturnMostRecentVersions() {
-        // Exécution
-        String horizon = "2023-2024"; // Utiliser l'horizon qui existe dans vos données de test
-        List<TrajectoryEntity> result = trajectoryRepository.findMostRecentTrajectoriesByHorizon(horizon);
+    void findMostRecentTrajectoriesForDuplicationByStudyId_shouldReturnCorrectTrajectories() {
 
-        // Vérifications
+        Integer studyId = 1;
+        String targetHorizon = "2025-2026";
+
+
+        List<TrajectoryEntity> result = trajectoryRepository
+                .findMostRecentTrajectoriesForDuplicationByStudyId(studyId, targetHorizon);
+
+
         assertThat(result).isNotEmpty();
 
-        // Vérifier que chaque trajectoire a la version la plus récente
-        result.forEach(trajectory -> {
-            List<TrajectoryEntity> allVersions = trajectoryRepository.findAll().stream()
-                    .filter(t -> t.getFileName().equals(trajectory.getFileName())
-                            && t.getHorizon().equals(trajectory.getHorizon()))
-                    .toList();
 
-            int maxVersion = allVersions.stream()
+        result.forEach(trajectory ->
+                assertThat(trajectory.getHorizon()).isEqualTo(targetHorizon)
+        );
+
+
+        for (TrajectoryEntity trajectory : result) {
+            long maxVersion = trajectoryRepository.findAll().stream()
+                    .filter(t -> t.getFileName().equals(trajectory.getFileName())
+                            && t.getHorizon().equals(targetHorizon))
                     .mapToInt(TrajectoryEntity::getVersion)
                     .max()
                     .orElse(0);
 
             assertThat(trajectory.getVersion()).isEqualTo(maxVersion);
-        });
+        }
 
-        // Vérifier que les résultats sont triés par date de création
+
+        List<String> sourceStudyFileNames = trajectoryRepository.findByTypeAndStudyId(null, studyId)
+                .stream()
+                .map(TrajectoryEntity::getFileName)
+                .toList();
+
+        result.forEach(trajectory ->
+                assertThat(sourceStudyFileNames).contains(trajectory.getFileName())
+        );
+
+
         assertThat(result).isSortedAccordingTo(
                 Comparator.comparing(TrajectoryEntity::getCreationDate).reversed()
         );
     }
+
+
 }
 
 
