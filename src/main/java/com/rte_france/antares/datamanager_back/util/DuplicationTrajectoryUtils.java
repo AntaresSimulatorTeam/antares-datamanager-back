@@ -164,33 +164,6 @@ public class DuplicationTrajectoryUtils {
         return areaTrajectory;
     }
 
-//    private static void processRemainingTrajectoryTypes(
-//            List<TrajectoryEntity> trajectories,
-//            Integer studyId,
-//            TrajectoryServiceImpl trajectoryService,
-//            Set<WarningMessageEntity> warningMessages,
-//            LoadFileProcessorServiceImpl loadFileProcessorService,
-//            List<String> missingTrajectoryTypes,
-//            String createdBy) {
-//
-//        for (TrajectoryType type : SUPPORTED_TRAJECTORY_TYPES) {
-//            if (type == TrajectoryType.AREA) continue;
-//
-//            trajectories.stream()
-//                    .filter(t -> type.name().equals(t.getType()))
-//                    .forEach(trajectory -> trajectoryForLinks(
-//                            trajectory,
-//                            type,
-//                            studyId,
-//                            trajectoryService,
-//                            loadFileProcessorService,
-//                            warningMessages,
-//                            missingTrajectoryTypes,
-//                            createdBy
-//                    ));
-//        }
-//
-//    }
 private static void processRemainingTrajectoryTypes(
         List<TrajectoryEntity> trajectories,
         Integer studyId,

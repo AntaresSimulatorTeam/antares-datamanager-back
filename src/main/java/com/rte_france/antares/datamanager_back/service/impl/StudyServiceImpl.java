@@ -54,8 +54,6 @@ public class StudyServiceImpl implements StudyService {
     private final UserService userService;
     private final TrajectoryServiceImpl trajectoryService;
     private final  LoadFileProcessorServiceImpl loadFileProcessorService;
-    private final static int HORIZON_LOWER_BOUND = 2000;
-    private final static int HORIZON_UPPER_BOUND = 9999;
 
 
     @Override
