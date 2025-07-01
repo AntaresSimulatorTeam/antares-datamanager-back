@@ -421,7 +421,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
-        // Vérifier si une trajectoire du même type est déjà associée à l'étude
+
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
         if (!TrajectoryType.LOAD.equals(type) && study.getStudyTrajectoryEntities() != null) {
             existingLink = study.getStudyTrajectoryEntities().stream()
@@ -433,13 +433,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-        // Vérifier la cohérence des liens
+
         checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
 
-        // Supprimer l'ancienne association si elle existe
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
-        // Créer une nouvelle association
+
         StudyTrajectoryEntity newStudyTrajectoryEntity = StudyTrajectoryEntity.builder()
                 .id(StudyTrajectoryKey.builder()
                         .trajectoryId(trajectoryId)
