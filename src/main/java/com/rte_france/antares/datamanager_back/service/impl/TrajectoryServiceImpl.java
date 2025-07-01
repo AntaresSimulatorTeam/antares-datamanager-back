@@ -547,4 +547,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         };
     }
+
+    public Map<String, Object> getTwoProperties(Integer trajectoryId) {
+        TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId).orElseThrow();
+        return Map.of(
+                "nbMessages", trajectory.getWarningMessages().size(),
+                "trajectoryType", trajectory.getType()
+        );
+    }
 }
