@@ -304,4 +304,13 @@ public class StudyServiceImpl implements StudyService {
                     .build();
         }
     }
+
+    @Override
+    public List<Map<String, Object>> getWarningMessageNumber(Integer studyId) {
+        return studyRepository.findById(studyId).map(
+                studyEntity -> studyEntity.getTrajectories().stream()
+                        .map(trajectoryEntity -> trajectoryServiceImpl.getTwoProperties(trajectoryEntity.getId()))
+                        .toList()
+        ).orElseGet(ArrayList::new);
+    }
 }
