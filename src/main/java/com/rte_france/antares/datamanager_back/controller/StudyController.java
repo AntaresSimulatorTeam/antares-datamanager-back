@@ -89,10 +89,4 @@ public class StudyController {
         StudyDTO duplicatedStudy = studyService.duplicateStudy(studyDTO);
         return new ResponseEntity<>(duplicatedStudy, HttpStatus.CREATED);
     }
-
-    @Operation(summary = "Get warning message number for each trajectory type of a study")
-    @GetMapping("/warning/{id}")
-    public ResponseEntity<StudyDTO> getWarningMessageNumber(@PathVariable Integer id) {
-        return new ResponseEntity<>(studyService.findStudyById(id), HttpStatus.OK);
-    }
 }
