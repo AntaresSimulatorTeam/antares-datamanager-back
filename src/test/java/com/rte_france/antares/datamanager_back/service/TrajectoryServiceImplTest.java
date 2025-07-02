@@ -636,4 +636,64 @@ class TrajectoryServiceImplTest {
         assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
         assertEquals(List.of("RE, FR"), exception.getErrorMessageArguments());
     }
+
+    @Test
+    void countWarningMessage() {
+        Integer studyId = 1;
+        String trajectoryTypeAREA = "AREA";
+
+        WarningMessageEntity warning1 = WarningMessageEntity.builder()
+                .isAck(true)
+                .creationDate(LocalDateTime.of(2023, 10, 1, 10, 0))
+                .study(StudyEntity.builder().id(studyId).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
+                .build();
+
+        WarningMessageEntity warning2 = WarningMessageEntity.builder()
+                .isAck(false)
+                .creationDate(LocalDateTime.of(2023, 10, 2, 10, 0))
+                .study(StudyEntity.builder().id(2).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
+                .build();
+
+        TrajectoryEntity trajectoryOne = TrajectoryEntity.builder()
+                .type(trajectoryTypeAREA)
+                .warningMessages(Set.of(warning1, warning2))
+                .build();
+
+        String trajectoryTypeLINK = "LINK";
+
+        WarningMessageEntity warning3 = WarningMessageEntity.builder()
+                .isAck(false)
+                .creationDate(LocalDateTime.of(2023, 10, 2, 10, 0))
+                .study(StudyEntity.builder().id(2).build())
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.DATA_NOT_FOUND)
+                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
+                .build();
+
+        TrajectoryEntity trajectoryTwo = TrajectoryEntity.builder()
+                .type(trajectoryTypeLINK)
+                .warningMessages(Set.of(warning3))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(trajectoryOne, trajectoryTwo));
+
+        Map<String, Integer> result = trajectoryService.countWarningMessage(studyId);
+
+        assertTrue(result.containsKey(trajectoryTypeAREA));
+        assertTrue(result.containsKey(trajectoryTypeLINK));
+        assertEquals(2, result.get(trajectoryTypeAREA).intValue());
+        assertEquals(1, result.get(trajectoryTypeLINK).intValue());
+
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of());
+
+        Map<String, Integer> resultEmpty = trajectoryService.countWarningMessage(studyId);
+
+        assertTrue(resultEmpty.isEmpty());
+    }
 }

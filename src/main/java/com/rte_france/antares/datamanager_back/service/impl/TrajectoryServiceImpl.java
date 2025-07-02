@@ -549,13 +549,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public Map.Entry<String, Integer>[] countWarningMessage(Integer studyId) {
-        Map<String, Integer> groupedData = trajectoryRepository.findByTypeAndStudyId(null, studyId)
+    public Map<String, Integer> countWarningMessage(Integer studyId) {
+         return trajectoryRepository.findByTypeAndStudyId(null, studyId)
                 .stream()
                 .collect(Collectors.groupingBy(
                         TrajectoryEntity::getType,
-                        Collectors.summingInt(trajectory -> trajectory.getWarningMessages().size()) // Compte le nombre de messages
+                        Collectors.summingInt(trajectory -> trajectory.getWarningMessages() != null ? trajectory.getWarningMessages().size() : 0)
                 ));
-        return groupedData.entrySet().toArray(Map.Entry[]::new);
     }
 }

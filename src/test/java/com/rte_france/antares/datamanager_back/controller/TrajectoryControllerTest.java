@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -247,5 +248,16 @@ class TrajectoryControllerTest {
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void countWarningMessage() throws Exception {
+        Integer studyId = 1;
+
+        when(trajectoryServiceImpl.countWarningMessage(studyId)).thenReturn(any());
+
+        this.mockMvc.perform(get("/v1/trajectory/count/warning/{id}",studyId)
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk());
     }
 }

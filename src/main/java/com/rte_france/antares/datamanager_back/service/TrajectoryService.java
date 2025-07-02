@@ -29,5 +29,5 @@ public interface TrajectoryService {
 
     List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId);
 
-    Map.Entry<String, Integer>[] countWarningMessage(Integer studyId);
+    Map<String, Integer> countWarningMessage(Integer studyId);
 }
