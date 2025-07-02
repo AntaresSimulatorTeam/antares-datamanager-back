@@ -549,7 +549,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public Map.Entry<String, Integer>[] getWarningMessageNumber(Integer studyId) {
+    public Map.Entry<String, Integer>[] countWarningMessage(Integer studyId) {
         Map<String, Integer> groupedData = trajectoryRepository.findByTypeAndStudyId(null, studyId)
                 .stream()
                 .collect(Collectors.groupingBy(

@@ -111,8 +111,8 @@ public class TrajectoryController {
     }
 
     @Operation(summary = "Get warning message number for each trajectory type of a study")
-    @GetMapping("/warning/{id}")
-    public ResponseEntity<Map.Entry<String, Integer>[]> getWarningMessageNumber(@PathVariable Integer id) {
-        return new ResponseEntity<>(trajectoryService.getWarningMessageNumber(id), HttpStatus.OK);
+    @GetMapping("/count/warning/{id}")
+    public ResponseEntity<Map.Entry<String, Integer>[]> countWarningMessage(@PathVariable Integer id) {
+        return new ResponseEntity<>(trajectoryService.countWarningMessage(id), HttpStatus.OK);
     }
 }
