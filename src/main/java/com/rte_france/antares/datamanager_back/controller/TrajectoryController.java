@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDtos;
@@ -107,5 +108,11 @@ public class TrajectoryController {
             @RequestParam(value = "trajectoryId") Integer trajectoryId) {
 
         return ResponseEntity.ok(trajectoryService.getTrajectoryDataByTypeAndId(trajectoryType, trajectoryId));
+    }
+
+    @Operation(summary = "Get warning message number for each trajectory type of a study")
+    @GetMapping("/warning/{id}")
+    public ResponseEntity<Map.Entry<String, Integer>[]> getWarningMessageNumber(@PathVariable Integer id) {
+        return new ResponseEntity<>(trajectoryService.getWarningMessageNumber(id), HttpStatus.OK);
     }
 }

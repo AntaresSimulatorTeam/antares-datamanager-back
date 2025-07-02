@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public interface TrajectoryService {
 
@@ -27,4 +28,6 @@ public interface TrajectoryService {
     void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
 
     List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId);
+
+    Map.Entry<String, Integer>[] getWarningMessageNumber(Integer studyId);
 }

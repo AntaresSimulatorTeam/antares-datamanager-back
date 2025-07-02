@@ -548,11 +548,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         };
     }
 
-    public Map<String, Object> getTwoProperties(Integer trajectoryId) {
-        TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId).orElseThrow();
-        return Map.of(
-                "nbMessages", trajectory.getWarningMessages().size(),
-                "trajectoryType", trajectory.getType()
-        );
+    @Override
+    public Map.Entry<String, Integer>[] getWarningMessageNumber(Integer studyId) {
+        Map<String, Integer> groupedData = trajectoryRepository.findByTypeAndStudyId(null, studyId)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        TrajectoryEntity::getType,
+                        Collectors.summingInt(trajectory -> trajectory.getWarningMessages().size()) // Compte le nombre de messages
+                ));
+        return groupedData.entrySet().toArray(Map.Entry[]::new);
     }
 }
