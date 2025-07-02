@@ -27,7 +27,4 @@ public interface StudyService {
     void generateStudy(Integer studyId);
 
     StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException;
-
-    List<Map<String, Object>> getWarningMessageNumber(Integer studyId);
-
 }
