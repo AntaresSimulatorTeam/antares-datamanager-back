@@ -14,3 +14,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V06-alter_name_length_scenario_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V07-add_fk_study_id_to_load_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V08-create_trajectory_load_table.sql
