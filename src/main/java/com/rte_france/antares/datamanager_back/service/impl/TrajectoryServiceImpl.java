@@ -65,6 +65,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
+    private final TrajectoryServiceImpl trajectoryService;
 
     @Transactional
     @Override
@@ -550,7 +551,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public Map<String, Integer> countWarningMessage(Integer studyId) {
-         return trajectoryRepository.findByTypeAndStudyId(null, studyId)
+        return trajectoryRepository.findByTypeAndStudyId(null, studyId).stream()
+                .peek(trajectory ->
+                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()))).toList()
                 .stream()
                 .collect(Collectors.groupingBy(
                         TrajectoryEntity::getType,
