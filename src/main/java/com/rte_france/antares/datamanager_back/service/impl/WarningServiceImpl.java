@@ -1,10 +1,13 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.mapper.WarningMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.WarningMessageService;
+import com.rte_france.antares.datamanager_back.service.WarningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -13,18 +16,23 @@ import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class WarningMessageServiceImpl implements WarningMessageService {
+public class WarningServiceImpl implements WarningService {
 
     private final MessageSource messageSource;
-    private final WarningMessageRepository warningMessageRepository;
+    private final WarningRepository warningRepository;
     private final StudyRepository studyRepository;
+    private final TrajectoryRepository trajectoryRepository;
+    private WarningMapper warningMapper;
+
 
     @Override
     public String getMessage(String code, Object... args) {
@@ -40,10 +48,10 @@ public class WarningMessageServiceImpl implements WarningMessageService {
     }
 
     public void acknowledgeWarning(Integer id) {
-        WarningMessageEntity warning = warningMessageRepository.findById(id)
+        WarningMessageEntity warning = warningRepository.findById(id)
                 .orElseThrow(() -> BusinessException.builder().message("Warning message not found with id: " + id).httpStatus(HttpStatus.NOT_FOUND).build());
         warning.setIsAck(true);
-        warningMessageRepository.save(warning);
+        warningRepository.save(warning);
     }
 
     public void addWarning(Set<WarningMessageEntity> warningMessages,
@@ -72,7 +80,7 @@ public class WarningMessageServiceImpl implements WarningMessageService {
             return;
         }
         var messageContent = getMessage(warningCode.value(), messageArgs);
-        boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(messageContent, trajectory.getId(), studyId);
+        boolean warningExists = warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(messageContent, trajectory.getId(), studyId);
         if (!warningExists) {
             var message = WarningMessageEntity.builder()
                     .warningContent(messageContent)
@@ -89,5 +97,30 @@ public class WarningMessageServiceImpl implements WarningMessageService {
             warningMessages.add(message);
         }
     }
+
+    /**
+     * Retrieves a list of warnings associated with a specific trajectory.
+     * The warnings are fetched from the repository, mapped to DTOs, and returned
+     * as a list. If no warnings are available for the trajectory, an empty list is returned.
+     *
+     * @param trajectoryId the unique identifier of the trajectory for which warnings are to be retrieved
+     * @return a list of WarningDTO objects representing the warnings for the specified trajectory,
+     *         or an empty list if no warnings are available
+     */
+    @Override
+    public List<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId) {
+        return trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId))
+                .stream()
+                .findFirst()
+                .map(TrajectoryEntity::getWarningMessages)
+                .map(warningMessages -> warningMessages.stream()
+                        .filter(warning -> warning.getStudy().getId().equals(studyId))
+                        .map(WarningMapper::toWarningMessageDTO)
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+    }
+
+
+
 
 }

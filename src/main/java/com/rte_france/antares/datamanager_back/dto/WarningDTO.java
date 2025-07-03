@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
-public class WarningMessageDTO {
+public class WarningDTO {
     @JsonProperty("id")
     private Integer id;
 

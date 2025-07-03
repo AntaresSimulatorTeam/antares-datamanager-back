@@ -1,8 +1,8 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.service.WarningMessageService;
-import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.WarningService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,13 +17,19 @@ import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
+
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class WarningMessageControllerTest {
+class WarningControllerTest {
 
     @Autowired
     protected WebApplicationContext wac;
@@ -31,7 +37,7 @@ class WarningMessageControllerTest {
     protected MockMvc mockMvc;
 
     @MockBean
-    WarningMessageService warningMessageService;
+    WarningService warningService;
 
     @BeforeEach
     public void setup() {
@@ -44,14 +50,14 @@ class WarningMessageControllerTest {
     void acknowledgeWarningEndpointReturnsOkWhenWarningExists() throws Exception {
         var id = 1;
 
-        doNothing().when(warningMessageService).acknowledgeWarning(id);
+        doNothing().when(warningService).acknowledgeWarning(id);
 
         mockMvc.perform(put("/v1/warnings/{id}/ack", id)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andDo(MockMvcResultHandlers.print());
+                .andDo(print());
 
-        verify(warningMessageService, times(1)).acknowledgeWarning(id);
+        verify(warningService, times(1)).acknowledgeWarning(id);
     }
 
     @Test
@@ -59,13 +65,41 @@ class WarningMessageControllerTest {
         var id = 1;
 
         doThrow(BusinessException.builder().message("Warning message not found with id: " + id).httpStatus(HttpStatus.NOT_FOUND).build())
-                .when(warningMessageService).acknowledgeWarning(id);
+                .when(warningService).acknowledgeWarning(id);
 
         mockMvc.perform(put("/v1/warnings/{id}/ack", id)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
-                .andDo(MockMvcResultHandlers.print());
+                .andDo(print());
 
-        verify(warningMessageService, times(1)).acknowledgeWarning(id);
+        verify(warningService, times(1)).acknowledgeWarning(id);
     }
+
+    @Test
+    void fetchWarningByTrajectoryIdAndStudyId_shouldReturnWarnings_whenTrajectoryExists() throws Exception {
+        // Given
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        List<WarningDTO> warnings = List.of(
+                WarningDTO.builder()
+                        .id(1)
+                        .content("Test warning")
+                        .level("ERROR")
+                        .build()
+        );
+
+        when(warningService.getWarningsForTrajectory(trajectoryId,studyId)).thenReturn(warnings);
+
+        // When & Then
+        mockMvc.perform(get("/v1/warnings")
+                        .param("trajectoryId", trajectoryId.toString())
+                        .param("studyId", studyId.toString())
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        verify(warningService).getWarningsForTrajectory(trajectoryId, studyId);
+    }
+
+
 }

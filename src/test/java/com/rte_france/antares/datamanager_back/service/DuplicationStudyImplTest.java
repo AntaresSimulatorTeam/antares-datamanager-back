@@ -7,7 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
@@ -43,10 +43,10 @@ public class DuplicationStudyImplTest {
     private TrajectoryServiceImpl trajectoryService;
 
     @Mock
-    private WarningMessageRepository  warningMessageRepository;
+    private WarningRepository warningRepository;
 
     @Mock
-    private WarningMessageService warningMessageService;
+    private WarningService warningService;
 
     @Captor
     private ArgumentCaptor<List<String>> listCaptor;
@@ -139,8 +139,8 @@ public class DuplicationStudyImplTest {
                 trajectoryRepository,
                 projectRepository,
                 studyRepository,
-                warningMessageRepository,
-                warningMessageService,
+                warningRepository,
+                warningService,
                 trajectoryService
         );
     }
@@ -176,8 +176,8 @@ public class DuplicationStudyImplTest {
         verifyNoMoreInteractions(
                 projectRepository,
                 studyRepository,
-                warningMessageRepository,
-                warningMessageService,
+                warningRepository,
+                warningService,
                 trajectoryService
         );
     }
@@ -223,7 +223,7 @@ public class DuplicationStudyImplTest {
                 eq(TrajectoryType.AREA)
         )).thenReturn(areaTrajectory);
 
-        when(warningMessageRepository.saveAll(any()))
+        when(warningRepository.saveAll(any()))
                 .thenReturn(Collections.emptyList());
 
 
@@ -235,7 +235,7 @@ public class DuplicationStudyImplTest {
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
         verify(trajectoryService).linkTrajectoryToStudy(eq(1), eq(1), eq(TrajectoryType.AREA));
-        verify(warningMessageService).addWarning(
+        verify(warningService).addWarning(
                 anySet(),
                 listCaptor.capture(),
                 eq(WarningCode.DUPLICATION_MISSING_TRAJECTORIES),
@@ -249,7 +249,7 @@ public class DuplicationStudyImplTest {
 
         assertThat(actual).containsExactly("LINK, LOAD", "2031");
 
-        verify(warningMessageRepository).saveAll(any());
+        verify(warningRepository).saveAll(any());
 
 
     }

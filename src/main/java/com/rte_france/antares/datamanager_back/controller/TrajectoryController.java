@@ -1,7 +1,5 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
-import com.rte_france.antares.datamanager_back.service.impl.LdapClientEmployeeService;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
@@ -86,15 +84,21 @@ public class TrajectoryController {
         return trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType != null ? trajectoryType.name() : null, studyId);
     }
 
-
-    @PutMapping("/link")
-    public ResponseEntity<TrajectoryDTO> linkTrajectoryToStudy(@RequestParam TrajectoryType type,
-                                                               @RequestParam Integer trajectoryId,
-                                                               @RequestParam Integer studyId) throws IOException {
+    @Operation(summary = "Attach trajectory data to study ",
+            description = "Maps trajectory to study")
+    @PutMapping("/attach")
+    public ResponseEntity<TrajectoryDTO> attachTrajectoryToStudy(@RequestParam TrajectoryType type,
+                                                                 @RequestParam Integer trajectoryId,
+                                                                 @RequestParam Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type)), HttpStatus.OK);
     }
 
-    @DeleteMapping("/link")
+    @Operation(
+            summary = "Detach trajectory from study",
+            description = "Removes mapping between a trajectory and a study"
+    )
+
+    @DeleteMapping("/detach")
     public ResponseEntity<Void> unlinkTrajectoryFromStudy(@RequestParam Integer trajectoryId,
                                                           @RequestParam Integer studyId) {
         trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId);

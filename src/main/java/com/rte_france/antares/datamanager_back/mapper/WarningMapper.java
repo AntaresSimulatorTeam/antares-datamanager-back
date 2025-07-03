@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
-import com.rte_france.antares.datamanager_back.dto.WarningMessageDTO;
+import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.repository.model.WarningLevel;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import lombok.AccessLevel;
@@ -14,18 +14,18 @@ import java.util.stream.Collectors;
 @Value
 @Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class WarningMessageMapper {
-    public static Set<WarningMessageDTO> toWarningMessageDTOs(Set<WarningMessageEntity> entities) {
+public class WarningMapper {
+    public static Set<WarningDTO> toWarningMessageDTOs(Set<WarningMessageEntity> entities) {
         if (entities == null) {
             return Set.of();
         }
         return entities.stream()
-                .map(WarningMessageMapper::toWarningMessageDTO)
+                .map(WarningMapper::toWarningMessageDTO)
                 .collect(Collectors.toCollection(LinkedHashSet::new)); // préserve l'ordre
     }
 
-    static WarningMessageDTO toWarningMessageDTO(WarningMessageEntity entity) {
-        return WarningMessageDTO.builder()
+    public static WarningDTO toWarningMessageDTO(WarningMessageEntity entity) {
+        return WarningDTO.builder()
                 .id(entity.getId())
                 .content(entity.getWarningContent())
                 .level(entity.getWarningLevel().name())
@@ -37,16 +37,16 @@ public class WarningMessageMapper {
                 .build();
     }
 
-    public static Set<WarningMessageEntity> toWarningMessageEntities(Set<WarningMessageDTO> dtos) {
+    public static Set<WarningMessageEntity> toWarningMessageEntities(Set<WarningDTO> dtos) {
         if (dtos == null) {
             return Set.of();
         }
         return dtos.stream()
-                .map(WarningMessageMapper::toWarningMessageEntity)
+                .map(WarningMapper::toWarningMessageEntity)
                 .collect(Collectors.toSet());
     }
 
-    static WarningMessageEntity toWarningMessageEntity(WarningMessageDTO dto) {
+    static WarningMessageEntity toWarningMessageEntity(WarningDTO dto) {
         WarningMessageEntity entity = new WarningMessageEntity();
         entity.setId(dto.getId());
         entity.setWarningContent(dto.getContent());

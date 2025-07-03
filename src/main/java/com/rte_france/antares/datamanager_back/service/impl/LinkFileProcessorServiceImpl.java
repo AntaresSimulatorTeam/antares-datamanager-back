@@ -6,10 +6,10 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LinkFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.WarningMessageService;
+import com.rte_france.antares.datamanager_back.service.WarningService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
@@ -44,8 +44,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private static final int LINKS_FILE_NAME_MAX_SIZE = 40;
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
-    private final WarningMessageService warningMessageService;
-    private final WarningMessageRepository warningMessageRepository;
+    private final WarningService warningService;
+    private final WarningRepository warningRepository;
     private final UserService userService;
 
     /**
@@ -136,7 +136,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
 
         var message = WarningMessageEntity.builder()
-                .warningContent(warningMessageService.getMessage(warningCode.value(), warningContent))
+                .warningContent(warningService.getMessage(warningCode.value(), warningContent))
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .secondTrajectory(null)
                 .warningCode(warningCode)
@@ -162,7 +162,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         trajectory.setType(TrajectoryType.LINK.name());
 
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
-        warningMessageRepository.saveAll(warningMessages);
+        warningRepository.saveAll(warningMessages);
 
         linkEntities.forEach(link -> link.setTrajectory(trajectory));
         linkRepository.saveAll(linkEntities);
@@ -245,9 +245,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         if (!missingAreas.isEmpty()) {
             log.info("Missing areas in LINKS file: {}", missingAreas);
             String missingAreasString = String.join(", ", missingAreas.stream().sorted().toList());
-            String warningContent = warningMessageService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), missingAreasString);
+            String warningContent = warningService.getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), missingAreasString);
             log.warn("Warning: {}", warningContent);
-            boolean warningExists = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, study.getId());
+            boolean warningExists = warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, study.getId());
             if (!warningExists) {
                 warningMessages.add(WarningMessageEntity.builder()
                         .warningCode(WarningCode.LINKS_AREA_NOT_PRESENT)

@@ -61,7 +61,7 @@ class LoadFileProcessorServiceImplTest {
     private UserService userService;
 
     @Mock
-    private WarningMessageService warningMessageService;
+    private WarningService warningService;
 
 
     @TempDir
@@ -141,9 +141,9 @@ class LoadFileProcessorServiceImplTest {
 
         assertEquals("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}", exception.getMessage());
         assertEquals(List.of("AREA1, AREA2", "testTrajectory"), exception.getErrorMessageArguments());
-        verify(warningMessageService, never()).addWarning(any(), any(), any(), any(), any(), any());
+        verify(warningService, never()).addWarning(any(), any(), any(), any(), any(), any());
 
-        verify(warningMessageService, never()).addWarning(any(), any(), any(), any(), any(), any());
+        verify(warningService, never()).addWarning(any(), any(), any(), any(), any(), any());
     }
 
 
@@ -171,7 +171,7 @@ class LoadFileProcessorServiceImplTest {
                 trajectoryPath, horizon, studyId, userNni, trajectory);
 
         //Then
-        verify(warningMessageService).addWarning(
+        verify(warningService).addWarning(
                 eq(result),
                 argThat(warnings -> warnings.size() == 2 &&
                         warnings.getFirst().equals("AREA2, AREA3") &&
@@ -215,8 +215,8 @@ class LoadFileProcessorServiceImplTest {
 
         // Then
         assertTrue(result.isEmpty());
-        verify(warningMessageService, never()).getMessage(anyString(), any());
-        verify(warningMessageService, never()).addWarning(any(), any(), any(), any(), any(), any());
+        verify(warningService, never()).getMessage(anyString(), any());
+        verify(warningService, never()).addWarning(any(), any(), any(), any(), any(), any());
     }
 
 }

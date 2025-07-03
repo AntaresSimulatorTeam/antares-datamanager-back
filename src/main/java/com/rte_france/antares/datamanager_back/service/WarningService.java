@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 
+import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
@@ -8,7 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEn
 import java.util.List;
 import java.util.Set;
 
-public interface WarningMessageService {
+public interface WarningService {
 
     String getMessage(String code, Object... args);
 
@@ -22,5 +23,7 @@ public interface WarningMessageService {
                     Integer studyId,
                     String userNni,
                     TrajectoryEntity trajectory);
+
+    List<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId);
 
     }

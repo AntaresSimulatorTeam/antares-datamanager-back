@@ -140,13 +140,13 @@ class TrajectoryControllerTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_returnsLinkedTrajectory() throws Exception {
+    void attachTrajectoryToStudy_returnsLinkedTrajectory() throws Exception {
         TrajectoryEntity dto = TrajectoryEntity.builder().id(1).type("AREA").build();
         dto.setType("AREA");
         dto.setId(1);
         when(trajectoryServiceImpl.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(dto);
 
-        this.mockMvc.perform(put("/v1/trajectory/link")
+        this.mockMvc.perform(put("/v1/trajectory/attach")
                         .param("type", "AREA")
                         .param("trajectoryId", "1")
                         .param("studyId", "1")
@@ -157,8 +157,8 @@ class TrajectoryControllerTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_returnsBadRequestForMissingParams() throws Exception {
-        this.mockMvc.perform(put("/v1/trajectory/link")
+    void attachTrajectoryToStudy_returnsBadRequestForMissingParams() throws Exception {
+        this.mockMvc.perform(put("/v1/trajectory/attach")
                         .param("type", "AREA")
                         .param("trajectoryId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
@@ -169,7 +169,7 @@ class TrajectoryControllerTest {
     void unlinkTrajectoryFromStudy_returnsNoContentWhenLinkExists() throws Exception {
         doNothing().when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
 
-        this.mockMvc.perform(delete("/v1/trajectory/link")
+        this.mockMvc.perform(delete("/v1/trajectory/detach")
                         .param("trajectoryId", "1")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
@@ -181,7 +181,7 @@ class TrajectoryControllerTest {
         doThrow(BusinessException.builder().message("Link between trajectory and study not found").httpStatus(HttpStatus.NOT_FOUND).build())
                 .when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
 
-        this.mockMvc.perform(delete("/v1/trajectory/link")
+        this.mockMvc.perform(delete("/v1/trajectory/detach")
                         .param("trajectoryId", "1")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))

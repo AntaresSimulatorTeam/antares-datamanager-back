@@ -58,7 +58,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final LinkRepository linkRepository;
 
-    private final WarningMessageRepository warningMessageRepository;
+    private final WarningRepository warningRepository;
 
     private final UserService userService;
 
@@ -465,7 +465,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
-        warningMessageRepository.saveAll(warningMessages);
+        warningRepository.saveAll(warningMessages);
     }
 
     public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {

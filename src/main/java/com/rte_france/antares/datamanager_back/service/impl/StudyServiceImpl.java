@@ -8,11 +8,11 @@ import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
-import com.rte_france.antares.datamanager_back.service.WarningMessageService;
+import com.rte_france.antares.datamanager_back.service.WarningService;
 import com.rte_france.antares.datamanager_back.util.DuplicationTrajectoryUtils;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.Join;
@@ -32,8 +32,6 @@ import org.springframework.util.CollectionUtils;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
 
@@ -45,8 +43,8 @@ public class StudyServiceImpl implements StudyService {
     private final StudyRepository studyRepository;
     private final ProjectRepository projectRepository;
     private final TrajectoryRepository trajectoryRepository;
-    private final WarningMessageRepository warningMessageRepository;
-    private final WarningMessageService warningMessageService;
+    private final WarningRepository warningRepository;
+    private final WarningService warningService;
     private final StudyGeneratorService studyGeneratorService;
     private final TrajectoryServiceImpl trajectoryServiceImpl;
     private static final  int HORIZON_LOWER_BOUND = 2000;
@@ -154,7 +152,7 @@ public class StudyServiceImpl implements StudyService {
         );
 
         if (!result.missingTrajectoryTypes().isEmpty()) {
-            warningMessageService.addWarning(
+            warningService.addWarning(
                     result.warningMessages(),
                     Arrays.asList(String.join(", ", result.missingTrajectoryTypes()), studyDTO.getHorizon()),
                     WarningCode.DUPLICATION_MISSING_TRAJECTORIES,
@@ -162,7 +160,7 @@ public class StudyServiceImpl implements StudyService {
                     studyDTO.getCreatedBy(),
                     result.areaTrajectory()
             );
-            warningMessageRepository.saveAll(result.warningMessages());
+            warningRepository.saveAll(result.warningMessages());
 
         }
 

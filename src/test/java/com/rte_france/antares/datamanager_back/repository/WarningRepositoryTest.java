@@ -13,10 +13,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:db/init_db.sql")
 @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:db/clean_db.sql")
-class WarningMessageRepositoryTest {
+class WarningRepositoryTest {
 
     @Autowired
-    private WarningMessageRepository warningMessageRepository;
+    private WarningRepository warningRepository;
 
     @Test
     void existsByWarningContentAndTrajectoryIdAndStudyId_returnsTrueWhenExists() {
@@ -24,7 +24,7 @@ class WarningMessageRepositoryTest {
         Integer trajectoryId = 1;
         Integer studyId = 1;
 
-        boolean result = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, studyId);
+        boolean result = warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, studyId);
 
         assertThat(result).isTrue();
     }
@@ -35,7 +35,7 @@ class WarningMessageRepositoryTest {
         Integer trajectoryId = 999;
         Integer studyId = 999;
 
-        boolean result = warningMessageRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, studyId);
+        boolean result = warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(warningContent, trajectoryId, studyId);
 
         assertThat(result).isFalse();
     }

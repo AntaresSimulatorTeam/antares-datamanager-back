@@ -55,7 +55,7 @@ class TrajectoryServiceImplTest {
     @Mock
     private StudyTrajectoryRepository studyTrajectoryRepository;
     @Mock
-    private WarningMessageRepository warningMessageRepository;
+    private WarningRepository warningRepository;
     @Mock
     private UserService userService;
     @InjectMocks
@@ -172,7 +172,7 @@ class TrajectoryServiceImplTest {
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(warningMessageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
 
@@ -397,11 +397,11 @@ class TrajectoryServiceImplTest {
         trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
-        verify(warningMessageRepository, times(1)).saveAll(warningMessages);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
     }
 
     @Test
-    void checkTrajctory() throws IOException {
+    void checkTrajectory() throws IOException {
         Integer studyId = 1;
         String userNni = "me0000";
 
@@ -420,7 +420,7 @@ class TrajectoryServiceImplTest {
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
-        verify(warningMessageRepository, times(1)).saveAll(warningMessages);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
     }
 
 
@@ -566,8 +566,7 @@ class TrajectoryServiceImplTest {
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
 
         assertEquals(1, result.size());
-        Set<WarningMessageDTO> sortedWarnings = result.getFirst().getMessages();
-        assertEquals(3, sortedWarnings.size());
+
     }
 
 
@@ -604,8 +603,7 @@ class TrajectoryServiceImplTest {
         List<TrajectoryDTO> result = trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType, studyId);
 
         assertEquals(1, result.size());
-        Set<WarningMessageDTO> filteredWarnings = result.getFirst().getMessages();
-        assertEquals(1, filteredWarnings.size());
+
     }
 
     @Test
