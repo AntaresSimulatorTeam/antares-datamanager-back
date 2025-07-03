@@ -65,7 +65,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
-    private final TrajectoryServiceImpl trajectoryService;
 
     @Transactional
     @Override
