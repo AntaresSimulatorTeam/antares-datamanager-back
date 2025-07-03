@@ -23,7 +23,7 @@ public class WarningController {
     }
 
 
-    @Operation(summary = "Get warnings by trajectoryId")
+    @Operation(summary = "Get warnings by trajectoryId and studyId")
     @GetMapping
     public ResponseEntity<List<WarningDTO>> fetchWarningByTrajectoryId(
             @RequestParam(value = "trajectoryId") Integer trajectoryId,
