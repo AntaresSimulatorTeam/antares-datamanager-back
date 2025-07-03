@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface WarningMessageRepository extends JpaRepository<WarningMessageEntity, Integer> {
+public interface WarningRepository extends JpaRepository<WarningMessageEntity, Integer> {
 
         @Query("SELECT CASE WHEN COUNT(w) > 0 THEN TRUE ELSE FALSE END " +
                 "FROM WarningMessageEntity w " +

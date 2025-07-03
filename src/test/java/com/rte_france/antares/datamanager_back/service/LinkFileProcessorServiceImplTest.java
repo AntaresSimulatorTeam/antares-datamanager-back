@@ -6,7 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningMessageRepository;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LinkFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
@@ -15,13 +15,11 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -42,10 +40,10 @@ class LinkFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
 
     @Mock
-    private WarningMessageRepository warningMessageRepository;
+    private WarningRepository warningRepository;
 
     @Mock
-    private WarningMessageService warningMessageService;
+    private WarningService warningService;
 
     @Mock
     private UserService userService;
@@ -86,7 +84,7 @@ class LinkFileProcessorServiceImplTest {
                 .build();
         when(trajectoryRepository.findByTypeAndStudyId(any(), any())).thenReturn(List.of(trajectoryEntity));
 
-        when(warningMessageService.getMessage(anyString(), any())).thenReturn("Expected message");
+        when(warningService.getMessage(anyString(), any())).thenReturn("Expected message");
     }
 
     @Test
@@ -149,7 +147,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        verify(warningMessageService).getMessage(
+        verify(warningService).getMessage(
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(), "CH-IT, FR-GE"
         );
 
@@ -191,7 +189,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        verify(warningMessageService).getMessage(
+        verify(warningService).getMessage(
                 WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value(), "CH-IT, CH-FR"
         );
     }
@@ -232,7 +230,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
-        verify(warningMessageService).getMessage(
+        verify(warningService).getMessage(
                 WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH, GE-FR"
         );
     }
@@ -371,7 +369,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
-        verify(warningMessageService, times(1)).getMessage(
+        verify(warningService, times(1)).getMessage(
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(),
                 "CH-FR, FR-IT"
 
@@ -411,7 +409,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
-        verify(warningMessageService, times(1)).getMessage(
+        verify(warningService, times(1)).getMessage(
                 WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(),
                 "GE-CH, IT-FR"
         );
@@ -450,7 +448,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
-        verify(warningMessageService, times(1)).getMessage(
+        verify(warningService, times(1)).getMessage(
                 WarningCode.LINKS_AREA_NOT_PRESENT.value(),
                 "CH, GE"
         );
@@ -491,7 +489,7 @@ class LinkFileProcessorServiceImplTest {
 
         linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
-        verify(warningMessageService).getMessage(
+        verify(warningService).getMessage(
                 eq(WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value()),
                 eq("CH-FR, FR-IT, FR-GE")
         );

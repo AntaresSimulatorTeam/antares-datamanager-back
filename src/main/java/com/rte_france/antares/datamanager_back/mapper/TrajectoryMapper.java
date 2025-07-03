@@ -23,7 +23,6 @@ public class TrajectoryMapper {
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
                 .loadArea(entity.getLoadArea())
-                .messages(WarningMessageMapper.toWarningMessageDTOs(entity.getWarningMessages()))
                 .build();
     }
 
@@ -35,7 +34,6 @@ public class TrajectoryMapper {
         entity.setVersion(dto.getVersion());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setCreationDate(dto.getCreationDate());
-        entity.setWarningMessages(WarningMessageMapper.toWarningMessageEntities(dto.getMessages()));
         return entity;
     }
 

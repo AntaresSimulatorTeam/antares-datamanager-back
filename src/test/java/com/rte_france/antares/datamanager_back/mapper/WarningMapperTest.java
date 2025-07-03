@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
-import com.rte_france.antares.datamanager_back.dto.WarningMessageDTO;
+import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.repository.model.WarningLevel;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
@@ -11,7 +11,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class WarningMessageMapperTest {
+class WarningMapperTest {
 
     @Test
     void toWarningMessageDTO_returnsCorrectDTO() {
@@ -21,7 +21,7 @@ class WarningMessageMapperTest {
         entity.setWarningLevel(WarningLevel.WARNING_LEVEL);
         entity.setWarningContent("Test content");
 
-        var dto = WarningMessageMapper.toWarningMessageDTO(entity);
+        var dto = WarningMapper.toWarningMessageDTO(entity);
 
         assertEquals(entity.getId(), dto.getId());
         assertEquals(entity.getWarningLevel().name(), dto.getLevel());
@@ -30,13 +30,13 @@ class WarningMessageMapperTest {
 
     @Test
     void toWarningMessageEntity_returnsCorrectEntity() {
-        var dto = WarningMessageDTO.builder()
+        var dto = WarningDTO.builder()
                 .id(1)
                 .level("WARNING_LEVEL")
                 .content("Test content")
                 .build();
 
-        var entity = WarningMessageMapper.toWarningMessageEntity(dto);
+        var entity = WarningMapper.toWarningMessageEntity(dto);
 
         assertEquals(dto.getId(), entity.getId());
         assertEquals(dto.getLevel(), entity.getWarningLevel().name());
@@ -59,7 +59,7 @@ class WarningMessageMapperTest {
 
         var entities = Set.of(entity1, entity2);
 
-        var dtos = WarningMessageMapper.toWarningMessageDTOs(entities);
+        var dtos = WarningMapper.toWarningMessageDTOs(entities);
 
         assertEquals(2, dtos.size());
         assertTrue(dtos.stream().anyMatch(dto -> dto.getId().equals(entity1.getId())));
@@ -68,13 +68,13 @@ class WarningMessageMapperTest {
 
     @Test
     void toWarningMessageEntities_returnsCorrectEntitySet() {
-        var dto1 = WarningMessageDTO.builder()
+        var dto1 = WarningDTO.builder()
                 .id(1)
                 .level("WARNING_LEVEL")
                 .content("Test content 1")
                 .build();
 
-        var dto2 = WarningMessageDTO.builder()
+        var dto2 = WarningDTO.builder()
                 .id(2)
                 .level("ERROR_LEVEL")
                 .content("Test content 2")
@@ -82,7 +82,7 @@ class WarningMessageMapperTest {
 
         var dtos = Set.of(dto1, dto2);
 
-        var entities = WarningMessageMapper.toWarningMessageEntities(dtos);
+        var entities = WarningMapper.toWarningMessageEntities(dtos);
 
         assertEquals(2, entities.size());
         assertTrue(entities.stream().anyMatch(entity -> entity.getId().equals(dto1.getId())));

@@ -7,7 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.WarningMessageService;
+import com.rte_france.antares.datamanager_back.service.WarningService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
@@ -32,7 +32,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     private final TimeSeriesWriter writer;
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
-    private final WarningMessageService warningMessageService;
+    private final WarningService warningService;
     private final LoadRepository loadRepository;
 
     /**
@@ -110,7 +110,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
         Set<WarningMessageEntity> warningMessages = new HashSet<>();
         if (!missingLoadFiles.isEmpty()) {
-            warningMessageService.addWarning(warningMessages,
+            warningService.addWarning(warningMessages,
                     Arrays.asList(String.join(", ", missingLoadFiles), trajectory.getFileName()),
                     WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS,
                     studyId,
