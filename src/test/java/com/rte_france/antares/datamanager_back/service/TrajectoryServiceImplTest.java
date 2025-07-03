@@ -648,19 +648,22 @@ class TrajectoryServiceImplTest {
                 .study(StudyEntity.builder().id(studyId).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
-                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
+                .trajectory(TrajectoryEntity.builder().id(1).build())
+                .secondTrajectory(null)
                 .build();
 
         WarningMessageEntity warning2 = WarningMessageEntity.builder()
                 .isAck(false)
                 .creationDate(LocalDateTime.of(2023, 10, 2, 10, 0))
-                .study(StudyEntity.builder().id(2).build())
+                .study(StudyEntity.builder().id(studyId).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
-                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
+                .trajectory(TrajectoryEntity.builder().id(1).build())
+                .secondTrajectory(null)
                 .build();
 
         TrajectoryEntity trajectoryOne = TrajectoryEntity.builder()
+                .id(1)
                 .type(trajectoryTypeAREA)
                 .warningMessages(Set.of(warning1, warning2))
                 .build();
@@ -670,13 +673,15 @@ class TrajectoryServiceImplTest {
         WarningMessageEntity warning3 = WarningMessageEntity.builder()
                 .isAck(false)
                 .creationDate(LocalDateTime.of(2023, 10, 2, 10, 0))
-                .study(StudyEntity.builder().id(2).build())
+                .study(StudyEntity.builder().id(studyId).build())
                 .warningLevel(WarningLevel.WARNING_LEVEL)
                 .warningCode(WarningCode.DATA_NOT_FOUND)
-                .secondTrajectory(TrajectoryEntity.builder().id(1).build())
+                .trajectory(TrajectoryEntity.builder().id(1).build())
+                .secondTrajectory(null)
                 .build();
 
         TrajectoryEntity trajectoryTwo = TrajectoryEntity.builder()
+                .id(2)
                 .type(trajectoryTypeLINK)
                 .warningMessages(Set.of(warning3))
                 .build();
@@ -687,8 +692,8 @@ class TrajectoryServiceImplTest {
 
         assertTrue(result.containsKey(trajectoryTypeAREA));
         assertTrue(result.containsKey(trajectoryTypeLINK));
-        assertEquals(2, result.get(trajectoryTypeAREA).intValue());
-        assertEquals(1, result.get(trajectoryTypeLINK).intValue());
+        assertEquals(2, result.get(trajectoryTypeAREA));
+        assertEquals(1, result.get(trajectoryTypeLINK));
 
         when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of());
 
