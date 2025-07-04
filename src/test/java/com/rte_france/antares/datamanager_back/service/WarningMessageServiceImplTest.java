@@ -98,7 +98,7 @@ class WarningMessageServiceImplTest {
                 .thenReturn(Collections.emptySet());
 
         // When
-        List<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId,studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId,studyId);
 
         // Then
         assertTrue(result.isEmpty());
@@ -119,7 +119,7 @@ class WarningMessageServiceImplTest {
                 .thenReturn(Set.of(trajectory));
 
         // When
-        List<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
 
         // Then
         assertTrue(result.isEmpty());
@@ -152,13 +152,13 @@ class WarningMessageServiceImplTest {
                 .thenReturn(Set.of(trajectory));
 
         // When
-        List<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId,studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId,studyId);
 
         // Then
         assertFalse(result.isEmpty());
         assertEquals(1, result.size());
 
-        WarningDTO warningDTO = result.get(0);
+        WarningDTO warningDTO = result.iterator().next();
         assertEquals(warning.getId(), warningDTO.getId());
         assertEquals(warning.getWarningContent(), warningDTO.getContent());
         assertEquals(warning.getWarningLevel().name(), warningDTO.getLevel());

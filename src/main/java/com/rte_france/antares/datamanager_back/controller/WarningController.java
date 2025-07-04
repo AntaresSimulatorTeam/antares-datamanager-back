@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/v1/warnings")
@@ -25,7 +26,7 @@ public class WarningController {
 
     @Operation(summary = "Get warnings by trajectoryId and studyId")
     @GetMapping
-    public ResponseEntity<List<WarningDTO>> fetchWarningByTrajectoryId(
+    public ResponseEntity<Set<WarningDTO>> fetchWarningByTrajectoryId(
             @RequestParam(value = "trajectoryId") Integer trajectoryId,
             @RequestParam(value = "studyId") Integer studyId){
         return ResponseEntity.ok(warningService.getWarningsForTrajectory(trajectoryId, studyId));

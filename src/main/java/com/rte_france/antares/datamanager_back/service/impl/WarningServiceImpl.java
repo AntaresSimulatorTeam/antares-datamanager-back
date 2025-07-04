@@ -108,7 +108,7 @@ public class WarningServiceImpl implements WarningService {
      *         or an empty list if no warnings are available
      */
     @Override
-    public List<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId) {
+    public Set<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId) {
         return trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId))
                 .stream()
                 .findFirst()
@@ -116,8 +116,8 @@ public class WarningServiceImpl implements WarningService {
                 .map(warningMessages -> warningMessages.stream()
                         .filter(warning -> warning.getStudy().getId().equals(studyId))
                         .map(WarningMapper::toWarningMessageDTO)
-                        .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+                        .collect(Collectors.toSet()))
+                .orElse(Collections.emptySet());
     }
 
 
