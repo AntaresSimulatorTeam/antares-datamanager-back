@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -80,7 +81,7 @@ class WarningControllerTest {
         // Given
         Integer trajectoryId = 1;
         Integer studyId = 1;
-        List<WarningDTO> warnings = List.of(
+        Set<WarningDTO> warnings = Set.of(
                 WarningDTO.builder()
                         .id(1)
                         .content("Test warning")

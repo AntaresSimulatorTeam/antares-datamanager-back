@@ -24,6 +24,6 @@ public interface WarningService {
                     String userNni,
                     TrajectoryEntity trajectory);
 
-    List<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId);
+    Set<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId);
 
     }
