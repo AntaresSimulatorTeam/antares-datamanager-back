@@ -230,7 +230,7 @@ class StudyGeneratorServiceImplTest {
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
                 .type("LOAD")
                 .loadArea("OTHERS")
-                .loadEntities(Arrays.asList(load1, load2))
+                .loadEntities(Set.of(load1, load2))
                 .build();
 
         AreaEntity areaEntityFR = AreaEntity.builder().name("FR").build();
@@ -273,7 +273,7 @@ class StudyGeneratorServiceImplTest {
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
                 .type("LOAD")
                 .loadArea("FR")
-                .loadEntities(List.of(load1))
+                .loadEntities(Set.of(load1))
                 .build();
 
         AreaEntity areaEntityFR = AreaEntity.builder().name("FR").build();
