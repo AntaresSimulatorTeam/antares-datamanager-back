@@ -211,9 +211,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
         StudyEntity studyEntity = studyRepository.findById(studyId).orElse(null);
-        List<LoadEntity> loadEntities = loadsFile.stream()
+        Set<LoadEntity> loadEntities = loadsFile.stream()
                 .map(loadFileName -> LoadEntity.builder().fileName(loadFileName).study(studyEntity).trajectory(loadTrajectory).build())
-                .toList();
+                .collect(Collectors.toSet());
         loadTrajectory.setLoadEntities(loadEntities);
         loadTrajectory.setLoadArea(area.toUpperCase());
         loadTrajectory.setWarningMessages(warningMessageEntities);

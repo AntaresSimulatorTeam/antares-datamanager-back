@@ -68,9 +68,12 @@ public class TrajectoryEntity {
             inverseJoinColumns = @JoinColumn(name = "scenario_id"))
     private Set<StudyEntity> scenarioEntities = new LinkedHashSet<>();
 
-    @BatchSize(size = 10000)
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<LoadEntity> loadEntities;
+
+    @ManyToMany
+    @JoinTable(name = "trajectory_load",
+            joinColumns = @JoinColumn(name = "trajectory_id"),
+            inverseJoinColumns = @JoinColumn(name = "load_id"))
+    private Set<LoadEntity> loadEntities = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;

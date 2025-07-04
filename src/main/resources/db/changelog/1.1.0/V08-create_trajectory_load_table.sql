@@ -8,7 +8,7 @@ CREATE TABLE trajectory_load (
                                  CONSTRAINT fk_trajectory_load_load FOREIGN KEY (id_load) REFERENCES load(id)
 );
 
-INSERT INTO trajectory_load (id_trajectory, id_scenario)
+INSERT INTO trajectory_load (id_trajectory, id_load)
 SELECT trajectory_id, id FROM load WHERE trajectory_id IS NOT NULL;
 
 ALTER TABLE load DROP COLUMN trajectory_id;

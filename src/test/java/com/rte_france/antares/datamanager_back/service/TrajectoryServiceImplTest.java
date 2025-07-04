@@ -471,7 +471,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
 
         TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
-                .loadEntities(List.of(LoadEntity.builder().fileName("load1").build()))
+                .loadEntities(Set.of(LoadEntity.builder().fileName("load1").build()))
                 .build();
 
         when(areaRepository.findAllByStudyId(any())).thenReturn(Collections.singletonList(AreaEntity.builder().name("FR").build()));
@@ -488,7 +488,7 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.getLoadEntities().size());
-        assertEquals("outputFileName", result.getLoadEntities().getFirst().getOutPutFileName());
+        assertEquals("outputFileName", result.getLoadEntities().iterator().next().getOutPutFileName());
         verify(loadFileProcessorService, times(1)).saveMatrixToNas(any());
     }
 
@@ -512,7 +512,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
 
         TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
-                .loadEntities(List.of(LoadEntity.builder().fileName("load1").build()))
+                .loadEntities(Set.of(LoadEntity.builder().fileName("load1").build()))
                 .build();
 
         Path mockPath = mock(Path.class);

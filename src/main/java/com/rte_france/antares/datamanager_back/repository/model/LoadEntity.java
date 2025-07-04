@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
@@ -28,6 +31,9 @@ public class LoadEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id")
     private TrajectoryEntity trajectory;
+
+    @ManyToMany(mappedBy = "loadEntities")
+    private Set<TrajectoryEntity> trajectoryEntities = new LinkedHashSet<>();
 
     @ManyToOne
     @JoinColumn(name = "study_id", nullable = false)
