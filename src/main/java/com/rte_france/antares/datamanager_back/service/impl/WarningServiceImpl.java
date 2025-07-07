@@ -109,15 +109,14 @@ public class WarningServiceImpl implements WarningService {
      */
     @Override
     public Set<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId) {
-        return trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId))
-                .stream()
+        return trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)).stream()
                 .findFirst()
                 .map(TrajectoryEntity::getWarningMessages)
-                .map(warningMessages -> warningMessages.stream()
-                        .filter(warning -> warning.getStudy().getId().equals(studyId))
-                        .map(WarningMapper::toWarningMessageDTO)
-                        .collect(Collectors.toSet()))
-                .orElse(Collections.emptySet());
+                .stream()
+                .flatMap(Set::stream)
+                .filter(warning -> warning.getStudy() != null && warning.getStudy().getId().equals(studyId))
+                .map(WarningMapper::toWarningMessageDTO)
+                .collect(Collectors.toSet());
     }
 
 
