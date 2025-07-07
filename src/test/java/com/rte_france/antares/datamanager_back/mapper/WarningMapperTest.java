@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.repository.model.WarningLevel;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
@@ -8,8 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class WarningMapperTest {
 
@@ -87,5 +87,49 @@ class WarningMapperTest {
         assertEquals(2, entities.size());
         assertTrue(entities.stream().anyMatch(entity -> entity.getId().equals(dto1.getId())));
         assertTrue(entities.stream().anyMatch(entity -> entity.getId().equals(dto2.getId())));
+    }
+
+    @Test
+    void toWarningMessageDTOs_returnsEmptySet_whenInputIsNull() {
+        var dtos = WarningMapper.toWarningMessageDTOs(null);
+        assertTrue(dtos.isEmpty());
+    }
+
+    @Test
+    void toWarningMessageEntities_returnsEmptySet_whenInputIsNull() {
+        var entities = WarningMapper.toWarningMessageEntities(null);
+        assertTrue(entities.isEmpty());
+    }
+
+    @Test
+    void toWarningMessageDTO_handlesSecondTrajectoryNullAndNotNull() {
+        var entity = new WarningMessageEntity();
+        entity.setId(1);
+        entity.setWarningCode(WarningCode.LINKS_ALL_VALUES_ZERO);
+        entity.setWarningLevel(WarningLevel.WARNING_LEVEL);
+        entity.setWarningContent("Test");
+        entity.setSecondTrajectory(null);
+
+        var dto = WarningMapper.toWarningMessageDTO(entity);
+        assertNull(dto.getSecondTrajectory());
+
+        var secondTrajectory = new TrajectoryEntity();
+        secondTrajectory.setFileName("test.txt");
+        entity.setSecondTrajectory(secondTrajectory);
+
+        dto = WarningMapper.toWarningMessageDTO(entity);
+        assertEquals("test.txt", dto.getSecondTrajectory());
+    }
+
+    @Test
+    void lombokBuilderAndValueAnnotations_test() {
+        var dto = WarningDTO.builder()
+                .id(1)
+                .level("WARNING_LEVEL")
+                .content("Test")
+                .build();
+        assertEquals(1, dto.getId());
+        assertEquals("WARNING_LEVEL", dto.getLevel());
+        assertEquals("Test", dto.getContent());
     }
 }
