@@ -37,7 +37,7 @@ public class WarningServiceImpl implements WarningService {
     @Override
     public String getMessage(String code, Object... args) {
         String template = messageSource.getMessage(code, null, code, Locale.getDefault());
-        assert template != null;
+        if (template == null) throw new IllegalStateException("template is null");
         return MessageFormat.format(template, args); // Properly replaces {0}, {1}, etc.
     }
 

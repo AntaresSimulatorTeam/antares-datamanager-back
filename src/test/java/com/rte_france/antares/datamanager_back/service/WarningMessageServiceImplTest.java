@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -31,6 +32,9 @@ class WarningMessageServiceImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
+
+    @Mock
+    private StudyRepository studyRepository;
 
     @InjectMocks
     private WarningServiceImpl warningService;
@@ -98,7 +102,7 @@ class WarningMessageServiceImplTest {
                 .thenReturn(Collections.emptySet());
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId,studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
 
         // Then
         assertTrue(result.isEmpty());
@@ -152,7 +156,7 @@ class WarningMessageServiceImplTest {
                 .thenReturn(Set.of(trajectory));
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId,studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
 
         // Then
         assertFalse(result.isEmpty());
@@ -169,4 +173,73 @@ class WarningMessageServiceImplTest {
         verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
     }
 
+    @Test
+    void addWarning_returns_whenWarningsIsEmpty() {
+        var warningMessages = new HashSet<WarningMessageEntity>();
+        warningService.addWarning(warningMessages, List.of(), WarningCode.LINKS_ALL_VALUES_ZERO, 1, "test", new TrajectoryEntity());
+        assertTrue(warningMessages.isEmpty());
+    }
+
+    @Test
+    void addWarning_addsWarning_whenSizeIsOne() {
+        var warningMessages = new HashSet<WarningMessageEntity>();
+        var study = StudyEntity.builder()
+                .id(1)
+                .build();
+        var trajectory = TrajectoryEntity.builder()
+                .id(2)
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(), eq(2), eq(1))).thenReturn(false);
+        when(messageSource.getMessage(eq(WarningCode.LINKS_ALL_VALUES_ZERO.value()), any(), any(), any()))
+                .thenReturn("warning message");
+
+        warningService.addWarning(warningMessages, List.of("1"), WarningCode.LINKS_ALL_VALUES_ZERO, 1, "test", trajectory);
+
+        assertEquals(1, warningMessages.size());
+    }
+
+    @Test
+    void addWarning_addsWarning_whenMultipleWarningsAndCode() {
+        var warningMessages = new HashSet<WarningMessageEntity>();
+        var study = StudyEntity.builder().id(1).build();
+        var trajectory = TrajectoryEntity.builder()
+                .id(2)
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(), eq(2), eq(1)))
+                .thenReturn(false);
+        when(messageSource.getMessage(eq(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS.value()), any(), any(), any()))
+                .thenReturn("warning message");
+
+        warningService.addWarning(warningMessages, List.of("1", "2"), WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS, 1, "test", trajectory);
+
+        assertEquals(1, warningMessages.size());
+    }
+
+    @Test
+    void addWarning_doesNotAddWarning_whenAlraedyExists() {
+        var warningMessages = new HashSet<WarningMessageEntity>();
+        var study = StudyEntity.builder()
+                .id(1)
+                .build();
+        var trajectory = TrajectoryEntity.builder()
+                .id(2)
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(), eq(2), eq(1)))
+                .thenReturn(true);
+        when(messageSource.getMessage(eq(WarningCode.LINKS_ALL_VALUES_ZERO.value()), any(), any(), any()))
+                .thenReturn("warning message");
+
+        warningService.addWarning(warningMessages, List.of("A"), WarningCode.LINKS_ALL_VALUES_ZERO, 1, "test", trajectory);
+
+        assertTrue(warningMessages.isEmpty());
+    }
+
+    @Test
+    void getMessage_throwsIllegalState_whenTemplateIsNull() {
+        when(messageSource.getMessage(any(), any(), any(), any())).thenReturn(null);
+        assertThrows(IllegalStateException.class, () -> warningService.getMessage("testMessage"));
+    }
 }
