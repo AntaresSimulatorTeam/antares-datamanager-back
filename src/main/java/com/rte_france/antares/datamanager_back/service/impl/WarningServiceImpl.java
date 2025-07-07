@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -31,8 +30,6 @@ public class WarningServiceImpl implements WarningService {
     private final WarningRepository warningRepository;
     private final StudyRepository studyRepository;
     private final TrajectoryRepository trajectoryRepository;
-    private WarningMapper warningMapper;
-
 
     @Override
     public String getMessage(String code, Object... args) {
@@ -104,7 +101,7 @@ public class WarningServiceImpl implements WarningService {
      * as a list. If no warnings are available for the trajectory, an empty list is returned.
      *
      * @param trajectoryId the unique identifier of the trajectory for which warnings are to be retrieved
-     * @return a list of WarningDTO objects representing the warnings for the specified trajectory,
+     * @return a set of WarningDTO objects representing the warnings for the specified trajectory,
      *         or an empty list if no warnings are available
      */
     @Override
