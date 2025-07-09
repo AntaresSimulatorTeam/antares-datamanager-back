@@ -28,15 +28,6 @@ public class LoadEntity {
     @Column(name = "output_file_name")
     private String outPutFileName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trajectory_id")
-    private TrajectoryEntity trajectory;
-
     @ManyToMany(mappedBy = "loadEntities")
     private Set<TrajectoryEntity> trajectoryEntities = new LinkedHashSet<>();
-
-    @ManyToOne
-    @JoinColumn(name = "study_id", nullable = false)
-    private StudyEntity study;
-
 }
