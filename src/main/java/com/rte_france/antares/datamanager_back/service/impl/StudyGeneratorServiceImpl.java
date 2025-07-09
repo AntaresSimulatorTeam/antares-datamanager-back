@@ -106,7 +106,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     if ("OTHERS".equals(trajectory.getLoadArea())) {
                         // Pour chaque outputFileName, extraire le loadArea du nom de fichier
                         return trajectory.getLoadEntities().stream()
-                                .filter(loadEntity -> loadEntity.getStudy().getId().equals(studyEntity.getId()))
+                                .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyEntity.getId()))
                                 .map(loadEntity -> {
                                     String fileName = loadEntity.getOutPutFileName();
                                     Matcher matcher = pattern.matcher(fileName);
@@ -124,6 +124,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
     }
+
+  private boolean isLoadLinkedToStudy(LoadEntity loadEntity, int studyId) {
+    return loadEntity.getTrajectoryEntities().stream()
+            .flatMap(traj -> traj.getScenarioEntities().stream())
+            .anyMatch(study -> study.getId().equals(studyId));
+  }
 
 
     private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
