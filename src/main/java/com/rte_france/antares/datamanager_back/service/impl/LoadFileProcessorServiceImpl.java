@@ -152,9 +152,8 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
      * Returns a LoadChecker that checks for file existence in the DB.
      */
     private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory, Integer studyId) {
-        return area -> loadRepository.existsByFileNameAndTrajectory_IdAndStudy_Id(
-                "load_" + area.toLowerCase() + "_" + horizon + ".txt",
-                trajectory.getId(), studyId
+        return area -> loadRepository.existsByFileName(
+                "load_" + area.toLowerCase() + "_" + horizon + ".txt"
         );
     }
 
