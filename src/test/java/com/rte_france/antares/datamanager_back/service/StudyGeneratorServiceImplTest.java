@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
@@ -47,11 +48,16 @@ class StudyGeneratorServiceImplTest {
     private StudyRepository studyRepository;
 
     @Mock
+    private LoadRepository loadRepository;
+
+    @Mock
     private NasFileService nasFileService;
 
     @InjectMocks
     private StudyGeneratorServiceImpl studyGeneratorService;
 
+    @Mock
+    private LoadFileProcessorService loadFileProcessorService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -296,6 +302,49 @@ class StudyGeneratorServiceImplTest {
         // Vérifie que le fichier LOAD est bien associé à l'area FR
         assertThat(areasMap.get("FR").toString()).contains("load_fr_2030-2031.txt");
     }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldGenerateArrowFileIfOutPutFileNameIsNull() throws IOException {
+        // Given
+        var load = LoadEntity.builder()
+                .fileName("load_fr_2030-2031.txt")
+                .build(); // outputFileName == null
+
+        var loadTrajectory = TrajectoryEntity.builder()
+                .type("LOAD")
+                .loadArea("OTHERS")
+                .fileName("BP23_A_Ref")
+                .build();
+        loadTrajectory.addLoadEntity(load);
+
+        var areaEntityFR = AreaEntity.builder().name("FR").build();
+        var areaConfigFR = AreaConfigEntity.builder().area(areaEntityFR).build();
+        var areaTrajectory = TrajectoryEntity.builder()
+                .type("AREA")
+                .areaConfigEntities(List.of(areaConfigFR))
+                .build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("studyTest")
+                .build();
+        study.addTrajectoryEntity(loadTrajectory);
+        study.addTrajectoryEntity(areaTrajectory);
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/nas");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
+        when(loadFileProcessorService.saveMatrixToNas(any())).thenReturn("generated.arrow");
+
+        // When
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then
+        verify(loadFileProcessorService, times(1)).saveMatrixToNas(any());
+    }
+
+
 
     @Test
     void callGenerateStudyService_shouldThrowTechnicalExceptionOnRuntimeException() {

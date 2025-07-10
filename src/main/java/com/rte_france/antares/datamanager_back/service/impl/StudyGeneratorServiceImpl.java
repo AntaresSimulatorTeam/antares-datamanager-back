@@ -19,10 +19,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -111,6 +109,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .filter(trajectory -> "LOAD".equals(trajectory.getType()) && trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty())
                 .flatMap(trajectory -> {
                   if ("OTHERS".equals(trajectory.getLoadArea())) {
+                                log.warn("hereeeeeee");
                     return trajectory.getLoadEntities().stream()
                             .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyEntity.getId()))
                             .map(loadEntity -> {
