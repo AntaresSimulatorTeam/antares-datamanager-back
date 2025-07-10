@@ -481,7 +481,6 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
         when(antaressDataManagerProperties.getLoadDirectory())
                 .thenReturn(Paths.get("src/test/resources/load").toAbsolutePath().toString());
-        when(loadFileProcessorService.saveMatrixToNas(any())).thenReturn("outputFileName");
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
@@ -490,8 +489,10 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.getLoadEntities().size());
-        assertEquals("outputFileName", result.getLoadEntities().iterator().next().getOutPutFileName());
-        verify(loadFileProcessorService, times(1)).saveMatrixToNas(any());
+        assertNull(result.getLoadEntities().iterator().next().getOutPutFileName(),
+                "Should be null because .arrow is generated later"
+        );
+        verify(loadFileProcessorService, never()).saveMatrixToNas(any());
     }
 
     @Test
