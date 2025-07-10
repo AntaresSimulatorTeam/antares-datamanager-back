@@ -99,7 +99,8 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
         if (!areasWithoutTrajectory.isEmpty() && missingLoadFiles.size() == areasWithoutTrajectory.size()) {
             throw BusinessException.builder()
-                    .message("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}")
+                    .message("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}\n" +
+                            "Please re import trajectory {1} to complete area(s)")
                     .errorMessageArguments(Arrays.asList(
                             String.join(", ", areasWithoutTrajectory),
                             trajectory.getFileName()
