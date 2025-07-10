@@ -71,14 +71,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         TrajectoryEntity savedTrajectory = saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
-        savedTrajectory.getLoadEntities().forEach(load -> {
-            try {
-                String outputFileName = loadFileProcessorService.saveMatrixToNas(trajectoryPath.resolve(load.getFileName()));
-                load.setOutPutFileName(outputFileName);
-            } catch (IOException e) {
-                throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
-            }
-        });
 
         return savedTrajectory;
     }
@@ -132,10 +124,47 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
 
             if (isSameLoadTrajectory(trajectoryPath, existingTrajectory)) {
-                throw BusinessException.builder()
-                        .message("Trajectory already uploaded")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+                if (area.equals(OTHER_AREA)) { // reimport if other
+                    var studyAreas = areaRepository.findAllByStudyId(studyId)
+                            .stream()
+                            .map(a -> a.getName().toLowerCase())
+                            .toList();
+
+                    var importedAreas = existingTrajectory.getLoadEntities().stream()
+                            .map(load -> {
+                                // TODO: Add area field to load ??
+                                var parts = load.getFileName().split("_");
+                                return parts.length > 1 ? parts[1].toLowerCase() : "";
+                            })
+                            .collect(Collectors.toSet());
+                    var missingAreas = studyAreas.stream()
+                            .filter(areaName -> !importedAreas.contains(areaName))
+                            .toList();
+
+                    var newLoadEntities = new HashSet<LoadEntity>();
+                    for (var missingArea : missingAreas) {
+                        var expectedFileName = String.format("load_%s_%s.txt", missingArea, horizon);
+                        var filePath = trajectoryPath.resolve(expectedFileName);
+                        if (Files.exists(filePath)) {
+                            var loadEntity = LoadEntity.builder()
+                                    .fileName(expectedFileName)
+                                    .build();
+                            loadEntity.getTrajectoryEntities().add(existingTrajectory);
+                            newLoadEntities.add(loadEntity);
+                        }
+                    }
+                    if (!newLoadEntities.isEmpty()) {
+                        existingTrajectory.getLoadEntities().addAll(newLoadEntities);
+                        trajectoryRepository.save(existingTrajectory);
+                    }
+
+                    return existingTrajectory;
+                } else {
+                    throw BusinessException.builder()
+                            .message("Trajectory already uploaded")
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
             }
 
             // Update a version and save new trajectory
@@ -423,6 +452,20 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
+        if (TrajectoryType.LOAD.equals(type) && OTHER_AREA.equals(trajectory.getLoadArea())) {
+            var userNni = userService.getCurrentUserDetails().getNni();
+            var trajectoryPath = buildTrajectoryPath(trajectory.getFileName());
+            var warnings = loadFileProcessorService.checkForMissingLoadFiles(
+                    trajectoryPath,
+                    trajectory.getHorizon(),
+                    studyId,
+                    userNni,
+                    trajectory
+            );
+            warnings.forEach(warning -> warning.setTrajectory(trajectory));
+            warnings.forEach(warning -> warning.setStudy(study));
+            warningMessageRepository.saveAll(warnings);
+        }
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
         if (!TrajectoryType.LOAD.equals(type) && study.getStudyTrajectoryEntities() != null) {

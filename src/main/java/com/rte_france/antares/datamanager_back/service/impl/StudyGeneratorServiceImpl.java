@@ -5,8 +5,10 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
+import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
@@ -17,11 +19,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 
 @Slf4j
 @Service
@@ -30,11 +33,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final StudyRepository studyRepository;
 
+    private final LoadRepository loadRepository;
+
     private final NasFileService nasFileService;
 
     private final WebClient webClient;
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
+
+    private final LoadFileProcessorService loadFileProcessorService;
 
     private static final String PROPERTIES = "properties";
 
@@ -103,23 +110,37 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return studyEntity.getTrajectories().stream()
                 .filter(trajectory -> "LOAD".equals(trajectory.getType()) && trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty())
                 .flatMap(trajectory -> {
-                    if ("OTHERS".equals(trajectory.getLoadArea())) {
-                        // Pour chaque outputFileName, extraire le loadArea du nom de fichier
-                        return trajectory.getLoadEntities().stream()
-                                .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyEntity.getId()))
-                                .map(loadEntity -> {
-                                    String fileName = loadEntity.getOutPutFileName();
-                                    Matcher matcher = pattern.matcher(fileName);
-                                    String area = matcher.find() ? matcher.group(1) : "OTHERS";
-                                    return Map.entry(area.toUpperCase(), fileName);
-                                });
-                    } else {
-                        // Cas classique
-                        return trajectory.getLoadEntities().stream()
-                                .map(loadEntity -> Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName()));
-                    }
-                })
-                .collect(Collectors.groupingBy(
+                  if ("OTHERS".equals(trajectory.getLoadArea())) {
+                    return trajectory.getLoadEntities().stream()
+                            .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyEntity.getId()))
+                            .map(loadEntity -> {
+                              if (loadEntity.getOutPutFileName() == null) {
+                                var inputTxtFilePath = Paths.get(
+                                        antaressDataManagerProperties.getNasDirectory(),
+                                        antaressDataManagerProperties.getTrajectoryFilePath(),
+                                        antaressDataManagerProperties.getLoadDirectory(),
+                                        trajectory.getFileName(),
+                                        loadEntity.getFileName()
+                                ).normalize();
+
+                                try {
+                                  var outputFileName = loadFileProcessorService.saveMatrixToNas(inputTxtFilePath);
+                                  loadEntity.setOutPutFileName(outputFileName);
+                                  loadEntity.setOutPutFileName(outputFileName);
+                                } catch (IOException e) {
+                                  throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
+                                }
+                                loadRepository.save(loadEntity);
+                              }
+                              var matcher = pattern.matcher(loadEntity.getOutPutFileName());
+                              var area = matcher.find() ? matcher.group(1) : "OTHERS";
+                              return Map.entry(area.toUpperCase(), loadEntity.getOutPutFileName());
+                            });
+                  } else {
+                    return trajectory.getLoadEntities().stream()
+                            .map(loadEntity -> Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName()));
+                  }
+                }).collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));

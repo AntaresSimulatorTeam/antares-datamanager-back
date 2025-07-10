@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,6 +51,7 @@ class TrajectoryServiceImplTest {
     private AntaressDataManagerProperties antaressDataManagerProperties;
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
+
     @Mock
     private StudyRepository studyRepository;
     @Mock
@@ -522,6 +524,56 @@ class TrajectoryServiceImplTest {
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
 
         assertThrows(RuntimeException.class, () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
+    }
+
+    @Test
+    void processLoadTrajectory_shouldThrowBusinessExceptionWhenAllLoadFilesMissing() {
+        String area = "OTHERS";
+        String trajectoryToUse = "testTrajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(
+                AreaEntity.builder().name("AREA1").build(),
+                AreaEntity.builder().name("AREA2").build()
+        ));
+
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
+
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("src/test/resources/load");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+
+        doThrow(BusinessException.class).when(loadFileProcessorService)
+                .checkForMissingLoadFiles(any(), any(), any(), any(), any());
+
+        assertThrows(BusinessException.class, () ->
+                trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId));
+    }
+
+    @Test
+    void shouldCallCheckForMissingLoadFilesWhenOtherArea() throws IOException {
+        String area = "OTHERS";
+        String horizon = "2023-2024";
+        String trajectoryToUse = "testTrajectory";
+        Integer studyId = 1;
+        String userNni = "testUser";
+        Path trajectoryPath = Path.of("/tmp/testTrajectory");
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder().fileName(trajectoryToUse).build();
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of());
+        when(loadFileProcessorService.checkForMissingLoadFiles(any(), any(), any(), any(), any()))
+                .thenReturn(Set.of());
+
+        Set<WarningMessageEntity> warningMessageEntities = loadFileProcessorService
+                .checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
+
+        verify(loadFileProcessorService, times(1))
+                .checkForMissingLoadFiles(eq(trajectoryPath), eq(horizon), eq(studyId), eq(userNni), eq(newTrajectory));
+        assertNotNull(warningMessageEntities);
     }
 
     @Test
