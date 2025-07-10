@@ -33,16 +33,17 @@ public class LoadEntity {
     @Builder.Default
     private Set<TrajectoryEntity> trajectoryEntities = new LinkedHashSet<>();
 
-    public void addTrajectoryEntity(TrajectoryEntity trajectoryEntity) {
-        Objects.requireNonNull(trajectoryEntity);
-        if (trajectoryEntities.add(trajectoryEntity)) {
-            trajectoryEntity.addLoadEntity(this);
+    public void addTrajectoryEntity(TrajectoryEntity trajectory) {
+        Objects.requireNonNull(trajectory);
+        if (trajectoryEntities.add(trajectory)) {
+            trajectory.getLoadEntities().add(this);
         }
     }
 
-    public void removeTrajectoryEntity(TrajectoryEntity trajectoryEntity) {
-        if (trajectoryEntities.remove(trajectoryEntity)) {
-            trajectoryEntity.removeLoadEntity(this);
+    public void removeTrajectoryEntity(TrajectoryEntity trajectory) {
+        Objects.requireNonNull(trajectory);
+        if (trajectoryEntities.remove(trajectory)) {
+            trajectory.getLoadEntities().remove(this);
         }
     }
 }

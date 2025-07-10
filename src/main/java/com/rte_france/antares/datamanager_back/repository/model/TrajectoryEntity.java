@@ -70,6 +70,20 @@ public class TrajectoryEntity {
     @Builder.Default
     private Set<StudyEntity> scenarioEntities = new LinkedHashSet<>();
 
+    public void addScenarioEntity(StudyEntity studyEntity) {
+        Objects.requireNonNull(studyEntity);
+        if (scenarioEntities.add(studyEntity)) {
+            studyEntity.getTrajectories().add(this);
+        }
+    }
+
+    public void removeScenarioEntity(StudyEntity studyEntity) {
+        Objects.requireNonNull(studyEntity);
+        if (scenarioEntities.remove(studyEntity)) {
+            studyEntity.getTrajectories().remove(this);
+        }
+    }
+
 
     @ManyToMany
     @JoinTable(name = "trajectory_load",
@@ -78,17 +92,17 @@ public class TrajectoryEntity {
     @Builder.Default
     private Set<LoadEntity> loadEntities = new LinkedHashSet<>();
 
-    public void addLoadEntity(LoadEntity loadEntity) {
-        Objects.requireNonNull(loadEntity);
-        if (loadEntities.add(loadEntity)) {
-            loadEntity.addTrajectoryEntity(this);
+    public void addLoadEntity(LoadEntity load) {
+        Objects.requireNonNull(load);
+        if (loadEntities.add(load)) {
+            load.getTrajectoryEntities().add(this);
         }
     }
 
-    public void removeLoadEntity(LoadEntity loadEntity) {
-        Objects.requireNonNull(loadEntity);
-        if (loadEntities.remove(loadEntity)) {
-            loadEntity.removeTrajectoryEntity(this);
+    public void removeLoadEntity(LoadEntity load) {
+        Objects.requireNonNull(load);
+        if (loadEntities.remove(load)) {
+            load.getTrajectoryEntities().remove(this);
         }
     }
 
