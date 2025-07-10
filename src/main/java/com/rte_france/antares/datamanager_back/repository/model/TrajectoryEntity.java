@@ -7,6 +7,7 @@ import org.hibernate.annotations.BatchSize;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 @BatchSize(size = 1000)
 @Getter
@@ -66,6 +67,7 @@ public class TrajectoryEntity {
     @JoinTable(name = "scenario_trajectory",
             joinColumns = @JoinColumn(name = "trajectory_id"),
             inverseJoinColumns = @JoinColumn(name = "scenario_id"))
+    @Builder.Default
     private Set<StudyEntity> scenarioEntities = new LinkedHashSet<>();
 
 
@@ -73,7 +75,22 @@ public class TrajectoryEntity {
     @JoinTable(name = "trajectory_load",
             joinColumns = @JoinColumn(name = "trajectory_id"),
             inverseJoinColumns = @JoinColumn(name = "load_id"))
+    @Builder.Default
     private Set<LoadEntity> loadEntities = new LinkedHashSet<>();
+
+    public void addLoadEntity(LoadEntity loadEntity) {
+        Objects.requireNonNull(loadEntity);
+        if (loadEntities.add(loadEntity)) {
+            loadEntity.addTrajectoryEntity(this);
+        }
+    }
+
+    public void removeLoadEntity(LoadEntity loadEntity) {
+        Objects.requireNonNull(loadEntity);
+        if (loadEntities.remove(loadEntity)) {
+            loadEntity.removeTrajectoryEntity(this);
+        }
+    }
 
     @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;

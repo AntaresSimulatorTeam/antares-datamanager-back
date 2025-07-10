@@ -220,18 +220,17 @@ class StudyGeneratorServiceImplTest {
         // Prépare un TrajectoryEntity LOAD avec area OTHERS et deux fichiers
         LoadEntity load1 = LoadEntity.builder()
                 .outPutFileName("load_fr_2030-2031.txt")
-                .study(studyEntity)
                 .build();
         LoadEntity load2 = LoadEntity.builder()
                 .outPutFileName("load_de_2030-2031.txt")
-                .study(studyEntity)
                 .build();
 
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
                 .type("LOAD")
                 .loadArea("OTHERS")
-                .loadEntities(Set.of(load1, load2))
                 .build();
+        loadTrajectory.addLoadEntity(load1);
+        loadTrajectory.addLoadEntity(load2);
 
         AreaEntity areaEntityFR = AreaEntity.builder().name("FR").build();
         AreaEntity areaEntityDE = AreaEntity.builder().name("DE").build();
@@ -267,7 +266,6 @@ class StudyGeneratorServiceImplTest {
         // Prépare un TrajectoryEntity LOAD avec area explicite
         LoadEntity load1 = LoadEntity.builder()
                 .outPutFileName("load_fr_2030-2031.txt")
-                .study(studyEntity)
                 .build();
 
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
