@@ -70,9 +70,5 @@ public class StudyEntity {
     @OneToMany(mappedBy = "study", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages = new HashSet<>();
 
-    @OneToMany(mappedBy = "study", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<LoadEntity> loadEntities = new HashSet<>();
-
-
     //une etude  = un horizon  ex (2030:2031)
 }

@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface LoadRepository extends JpaRepository<LoadEntity, Integer> {
-    boolean existsByFileNameAndTrajectory_IdAndStudy_Id(String fileName, Integer trajectoryId, Integer studyId);
+    boolean existsByFileName(String fileName);
 }
