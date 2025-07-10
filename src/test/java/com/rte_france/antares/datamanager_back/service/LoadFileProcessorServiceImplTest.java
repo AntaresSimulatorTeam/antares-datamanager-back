@@ -139,7 +139,8 @@ class LoadFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 loadFileProcessorService.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, trajectory));
 
-        assertEquals("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}", exception.getMessage());
+        assertEquals("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}\n" +
+                "Please re import trajectory {1} to complete area(s)", exception.getMessage());
         assertEquals(List.of("AREA1, AREA2", "testTrajectory"), exception.getErrorMessageArguments());
         verify(warningService, never()).addWarning(any(), any(), any(), any(), any(), any());
 
