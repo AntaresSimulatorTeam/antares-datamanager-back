@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Data
@@ -29,5 +30,19 @@ public class LoadEntity {
     private String outPutFileName;
 
     @ManyToMany(mappedBy = "loadEntities")
+    @Builder.Default
     private Set<TrajectoryEntity> trajectoryEntities = new LinkedHashSet<>();
+
+    public void addTrajectoryEntity(TrajectoryEntity trajectoryEntity) {
+        Objects.requireNonNull(trajectoryEntity);
+        if (trajectoryEntities.add(trajectoryEntity)) {
+            trajectoryEntity.addLoadEntity(this);
+        }
+    }
+
+    public void removeTrajectoryEntity(TrajectoryEntity trajectoryEntity) {
+        if (trajectoryEntities.remove(trajectoryEntity)) {
+            trajectoryEntity.removeLoadEntity(this);
+        }
+    }
 }
