@@ -5,10 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Getter
 @Setter
@@ -48,7 +45,22 @@ public class StudyEntity {
     private Set<StudyTrajectoryEntity> studyTrajectoryEntities = new LinkedHashSet<>();
 
     @ManyToMany(mappedBy = "scenarioEntities")
+    @Builder.Default
     private Set<TrajectoryEntity> trajectories = new LinkedHashSet<>();
+
+    public void addTrajectoryEntity(TrajectoryEntity trajectory) {
+        Objects.requireNonNull(trajectory);
+        if (trajectories.add(trajectory)) {
+            trajectory.getScenarioEntities().add(this);
+        }
+    }
+
+    public void removeTrajectoryEntity(TrajectoryEntity trajectory) {
+        Objects.requireNonNull(trajectory);
+        if (trajectories.remove(trajectory)) {
+            trajectory.getScenarioEntities().remove(this);
+        }
+    }
 
     @ElementCollection
     @CollectionTable(name = "scenario_tags", joinColumns = @JoinColumn(name = "scenario_id"))

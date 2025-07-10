@@ -15,9 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.*;
@@ -163,7 +161,7 @@ class StudyGeneratorServiceImplTest {
         byte[] generatedJson = captureGeneratedJson(studyId);
 
 
-        Map<String, Object> rootJsonMap = objectMapper.readValue(generatedJson, new TypeReference<Map<String, Object>>() {});
+        Map<String, Object> rootJsonMap = objectMapper.readValue(generatedJson, new TypeReference<>() {});
 
 
         Map<String, Object> studyData = objectMapper.convertValue(rootJsonMap.get("studyTest"), new TypeReference<>() {});
@@ -207,9 +205,7 @@ class StudyGeneratorServiceImplTest {
 
         doThrow(IOException.class).when(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class));
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            studyGeneratorService.buildJsonForStudyGeneration(studyId);
-        });
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> studyGeneratorService.buildJsonForStudyGeneration(studyId));
 
         assertNotNull(exception);
         assertInstanceOf(IOException.class, exception.getCause());
@@ -242,7 +238,8 @@ class StudyGeneratorServiceImplTest {
                 .areaConfigEntities(Arrays.asList(areaConfigFR, areaConfigDE))
                 .build();
 
-        studyEntity.setTrajectories(new HashSet<>(Arrays.asList(loadTrajectory, areaTrajectory)));
+        studyEntity.addTrajectoryEntity(loadTrajectory);
+        studyEntity.addTrajectoryEntity(areaTrajectory);
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
 

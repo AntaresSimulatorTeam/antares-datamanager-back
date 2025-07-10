@@ -106,12 +106,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     if ("OTHERS".equals(trajectory.getLoadArea())) {
                         // Pour chaque outputFileName, extraire le loadArea du nom de fichier
                         return trajectory.getLoadEntities().stream()
-                                .filter(loadEntity -> {
-                                  log.warn("load {}", loadEntity);
-                                  return isLoadLinkedToStudy(loadEntity, studyEntity.getId());
-                                })
+                                .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyEntity.getId()))
                                 .map(loadEntity -> {
-                                    log.warn(String.valueOf(loadEntity));
                                     String fileName = loadEntity.getOutPutFileName();
                                     Matcher matcher = pattern.matcher(fileName);
                                     String area = matcher.find() ? matcher.group(1) : "OTHERS";
