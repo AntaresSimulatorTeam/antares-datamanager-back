@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,6 +21,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -751,5 +753,55 @@ class TrajectoryServiceImplTest {
         Map<String, Integer> resultEmpty = trajectoryService.countWarningMessage(studyId);
 
         assertTrue(resultEmpty.isEmpty());
+    }
+
+    @Test
+    void saveLoadTrajectoriesInDb_shouldAddMissingAreasWhenSameLoadTrajectoryAndOtherArea(@TempDir Path tempDir) throws IOException {
+        var area = "OTHERS";
+        var trajectoryToUse = "testTrajectory";
+        var horizon = "2030-2031";
+        var studyId = 1;
+
+        Path trajectoryPath = tempDir.resolve(trajectoryToUse);
+        Files.createDirectories(trajectoryPath);
+        Files.createFile(trajectoryPath.resolve("load_fr_2030-2031.txt"));
+        Files.createFile(trajectoryPath.resolve("load_de_2030-2031.txt"));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+
+        var area1 = AreaEntity.builder().name("FR").build();
+        var area2 = AreaEntity.builder().name("DE").build();
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(area1, area2));
+
+        var existingLoad = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build();
+        var existingTrajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .loadArea(area)
+                .loadEntities(new HashSet<>(Set.of(existingLoad)))
+                .build();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        try (var mockedStatic = org.mockito.Mockito.mockStatic(
+                com.rte_france.antares.datamanager_back.util.Utils.class)) {
+            mockedStatic.when(() -> Utils.isSameLoadTrajectory(any(), any())).thenReturn(true);
+
+            var service = spy(trajectoryService);
+            doReturn(trajectoryPath).when(service).buildTrajectoryPath(any());
+
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            var result = service.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
+
+            assertNotNull(result);
+            var fileNames = result.getLoadEntities().stream().map(LoadEntity::getFileName).collect(Collectors.toSet());
+            assertTrue(fileNames.contains("load_fr_2030-2031.txt"));
+            assertTrue(fileNames.contains("load_de_2030-2031.txt"));
+        }
     }
 }
