@@ -69,10 +69,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Transactional
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        TrajectoryEntity savedTrajectory = saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
-        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
-
-        return savedTrajectory;
+      return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
     }
 
     /**
@@ -464,7 +461,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             );
             warnings.forEach(warning -> warning.setTrajectory(trajectory));
             warnings.forEach(warning -> warning.setStudy(study));
-            warningMessageRepository.saveAll(warnings);
+//            warningMessageRepository.saveAll(warnings);
         }
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
