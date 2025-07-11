@@ -461,7 +461,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             );
             warnings.forEach(warning -> warning.setTrajectory(trajectory));
             warnings.forEach(warning -> warning.setStudy(study));
-            warningMessageRepository.saveAll(warnings);
+//            warningMessageRepository.saveAll(warnings); // Causes compile time error
         }
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
