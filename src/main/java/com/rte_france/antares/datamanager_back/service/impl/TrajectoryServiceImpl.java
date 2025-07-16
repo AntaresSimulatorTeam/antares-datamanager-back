@@ -129,7 +129,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
                     var importedAreas = existingTrajectory.getLoadEntities().stream()
                             .map(load -> {
-                                // TODO: Add area field to load ??
                                 var parts = load.getFileName().split("_");
                                 return parts.length > 1 ? parts[1].toLowerCase() : "";
                             })
