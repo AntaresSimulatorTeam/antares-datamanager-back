@@ -85,7 +85,7 @@ public class TrajectoryEntity {
     }
 
 
-    @ManyToMany
+    @ManyToMany(cascade = CascadeType.PERSIST) // prevents transient by also persistign the new loads
     @JoinTable(name = "trajectory_load",
             joinColumns = @JoinColumn(name = "id_trajectory"),
             inverseJoinColumns = @JoinColumn(name = "id_load"))
