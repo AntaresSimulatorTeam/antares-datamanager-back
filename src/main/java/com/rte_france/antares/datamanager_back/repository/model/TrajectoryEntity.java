@@ -87,8 +87,8 @@ public class TrajectoryEntity {
 
     @ManyToMany
     @JoinTable(name = "trajectory_load",
-            joinColumns = @JoinColumn(name = "trajectory_id"),
-            inverseJoinColumns = @JoinColumn(name = "load_id"))
+            joinColumns = @JoinColumn(name = "id_trajectory"),
+            inverseJoinColumns = @JoinColumn(name = "id_load"))
     @Builder.Default
     private Set<LoadEntity> loadEntities = new LinkedHashSet<>();
 
