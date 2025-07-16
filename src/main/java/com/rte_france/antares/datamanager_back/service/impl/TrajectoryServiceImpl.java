@@ -240,8 +240,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .fileName(loadFileName)
                         .build())
                 .collect(Collectors.toSet());
-        loadEntities.forEach(load -> load.getTrajectoryEntities().add(loadTrajectory));
-        loadTrajectory.setLoadEntities(loadEntities);
+        loadEntities.forEach(load -> load.addTrajectoryEntity(loadTrajectory));
         loadTrajectory.setLoadArea(area.toUpperCase());
         loadTrajectory.setWarningMessages(warningMessageEntities);
         return trajectoryRepository.save(loadTrajectory);
