@@ -19,29 +19,30 @@ public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @Size(max = 255)
-    @Column(name = "scenario")
-    private String scenario;
+    @Column(name = "to_use")
+    private Boolean toUse;
 
-    @Size(max = 255)
-    @Column(name = "default_scenario")
-    private Boolean defaultScenario;
+    @Size(max = 50)
+    @Column(name = "area")
+    private String area;
 
-    @Size(max = 255)
+    @Size(max = 50)
+    @Column(name = "type")
+    private String type;
+
+    @Size(max = 50)
     @Column(name = "name")
     private String name;
-
-    @Size(max = 255)
-    @Column(name = "month_year")
-    private String monthYear;
 
     @Column(name = "category")
     @Enumerated(EnumType.STRING)
     private ThermalCategoryEnum category;
 
+    @Size(max = 10)
+    @Column(name = "month_year")
+    private String monthYear;
+
     @Column(name = "capacity")
     private Double value;
 
-    @Column(name = "to_use")
-    private Boolean toUse;
 }

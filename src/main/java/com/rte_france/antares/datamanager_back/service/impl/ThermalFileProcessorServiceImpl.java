@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.ThermalBuilder;
 import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -45,15 +43,24 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      *
      * @param path the path to the file to process
      */
-    public TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException {
+    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> listThermalClusterCapacity, TrajectoryType type) throws IOException {
         var trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()), horizon, type.name());
-        var thermalEntities = builder.build(path);
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
 
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), thermalEntities, type);
+            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), listThermalClusterCapacity, type);
         }
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), thermalEntities, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), listThermalClusterCapacity, type);
+    }
+
+    @Override
+    public TrajectoryEntity processThermalParametersFile(Path path, String horizon, List<ThermalParameterEntity> thermalParameterEntityList, TrajectoryType type) throws IOException {
+        return null;
+    }
+
+    @Override
+    public TrajectoryEntity processThermalCostFile(Path path, String horizon, List<ThermalCostEntity> thermalCostEntityList, TrajectoryType type) throws IOException {
+        return null;
     }
 
 
@@ -92,7 +99,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @return a list of area configurations
      */
     @Override
-    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path) throws IOException {
+    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area) throws IOException {
         List<ThermalClusterCapacityEntity> thermalClusterCapacities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -100,30 +107,50 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             Row header = sheet.getRow(0);
 
             for (Row row : sheet) {
+                if (row.getRowNum() == 0) continue;
+                String rowArea = row.getCell(1).getStringCellValue();
+                if (!area.equals("OTHER") && !rowArea.equals(area)) continue;
 
                 for (int i = 5; i < header.getLastCellNum(); i++) {
-                    if (row.getRowNum() != 0) {
+                    if (!isCellInHorizon(header.getCell(i).getStringCellValue(), horizon, isCivilYear)) continue;
 
-                        ThermalClusterCapacityEntity thermalClusterCapacityEntity = ThermalClusterCapacityEntity.builder()
-                                .toUse(row.getCell(0).getNumericCellValue() == 0)
-                                .scenario(row.getCell(1).getStringCellValue())
-                                .defaultScenario(row.getCell(2).getNumericCellValue() == 0)
-                                .name(row.getCell(3).getStringCellValue())
-                                .category(ThermalCategoryEnum.valueOf(row.getCell(4).getStringCellValue().equals(ThermalCategoryEnum.POWER.name().toLowerCase()) ? ThermalCategoryEnum.POWER.name() : ThermalCategoryEnum.NUMBER.name()))
-                                .monthYear(header.getCell(i).getStringCellValue())
-                                .value(row.getCell(i).getNumericCellValue())
-                                .build();
-                        thermalClusterCapacities.add(thermalClusterCapacityEntity);
-                    }
-
+                    ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
+                            .toUse(row.getCell(0).getNumericCellValue() == 0)
+                            .area(rowArea)
+                            .type(row.getCell(2).getStringCellValue())
+                            .name(row.getCell(3).getStringCellValue())
+                            .category(ThermalCategoryEnum.valueOf(
+                                    row.getCell(4).getStringCellValue().equals(ThermalCategoryEnum.POWER.name().toLowerCase())
+                                            ? ThermalCategoryEnum.POWER.name()
+                                            : ThermalCategoryEnum.NUMBER.name()))
+                            .monthYear(header.getCell(i).getStringCellValue())
+                            .value(row.getCell(i).getNumericCellValue())
+                            .build();
+                    thermalClusterCapacities.add(entity);
                 }
             }
         } catch (IOException e) {
-            throw  TechnicalException.builder().message("could not build thermal_capacity cluster  list : " + e.getMessage()).build();
+            throw TechnicalException.builder().message("could not build thermal_capacity cluster  list : " + e.getMessage()).build();
         }
         return thermalClusterCapacities;
     }
+    private boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
+        // monthYear format: yyyy-MM
+        String[] parts = monthYear.split("_");
+        int year = Integer.parseInt(parts[0]);
+        int month = Integer.parseInt(parts[1]);
+        int horizonYear = Integer.parseInt(horizon.split("-")[0]);
 
+        if (isCivilYear) {
+            // Année civile : janvier à décembre de l'année horizon
+            return year == horizonYear;
+        } else {
+            // Année à cheval : juillet année horizon à juin année horizon+1
+            if (year == horizonYear && month >= 7) return true;
+            if (year == horizonYear + 1 && month <= 6) return true;
+            return false;
+        }
+    }
     /**
      * Builds a list of thermal cost entities from the given file.
      *
