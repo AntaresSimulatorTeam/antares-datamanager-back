@@ -105,7 +105,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
   public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
-    Pattern pattern = Pattern.compile("(.*?)[\\.]");
+    Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
     return studyEntity.getTrajectories().stream()
             .filter(this::isLoadTrajectoryWithEntities)
             .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern))
