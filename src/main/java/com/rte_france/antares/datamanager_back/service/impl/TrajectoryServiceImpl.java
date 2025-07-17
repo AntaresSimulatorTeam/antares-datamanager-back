@@ -270,17 +270,27 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
-            case THERMAL_CAPACITY ->
-                    thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalClusterCapacityValuesList, trajectoryType);
-            case THERMAL_PARAMETER ->
-                    thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalParameters, trajectoryType);
-            case THERMAL_COST ->
-                    thermalFileProcessorService.processThermalFile(trajectoryFilePath, horizon, thermalFileProcessorService::buildThermalCosts, trajectoryType);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
     }
 
+
+    /**
+     * Processes a trajectory file based on the given type, file name, horizon, and study ID.
+     *
+     * @param trajectoryToUse the name of the trajectory file to use
+     * @param horizon         the horizon period in the format yyyy-yyyy
+     * @param studyId         the ID of the study
+     * @return the processed TrajectoryEntity
+     * @throws IOException if an I/O error occurs
+     */
+    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area) throws IOException {
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse);
+        var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area);
+        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY);
+
+    }
     private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
