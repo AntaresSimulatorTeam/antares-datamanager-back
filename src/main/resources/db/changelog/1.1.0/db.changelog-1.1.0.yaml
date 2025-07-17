@@ -18,3 +18,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V08-create_trajectory_load_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V09-add_area_load_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V08-change_columns_thermal_capacity_table.sql

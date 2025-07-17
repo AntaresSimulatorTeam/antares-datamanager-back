@@ -8,11 +8,18 @@ import java.nio.file.Path;
 import java.util.List;
 
 public interface ThermalFileProcessorService {
-     TrajectoryEntity processThermalFile(Path path, String horizon, ThermalBuilder builder, TrajectoryType type) throws IOException;
+     TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> thermalClusterCapacityEntityList, TrajectoryType type) throws IOException;
+
+     TrajectoryEntity processThermalParametersFile(Path path, String horizon, List<ThermalParameterEntity> thermalParameterEntityList, TrajectoryType type) throws IOException;
+
+     TrajectoryEntity processThermalCostFile(Path path, String horizon, List<ThermalCostEntity> thermalCostEntityList, TrajectoryType type) throws IOException;
+
      TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, List<? extends ThermalBaseEntity> thermalEntities, TrajectoryType type);
 
-     List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path) throws IOException;
+     List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area) throws IOException;
+
      List<ThermalCostEntity> buildThermalCosts(Path path) throws IOException;
+
      List<ThermalParameterEntity> buildThermalParameters(Path path) throws IOException;
 
     }
