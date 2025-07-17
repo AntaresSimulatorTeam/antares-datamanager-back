@@ -23,6 +23,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -103,47 +104,63 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return jsonForGenerator;
     }
 
-    public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
-        Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
-        return studyEntity.getTrajectories().stream()
-                .filter(trajectory -> "LOAD".equals(trajectory.getType()) && trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty())
-                .flatMap(trajectory -> {
-                  if ("OTHERS".equals(trajectory.getLoadArea())) {
-                                log.warn("hereeeeeee");
-                    return trajectory.getLoadEntities().stream()
-                            .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyEntity.getId()))
-                            .map(loadEntity -> {
-                              if (loadEntity.getOutPutFileName() == null) {
-                                var inputTxtFilePath = Paths.get(
-                                        antaressDataManagerProperties.getNasDirectory(),
-                                        antaressDataManagerProperties.getTrajectoryFilePath(),
-                                        antaressDataManagerProperties.getLoadDirectory(),
-                                        trajectory.getFileName(),
-                                        loadEntity.getFileName()
-                                ).normalize();
+  public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
+    Pattern pattern = Pattern.compile("(.*?)[\\.]");
+    return studyEntity.getTrajectories().stream()
+            .filter(this::isLoadTrajectoryWithEntities)
+            .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern))
+            .collect(Collectors.groupingBy(
+                    Map.Entry::getKey,
+                    Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+            ));
+  }
+  private boolean isLoadTrajectoryWithEntities(TrajectoryEntity trajectory) {
+    return "LOAD".equals(trajectory.getType())
+            && trajectory.getLoadEntities() != null
+            && !trajectory.getLoadEntities().isEmpty();
+  }
 
-                                try {
-                                  var outputFileName = loadFileProcessorService.saveMatrixToNas(inputTxtFilePath);
-                                  loadEntity.setOutPutFileName(outputFileName);
-                                  loadEntity.setOutPutFileName(outputFileName);
-                                } catch (IOException e) {
-                                  throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
-                                }
-                                loadRepository.save(loadEntity);
-                              }
-                              var matcher = pattern.matcher(loadEntity.getOutPutFileName());
-                              var area = matcher.find() ? matcher.group(1) : "OTHERS";
-                              return Map.entry(area.toUpperCase(), loadEntity.getOutPutFileName());
-                            });
-                  } else {
-                    return trajectory.getLoadEntities().stream()
-                            .map(loadEntity -> Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName()));
-                  }
-                }).collect(Collectors.groupingBy(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
-                ));
+  private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
+    if ("OTHERS".equals(trajectory.getLoadArea())) {
+      return trajectory.getLoadEntities().stream()
+              .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
+              .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
+    } else {
+      return trajectory.getLoadEntities().stream()
+              .map(loadEntity -> Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName()));
     }
+  }
+
+  private Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern) {
+    if (loadEntity.getOutPutFileName() == null) {
+      String outputFileName = generateAndSaveOutputFileName(loadEntity, trajectory);
+      loadEntity.setOutPutFileName(outputFileName);
+      loadRepository.save(loadEntity);
+    }
+    String area = extractAreaFromFileName(loadEntity.getOutPutFileName(), pattern);
+    return Map.entry(area, loadEntity.getOutPutFileName());
+  }
+
+  private String generateAndSaveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory) {
+    var inputTxtFilePath = Paths.get(
+            antaressDataManagerProperties.getNasDirectory(),
+            antaressDataManagerProperties.getTrajectoryFilePath(),
+            antaressDataManagerProperties.getLoadDirectory(),
+            trajectory.getFileName(),
+            loadEntity.getFileName()
+    ).normalize();
+
+    try {
+      return loadFileProcessorService.saveMatrixToNas(inputTxtFilePath);
+    } catch (IOException e) {
+      throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
+    }
+  }
+
+  private String extractAreaFromFileName(String fileName, Pattern pattern) {
+    var matcher = pattern.matcher(fileName);
+    return matcher.find() ? matcher.group(1).toUpperCase() : "OTHERS";
+  }
 
   private boolean isLoadLinkedToStudy(LoadEntity loadEntity, int studyId) {
     return loadEntity.getTrajectoryEntities().stream()
