@@ -189,7 +189,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .name(row.getCell(0).getStringCellValue())
                             .winterHpDirectMw(row.getCell(1).getNumericCellValue())
                             .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
-                            .winterHcDirectMw(row.getCell(2).getNumericCellValue())
+                            .winterHcDirectMw(row.getCell(3).getNumericCellValue())
                             .winterHcIndirectMw(row.getCell(4).getNumericCellValue())
                             .summerHpDirectMw(row.getCell(5).getNumericCellValue())
                             .summerHpIndirectMw(row.getCell(6).getNumericCellValue())
