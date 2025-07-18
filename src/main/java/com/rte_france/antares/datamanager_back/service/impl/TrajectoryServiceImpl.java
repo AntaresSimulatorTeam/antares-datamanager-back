@@ -265,7 +265,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse);
+        Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse,"");
 
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
@@ -286,16 +286,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse);
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
         var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area);
         return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY);
 
     }
-    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse) throws IOException {
+    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse, String area) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, ""))
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, area))
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {
