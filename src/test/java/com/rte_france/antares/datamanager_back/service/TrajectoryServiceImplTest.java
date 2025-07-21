@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImp
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -68,6 +69,9 @@ class TrajectoryServiceImplTest {
 
     @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorService;
+
+    @Mock
+    private LoadRepository loadRepository;
 
     @BeforeEach
     void setUp() {
@@ -486,7 +490,8 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-
+        when(loadRepository.findByFileNameAndTrajectoryFileName(anyString(), anyString()))
+                .thenReturn(Optional.empty());
         TrajectoryEntity result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId);
 
         assertNotNull(result);
@@ -754,7 +759,6 @@ class TrajectoryServiceImplTest {
 
         assertTrue(resultEmpty.isEmpty());
     }
-
     @Test
     void saveLoadTrajectoriesInDb_shouldAddMissingAreasWhenSameLoadTrajectoryAndOtherArea(@TempDir Path tempDir) throws IOException {
         var area = "OTHERS";
