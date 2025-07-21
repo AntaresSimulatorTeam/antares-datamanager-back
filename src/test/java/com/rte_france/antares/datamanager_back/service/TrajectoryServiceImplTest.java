@@ -795,6 +795,14 @@ class TrajectoryServiceImplTest {
         try (var mockedStatic = org.mockito.Mockito.mockStatic(
                 com.rte_france.antares.datamanager_back.util.Utils.class)) {
             mockedStatic.when(() -> Utils.isSameLoadTrajectory(any(), any())).thenReturn(true);
+            mockedStatic.when(() -> Utils.getValidLoadFileNamesWithHorizon(
+                    any(Path.class),
+                    eq("OTHERS"),
+                    eq("2030-2031"),
+                    anyList(),
+                    anyList()
+            )).thenReturn(List.of("load_fr_2030-2031.txt", "load_de_2030-2031.txt"));
+
 
             var service = spy(trajectoryService);
             doReturn(trajectoryPath).when(service).buildTrajectoryPath(any());
