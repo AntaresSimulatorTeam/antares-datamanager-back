@@ -29,8 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -467,6 +466,25 @@ class ProjectServiceImplTest {
         assertEquals("New description", result.getDescription());
         assertEquals(2, result.getTags().size());
     }
+
+    @Test
+    void updateProject_ShouldNotUpdateFields_WhenInputIsBlank() {
+        Integer projectId = 1;
+        ProjectEntity existingProject = new ProjectEntity();
+        existingProject.setId(projectId);
+        existingProject.setDescription("New description");
+        existingProject.setTags(List.of("tag1", "tag2"));
+
+        ProjectInputDto inputDto = new ProjectInputDto();
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
+        when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProjectEntity result = projectService.updateProject(projectId, inputDto);
+
+        assertEquals("New description", result.getDescription());
+        assertEquals(2, result.getTags().size());
+    }
     
     @Test
         void updateProject_ShouldThrowException_WhenProjectNotFound() {
@@ -495,5 +513,75 @@ class ProjectServiceImplTest {
               () -> projectService.updateProject(projectId, inputDto));
     
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
+
+    @Test
+    void findProjectById_ShouldReturnProject_WhenFound() {
+        Integer projectId = 42;
+        ProjectEntity expectedProject = new ProjectEntity();
+        expectedProject.setId(projectId);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(expectedProject));
+
+        ProjectEntity result = projectService.findProjectById(projectId);
+
+        assertNotNull(result);
+        assertEquals(projectId, result.getId());
+    }
+
+    @Test
+    void findProjectById_ShouldThrowException_WhenNotFound() {
+        Integer projectId = 999;
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> {
+            projectService.findProjectById(projectId);
+        });
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Project with ID"));
+    }
+    
+
+    @Test
+    void findProjectsByCriteria_ShouldReturnResults_WhenSearchIsValid() {
+        String search = "biology";
+        Pageable paging = PageRequest.of(0, 10);
+        Page<ProjectEntity> mockPage = new PageImpl<>(List.of(new ProjectEntity()));
+
+        when(projectRepository.findAll(any(Specification.class), eq(paging))).thenReturn(mockPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, paging);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(projectRepository).findAll(any(Specification.class), eq(paging));
+    }
+
+    @Test
+    void findProjectsByCriteria_ShouldReturnEmpty_WhenSearchIsBlank() {
+        String search = " ";
+        Pageable paging = PageRequest.of(0, 5);
+        Page<ProjectEntity> emptyPage = new PageImpl<>(Collections.emptyList());
+
+        when(projectRepository.findAll(any(Specification.class), eq(paging))).thenReturn(emptyPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, paging);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findProjectsByCriteria_ShouldHandleDateParsing_WhenSearchIsDate() {
+        String search = "2023-07-01T10:30:00";
+        Pageable paging = PageRequest.of(0, 5);
+        Page<ProjectEntity> mockPage = new PageImpl<>(List.of(new ProjectEntity()));
+
+        when(projectRepository.findAll(any(Specification.class), eq(paging))).thenReturn(mockPage);
+
+        Page<ProjectEntity> result = projectService.findProjectsByCriteria(search, paging);
+
+        assertFalse(result.isEmpty());
     }
 }
