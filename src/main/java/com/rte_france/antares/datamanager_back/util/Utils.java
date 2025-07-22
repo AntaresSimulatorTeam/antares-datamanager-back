@@ -332,4 +332,8 @@ public class Utils {
                     .toString();
         }
     }
+
+    public boolean isValid(String str) {
+        return str != null && !str.isBlank();
+    }
 }

@@ -86,4 +86,11 @@ public class ProjectController {
 
         return new ResponseEntity<>(toProjectDto(projectService.createProject(projectInputDto)), HttpStatus.OK);
     }
+
+    @Operation(summary = "Update a project")
+    @PutMapping
+    public ResponseEntity<ProjectDto> updateProject(@RequestParam Integer projectId, @RequestBody @NotNull ProjectInputDto projectInputDto) {
+
+        return new ResponseEntity<>(toProjectDto(projectService.updateProject(projectId, projectInputDto)), HttpStatus.OK);
+    }
 }

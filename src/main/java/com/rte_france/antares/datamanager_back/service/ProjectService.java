@@ -25,4 +25,6 @@ public interface ProjectService {
     List<ProjectDto> searchProjectsByName(String partialName);
 
     ProjectEntity createProject(ProjectInputDto projectInputDto);
+
+    ProjectEntity updateProject(Integer projectId, ProjectInputDto projectInputDto);
 }
