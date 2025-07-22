@@ -485,7 +485,7 @@ class ProjectServiceImplTest {
         ProjectEntity result = projectService.updateProject(projectId, inputDto);
 
         assertEquals("", result.getDescription());
-        assertEquals(2, result.getTags().size());
+        assertEquals(0, result.getTags().size());
     }
     
     @Test
