@@ -230,9 +230,9 @@ public class ProjectServiceImpl implements ProjectService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        
-        project.setDescription(projectInputDto.getDescription());
-        if (!CollectionUtils.isEmpty(projectInputDto.getTags())) project.setTags(projectInputDto.getTags());
+
+        if (projectInputDto.getDescription() != null) project.setDescription(projectInputDto.getDescription());
+        if (projectInputDto.getTags() != null) project.setTags(projectInputDto.getTags());
         return projectRepository.save(project);
     }
 }
