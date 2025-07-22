@@ -120,6 +120,7 @@ class DuplicationTrajectoryUtilsTest {
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");
         when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId)).thenReturn(availableAreas);
 
+        // Act
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
 
         // Then
@@ -191,14 +192,27 @@ class DuplicationTrajectoryUtilsTest {
         assertEquals(TrajectoryType.LOAD.name(), missingTrajectoryTypes.getFirst());
     }
 
+    @Test
+    void trajectoryToBeAttached_OtherType_Success() throws Exception {
+        // Given
+        when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class))).thenReturn(trajectory);
 
+        // When
+        invokeTrajectoryToBeAttached(trajectory, TrajectoryType.THERMAL_CAPACITY);
+
+        // Then
+        verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.THERMAL_CAPACITY);
+        verify(trajectoryService, never()).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), anyString());
+        verify(loadFileProcessorService, never()).getAreasLoadWithoutTrajectorySelected(anyInt());
+        assertTrue(missingTrajectoryTypes.isEmpty());
+    }
 
     /**
      * Helper method to invoke the private trajectoryToBeAttached method via reflection
      */
     private void invokeTrajectoryToBeAttached(TrajectoryEntity trajectory, TrajectoryType type) throws InvocationTargetException, IllegalAccessException {
         trajectoryToBeAttachedMethod.invoke(
-                null,
+                null, // static method doesn't need an instance
                 trajectory,
                 type,
                 studyId,
