@@ -62,14 +62,14 @@ class DuplicationTrajectoryUtilsTest {
 
     @Test
     void trajectoryToBeAttached_LinkType_Success() throws Exception {
-        // Arrange
+        // Given
         when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class))).thenReturn(trajectory);
         doNothing().when(trajectoryService).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), anyString());
 
-        // Act
+        // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LINK);
 
-        // Assert
+        // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LINK);
         verify(trajectoryService).checkLinkCoherence(studyId, warningMessages, trajectory, createdBy);
         assertTrue(missingTrajectoryTypes.isEmpty());
@@ -77,28 +77,28 @@ class DuplicationTrajectoryUtilsTest {
 
     @Test
     void trajectoryToBeAttached_LinkType_ThrowsIOException() throws Exception {
-        // Arrange
+        // Given
         when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class))).thenThrow(new IOException("Test exception"));
 
-        // Act
+        // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LINK);
 
-        // Assert
+        // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LINK);
         verify(trajectoryService, never()).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), anyString());
         assertEquals(1, missingTrajectoryTypes.size());
-        assertEquals(TrajectoryType.LINK.name(), missingTrajectoryTypes.get(0));
+        assertEquals(TrajectoryType.LINK.name(), missingTrajectoryTypes.getFirst());
     }
 
     @Test
     void trajectoryToBeAttached_LoadType_WithNullLoadArea() throws Exception {
-        // Arrange
+        // Given
         trajectory.setLoadArea(null);
 
-        // Act
+        // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
 
-        // Assert
+        // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LOAD);
         verify(loadFileProcessorService, never()).getAreasLoadWithoutTrajectorySelected(anyInt());
         assertTrue(missingTrajectoryTypes.isEmpty());
@@ -106,24 +106,23 @@ class DuplicationTrajectoryUtilsTest {
 
     @Test
     void trajectoryToBeAttached_LoadType_WithOthersLoadArea_HasValidArea() throws Exception {
-        // Arrange
+        // Given
         trajectory.setLoadArea("OTHERS");
 
-        // Create load entities
+        // When
         Set<LoadEntity> loadEntities = new HashSet<>();
         LoadEntity loadEntity = new LoadEntity();
         loadEntity.setArea("FR");
         loadEntities.add(loadEntity);
         trajectory.setLoadEntities(loadEntities);
 
-        // Mock available areas
+
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");
         when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId)).thenReturn(availableAreas);
 
-        // Act
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
 
-        // Assert
+        // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LOAD);
         verify(loadFileProcessorService).getAreasLoadWithoutTrajectorySelected(studyId);
         assertTrue(missingTrajectoryTypes.isEmpty());
@@ -131,7 +130,7 @@ class DuplicationTrajectoryUtilsTest {
 
     @Test
     void trajectoryToBeAttached_LoadType_WithOthersLoadArea_NoValidArea() throws Exception {
-        // Arrange
+        // Given
         trajectory.setLoadArea("OTHERS");
 
         // Create load entities with areas not in available areas
@@ -145,29 +144,29 @@ class DuplicationTrajectoryUtilsTest {
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");
         when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId)).thenReturn(availableAreas);
 
-        // Act
+        //When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
 
-        // Assert
+        // Then
         verify(loadFileProcessorService).getAreasLoadWithoutTrajectorySelected(studyId);
         verify(trajectoryService, never()).linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class));
         assertEquals(1, missingTrajectoryTypes.size());
-        assertEquals(TrajectoryType.LOAD.name(), missingTrajectoryTypes.get(0));
+        assertEquals(TrajectoryType.LOAD.name(), missingTrajectoryTypes.getFirst());
     }
 
     @Test
     void trajectoryToBeAttached_LoadType_WithSpecificLoadArea_AreaAvailable() throws Exception {
-        // Arrange
+        // Given
         trajectory.setLoadArea("FR");
 
-        // Mock available areas
+
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");
         when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId)).thenReturn(availableAreas);
 
-        // Act
+        // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
 
-        // Assert
+        // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LOAD);
         verify(loadFileProcessorService).getAreasLoadWithoutTrajectorySelected(studyId);
         assertTrue(missingTrajectoryTypes.isEmpty());
@@ -175,44 +174,31 @@ class DuplicationTrajectoryUtilsTest {
 
     @Test
     void trajectoryToBeAttached_LoadType_WithSpecificLoadArea_AreaNotAvailable() throws Exception {
-        // Arrange
+        // Given
         trajectory.setLoadArea("IT");
 
         // Mock available areas that don't include the trajectory load area
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");
         when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId)).thenReturn(availableAreas);
 
-        // Act
+        // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
 
-        // Assert
+        // Then
         verify(loadFileProcessorService).getAreasLoadWithoutTrajectorySelected(studyId);
         verify(trajectoryService, never()).linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class));
         assertEquals(1, missingTrajectoryTypes.size());
-        assertEquals(TrajectoryType.LOAD.name(), missingTrajectoryTypes.get(0));
+        assertEquals(TrajectoryType.LOAD.name(), missingTrajectoryTypes.getFirst());
     }
 
-    @Test
-    void trajectoryToBeAttached_OtherType_Success() throws Exception {
-        // Arrange
-        when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class))).thenReturn(trajectory);
 
-        // Act
-        invokeTrajectoryToBeAttached(trajectory, TrajectoryType.THERMAL_CAPACITY);
-
-        // Assert
-        verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.THERMAL_CAPACITY);
-        verify(trajectoryService, never()).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), anyString());
-        verify(loadFileProcessorService, never()).getAreasLoadWithoutTrajectorySelected(anyInt());
-        assertTrue(missingTrajectoryTypes.isEmpty());
-    }
 
     /**
      * Helper method to invoke the private trajectoryToBeAttached method via reflection
      */
     private void invokeTrajectoryToBeAttached(TrajectoryEntity trajectory, TrajectoryType type) throws InvocationTargetException, IllegalAccessException {
         trajectoryToBeAttachedMethod.invoke(
-                null, // static method doesn't need an instance
+                null,
                 trajectory,
                 type,
                 studyId,

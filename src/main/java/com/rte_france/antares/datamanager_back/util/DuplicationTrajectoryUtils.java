@@ -29,7 +29,6 @@ public class DuplicationTrajectoryUtils {
             TrajectoryType.LINK,
             TrajectoryType.LOAD
     );
-     LoadFileProcessorServiceImpl loadFileProcessorService;
 
 
     /**
@@ -185,9 +184,13 @@ private static void processRemainingTrajectoryTypes(
 
         if (typeTrajectories.isEmpty()) {
             missingTrajectoryTypes.add(type.name());
+
         } else {
             if (type == TrajectoryType.LOAD) {
                 // LOAD we can have several trajectories for one study
+                // Track if any LOAD trajectory was successfully linked
+                List<String> tempMissingTypes = new ArrayList<>();
+
                 typeTrajectories.forEach(trajectory ->
                         trajectoryToBeAttached(
                                 trajectory,
@@ -196,12 +199,16 @@ private static void processRemainingTrajectoryTypes(
                                 trajectoryService,
                                 loadFileProcessorService,
                                 warningMessages,
-                                missingTrajectoryTypes,
+                                tempMissingTypes,
                                 createdBy
                         )
                 );
-            } else {
 
+                // Only add LOAD to missing types if all trajectories failed (count equals total)
+                if (tempMissingTypes.size() == typeTrajectories.size()) {
+                    missingTrajectoryTypes.add(type.name());
+                }
+            } else {
                 trajectoryToBeAttached(
                         typeTrajectories.getFirst(),
                         type,
