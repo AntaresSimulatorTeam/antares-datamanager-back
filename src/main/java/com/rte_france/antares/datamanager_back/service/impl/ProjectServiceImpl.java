@@ -214,4 +214,24 @@ public class ProjectServiceImpl implements ProjectService {
         newProject.setTags(projectInputDto.getTags());
         return projectRepository.save(newProject);
     }
+    
+    @Override
+    public ProjectEntity updateProject(Integer projectId, ProjectInputDto projectInputDto) {
+        ProjectEntity project = projectRepository.findById(projectId)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project not found with ID: {0}")
+                        .errorMessageArguments(List.of(projectId.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
+        if (projectInputDto.getTags() != null && projectInputDto.getTags().size() > 6) {
+            throw BusinessException.builder()
+                    .message("A project cannot have more than 6 tags.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        if (Utils.isValid(projectInputDto.getDescription())) project.setDescription(projectInputDto.getDescription());
+        if (projectInputDto.getTags() != null && !projectInputDto.getTags().isEmpty()) project.setTags(projectInputDto.getTags());
+        return projectRepository.save(project);
+    }
 }
