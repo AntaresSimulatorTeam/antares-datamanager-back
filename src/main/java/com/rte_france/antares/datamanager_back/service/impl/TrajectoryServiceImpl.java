@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +27,9 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.getValidLoadFileNamesWithHorizon;
-import static com.rte_france.antares.datamanager_back.util.Utils.isSameLoadTrajectory;
+import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+
+import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
 @Slf4j
@@ -114,7 +116,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // Build and normalize the trajectory path
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
 
-
+        
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
@@ -238,9 +240,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             // Vérification d'existence par nom de fichier et nom de trajectoire
             Optional<LoadEntity> existingLoad = loadRepository.findByFileNameAndTrajectoryFileName(loadFileName, loadTrajectory.getFileName());
             LoadEntity loadEntity;
-            loadEntity = existingLoad.orElseGet(() -> LoadEntity.builder()
-                    .fileName(loadFileName)
-                    .build());
+            loadEntity = existingLoad.orElseGet(() -> {
+                String areaName = extractAreaFromFileName(loadFileName);
+                return LoadEntity.builder()
+                        .fileName(loadFileName)
+                        .area(areaName)
+                        .build();
+            });
+
             loadEntity.addTrajectoryEntity(loadTrajectory);
             loadEntities.add(loadEntity);
         }
@@ -392,6 +399,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private Set<WarningMessageEntity> filterWarningMessages(Integer studyId, Set<WarningMessageEntity> warningMessages) {
+        if (warningMessages == null) {
+            return new LinkedHashSet<>();
+        }
         return warningMessages.stream()
                 .filter(warning -> warning.getStudy().getId().equals(studyId) && isStudyTrajectoryExistById(studyId, warning))
                 .sorted(Comparator
@@ -463,7 +473,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             );
             warnings.forEach(warning -> warning.setTrajectory(trajectory));
             warnings.forEach(warning -> warning.setStudy(study));
-//            warningMessageRepository.saveAll(warnings); // Causes compile time error
+            warningRepository.saveAll(warnings);
         }
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
