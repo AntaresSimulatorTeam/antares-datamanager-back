@@ -468,7 +468,7 @@ class ProjectServiceImplTest {
     }
 
     @Test
-    void updateProject_ShouldNotUpdateFields_WhenInputIsBlank() {
+    void updateProject_ShouldUpdateFields_WhenInputIsBlank() {
         Integer projectId = 1;
         ProjectEntity existingProject = new ProjectEntity();
         existingProject.setId(projectId);
@@ -476,13 +476,15 @@ class ProjectServiceImplTest {
         existingProject.setTags(List.of("tag1", "tag2"));
 
         ProjectInputDto inputDto = new ProjectInputDto();
+        inputDto.setDescription("");
+        inputDto.setTags(List.of());
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
         when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProjectEntity result = projectService.updateProject(projectId, inputDto);
 
-        assertEquals("New description", result.getDescription());
+        assertEquals("", result.getDescription());
         assertEquals(2, result.getTags().size());
     }
     

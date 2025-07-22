@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -230,8 +231,8 @@ public class ProjectServiceImpl implements ProjectService {
                     .build();
         }
         
-        if (Utils.isValid(projectInputDto.getDescription())) project.setDescription(projectInputDto.getDescription());
-        if (projectInputDto.getTags() != null && !projectInputDto.getTags().isEmpty()) project.setTags(projectInputDto.getTags());
+        project.setDescription(projectInputDto.getDescription());
+        if (!CollectionUtils.isEmpty(projectInputDto.getTags())) project.setTags(projectInputDto.getTags());
         return projectRepository.save(project);
     }
 }
