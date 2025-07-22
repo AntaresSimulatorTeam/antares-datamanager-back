@@ -333,4 +333,22 @@ public class Utils {
         }
     }
 
+    /**
+     * Extracts the area identifier from a given file name.
+     *
+     * The expected file name format is "load_AREA_HORIZON.txt", where "AREA" represents the area identifier.
+     * If the file name does not match the expected format or "load" is not the prefix, the method returns null.
+     *
+     * @param fileName The name of the file from which the area identifier should be extracted.
+     * @return The extracted area identifier from the file name, or null if the format is invalid or the prefix is incorrect.
+     */
+    public static String extractAreaFromFileName(String fileName) {
+
+        String[] parts = fileName.split("_");
+        if (parts.length >= 3 && parts[0].equals("load")) {
+            return parts[1]; // Retourne la partie "area" (ex: "at" pour "load_at_2030-2031.txt")
+        }
+        return null;
+    }
+
 }

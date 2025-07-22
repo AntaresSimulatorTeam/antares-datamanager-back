@@ -29,6 +29,9 @@ public class LoadEntity {
     @Column(name = "output_file_name")
     private String outPutFileName;
 
+    @Column(name = "area")
+    private String area;
+
     @ManyToMany(mappedBy = "loadEntities")
     @Builder.Default
     private Set<TrajectoryEntity> trajectoryEntities = new LinkedHashSet<>();

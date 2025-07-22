@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.util;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
@@ -14,12 +15,14 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.*;
-
+import java.util.stream.Collectors;
 
 
 @Slf4j
 @UtilityClass
 public class DuplicationTrajectoryUtils {
+
+    public static final String OTHER_AREA = "OTHERS";
 
     private static final List<TrajectoryType> SUPPORTED_TRAJECTORY_TYPES = List.of(
             TrajectoryType.AREA,
@@ -186,7 +189,7 @@ private static void processRemainingTrajectoryTypes(
             if (type == TrajectoryType.LOAD) {
                 // LOAD we can have several trajectories for one study
                 typeTrajectories.forEach(trajectory ->
-                        trajectoryForLinks(
+                        trajectoryToBeAttached(
                                 trajectory,
                                 type,
                                 studyId,
@@ -199,7 +202,7 @@ private static void processRemainingTrajectoryTypes(
                 );
             } else {
 
-                trajectoryForLinks(
+                trajectoryToBeAttached(
                         typeTrajectories.getFirst(),
                         type,
                         studyId,
@@ -214,7 +217,22 @@ private static void processRemainingTrajectoryTypes(
     }
 }
 
-    private static void trajectoryForLinks(
+    /**
+     * Handles attached or processing a trajectory based on the specified type and study ID.
+     * Ensures the trajectory is associated with the study and performs coherence checks
+     * for specific trajectory types. If the operation fails or an inconsistency is detected,
+     * adds the type to the list of missing trajectory types.
+     *
+     * @param trajectory The trajectory entity to be processed or attached.
+     * @param type The type of trajectory to process, such as LOAD or LINK.
+     * @param studyId The identifier of the study to which the trajectory is attached.
+     * @param trajectoryService The service responsible for trajectory-related operations.
+     * @param loadFileProcessorService The service used to process load areas for trajectories.
+     * @param warningMessages A set of warning messages that may be generated during processing.
+     * @param missingTrajectoryTypes A list to store missing trajectory types if inconsistencies are found.
+     * @param createdBy The identifier of the user or system that initiated this operation.
+     */
+    private static void trajectoryToBeAttached(
             TrajectoryEntity trajectory,
             TrajectoryType type,
             Integer studyId,
@@ -225,13 +243,29 @@ private static void processRemainingTrajectoryTypes(
             String createdBy) {
 
         try {
-
             if (type == TrajectoryType.LOAD && trajectory.getLoadArea() != null) {
                 List<String> availableAreas = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
 
-                if (!availableAreas.contains(trajectory.getLoadArea().toUpperCase())) {
-                    missingTrajectoryTypes.add(type.name());
-                    return;
+                if (OTHER_AREA.equals(trajectory.getLoadArea())) {
+
+                    Set<String> loadAreas = trajectory.getLoadEntities().stream()
+                            .map(LoadEntity::getArea)
+                            .map(String::toUpperCase)
+                            .collect(Collectors.toSet());
+
+                    boolean hasValidArea = availableAreas.stream()
+                            .anyMatch(loadAreas::contains);
+
+                    if (!hasValidArea) {
+                        missingTrajectoryTypes.add(type.name());
+                        return;
+                    }
+                } else {
+
+                    if (!availableAreas.contains(trajectory.getLoadArea().toUpperCase())) {
+                        missingTrajectoryTypes.add(type.name());
+                        return;
+                    }
                 }
             }
 
