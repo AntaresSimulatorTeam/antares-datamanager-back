@@ -245,4 +245,26 @@ void deleteProject_returnsBadRequestWhenProjectContainsStudies() throws Exceptio
                 .andExpect(status().isInternalServerError())
                 .andReturn();
     }
+
+    @Test
+    void updateProject_ShouldReturnUpdatedProjectDto_WhenRequestIsValid() throws Exception {
+        Integer projectId = 1;
+        ProjectInputDto inputDto = new ProjectInputDto();
+        inputDto.setName("Updated Name");
+        inputDto.setDescription("Updated Description");
+
+        ProjectDto updatedDto = new ProjectDto();
+        updatedDto.setId(projectId);
+        updatedDto.setName("Updated Name");
+        updatedDto.setDescription("Updated Description");
+
+        mockMvc.perform(put("/v1/project")
+                        .param("projectId", projectId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new ObjectMapper().writeValueAsString(inputDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(projectId))
+                .andExpect(jsonPath("$.name").value("Updated Name"))
+                .andExpect(jsonPath("$.description").value("Updated Description"));
+    }
 }
