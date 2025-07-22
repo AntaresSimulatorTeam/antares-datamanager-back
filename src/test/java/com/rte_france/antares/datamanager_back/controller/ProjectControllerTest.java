@@ -253,10 +253,12 @@ void deleteProject_returnsBadRequestWhenProjectContainsStudies() throws Exceptio
         inputDto.setName("Updated Name");
         inputDto.setDescription("Updated Description");
 
-        ProjectDto updatedDto = new ProjectDto();
+        ProjectEntity updatedDto = new ProjectEntity();
         updatedDto.setId(projectId);
         updatedDto.setName("Updated Name");
         updatedDto.setDescription("Updated Description");
+
+        when(projectService.updateProject(eq(projectId), any(ProjectInputDto.class))).thenReturn(updatedDto);
 
         mockMvc.perform(put("/v1/project")
                         .param("projectId", projectId.toString())
