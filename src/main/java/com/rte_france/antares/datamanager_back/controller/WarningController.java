@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.service.WarningService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,9 +28,9 @@ public class WarningController {
     @Operation(summary = "Get warnings by trajectoryId and studyId")
     @GetMapping
     public ResponseEntity<Set<WarningDTO>> fetchWarningByTrajectoryId(
-            @RequestParam(value = "trajectoryId") Integer trajectoryId,
-            @RequestParam(value = "studyId") Integer studyId){
-        return ResponseEntity.ok(warningService.getWarningsForTrajectory(trajectoryId, studyId));
+            @RequestParam(value = "trajectoryType") TrajectoryType trajectoryType,
+            @RequestParam(value = "studyId") Integer studyId) {
+        return ResponseEntity.ok(warningService.getWarningsForTrajectory(studyId, trajectoryType));
     }
 
 }

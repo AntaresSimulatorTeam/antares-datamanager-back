@@ -1,8 +1,10 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -35,6 +37,9 @@ class WarningMessageServiceImplTest {
 
     @Mock
     private StudyRepository studyRepository;
+
+    @Mock
+    private StudyTrajectoryRepository studyTrajectoryRepository;
 
     @InjectMocks
     private WarningServiceImpl warningService;
@@ -98,15 +103,15 @@ class WarningMessageServiceImplTest {
         // Given
         Integer trajectoryId = 1;
         Integer studyId = 1;
-        when(trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)))
+        when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
                 .thenReturn(Collections.emptySet());
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
 
         // Then
         assertTrue(result.isEmpty());
-        verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
     }
 
     @Test
@@ -119,21 +124,20 @@ class WarningMessageServiceImplTest {
                 .warningMessages(null)
                 .build();
 
-        when(trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)))
-                .thenReturn(Set.of(trajectory));
+        when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
+                .thenReturn(Collections.emptySet());
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
 
         // Then
         assertTrue(result.isEmpty());
-        verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
     }
 
     @Test
     void getWarningsForTrajectory_shouldReturnWarnings_whenWarningsExist() {
         // Given
-        Integer trajectoryId = 1;
         Integer studyId = 1;
         StudyEntity study = StudyEntity.builder().id(studyId).build();
         WarningMessageEntity warning = WarningMessageEntity.builder()
@@ -143,20 +147,17 @@ class WarningMessageServiceImplTest {
                 .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
                 .creationDate(LocalDateTime.now())
                 .createdBy("testUser")
+                .trajectory(TrajectoryEntity.builder().id(1).type(TrajectoryType.AREA.name()).build())
                 .study(study)
                 .isAck(false)
                 .build();
 
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId)
-                .warningMessages(Set.of(warning))
-                .build();
-
-        when(trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)))
-                .thenReturn(Set.of(trajectory));
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of(warning));
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(true);
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
 
         // Then
         assertFalse(result.isEmpty());
@@ -170,7 +171,7 @@ class WarningMessageServiceImplTest {
         assertEquals(warning.getCreatedBy(), warningDTO.getGeneratedBy());
         assertEquals(warning.getIsAck(), warningDTO.getIsAck());
 
-        verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
     }
 
     @Test
