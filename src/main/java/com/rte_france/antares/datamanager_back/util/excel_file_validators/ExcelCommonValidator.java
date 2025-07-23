@@ -211,7 +211,7 @@ public class ExcelCommonValidator {
                 .filter(row -> columnIndexes.entrySet().stream()
                         .anyMatch(entry -> {
                             Cell cell = row.getCell(entry.getValue(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                            return !isValidBoolean(cell);
+                            return getBooleanCellValue(cell).isEmpty(); // cell is not a valid boolean
                         }))
                 .map(row -> Optional.of(row)
                         .filter(r -> identifierColumnIndex >= 0)
@@ -224,8 +224,7 @@ public class ExcelCommonValidator {
             throw BusinessException.builder()
                     .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
                     .errorMessageArguments(List.of(
-                            booleanColumns.stream()
-                                    .collect(Collectors.joining(", ")),
+                            String.join(", ", booleanColumns),
                             trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -251,7 +250,7 @@ public class ExcelCommonValidator {
                 ))
                 .filter(entry -> {
                     Cell cell = entry.getValue();
-                    if (cell == null || cell.getCellType() == CellType.BLANK) return false;
+                    if (isInvalidOrUndefinedCell(cell)) return false;
 
                     if (cell.getCellType() == CellType.NUMERIC) {
                         return true;
@@ -285,31 +284,28 @@ public class ExcelCommonValidator {
 
     }
 
-    private static boolean isValidBoolean(Cell cell) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) return true;
-        Boolean value = getBooleanCellValue(cell);
-        return value != null;
+    private static boolean isInvalidOrUndefinedCell(Cell cell) {
+        return cell == null || cell.getCellType() == CellType.BLANK;
     }
 
     /**
      * @param cell to check
      * @return boolean value expected and avoid null for formatted cells
      */
-    @SuppressWarnings("unchecked")
-    public static Boolean getBooleanCellValue(Cell cell) {
-        // If the cell is null or blank, we return null to indicate an invalid or undefined value
-        if (cell == null || cell.getCellType() == CellType.BLANK) return null;
+    public static Optional<Boolean> getBooleanCellValue(Cell cell) {
+        // If the cell is null or blank, we return empty to indicate an invalid or undefined value
+        if (isInvalidOrUndefinedCell(cell)) return Optional.empty();
 
         // If the cell contains a boolean value, return it directly
-        if (cell.getCellType() == CellType.BOOLEAN) return cell.getBooleanCellValue();
+        if (cell.getCellType() == CellType.BOOLEAN) return Optional.of(cell.getBooleanCellValue());
 
         // If the cell contains a string representation of true/false, parse it
         if (cell.getCellType() == CellType.STRING) {
             String value = cell.getStringCellValue().trim().toUpperCase();
-            if ("TRUE".equals(value)) return true;
-            if ("FALSE".equals(value)) return false;
+            if ("TRUE".equals(value)) return Optional.of(true);
+            if ("FALSE".equals(value)) return Optional.of(false);
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
