@@ -27,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static java.util.Objects.isNull;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -215,7 +217,7 @@ public class ProjectServiceImpl implements ProjectService {
         newProject.setTags(projectInputDto.getTags());
         return projectRepository.save(newProject);
     }
-    
+
     @Override
     public ProjectEntity updateProject(Integer projectId, ProjectInputDto projectInputDto) {
         ProjectEntity project = projectRepository.findById(projectId)
@@ -231,8 +233,8 @@ public class ProjectServiceImpl implements ProjectService {
                     .build();
         }
 
-        if (projectInputDto.getDescription() != null) project.setDescription(projectInputDto.getDescription());
-        if (projectInputDto.getTags() != null) project.setTags(projectInputDto.getTags());
+        if (!isNull(projectInputDto.getDescription())) project.setDescription(projectInputDto.getDescription());
+        if (!isNull(projectInputDto.getTags())) project.setTags(projectInputDto.getTags());
         return projectRepository.save(project);
     }
 }

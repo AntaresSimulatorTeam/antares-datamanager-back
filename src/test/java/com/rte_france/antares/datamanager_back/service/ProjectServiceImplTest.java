@@ -446,23 +446,23 @@ class ProjectServiceImplTest {
         assertEquals(projectInputDto.getName(), projectEntity.getName());
         assertEquals(projectInputDto.getTags(), projectEntity.getTags());
     }
-    
+
 
     @Test
     void updateProject_ShouldUpdateFields_WhenInputIsValid() {
         Integer projectId = 1;
         ProjectEntity existingProject = new ProjectEntity();
         existingProject.setId(projectId);
-    
+
         ProjectInputDto inputDto = new ProjectInputDto();
         inputDto.setDescription("New description");
         inputDto.setTags(List.of("tag1", "tag2"));
-    
+
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
         when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-    
+
         ProjectEntity result = projectService.updateProject(projectId, inputDto);
-    
+
         assertEquals("New description", result.getDescription());
         assertEquals(2, result.getTags().size());
     }
@@ -487,33 +487,54 @@ class ProjectServiceImplTest {
         assertEquals("", result.getDescription());
         assertEquals(0, result.getTags().size());
     }
-    
+
+    @Test
+    void updateProject_ShouldUpdateField_WhenInputIsNull() {
+        Integer projectId = 1;
+        ProjectEntity existingProject = new ProjectEntity();
+        existingProject.setId(projectId);
+        existingProject.setDescription("New description");
+        existingProject.setTags(List.of("tag1", "tag2"));
+
+        ProjectInputDto inputDto = new ProjectInputDto();
+        inputDto.setDescription(null);
+        inputDto.setTags(null);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
+        when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProjectEntity result = projectService.updateProject(projectId, inputDto);
+
+        assertEquals(existingProject.getDescription(), result.getDescription());
+        assertEquals(existingProject.getTags().size(), result.getTags().size());
+    }
+
     @Test
         void updateProject_ShouldThrowException_WhenProjectNotFound() {
         Integer projectId = 999;
         ProjectInputDto inputDto = new ProjectInputDto();
-    
+
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
-    
+
         BusinessException ex = assertThrows(BusinessException.class,
              () -> projectService.updateProject(projectId, inputDto));
-    
+
         assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
     }
-    
+
     @Test
         void updateProject_ShouldThrowException_WhenTagsExceedLimit() {
         Integer projectId = 1;
         ProjectEntity project = new ProjectEntity();
-    
+
         ProjectInputDto inputDto = new ProjectInputDto();
         inputDto.setTags(List.of("t1", "t2", "t3", "t4", "t5", "t6", "t7"));
-    
+
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-    
+
         BusinessException ex = assertThrows(BusinessException.class,
               () -> projectService.updateProject(projectId, inputDto));
-    
+
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
 
@@ -544,7 +565,7 @@ class ProjectServiceImplTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
         assertTrue(ex.getMessage().contains("Project with ID"));
     }
-    
+
 
     @Test
     void findProjectsByCriteria_ShouldReturnResults_WhenSearchIsValid() {

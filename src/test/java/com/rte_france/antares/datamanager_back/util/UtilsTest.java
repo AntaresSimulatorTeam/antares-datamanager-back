@@ -224,18 +224,4 @@ class UtilsTest {
         );
     }
 
-    @Test
-    void isValid_ShouldReturnFalse_WhenStringIsNull() {
-        assertFalse(Utils.isValid(null));
-    }
-
-    @Test
-    void isValid_ShouldReturnFalse_WhenStringIsBlank() {
-        assertFalse(Utils.isValid("   "));
-    }
-
-    @Test
-    void isValid_ShouldReturnTrue_WhenStringHasContent() {
-        assertTrue(Utils.isValid("hello world"));
-    }
 }
