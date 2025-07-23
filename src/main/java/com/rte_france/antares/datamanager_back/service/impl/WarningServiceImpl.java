@@ -1,11 +1,10 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.mapper.WarningMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.WarningService;
@@ -19,7 +18,6 @@ import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,7 +29,7 @@ public class WarningServiceImpl implements WarningService {
     private final MessageSource messageSource;
     private final WarningRepository warningRepository;
     private final StudyRepository studyRepository;
-    private final StudyTrajectoryRepository studyTrajectoryRepository;
+    private final TrajectoryRepository trajectoryRepository;
 
     @Override
     public String getMessage(String code, Object... args) {
@@ -101,28 +99,24 @@ public class WarningServiceImpl implements WarningService {
      * Retrieves a list of warnings associated with a specific trajectory.
      * The warnings are fetched from the repository, mapped to DTOs, and returned
      * as a list. If no warnings are available for the trajectory, an empty list is returned.
-     * @param studyId the ID of the study to which the trajectory belongs
-     * @param trajectoryType the type of the trajectory for which warnings are to be retrieved
+     *
+     * @param trajectoryId the unique identifier of the trajectory for which warnings are to be retrieved
      * @return a set of WarningDTO objects representing the warnings for the specified trajectory,
-     * or an empty list if no warnings are available
+     *         or an empty list if no warnings are available
      */
     @Override
-    public Set<WarningDTO> getWarningsForTrajectory(Integer studyId, TrajectoryType trajectoryType) {
-        return warningRepository.findByTrajectoryTypeAndStudyId(studyId, trajectoryType.name())
+    public Set<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId) {
+        return trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)).stream()
+                .findFirst()
+                .map(TrajectoryEntity::getWarningMessages)
                 .stream()
-                .filter(this::isWarningDependOnExistingLinkTrajectoryAndStudy
-                )
+                .flatMap(Set::stream)
+                .filter(warning -> warning.getStudy() != null && warning.getStudy().getId().equals(studyId))
                 .map(WarningMapper::toWarningMessageDTO)
                 .collect(Collectors.toSet());
     }
 
-    public boolean isWarningDependOnExistingLinkTrajectoryAndStudy(WarningMessageEntity warningMessageEntity) {
-        return studyTrajectoryRepository.existsById(
-                StudyTrajectoryKey.builder()
-                        .trajectoryId(warningMessageEntity.getTrajectory().getId())
-                        .scenarioId(warningMessageEntity.getStudy().getId())
-                        .build());
-    }
+
 
 
 }
