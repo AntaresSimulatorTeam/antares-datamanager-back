@@ -36,6 +36,8 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.util.Objects.nonNull;
+
 
 /**
  * Utility class for file and trajectory related operations.
@@ -91,6 +93,7 @@ public class Utils {
     }
 
     public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) throws IOException {
+
         String areaPattern = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : area.toLowerCase();
         Pattern pattern = Pattern.compile(String.format("load_(%s)_(\\d{4}-\\d{4})\\.txt", areaPattern));
         List<String> loadsFileNames = new ArrayList<>();
@@ -113,9 +116,14 @@ public class Utils {
     }
 
     private static boolean isValidLoadFile(String horizon, String expectedHorizon, String areaFromFile, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) {
+        if(nonNull(areaWithStudy)){
         boolean isAreaValid = areaWithStudy.contains(areaFromFile.toLowerCase());
         boolean isAreaNotChosen = areaLoadAlreadyChosen.isEmpty() || !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase());
         return horizon.equals(expectedHorizon) && isAreaValid && isAreaNotChosen;
+    } else {
+            boolean isAreaNotChosen = areaLoadAlreadyChosen.isEmpty() || !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase());
+            return horizon.equals(expectedHorizon) && isAreaNotChosen;
+        }
     }
 
     /**
