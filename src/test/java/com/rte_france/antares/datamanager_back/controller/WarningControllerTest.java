@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.service.WarningService;
@@ -89,17 +90,17 @@ class WarningControllerTest {
                         .build()
         );
 
-        when(warningService.getWarningsForTrajectory(trajectoryId,studyId)).thenReturn(warnings);
+        when(warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA)).thenReturn(warnings);
 
         // When & Then
         mockMvc.perform(get("/v1/warnings")
-                        .param("trajectoryId", trajectoryId.toString())
+                        .param("trajectoryType", TrajectoryType.AREA.name())
                         .param("studyId", studyId.toString())
                         .contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        verify(warningService).getWarningsForTrajectory(trajectoryId, studyId);
+        verify(warningService).getWarningsForTrajectory(trajectoryId, TrajectoryType.AREA);
     }
 
 
