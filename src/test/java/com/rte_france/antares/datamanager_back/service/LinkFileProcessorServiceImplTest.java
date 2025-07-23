@@ -507,4 +507,58 @@ class LinkFileProcessorServiceImplTest {
 
 
 
+    @Test
+    void processLinkFile_whenStudyIdIsNull() throws IOException {
+        // Create test Excel file
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "TestNullStudyId.xlsx",
+                List.of("parameters", "2035-2036"),
+                List.of(
+                        List.of("", "2035-2036"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
+                ),
+                List.of(
+                        List.of(List.of("Hurdle Costs", 0, 5)),
+                        List.of(
+                                List.of("CH-FR", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE"),
+                                List.of("FR-IT", 15, 25, 35, 45, 55, 65, 75, 85, "TRUE", "FALSE", "TRUE", "FALSE")
+                        )
+                ));
+
+        // Setup mocks
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setFileName("TestNullStudyId.xlsx");
+        trajectory.setVersion(1);
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestNullStudyId.xlsx", "2035-2036", TrajectoryType.LINK.name()))
+                .thenReturn(Optional.of(trajectory));
+
+        // Mock the save method to return the trajectory
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        // Call the method with null studyId
+        TrajectoryEntity result = linkFileProcessorService.processLinkFile(tempFile, "2035-2036", null);
+
+        // Verify that the trajectory was saved
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+
+        // Verify that findByTypeAndStudyId was called with AREA and null
+        verify(trajectoryRepository, never()).findByTypeAndStudyId(TrajectoryType.AREA.name(), null);
+
+        // Verify that studyRepository.findById was never called (since studyId is null)
+        verify(studyRepository, never()).findById(any());
+
+        // Verify that warningService.getMessage was never called (since warnings are only checked when studyId is not null)
+        verify(warningService, never()).getMessage(anyString(), anyString());
+
+        // Verify that the result is not null
+        assertNotNull(result);
+    }
+
 }

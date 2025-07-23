@@ -62,7 +62,7 @@ public class TrajectoryController {
                                                           String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                          @RequestParam("studyId") Integer studyId) throws IOException {
+                                                          @RequestParam(value = "studyId", required = false) Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
@@ -72,7 +72,7 @@ public class TrajectoryController {
                                                           @RequestParam("trajectoryToUse") String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                          @RequestParam("studyId") Integer studyId) throws IOException {
+                                                          @RequestParam(value = "studyId",required = false) Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
