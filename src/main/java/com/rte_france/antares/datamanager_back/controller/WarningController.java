@@ -29,7 +29,7 @@ public class WarningController {
     @GetMapping
     public ResponseEntity<Set<WarningDTO>> fetchWarningByTrajectoryId(
             @RequestParam(value = "trajectoryType") TrajectoryType trajectoryType,
-            @RequestParam(value = "studyId") Integer studyId){
+            @RequestParam(value = "studyId") Integer studyId) {
         return ResponseEntity.ok(warningService.getWarningsForTrajectory(studyId, trajectoryType));
     }
 

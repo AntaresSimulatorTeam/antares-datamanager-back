@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -36,6 +37,9 @@ class WarningMessageServiceImplTest {
 
     @Mock
     private StudyRepository studyRepository;
+
+    @Mock
+    private StudyTrajectoryRepository studyTrajectoryRepository;
 
     @InjectMocks
     private WarningServiceImpl warningService;
@@ -150,6 +154,7 @@ class WarningMessageServiceImplTest {
 
         when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
                 .thenReturn(Set.of(warning));
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(true);
 
         // When
         Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
