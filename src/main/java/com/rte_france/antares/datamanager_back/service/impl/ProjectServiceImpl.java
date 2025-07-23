@@ -15,7 +15,6 @@ import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +36,8 @@ public class ProjectServiceImpl implements ProjectService {
     private final PinnedProjectRepository pinnedProjectRepository;
     private final ProjectRepository projectRepository;
     private final UserService userService;
+
+    private static final String PROJECT_NOT_FOUND = "Project not found with ID: {0}";
 
     public List<ProjectEntity> getPinnedProjectsByUser(String userId) {
         return pinnedProjectRepository.findByIdNni(userId).stream()
@@ -110,7 +111,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectEntity findProjectById(Integer projectId) {
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Project with ID: {0} not found")
+                        .message(PROJECT_NOT_FOUND)
                         .errorMessageArguments(List.of(projectId.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
@@ -143,7 +144,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         ProjectEntity project = projectRepository.findById(projectId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Project not found with ID: {0}")
+                        .message(PROJECT_NOT_FOUND)
                         .errorMessageArguments(List.of(projectId.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
@@ -161,7 +162,7 @@ public class ProjectServiceImpl implements ProjectService {
     public void deleteProjectById(Integer projectId) {
         ProjectEntity project = projectRepository.findById(projectId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Project not found with ID: {0}")
+                        .message(PROJECT_NOT_FOUND)
                         .errorMessageArguments(List.of(projectId.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
@@ -222,7 +223,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectEntity updateProject(Integer projectId, ProjectInputDto projectInputDto) {
         ProjectEntity project = projectRepository.findById(projectId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Project not found with ID: {0}")
+                        .message(PROJECT_NOT_FOUND)
                         .errorMessageArguments(List.of(projectId.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
