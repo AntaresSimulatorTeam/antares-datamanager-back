@@ -900,4 +900,138 @@ class TrajectoryServiceImplTest {
         verify(warningRepository).saveAll(warnings);
         verify(loadFileProcessorService).checkForMissingLoadFiles(any(), eq(horizon), eq(studyId), eq(userNni), eq(trajectory));
     }
+
+    @Test
+    void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenParamsAreNull() {
+        var studyId = 1;
+
+        // area is null
+        var ex1 = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb(null, "trajectory", "horizon", studyId));
+        assertEquals("Area, trajectory name, and horizon must not be null", ex1.getMessage());
+
+        // trajectoryToUse is null
+        var ex2 = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb("area", null, "horizon", studyId));
+        assertEquals("Area, trajectory name, and horizon must not be null", ex2.getMessage());
+
+        // horizon is null
+        var ex3 = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb("area", "trajectory", null, studyId));
+        assertEquals("Area, trajectory name, and horizon must not be null", ex3.getMessage());
+    }
+
+    @Test
+    void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenUserNniIsNull() {
+        // Given
+        var area = "area";
+        var trajectoryToUse = "trajectory";
+        var horizon = "horizon";
+        var studyId = 1;
+
+        // When
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
+        when(userService.getCurrentUserDetails()).thenReturn(null);
+
+        // Then
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId));
+        assertEquals("User NNI could not be determined", ex.getMessage());
+    }
+
+    @Test
+    void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenSameLoadTrajectoryExists() throws IOException {
+        // Given
+        var area = "area";
+        var trajectoryToUse = "trajectory";
+        var horizon = "horizon";
+        var studyId = 1;
+
+        // When
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("input");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
+        var existingTrajectory = TrajectoryEntity.builder().fileName(trajectoryToUse).horizon(horizon).loadArea(area).version(1).build();
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
+                .thenReturn(Optional.of(existingTrajectory));
+        try (var mockedStatic = org.mockito.Mockito.mockStatic(
+                com.rte_france.antares.datamanager_back.util.Utils.class)) {
+            mockedStatic.when(() -> com.rte_france.antares.datamanager_back.util.Utils.isSameLoadTrajectory(any(), any()))
+                    .thenReturn(true);
+
+            // Then
+            var ex = assertThrows(BusinessException.class, () ->
+                    trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId));
+            assertEquals("Trajectory already uploaded", ex.getMessage());
+        }
+    }
+
+    @Test
+    void isSameVersionOfOtherLoadTrajectory_returnsTrueWhenAllAreasImported() throws Exception {
+        // Given
+        var studyId = 1;
+        var horizon = "2030-2031";
+        var area1 = AreaEntity.builder().name("FR").build();
+        var area2 = AreaEntity.builder().name("DE").build();
+
+        // When
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(area1, area2));
+        var load1 = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build();
+        var load2 = LoadEntity.builder().fileName("load_de_2030-2031.txt").build();
+        var existingTrajectory = TrajectoryEntity.builder()
+                .loadEntities(Set.of(load1, load2))
+                .fileName("testTrajectory")
+                .build();
+        var trajectoryPath = mock(Path.class);
+
+        try (var filesMock = org.mockito.Mockito.mockStatic(Files.class)) {
+            filesMock.when(() -> Files.exists(any())).thenReturn(false);
+
+            var method = TrajectoryServiceImpl.class.getDeclaredMethod(
+                    "isSameVersionOfOtherLoadTrajectory",
+                    TrajectoryEntity.class, Integer.class, Path.class, String.class
+            );
+            method.setAccessible(true);
+            boolean result = (boolean) method.invoke(trajectoryService, existingTrajectory, studyId, trajectoryPath, horizon);
+
+            // Then
+            assertTrue(result);
+        }
+    }
+
+    @Test
+    void isSameVersionOfOtherLoadTrajectory_returnsFalseWhenSomeAreaNotImportedAndFileExists() throws Exception {
+        // Given
+        var studyId = 1;
+        var horizon = "2030-2031";
+        var area1 = AreaEntity.builder().name("FR").build();
+        var area2 = AreaEntity.builder().name("DE").build();
+
+        // When
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(area1, area2));
+        var load1 = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build();
+        var existingTrajectory = TrajectoryEntity.builder()
+                .loadEntities(Set.of(load1))
+                .fileName("testTrajectory")
+                .build();
+
+        var trajectoryPath = mock(Path.class);
+        var expectedFile = mock(Path.class);
+        when(trajectoryPath.resolve("load_de_2030-2031.txt")).thenReturn(expectedFile);
+
+        try (var filesMock = org.mockito.Mockito.mockStatic(Files.class)) {
+            filesMock.when(() -> Files.exists(expectedFile)).thenReturn(true);
+            var method = TrajectoryServiceImpl.class.getDeclaredMethod(
+                    "isSameVersionOfOtherLoadTrajectory",
+                    TrajectoryEntity.class, Integer.class, Path.class, String.class
+            );
+            method.setAccessible(true);
+            var result = (boolean) method.invoke(trajectoryService, existingTrajectory, studyId, trajectoryPath, horizon);
+
+            // Then
+            assertFalse(result);
+        }
+    }
 }
