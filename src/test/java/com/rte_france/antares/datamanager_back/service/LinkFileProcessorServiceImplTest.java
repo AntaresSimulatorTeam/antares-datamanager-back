@@ -195,7 +195,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testProcessLinkFileAlphebaticallyOrderedWarning() throws IOException {
+    void testProcessLinkFileAlphebaticallyOrderedException() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
@@ -228,11 +228,12 @@ class LinkFileProcessorServiceImplTest {
                 .thenReturn(Optional.of(trajectory));
 
 
-        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
+        var exception = assertThrows(BusinessException.class, () -> {
+            linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
+        });
 
-        verify(warningService).getMessage(
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH, GE-FR"
-        );
+        assertTrue(exception.getMessage().contains("cannot be imported"));
+        assertTrue(exception.getErrorMessageArguments().get(0).contains("Links FR-CH, GE-FR must be arranged in alphabetical order."));
     }
 
     @Test
@@ -373,45 +374,6 @@ class LinkFileProcessorServiceImplTest {
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(),
                 "CH-FR, FR-IT"
 
-        );
-    }
-
-    @Test
-    void testAccumulatedWarningsForNotOrderedAlphabetically() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
-                tempDir,
-                "TestFileWar.xlsx",
-                List.of("parameters", "2033-2034"),
-                List.of(
-                        List.of("", "2033-2034"),
-                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
-                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
-                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
-                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
-                ),
-                List.of(
-                        List.of(List.of("Hurdle Costs", 0, 5
-                        )),
-                        List.of(
-                                List.of("GE-CH", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("IT-FR", 100, 200, 300, 400, 500, 600, 800, 800, "TRUE", "FALSE", "TRUE", "FALSE")
-                        )
-                ));
-
-        TrajectoryEntity trajectory = new TrajectoryEntity();
-        trajectory.setFileName("TestFileWar.xlsx");
-        trajectory.setVersion(1);
-        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
-                .thenReturn(Optional.of(trajectory));
-
-        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
-
-        verify(warningService, times(1)).getMessage(
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(),
-                "GE-CH, IT-FR"
         );
     }
 
