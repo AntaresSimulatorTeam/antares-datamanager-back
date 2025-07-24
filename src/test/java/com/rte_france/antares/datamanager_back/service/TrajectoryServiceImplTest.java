@@ -635,7 +635,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processLoadTrajectory_throwsWhenExistingTrajectoryIsSameAndAreaNotOthers() throws IOException {
+    void processLoadTrajectory_throwsWhenExistingTrajectoryIsSameAndAreaNotOthers() {
         // Given
         var area = "FR";
         var trajectoryToUse = "testTrajectory";
@@ -1081,7 +1081,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenSameLoadTrajectoryExists() throws IOException {
+    void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenSameLoadTrajectoryExists() {
         // Given
         var area = "area";
         var trajectoryToUse = "trajectory";
