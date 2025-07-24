@@ -759,7 +759,6 @@ class TrajectoryServiceImplTest {
 
         assertTrue(resultEmpty.isEmpty());
     }
-    @Disabled
     @Test
     void saveLoadTrajectoriesInDb_shouldAddMissingAreasWhenSameLoadTrajectoryAndOtherArea(@TempDir Path tempDir) throws IOException {
         var area = "OTHERS";

@@ -70,5 +70,19 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
             @Param("targetHorizon") String targetHorizon
     );
 
+    // Dans TrajectoryRepository.java
+    @Query("""
+    SELECT CASE WHEN COUNT(t) > 0 THEN true ELSE false END
+    FROM Trajectory t
+    JOIN t.loadEntities l
+    JOIN t.scenarioEntities st
+    WHERE t.type = 'LOAD'
+      AND t.loadArea <> 'OTHERS'
+      AND st.id = :studyId
+      AND l.area = :loadArea
+""")
+    boolean existsOtherLoadTrajectoryLinkedToStudyAndLoad(@Param("studyId") Integer studyId,
+                                                          @Param("loadArea") String loadArea);
+
 }
 

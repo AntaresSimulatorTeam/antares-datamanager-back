@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -144,7 +145,21 @@ class TrajectoryRepositoryTest {
         );
     }
 
+    @Test
+    void existsOtherLoadTrajectoryLinkedToStudyAndLoad_returnsTrueWhenTrajectoryExists() {
 
+        boolean result = trajectoryRepository.existsOtherLoadTrajectoryLinkedToStudyAndLoad(1, "FR");
+
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void existsOtherLoadTrajectoryLinkedToStudyAndLoad_returnsFalseWhenNoTrajectoryExists() {
+
+        boolean result = trajectoryRepository.existsOtherLoadTrajectoryLinkedToStudyAndLoad(1, "IT");
+
+        assertThat(result).isFalse();
+    }
 }
 
 

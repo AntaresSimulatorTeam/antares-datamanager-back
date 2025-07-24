@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
@@ -45,6 +46,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private static final String PROPERTIES = "properties";
 
     private static final String MATRIX_HASH = "matrix hash";
+    private final TrajectoryRepository trajectoryRepository;
 
 
     @ExecutionTime
@@ -123,7 +125,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
   private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
     if ("OTHERS".equals(trajectory.getLoadArea())) {
       return trajectory.getLoadEntities().stream()
-              .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
+              .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId)
+                      && !trajectoryRepository.existsOtherLoadTrajectoryLinkedToStudyAndLoad(studyId, loadEntity.getArea()))
               .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
     } else {
         return trajectory.getLoadEntities().stream()

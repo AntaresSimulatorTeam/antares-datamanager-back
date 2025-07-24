@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.impl.StudyGeneratorServiceImpl;
@@ -58,6 +59,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private LoadFileProcessorService loadFileProcessorService;
+
+    @Mock
+    private TrajectoryRepository trajectoryRepository;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -336,6 +340,7 @@ class StudyGeneratorServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
         when(loadFileProcessorService.saveMatrixToNas(any())).thenReturn("generated.arrow");
+        when(trajectoryRepository.existsOtherLoadTrajectoryLinkedToStudyAndLoad(any(),any())).thenReturn(false);
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
