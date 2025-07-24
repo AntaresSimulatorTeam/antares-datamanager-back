@@ -126,8 +126,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
               .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
               .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
     } else {
-      return trajectory.getLoadEntities().stream()
-              .map(loadEntity -> Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName()));
+        return trajectory.getLoadEntities().stream()
+                .map(loadEntity -> {
+                    processLoadEntityWithPattern(loadEntity, trajectory, pattern);
+                    return Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName());
+                });
+
     }
   }
 
