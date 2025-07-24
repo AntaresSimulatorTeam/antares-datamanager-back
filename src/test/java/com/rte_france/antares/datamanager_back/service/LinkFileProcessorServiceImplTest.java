@@ -240,7 +240,7 @@ class LinkFileProcessorServiceImplTest {
     void validateLinkAreas_validLink() {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         List<String> areaNames = new ArrayList<>(List.of("FR", "CH", "IT"));
-        String link = "FR-CH";
+        String link = "CH-FR";
         String result = linkFileProcessorService.validateLinkAreas(link, areaNames);
         assertEquals(link, result);
     }
@@ -313,7 +313,7 @@ class LinkFileProcessorServiceImplTest {
             parametersSheet.createRow(1).createCell(1).setCellValue(0.5);
 
             Object[][] mockValues = {
-                    {"FR-CH", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", "false", "true", "false"}
+                    {"CH-FR", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", "false", "true", "false"}
             };
 
             Row headerRow = sheet.createRow(0);
