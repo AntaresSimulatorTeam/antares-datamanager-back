@@ -81,6 +81,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.LINK);
         }
 
+        validateLinksAlphabeticalOrder(path, horizon, studyId, trajectory);
+
         TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
         String userNni = findUserNni();
 
@@ -90,14 +92,26 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         return saveTrajectory(trajectory, listLink, warningMessageEntities);
     }
 
+    private void validateLinksAlphabeticalOrder(Path path, String horizon, Integer studyId, TrajectoryEntity trajectory) {
+        List<String> areasSavedForScenario = findListArea(studyId);
+        List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
+        if (!listLinksAlphabeticalOrder.isEmpty()) {
+            var detail = String.join(", ", listLinksAlphabeticalOrder);
+            var errorMessage = "Error: " + trajectory.getFileName() + " cannot be imported";
+            throw BusinessException.builder()
+                    .message(errorMessage)
+                    .errorMessageArguments(List.of("Links " + detail + " must be arranged in alphabetical order."))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
     /**
-     * Check for warnings Isolated Zone, Unilateral link and Alphabetical order
+     * Check for warnings Isolated Zone, Unilateral link
      * When all values are zero (across both direct and indirect columns) only Isolated Zone
      * warning should be raised
      */
     private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities, String userNni, TrajectoryEntity trajectory) {
-        List<String> areasSavedForScenario = findListArea(studyId);
-
         List<String> allZeroRows = LinksValidator.checkPowerColumnsForZeroValues(path, horizon);
 
         List<String> directColumns = LinksColumns.getDirectColumnNames();
@@ -111,18 +125,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<String> allUnilateralZeroRows = new ArrayList<>();
         allUnilateralZeroRows.addAll(directUnilateralZeroRows);
         allUnilateralZeroRows.addAll(indirectUnilateralZeroRows);
-
-
-        List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
-        if (!listLinksAlphabeticalOrder.isEmpty()) {
-            var detail = String.join(", ", listLinksAlphabeticalOrder);
-            var errorMessage = "Error: " + trajectory.getFileName() + " cannot be imported";
-            throw BusinessException.builder()
-                    .message(errorMessage)
-                    .errorMessageArguments(List.of("Links " + detail + " must be arranged in alphabetical order."))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
 
         addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO, studyId, userNni, trajectory);
         addWarning(warningMessageEntities, allUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
