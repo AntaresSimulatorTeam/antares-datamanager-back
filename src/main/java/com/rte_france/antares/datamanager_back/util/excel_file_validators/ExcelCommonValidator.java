@@ -211,7 +211,7 @@ public class ExcelCommonValidator {
                 .filter(row -> columnIndexes.entrySet().stream()
                         .anyMatch(entry -> {
                             Cell cell = row.getCell(entry.getValue(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                            return getBooleanCellValue(cell).isEmpty(); // cell is not a valid boolean
+                            return !isValidBoolean(cell);
                         }))
                 .map(row -> Optional.of(row)
                         .filter(r -> identifierColumnIndex >= 0)
@@ -282,6 +282,12 @@ public class ExcelCommonValidator {
                     .build();
         }
 
+    }
+
+    private static boolean isValidBoolean(Cell cell) {
+        if (isInvalidOrUndefinedCell(cell)) return true;
+        var value = getBooleanCellValue(cell);
+        return value.isPresent();
     }
 
     private static boolean isInvalidOrUndefinedCell(Cell cell) {
