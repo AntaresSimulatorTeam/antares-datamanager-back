@@ -31,6 +31,12 @@ public class WarningDTO {
     @JsonProperty("generatedAt")
     private LocalDateTime generatedAt;
 
+    @JsonProperty("trajectoryId")
+    private Integer trajectoryId;
+
+    @JsonProperty("trajectoryName")
+    private String trajectoryName;
+
     @JsonProperty("secondTrajectory")
     private String secondTrajectory;
 
