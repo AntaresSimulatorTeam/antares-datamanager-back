@@ -232,8 +232,9 @@ class LinkFileProcessorServiceImplTest {
             linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
         });
 
-        assertTrue(exception.getMessage().contains("cannot be imported"));
-        assertTrue(exception.getErrorMessageArguments().get(0).contains("Links FR-CH, GE-FR must be arranged in alphabetical order."));
+        System.out.println(exception.getMessage());
+        assertTrue(exception.getMessage().contains("Links {1} must be arranged in alphabetical order."));
+        assertEquals(exception.getErrorMessageArguments().get(1), "FR-CH, GE-FR");
     }
 
     @Test
