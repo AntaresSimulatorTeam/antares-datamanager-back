@@ -2,7 +2,9 @@ package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
+import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
@@ -32,9 +34,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final TrajectoryRepository trajectoryRepository;
 
     private final ThermalCostTypeRepository thermalCostTypeRepository;
+
+    private final ThermalClusterRefRepository thermalClusterRefRepository;
+
     private final UserService userService;
 
-
+    private List<ThermalClusterRef> cachedClusterRefs;
 
     /**
      * Processes the given file.
@@ -114,11 +119,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 for (int i = 5; i < header.getLastCellNum(); i++) {
                     if (!isCellInHorizon(header.getCell(i).getStringCellValue(), horizon, isCivilYear)) continue;
 
+                    String techName = row.getCell(2).getStringCellValue();
+                    String clusterName = row.getCell(3).getStringCellValue();
+
                     ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
                             .toUse(row.getCell(0).getNumericCellValue() == 0)
                             .area(rowArea)
-                            .type(row.getCell(2).getStringCellValue())
-                            .name(row.getCell(3).getStringCellValue())
+                            .thermalClusterRef(findOrCreateThermalClusterRef(techName,clusterName))
                             .category(ThermalCategoryEnum.valueOf(
                                     row.getCell(4).getStringCellValue().equals(ThermalCategoryEnum.POWER.name().toLowerCase())
                                             ? ThermalCategoryEnum.POWER.name()
@@ -134,6 +141,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
         return thermalClusterCapacities;
     }
+
     private boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
         // monthYear format: yyyy-MM
         String[] parts = monthYear.split("_");
@@ -275,5 +283,29 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             }
         }
         return null;
+    }
+
+    private void loadAllThermalClusterRefs() {
+        cachedClusterRefs = thermalClusterRefRepository.findAll();
+    }
+
+    private ThermalClusterRef findOrCreateThermalClusterRef(String name, String technology) {
+        if (cachedClusterRefs == null) {
+            loadAllThermalClusterRefs();
+        }
+        return cachedClusterRefs.stream()
+                .filter(ref -> ref.getName().equalsIgnoreCase(name)
+                        && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))
+                .findFirst()
+                .orElseGet(() -> {
+                    ThermalClusterRef ref = ThermalClusterRef.builder()
+                            .name(name)
+                            .namePemmdb("NA")
+                            .thermalTechnology(ThermalTechnology.builder().name(technology).build())
+                            .build();
+                    ThermalClusterRef saved = thermalClusterRefRepository.save(ref);
+                    cachedClusterRefs.add(saved);
+                    return saved;
+                });
     }
 }

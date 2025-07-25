@@ -5,3 +5,40 @@
 --ALTER TABLE thermal_cluster_capacity DROP COLUMN scenario;
 ALTER TABLE thermal_cluster_capacity ADD COLUMN type VARCHAR(50);
 ALTER TABLE thermal_cluster_capacity ADD COLUMN area VARCHAR(50);
+
+-- changeset elazaarmou:110V08-2
+CREATE TABLE thermal_technology
+(
+    id            INTEGER,
+    name          VARCHAR(40),
+    PRIMARY KEY (id)
+    );
+
+CREATE TABLE thermal_cluster_ref (
+     id            INTEGER,
+     name          VARCHAR(40),
+     name_pemmdb   VARCHAR(40),
+     thermal_technology_id INTEGER,--type
+     PRIMARY KEY (id)
+);
+
+ALTER TABLE thermal_cluster_ref
+    ADD CONSTRAINT "thermal_cluster_ref_fk" FOREIGN KEY (thermal_technology_id) REFERENCES thermal_technology (id);
+
+ALTER TABLE thermal_cluster_capacity ADD COLUMN thermal_cluster_ref_id INTEGER;
+
+ALTER TABLE thermal_cluster_capacity
+    ADD CONSTRAINT "thermal_cluster_capacity_fk" FOREIGN KEY (thermal_cluster_ref_id) REFERENCES thermal_cluster_ref (id);
+
+ALTER TABLE thermal_cluster_capacity DROP COLUMN type;
+
+INSERT INTO thermal_technology (id, name)
+VALUES
+    (1, 'CCGD'),
+    (2, 'Coal'),
+    (3, 'DSR'),
+    (4, 'Nuclear'),
+    (5, 'Puissance complémentaire'),
+    (6, 'Storage battery'),
+    (7, 'Storage EV'),
+    (8, 'TBD');

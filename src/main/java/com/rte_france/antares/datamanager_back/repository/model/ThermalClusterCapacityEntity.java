@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 
 @EqualsAndHashCode(callSuper = true)
@@ -26,14 +27,6 @@ public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
     @Column(name = "area")
     private String area;
 
-    @Size(max = 50)
-    @Column(name = "type")
-    private String type;
-
-    @Size(max = 50)
-    @Column(name = "name")
-    private String name;
-
     @Column(name = "category")
     @Enumerated(EnumType.STRING)
     private ThermalCategoryEnum category;
@@ -44,5 +37,9 @@ public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
 
     @Column(name = "capacity")
     private Double value;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thermal_cluster_ref_id")
+    private ThermalClusterRef thermalClusterRef;
 
 }
