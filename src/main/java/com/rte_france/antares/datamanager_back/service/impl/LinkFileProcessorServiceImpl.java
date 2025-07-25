@@ -97,10 +97,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
         if (!listLinksAlphabeticalOrder.isEmpty()) {
             var detail = String.join(", ", listLinksAlphabeticalOrder);
-            var errorMessage = "Error: " + trajectory.getFileName() + " cannot be imported";
+            var errorMessage = "Error: {0} cannot be imported. Links {1} must be arranged in alphabetical order.";
             throw BusinessException.builder()
                     .message(errorMessage)
-                    .errorMessageArguments(List.of("Links " + detail + " must be arranged in alphabetical order."))
+                    .errorMessageArguments(List.of(trajectory.getFileName(), detail))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
