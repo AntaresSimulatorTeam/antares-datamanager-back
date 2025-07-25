@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
@@ -24,6 +25,6 @@ public interface WarningService {
                     String userNni,
                     TrajectoryEntity trajectory);
 
-    Set<WarningDTO> getWarningsForTrajectory(Integer trajectoryId, Integer studyId);
+    Set<WarningDTO> getWarningsForTrajectory(Integer studyId, TrajectoryType trajectoryType);
 
     }
