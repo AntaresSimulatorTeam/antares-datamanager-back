@@ -19,6 +19,7 @@ class WarningMapperTest {
         entity.setId(1);
         entity.setWarningCode(WarningCode.LINKS_ALL_VALUES_ZERO);
         entity.setWarningLevel(WarningLevel.WARNING_LEVEL);
+        entity.setTrajectory(TrajectoryEntity.builder().id(1).build());
         entity.setWarningContent("Test content");
 
         var dto = WarningMapper.toWarningMessageDTO(entity);
@@ -49,12 +50,14 @@ class WarningMapperTest {
         entity1.setId(1);
         entity1.setWarningCode(WarningCode.LINKS_ALL_VALUES_ZERO);
         entity1.setWarningLevel(WarningLevel.WARNING_LEVEL);
+        entity1.setTrajectory(TrajectoryEntity.builder().id(1).build());
         entity1.setWarningContent("Test content 1");
 
         var entity2 = new WarningMessageEntity();
         entity2.setId(2);
         entity2.setWarningCode(WarningCode.LINKS_UNILATERAL_VALUES_ZERO);
         entity2.setWarningLevel(WarningLevel.ERROR_LEVEL);
+        entity2.setTrajectory(TrajectoryEntity.builder().id(1).build());
         entity2.setWarningContent("Test content 2");
 
         var entities = Set.of(entity1, entity2);
@@ -108,6 +111,7 @@ class WarningMapperTest {
         entity.setWarningCode(WarningCode.LINKS_ALL_VALUES_ZERO);
         entity.setWarningLevel(WarningLevel.WARNING_LEVEL);
         entity.setWarningContent("Test");
+        entity.setTrajectory(TrajectoryEntity.builder().id(1).build());
         entity.setSecondTrajectory(null);
 
         var dto = WarningMapper.toWarningMessageDTO(entity);
