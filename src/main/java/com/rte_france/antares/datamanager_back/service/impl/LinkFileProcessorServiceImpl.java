@@ -31,7 +31,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 
@@ -87,9 +86,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
             String userNni = findUserNni();
         validateLinksAlphabeticalOrder(path, horizon, studyId, trajectory);
-
-        TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
-        String userNni = findUserNni();
 
             checkForWarnings(path, horizon, studyId, warningMessageEntities, userNni, trajectory);
             checkConsistencyTrajectoryLinkAndArea(listLink, areaNames, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);

@@ -141,6 +141,14 @@ class TrajectoryServiceImplAdditionalTest {
         String trajectoryToUse = "testTrajectory";
         String horizon = "2030-2031";
         Integer studyId = 1;
+        String userNni = "testUser";
+        var existingTrajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .loadArea(area)
+                .version(1)
+                .type(TrajectoryType.LOAD.name())
+                .build();
 
 
         Path trajectoryPath = tempDir.resolve(trajectoryToUse);
@@ -175,15 +183,11 @@ class TrajectoryServiceImplAdditionalTest {
                         AreaEntity.builder().name("DE").build()
                 ));
 
-        when(userService.getCurrentUserDetails())
-                .thenReturn(UserInfoDto.builder().nni("testUser").build());
 
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
 
-        when(loadFileProcessorServiceImpl.checkForMissingLoadFiles(any(), any(), any(), any(), any()))
-                .thenReturn(Collections.emptySet());
 
         when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -198,7 +202,7 @@ class TrajectoryServiceImplAdditionalTest {
             )).thenReturn(Arrays.asList("load_fr_2030-2031.txt", "load_de_2030-2031.txt"));
 
             // When
-            TrajectoryEntity result = trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
+            TrajectoryEntity result = trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId, Optional.ofNullable(existingTrajectory),userNni);
 
             // Then
             assertNotNull(result);

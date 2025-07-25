@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorSer
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
+import org.apache.poi.sl.draw.geom.GuideIf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -74,6 +75,38 @@ class TrajectoryServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+    }
+
+    /**
+     * Helper method to set up common AntaressDataManagerProperties mock configuration
+     *
+     * @param nasDirectory the NAS directory path
+     * @param trajectoryFilePath the trajectory file path
+     */
+    private void setupAntaressProperties(String nasDirectory, String trajectoryFilePath) {
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory);
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryFilePath);
+    }
+
+    /**
+     * Helper method to set up common AntaressDataManagerProperties mock configuration with additional directory
+     *
+     * @param nasDirectory the NAS directory path
+     * @param trajectoryFilePath the trajectory file path
+     * @param directoryName the name of the additional directory property to mock
+     * @param directoryPath the path of the additional directory
+     */
+    private void setupAntaressProperties(String nasDirectory, String trajectoryFilePath, String directoryName, String directoryPath) {
+        setupAntaressProperties(nasDirectory, trajectoryFilePath);
+
+        switch (directoryName) {
+            case "area" -> when(antaressDataManagerProperties.getAreaDirectory()).thenReturn(directoryPath);
+            case "link" -> when(antaressDataManagerProperties.getLinkDirectory()).thenReturn(directoryPath);
+            case "thermal_capacity" -> when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn(directoryPath);
+            case "thermal_parameter" -> when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn(directoryPath);
+            case "thermal_cost" -> when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn(directoryPath);
+            case "load" -> when(antaressDataManagerProperties.getLoadDirectory()).thenReturn(directoryPath);
+        }
     }
 
     @Test
@@ -625,13 +658,18 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(loadRepository.findByFileNameAndTrajectoryFileName(any(), any())).thenReturn(Optional.empty());
 
-        var result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, null);
+        try (var utils = mockStatic(Utils.class)) {
+            utils.when(() -> Utils.getValidLoadFileNamesWithHorizon(any(), eq(area), eq(horizon), any(), any()))
+                .thenReturn(List.of("load_fr_2030-2031.txt"));
 
-        // Then
-        assertNotNull(result);
-        assertEquals(trajectoryToUse, result.getFileName());
-        assertEquals(1, result.getVersion());
-        assertEquals(area, result.getLoadArea());
+            var result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, null);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(trajectoryToUse, result.getFileName());
+            assertEquals(1, result.getVersion());
+            assertEquals(area, result.getLoadArea());
+        }
     }
 
     @Test
@@ -698,13 +736,20 @@ class TrajectoryServiceImplTest {
                 .thenReturn(Optional.of(existing));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        var result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, null);
 
-        // Then
-        assertNotNull(result);
-        assertEquals(trajectoryToUse, result.getFileName());
-        assertEquals(2, result.getVersion());
-        assertEquals(area, result.getLoadArea());
+        try (var utils = mockStatic(Utils.class)) {
+            utils.when(() -> Utils.getValidLoadFileNamesWithHorizon(any(), eq(area), eq(horizon), any(), any()))
+                .thenReturn(List.of("load_fr_2030-2031.txt"));
+            utils.when(() -> Utils.isSameLoadTrajectory(any(), any())).thenReturn(false);
+
+            var result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, null);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(trajectoryToUse, result.getFileName());
+            assertEquals(2, result.getVersion());
+            assertEquals(area, result.getLoadArea());
+        }
     }
 
     @Test
@@ -951,6 +996,8 @@ class TrajectoryServiceImplTest {
         var trajectoryToUse = "testTrajectory";
         var horizon = "2030-2031";
         var studyId = 1;
+        var userNni = "userNni";
+
 
         Path trajectoryPath = tempDir.resolve(trajectoryToUse);
         Files.createDirectories(trajectoryPath);
@@ -994,7 +1041,7 @@ class TrajectoryServiceImplTest {
 
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-            var result = service.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
+            var result = service.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId, Optional.ofNullable(existingTrajectory),userNni);
 
             assertNotNull(result);
             var fileNames = result.getLoadEntities().stream().map(LoadEntity::getFileName).collect(Collectors.toSet());
@@ -1045,40 +1092,61 @@ class TrajectoryServiceImplTest {
     @Test
     void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenParamsAreNull() {
         var studyId = 1;
+        var area = "area";
+        var trajectoryToUse = "trajectory";
+        var horizon = "horizon";
+        var userNni = "userNni";
+        var existingTrajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .loadArea(area)
+                .version(1)
+                .type(TrajectoryType.LOAD.name())
+                .build();
+
 
         // area is null
         var ex1 = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb(null, "trajectory", "horizon", studyId));
+                trajectoryService.saveLoadTrajectoriesInDb(null, "trajectory", "horizon", studyId, Optional.ofNullable(existingTrajectory),userNni));
         assertEquals("Area, trajectory name, and horizon must not be null", ex1.getMessage());
 
         // trajectoryToUse is null
         var ex2 = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb("area", null, "horizon", studyId));
+                trajectoryService.saveLoadTrajectoriesInDb("area", null, "horizon", studyId, Optional.ofNullable(existingTrajectory),userNni));
         assertEquals("Area, trajectory name, and horizon must not be null", ex2.getMessage());
 
         // horizon is null
         var ex3 = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb("area", "trajectory", null, studyId));
+                trajectoryService.saveLoadTrajectoriesInDb("area", "trajectory", null, studyId, Optional.ofNullable(existingTrajectory),userNni));
         assertEquals("Area, trajectory name, and horizon must not be null", ex3.getMessage());
     }
 
     @Test
-    void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenUserNniIsNull() {
+    void processLoadTrajectory_shouldThrowBusinessExceptionWhenUserNotFound() {
         // Given
-        var area = "area";
-        var trajectoryToUse = "trajectory";
-        var horizon = "horizon";
-        var studyId = 1;
+        String area = "testArea";
+        String trajectoryToUse = "testTrajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
 
-        // When
-        when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
         when(userService.getCurrentUserDetails()).thenReturn(null);
 
-        // Then
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId));
-        assertEquals("User NNI could not be determined", ex.getMessage());
+        // When & Then
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId)
+        );
+
+        assertAll(
+                () -> assertEquals("User NNI could not be determined", exception.getMessage()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+
+        verify(userService).getCurrentUserDetails();
+        verifyNoMoreInteractions(userService);
+        verifyNoInteractions(trajectoryRepository);
     }
+
 
     @Test
     void saveLoadTrajectoriesInDb_shouldThrowBusinessExceptionWhenSameLoadTrajectoryExists() {
@@ -1087,6 +1155,16 @@ class TrajectoryServiceImplTest {
         var trajectoryToUse = "trajectory";
         var horizon = "horizon";
         var studyId = 1;
+        var userNni = "userNni";
+        var existingTrajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .loadArea(area)
+                .version(1)
+                .type(TrajectoryType.LOAD.name())
+                .build();
+
+        Optional<TrajectoryEntity> existingTrajectoryOpt = Optional.of(existingTrajectory);
 
         // When
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
@@ -1094,9 +1172,9 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("input");
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
-        var existingTrajectory = TrajectoryEntity.builder().fileName(trajectoryToUse).horizon(horizon).loadArea(area).version(1).build();
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
-                .thenReturn(Optional.of(existingTrajectory));
+        //var existingTrajectory = TrajectoryEntity.builder().fileName(trajectoryToUse).horizon(horizon).loadArea(area).version(1).build();
+        //when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
+          //      .thenReturn(Optional.of(existingTrajectory));
         try (var mockedStatic = org.mockito.Mockito.mockStatic(
                 com.rte_france.antares.datamanager_back.util.Utils.class)) {
             mockedStatic.when(() -> com.rte_france.antares.datamanager_back.util.Utils.isSameLoadTrajectory(any(), any()))
@@ -1104,7 +1182,7 @@ class TrajectoryServiceImplTest {
 
             // Then
             var ex = assertThrows(BusinessException.class, () ->
-                    trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId));
+                    trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId, existingTrajectoryOpt, userNni));
             assertEquals("Trajectory already uploaded", ex.getMessage());
         }
     }

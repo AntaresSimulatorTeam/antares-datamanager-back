@@ -224,4 +224,34 @@ class UtilsTest {
         );
     }
 
+    @Test
+    void getValidLoadFileNamesWithHorizon_shouldReturnValidFilesWhenAreaWithStudyIsNull() throws IOException {
+        // Given
+        String area = "FR";
+        String expectedHorizon = "2030-2031";
+        List<String> areaLoadAlreadyChosen = List.of("de"); // Already chosen area
+        List<String> areaWithStudy = null;
+
+        // Create test files in temp directory
+        Path loadDir = Files.createDirectory(tempDir.resolve("load"));
+
+        // Create valid files
+        Files.writeString(loadDir.resolve("load_fr_2030-2031.txt"), "test content");
+        Files.writeString(loadDir.resolve("load_es_2030-2031.txt"), "test content");
+
+        // Create invalid files (wrong horizon or already chosen area)
+        Files.writeString(loadDir.resolve("load_fr_2029-2030.txt"), "wrong horizon");
+        Files.writeString(loadDir.resolve("load_de_2030-2031.txt"), "already chosen area");
+
+        // When
+        List<String> result = Utils.getValidLoadFileNamesWithHorizon(
+            loadDir, area, expectedHorizon, areaLoadAlreadyChosen, areaWithStudy);
+
+        // Then
+        assertEquals(1, result.size());
+        assertTrue(result.contains("load_fr_2030-2031.txt"));
+        assertFalse(result.contains("load_es_2030-2031.txt")); // Not matching area pattern
+        assertFalse(result.contains("load_fr_2029-2030.txt")); // Wrong horizon
+        assertFalse(result.contains("load_de_2030-2031.txt")); // Already chosen area
+    }
 }

@@ -71,20 +71,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Transactional
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        if(nonNull(studyId)){
-            return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
-        }
-        else
-            return saveLoadTrajectoryWithoutStudyId(area,trajectoryToUse,horizon);
-
-    }
-
-    private TrajectoryEntity saveLoadTrajectoryWithoutStudyId(String area, String trajectoryToUse, String horizon) throws IOException {
-        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
-
-        // Try to find existing trajectory
-        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
-                .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
 
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
@@ -94,18 +80,31 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
+        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
+                .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
+
+
+        if(nonNull(studyId)){
+            return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId, existingTrajectoryOpt, userNni);
+        }
+        else
+            return saveLoadTrajectoryWithoutStudyId(area,trajectoryToUse,horizon,existingTrajectoryOpt, userNni);
+
+    }
+
+    private TrajectoryEntity saveLoadTrajectoryWithoutStudyId(String area, String trajectoryToUse, String horizon,
+                                                              Optional<TrajectoryEntity> existingTrajectoryOpt, String userNni) throws IOException {
+        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
+
+
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
-            if ((isSameLoadTrajectory(trajectoryPath, existingTrajectory) && !area.equals(OTHER_AREA))
-                    || (area.equals(OTHER_AREA)
-
-            ))
+            if (isSameLoadTrajectory(trajectoryPath, existingTrajectory) || area.equals(OTHER_AREA))
             {
                 throw BusinessException.builder()
                         .message("Trajectory already uploaded")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
-
             }
 
             // Update a version and save new trajectory
@@ -119,6 +118,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     }
 
+
     /**
      * Processes a load trajectory file based on the given area, trajectory name, and horizon.
      *
@@ -128,7 +128,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity saveLoadTrajectoriesInDb(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity saveLoadTrajectoriesInDb(String area, String trajectoryToUse, String horizon, Integer studyId,
+                                                     Optional<TrajectoryEntity> existingTrajectoryOpt, String userNni) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
         if (area == null || trajectoryToUse == null || horizon == null) {
             throw
@@ -136,8 +137,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .message("Area, trajectory name, and horizon must not be null")
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
-
         }
+
 
         if (!area.equals(OTHER_AREA)) {
             areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -148,21 +149,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .build());
         }
 
-        String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
-                .map(UserInfoDto::getNni)
-                .orElseThrow(() ->
-                        BusinessException.builder()
-                                .message("User NNI could not be determined")
-                                .httpStatus(HttpStatus.BAD_REQUEST)
-                                .build());
 
         // Build and normalize the trajectory path
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
-
-
-        // Try to find existing trajectory
-        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
-                .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
 
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
@@ -259,24 +248,23 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
-        List<String> loadsFile = List.of();
-
-        if(nonNull(studyId)) {
-            if (area.equals(OTHER_AREA)) {
-                listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
-                        .stream()
-                        .map(TrajectoryEntity::getLoadArea)
-                        .filter(loadArea -> !loadArea.equals(OTHER_AREA))
-                        .map(String::toLowerCase)
-                        .toList();
-            } else {
-                List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
-                loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
-            }
-        } else{
-            loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, null);
+        if (area.equals(OTHER_AREA) && studyId != null) {
+            listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
+                    .stream()
+                    .map(TrajectoryEntity::getLoadArea)
+                    .filter(loadArea -> !loadArea.equals(OTHER_AREA))
+                    .map(String::toLowerCase)
+                    .toList();
         }
 
+        List<String> areaWithStudy = new ArrayList<>();
+        if (studyId != null) {
+            areaWithStudy = areaRepository.findAllByStudyId(studyId).stream()
+                .map(areaStudy -> areaStudy.getName().toLowerCase())
+                .toList();
+        }
+
+        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
 
             throw BusinessException.builder()

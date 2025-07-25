@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 
@@ -93,7 +94,6 @@ public class Utils {
     }
 
     public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) throws IOException {
-
         String areaPattern = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : area.toLowerCase();
         Pattern pattern = Pattern.compile(String.format("load_(%s)_(\\d{4}-\\d{4})\\.txt", areaPattern));
         List<String> loadsFileNames = new ArrayList<>();
@@ -116,7 +116,7 @@ public class Utils {
     }
 
     private static boolean isValidLoadFile(String horizon, String expectedHorizon, String areaFromFile, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) {
-        if(nonNull(areaWithStudy)){
+        if(!CollectionUtils.isEmpty(areaWithStudy)){
         boolean isAreaValid = areaWithStudy.contains(areaFromFile.toLowerCase());
         boolean isAreaNotChosen = areaLoadAlreadyChosen.isEmpty() || !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase());
         return horizon.equals(expectedHorizon) && isAreaValid && isAreaNotChosen;
