@@ -367,4 +367,72 @@ class StudyGeneratorServiceImplTest {
                 .isInstanceOf(TechnicalException.class)
                 .hasMessageContaining("Error while call Generate study from generator");
     }
+    @Test
+    void throwsTechnicalExceptionWhenStudyNotFound() {
+        // Given
+        Integer studyId = 999; // Non-existent study ID
+        when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> studyGeneratorService.buildJsonForStudyGeneration(studyId))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("Study not found with ID: " + studyId);
+    }
+
+    @Test
+    void throwsTechnicalExceptionWhenTrajectoryTypeIsUnexpected() {
+        // Given
+        TrajectoryEntity unexpectedTrajectory = TrajectoryEntity.builder()
+                .type("UNEXPECTED")
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .id(1)
+                .trajectories(Set.of(unexpectedTrajectory))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
+
+        // When & Then
+        assertThatThrownBy(() -> studyGeneratorService.buildJsonForStudyGeneration(1))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("Unexpected value: UNEXPECTED");
+    }
+
+    @Test
+    void throwsTechnicalExceptionWithCorrectMessageAndCause() {
+        // Given
+        IOException ioException = new IOException("IO error occurred");
+
+        // When & Then
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            throw TechnicalException.builder().message(ioException.getMessage()).cause(ioException).build();
+        });
+
+        assertThat(exception.getMessage()).isEqualTo("IO error occurred");
+        assertThat(exception.getCause()).isInstanceOf(IOException.class);
+    }
+
+    @org.junit.jupiter.api.Test
+    void throwsTechnicalExceptionWithMessageAndCauseWhenIOExceptionOccurs() {
+        // Given
+        IOException ioException = new IOException("File not found");
+
+        // When & Then
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            throw TechnicalException.builder().message(ioException.getMessage()).cause(ioException).build();
+        });
+
+        assertThat(exception.getMessage()).isEqualTo("File not found");
+        assertThat(exception.getCause()).isInstanceOf(IOException.class);
+    }
+
+    @org.junit.jupiter.api.Test
+    void throwsTechnicalExceptionWithNullMessageAndCause() {
+        // When & Then
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            throw TechnicalException.builder().message(null).cause(null).build();
+        });
+
+        assertThat(exception.getMessage()).isNull();
+        assertThat(exception.getCause()).isNull();
+    }
 }
