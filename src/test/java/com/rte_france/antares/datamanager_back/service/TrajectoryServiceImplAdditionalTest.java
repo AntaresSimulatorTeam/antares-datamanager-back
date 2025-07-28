@@ -3,11 +3,9 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.LoadRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
@@ -26,10 +24,7 @@ import org.springframework.http.HttpStatus;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -218,6 +213,61 @@ class TrajectoryServiceImplAdditionalTest {
 
             // Verify that trajectoryRepository.findByTypeAndStudyId was called with the correct parameters
             verify(trajectoryRepository).findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId);
+        }
+    }
+
+    @Test
+    void saveLoadTrajectoriesInDb_throwsBadRequestWhenParamsAreNull() {
+        var ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb(null, "trajectory", "2023-2024", 1)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("must not be null"));
+
+        ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb("area", null, "2023-2024", 1)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+
+        ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.saveLoadTrajectoriesInDb("area", "trajectory", null, 1)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
+
+    @Test
+    void saveLoadTrajectoriesInDb_throwsBadRequestWhenTrajectoryAlreadyUploaded() {
+        var area = "FR";
+        var trajectoryToUse = "testTrajectory";
+        var horizon = "2023-2024";
+        var studyId = 1;
+
+        when(userService.getCurrentUserDetails())
+                .thenReturn(UserInfoDto.builder().nni("user").build());
+
+        when(areaRepository.findAreaByNameAndStudyId(area, studyId))
+                .thenReturn(Optional.of(AreaEntity.builder().name(area).build()));
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+
+        var existingTrajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .loadArea(area)
+                .build();
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        try (var utilsMock = mockStatic(Utils.class)) {
+            utilsMock.when(() -> Utils.isSameLoadTrajectory(any(), eq(existingTrajectory))).thenReturn(true);
+
+            var ex = assertThrows(BusinessException.class, () ->
+                    trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId)
+            );
+            assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+            assertTrue(ex.getMessage().contains("already uploaded"));
         }
     }
 }

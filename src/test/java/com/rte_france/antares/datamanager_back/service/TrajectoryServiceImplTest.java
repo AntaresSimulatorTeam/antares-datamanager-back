@@ -861,4 +861,43 @@ class TrajectoryServiceImplTest {
             assertTrue(fileNames.contains("load_de_2030-2031.txt"));
         }
     }
+
+    @Test
+    void linkTrajectoryToStudy_shouldCheckForMissingLoadFilesAndSaveWarnings_whenLoadTypeAndOtherArea() throws IOException {
+        var trajectoryId = 1;
+        var studyId = 2;
+        var userNni = "user";
+        var fileName = "traj";
+        var horizon = "2023-2024";
+
+        var study = StudyEntity.builder().id(studyId).build();
+        var trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.LOAD.name())
+                .loadArea(TrajectoryServiceImpl.OTHER_AREA)
+                .fileName(fileName)
+                .horizon(horizon)
+                .build();
+
+        var warning1 = new WarningMessageEntity();
+        var warning2 = new WarningMessageEntity();
+        var warnings = new HashSet<>(List.of(warning1, warning2));
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+        when(loadFileProcessorService.checkForMissingLoadFiles(any(), eq(horizon), eq(studyId), eq(userNni), eq(trajectory)))
+                .thenReturn(warnings);
+        when(studyTrajectoryRepository.save(any())).thenReturn(StudyTrajectoryEntity.builder().trajectory(trajectory).build());
+
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.LOAD);
+
+        assertTrue(warnings.stream().allMatch(w -> w.getTrajectory() == trajectory));
+        assertTrue(warnings.stream().allMatch(w -> w.getStudy() == study));
+        verify(warningRepository).saveAll(warnings);
+        verify(loadFileProcessorService).checkForMissingLoadFiles(any(), eq(horizon), eq(studyId), eq(userNni), eq(trajectory));
+    }
 }
