@@ -248,6 +248,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         log.info("Linked areas from LINKS file: {}", linkedAreas);
 
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
+        // Validate each link individually
+        for (LinkEntity linkEntity : linkEntities) {
+            validateLinkAreas(linkEntity.getName(), areaNames);
+        }
         Set<String> missingAreas = areaNames.stream()
                 .filter(area -> !linkedAreas.contains(area))
                 .collect(Collectors.toSet());
