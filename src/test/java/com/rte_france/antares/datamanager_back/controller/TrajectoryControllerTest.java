@@ -70,6 +70,25 @@ class TrajectoryControllerTest {
     }
 
     @Test
+    void uploadTrajectory_withSpacesInFileName_returnsCreatedTrajectory() throws Exception {
+        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryType", "AREA")
+                        .param("trajectoryToUse", "test file with spaces")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                //Then
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any());
+    }
+
+    @Test
     void findTrajectoriesByTypeFromDb_returnsTrajectories() throws Exception {
         when(trajectoryServiceImpl.findTrajectoriesByTypeAndFileNameContainsFromDB(any(), any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
 
