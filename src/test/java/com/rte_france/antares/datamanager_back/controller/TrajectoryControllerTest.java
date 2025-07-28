@@ -222,6 +222,18 @@ class TrajectoryControllerTest {
     }
 
     @Test
+    void unlinkAllTrajectoriesFromStudy_returnsNoContent() throws Exception {
+        doNothing().when(trajectoryServiceImpl).unlinkAllTrajectoriesFromStudy(1);
+
+        this.mockMvc.perform(delete("/v1/trajectory/detach/all")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isNoContent());
+
+        verify(trajectoryServiceImpl, times(1)).unlinkAllTrajectoriesFromStudy(1);
+    }
+
+    @Test
     void getTrajectoryDataByTypeAndId() throws Exception {
         AreaTrajectoryDataDTO trajectoryDataDTO = AreaTrajectoryDataDTO.builder()
                 .areaName("AT")
