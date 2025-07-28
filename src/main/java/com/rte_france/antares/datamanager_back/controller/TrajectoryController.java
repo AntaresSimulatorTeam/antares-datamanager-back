@@ -60,7 +60,7 @@ public class TrajectoryController {
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                           @RequestParam("trajectoryToUse")
-                                                          @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid trajectory file name")
+                                                          @Pattern(regexp = "^[a-zA-Z0-9_\\s-]+$", message = "Invalid trajectory file name")
                                                           String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
