@@ -49,8 +49,7 @@ public class TrajectoryController {
     public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
             @Parameter(description = "parameter to use just in load case")
-            @RequestParam(value = "zone", required = false)
-            @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid area name") String loadZone,
+            @RequestParam(value = "zone", required = false) String loadZone,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) throws TechnicalException {
         return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, fileNameContains));
     }
@@ -60,7 +59,6 @@ public class TrajectoryController {
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                           @RequestParam("trajectoryToUse")
-                                                          @Pattern(regexp = "^[a-zA-Z0-9_\\s-]+$", message = "Invalid trajectory file name")
                                                           String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
