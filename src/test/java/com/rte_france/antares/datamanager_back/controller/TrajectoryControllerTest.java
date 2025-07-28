@@ -23,7 +23,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -207,6 +206,20 @@ class TrajectoryControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void unlinkTrajectoryFromStudy_returnsConflictWhenAreaHasOtherLinks() throws Exception {
+        doThrow(BusinessException.builder()
+                .message("Other trajectories are linked. Confirmation required")
+                .httpStatus(HttpStatus.CONFLICT)
+                .build())
+                .when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
+
+        this.mockMvc.perform(delete("/v1/trajectory/detach")
+                        .param("trajectoryId", "1")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isConflict());
+    }
 
     @Test
     void getTrajectoryDataByTypeAndId() throws Exception {
