@@ -11,7 +11,6 @@ import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImp
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -22,7 +21,6 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -285,15 +283,61 @@ class TrajectoryServiceImplTest {
 
     @Test
     void unlinkTrajectoryFromStudy_unlinksWhenLinkExists() {
+        // Given
         Integer trajectoryId = 1;
         Integer studyId = 1;
         StudyTrajectoryKey key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
         StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder().id(key).build();
 
+        // When
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type("LINK").build();
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(entity));
 
         trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId);
 
+        // Then
+        verify(studyTrajectoryRepository, times(1)).delete(entity);
+    }
+
+
+    @Test
+    void unlinkTrajectoryFromStudy_throwsConflictWhenAreaAndOtherTrajectoriesLinked() {
+        // Given
+        var trajectoryId = 1;
+        var studyId = 1;
+
+        // When
+        var areaTrajectory = TrajectoryEntity.builder().id(trajectoryId).type("AREA").build();
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(areaTrajectory));
+
+        var otherTrajectory = TrajectoryEntity.builder().id(2).type("LINK").build();
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(areaTrajectory, otherTrajectory));
+
+        // Then
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Other trajectories are linked"));
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_unlinksWhenAreaAndNoOtherTrajectoriesLinked() {
+        // Given
+        var trajectoryId = 1;
+        var studyId = 1;
+        var key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
+        var entity = StudyTrajectoryEntity.builder().id(key).build();
+
+        // When
+        var areaTrajectory = TrajectoryEntity.builder().id(trajectoryId).type("AREA").build();
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(areaTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(areaTrajectory));
+        when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(entity));
+
+        trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId);
+
+        // Then
         verify(studyTrajectoryRepository, times(1)).delete(entity);
     }
 
@@ -560,7 +604,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void shouldCallCheckForMissingLoadFilesWhenOtherArea() throws IOException {
+    void shouldCallCheckForMissingLoadFilesWhenOtherArea() {
         String area = "OTHERS";
         String horizon = "2023-2024";
         String trajectoryToUse = "testTrajectory";
