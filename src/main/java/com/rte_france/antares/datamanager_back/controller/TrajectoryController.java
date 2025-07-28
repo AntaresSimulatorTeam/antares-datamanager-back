@@ -103,6 +103,12 @@ public class TrajectoryController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @DeleteMapping("/detach/all")
+    public ResponseEntity<Void> unlinkAllTrajectoriesFromStudy(@RequestParam Integer studyId) {
+        trajectoryService.unlinkAllTrajectoriesFromStudy(studyId);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
     @Operation(summary = "Get trajectory data")
     @GetMapping(value = "/trajectoryData")
     public ResponseEntity<List<TrajectoryDataDTO>> findTrajectoriesByTypeFromFileSystem(

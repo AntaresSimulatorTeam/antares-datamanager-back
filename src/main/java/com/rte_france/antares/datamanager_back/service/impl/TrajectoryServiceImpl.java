@@ -568,6 +568,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId) {
+        validateAreaTrajectoryDeletion(trajectoryId, studyId);
+
         studyTrajectoryRepository.findById(StudyTrajectoryKey.builder()
                         .trajectoryId(trajectoryId)
                         .scenarioId(studyId)
@@ -581,6 +583,41 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         });
     }
 
+    private List<TrajectoryEntity> getOtherTrajectoriesLinkedToStudy(Integer studyId, Integer excludedTrajectoryId) {
+        return trajectoryRepository.findByTypeAndStudyId(null, studyId)
+                .stream()
+                .filter(t -> !t.getId().equals(excludedTrajectoryId))
+                .toList();
+    }
+
+
+    private void validateAreaTrajectoryDeletion(Integer trajectoryId, Integer studyId) {
+        var trajectory = trajectoryRepository.findById(trajectoryId)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Trajectory not found")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+
+        if (trajectory.getType().equals("AREA")) {
+            var others = getOtherTrajectoriesLinkedToStudy(studyId, trajectoryId);
+            if (!others.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Other trajectories are linked. Confirmation required")
+                        .httpStatus(HttpStatus.CONFLICT)
+                        .build();
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void unlinkAllTrajectoriesFromStudy(Integer studyId) {
+        var links = studyTrajectoryRepository.findAll()
+                .stream()
+                .filter(link -> link.getId().getScenarioId().equals(studyId))
+                .collect(Collectors.toList());
+        studyTrajectoryRepository.deleteAll(links);
+    }
 
     @Override
     public List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId) {
