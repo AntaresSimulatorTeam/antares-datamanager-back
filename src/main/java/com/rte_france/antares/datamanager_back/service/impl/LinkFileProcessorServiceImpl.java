@@ -261,6 +261,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                         .build());
             }
         }
+        validateLinkAreas(linkEntities.stream().map(LinkEntity::getName).collect(Collectors.joining("-")), areaNames);
     }
 
 
