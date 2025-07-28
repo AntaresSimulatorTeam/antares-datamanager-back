@@ -20,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -457,5 +458,55 @@ class LinkFileProcessorServiceImplTest {
                 eq("CH-FR, FR-IT, FR-GE")
         );
     }
+
+    @Test
+    void testCheckConsistencyTrajectoryLinkAndArea_WithException_StopsExecution() {
+        // Préparation des données
+        List<LinkEntity> linkEntities = List.of(
+                LinkEntity.builder().name("FR-DE").build()
+        );
+        List<String> areaNames = Arrays.asList("FR", "ES");
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+        Integer studyId = 1;
+        Integer trajectoryId = 2;
+        String userNni = "testUser";
+        TrajectoryEntity secondTrajectory = TrajectoryEntity.builder().id(3).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+
+        // Configuration des mocks
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+
+        // Création du spy pour vérifier l'ordre des appels
+        LinkFileProcessorServiceImpl serviceSpy = spy(linkFileProcessorService);
+        doThrow(BusinessException.builder()
+                .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .errorMessageArguments(List.of("ES"))
+                .build())
+                .when(serviceSpy)
+                .validateLinkAreas(anyString(), anyList());
+
+        // Exécution et vérification de l'exception
+        assertThrows(BusinessException.class, () ->
+                serviceSpy.checkConsistencyTrajectoryLinkAndArea(
+                        linkEntities, areaNames, warningMessages,
+                        studyId, trajectoryId, secondTrajectory, userNni)
+        );
+
+        // Vérification que studyRepository.findById a été appelé
+        verify(studyRepository).findById(studyId);
+
+        // Vérification que validateLinkAreas a été appelé
+        verify(serviceSpy).validateLinkAreas(anyString(), anyList());
+
+        // Vérification que les méthodes suivantes n'ont PAS été appelées
+        verify(warningService, never()).getMessage(anyString(), any());
+        verify(warningRepository, never()).existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt());
+
+        // Vérification qu'aucun warning n'a été ajouté
+        assertTrue(warningMessages.isEmpty());
+    }
+
+
 
 }
