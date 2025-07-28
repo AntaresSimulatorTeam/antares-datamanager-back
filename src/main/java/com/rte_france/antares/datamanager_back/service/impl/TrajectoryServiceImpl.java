@@ -615,7 +615,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         var links = studyTrajectoryRepository.findAll()
                 .stream()
                 .filter(link -> link.getId().getScenarioId().equals(studyId))
-                .collect(Collectors.toList());
+                .toList();
         studyTrajectoryRepository.deleteAll(links);
     }
 
