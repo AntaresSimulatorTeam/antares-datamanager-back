@@ -598,7 +598,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
-        if (trajectory.getType().equals("AREA")) {
+        if (trajectory.getType().equals(TrajectoryType.AREA.name())) {
             var others = getOtherTrajectoriesLinkedToStudy(studyId, trajectoryId);
             if (!others.isEmpty()) {
                 throw BusinessException.builder()
@@ -612,10 +612,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     @Transactional
     public void unlinkAllTrajectoriesFromStudy(Integer studyId) {
-        var links = studyTrajectoryRepository.findAll()
-                .stream()
-                .filter(link -> link.getId().getScenarioId().equals(studyId))
-                .toList();
+        var links = studyTrajectoryRepository.findById_ScenarioId(studyId);
         studyTrajectoryRepository.deleteAll(links);
     }
 
