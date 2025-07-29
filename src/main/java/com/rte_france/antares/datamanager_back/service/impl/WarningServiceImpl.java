@@ -17,11 +17,9 @@ import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -108,20 +106,29 @@ public class WarningServiceImpl implements WarningService {
      */
     @Override
     public Set<WarningDTO> getWarningsForTrajectory(Integer studyId, TrajectoryType trajectoryType) {
-        return warningRepository.findByTrajectoryTypeAndStudyId(studyId, trajectoryType.name())
+        return  warningRepository.findByTrajectoryTypeAndStudyId(studyId, trajectoryType.name())
                 .stream()
-                .filter(this::isWarningDependOnExistingLinkTrajectoryAndStudy
+                .filter(this::isWarningDependOnExistingLinkTrajectoryAndStudy)
+                .sorted(Comparator
+                        .comparing(WarningMessageEntity::getIsAck) // ack = true d'abord
+                        .thenComparing(WarningMessageEntity::getCreationDate, Comparator.reverseOrder()) // tri décroissant par date
                 )
                 .map(WarningMapper::toWarningMessageDTO)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public boolean isWarningDependOnExistingLinkTrajectoryAndStudy(WarningMessageEntity warningMessageEntity) {
-        return studyTrajectoryRepository.existsById(
+        return (studyTrajectoryRepository.existsById(
                 StudyTrajectoryKey.builder()
                         .trajectoryId(warningMessageEntity.getTrajectory().getId())
                         .scenarioId(warningMessageEntity.getStudy().getId())
-                        .build());
+                        .build()))
+                &&  ( warningMessageEntity.getSecondTrajectory() == null
+                || studyTrajectoryRepository.existsById(
+                        StudyTrajectoryKey.builder()
+                                .trajectoryId(warningMessageEntity.getSecondTrajectory().getId())
+                                .scenarioId(warningMessageEntity.getStudy().getId())
+                                .build()));
     }
 
 

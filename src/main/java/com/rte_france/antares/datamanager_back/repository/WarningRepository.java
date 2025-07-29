@@ -25,10 +25,11 @@ public interface WarningRepository extends JpaRepository<WarningMessageEntity, I
                 "LEFT OUTER JOIN w.trajectory t " +
                 "LEFT OUTER JOIN w.study s " +
                 "WHERE t.type = :trajectoryType AND s.id = :studyId " +
-                "AND w.creationDate = (" +
-                "SELECT MAX(w2.creationDate) FROM WarningMessageEntity w2 " +
-                "WHERE w2.trajectory.id = w.trajectory.id AND w2.study.id = w.study.id" +
-                ")")
+                //"AND w.creationDate = (" +
+                //"SELECT MAX(w2.creationDate) FROM WarningMessageEntity w2 " +
+                //"WHERE w2.trajectory.id = w.trajectory.id AND w2.study.id = w.study.id" +
+               // ")" +
+                "")
         Set<WarningMessageEntity> findByTrajectoryTypeAndStudyId(@Param("studyId") Integer studyId, @Param("trajectoryType") String trajectoryType);
 
 }

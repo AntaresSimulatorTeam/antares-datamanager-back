@@ -175,6 +175,112 @@ class WarningMessageServiceImplTest {
     }
 
     @Test
+    void getWarningsForTrajectory_returnsSortedWarningsByAckAndCreationDate() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.AREA.name())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        WarningMessageEntity warning1 = WarningMessageEntity.builder()
+                .id(1)
+                .isAck(false)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now().minusDays(1))
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+        WarningMessageEntity warning2 = WarningMessageEntity.builder()
+                .id(2)
+                .isAck(false)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now())
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+        WarningMessageEntity warning3 = WarningMessageEntity.builder()
+                .id(3)
+                .isAck(true)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now().minusDays(2))
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+        WarningMessageEntity warning4 = WarningMessageEntity.builder()
+                .id(4)
+                .isAck(true)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now().minusDays(1))
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of(warning1, warning2, warning3, warning4));
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(true);
+
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+
+        assertEquals(4, result.size());
+        Iterator<WarningDTO> iterator = result.iterator();
+        assertEquals(warning2.getId(), iterator.next().getId());
+        assertEquals(warning1.getId(), iterator.next().getId());
+        assertEquals(warning4.getId(), iterator.next().getId());
+        assertEquals(warning3.getId(), iterator.next().getId());
+    }
+
+    @Test
+    void getWarningsForTrajectory_returnsEmptySet_whenNoWarningsMatchCriteria() {
+        Integer studyId = 1;
+
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of());
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(false);
+
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+
+        assertTrue(result.isEmpty());
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
+    }
+
+    @Test
+    void getWarningsForTrajectory_returnsWarningOnlyIfBothTrajectoriesLinked() {
+        Integer studyId = 1;
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        TrajectoryEntity trajectory1 = TrajectoryEntity.builder().id(1).type(TrajectoryType.AREA.name()).build();
+        TrajectoryEntity trajectory2 = TrajectoryEntity.builder().id(2).type(TrajectoryType.AREA.name()).build();
+
+        WarningMessageEntity warning = WarningMessageEntity.builder()
+                .id(1)
+                .isAck(false)
+                .trajectory(trajectory1)
+                .secondTrajectory(trajectory2)
+                .study(study)
+                .creationDate(LocalDateTime.now())
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of(warning));
+        when(studyTrajectoryRepository.existsById(
+                StudyTrajectoryKey.builder().trajectoryId(1).scenarioId(studyId).build()))
+                .thenReturn(true);
+        when(studyTrajectoryRepository.existsById(
+                StudyTrajectoryKey.builder().trajectoryId(2).scenarioId(studyId).build()))
+                .thenReturn(true);
+
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+
+        assertEquals(1, result.size());
+        assertEquals(warning.getId(), result.iterator().next().getId());
+    }
+
+    @Test
     void addWarning_returns_whenWarningsIsEmpty() {
         var warningMessages = new HashSet<WarningMessageEntity>();
         warningService.addWarning(warningMessages, List.of(), WarningCode.LINKS_ALL_VALUES_ZERO, 1, "test", new TrajectoryEntity());
