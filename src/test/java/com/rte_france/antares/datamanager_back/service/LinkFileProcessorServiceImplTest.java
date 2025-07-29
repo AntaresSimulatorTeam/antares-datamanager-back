@@ -461,7 +461,7 @@ class LinkFileProcessorServiceImplTest {
 
     @Test
     void testCheckConsistencyTrajectoryLinkAndArea_WithException_StopsExecution() {
-        // Préparation des données
+        // Given
         List<LinkEntity> linkEntities = List.of(
                 LinkEntity.builder().name("FR-DE").build()
         );
@@ -473,10 +473,10 @@ class LinkFileProcessorServiceImplTest {
         TrajectoryEntity secondTrajectory = TrajectoryEntity.builder().id(3).build();
         StudyEntity study = StudyEntity.builder().id(studyId).build();
 
-        // Configuration des mocks
+        // When
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
 
-        // Création du spy pour vérifier l'ordre des appels
+        // Spy to verify methods calls
         LinkFileProcessorServiceImpl serviceSpy = spy(linkFileProcessorService);
         doThrow(BusinessException.builder()
                 .message("Areas {0} in LINKS file is not present in AREA trajectory")
@@ -486,24 +486,22 @@ class LinkFileProcessorServiceImplTest {
                 .when(serviceSpy)
                 .validateLinkAreas(anyString(), anyList());
 
-        // Exécution et vérification de l'exception
+
         assertThrows(BusinessException.class, () ->
                 serviceSpy.checkConsistencyTrajectoryLinkAndArea(
                         linkEntities, areaNames, warningMessages,
                         studyId, trajectoryId, secondTrajectory, userNni)
         );
 
-        // Vérification que studyRepository.findById a été appelé
+
         verify(studyRepository).findById(studyId);
 
-        // Vérification que validateLinkAreas a été appelé
         verify(serviceSpy).validateLinkAreas(anyString(), anyList());
 
-        // Vérification que les méthodes suivantes n'ont PAS été appelées
+
         verify(warningService, never()).getMessage(anyString(), any());
         verify(warningRepository, never()).existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt());
 
-        // Vérification qu'aucun warning n'a été ajouté
         assertTrue(warningMessages.isEmpty());
     }
 
