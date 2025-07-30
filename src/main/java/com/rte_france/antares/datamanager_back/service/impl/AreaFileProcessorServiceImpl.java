@@ -60,7 +60,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA, null, "CCGD"), buildAreaConfigList(path, horizon));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA, null), buildAreaConfigList(path, horizon));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
