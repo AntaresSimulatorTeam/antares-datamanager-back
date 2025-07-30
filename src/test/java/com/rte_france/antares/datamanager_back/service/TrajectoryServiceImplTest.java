@@ -113,7 +113,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024", 1);
 
-        verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any(), any(), any(), any());
+        verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -830,11 +830,11 @@ class TrajectoryServiceImplTest {
         var existingTrajectory = TrajectoryEntity.builder()
                 .fileName(trajectoryToUse)
                 .horizon(horizon)
-                .loadArea(area)
+                .area(area)
                 .loadEntities(new HashSet<>(Set.of(existingLoad)))
                 .build();
 
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
                 .thenReturn(Optional.of(existingTrajectory));
 
         try (var mockedStatic = org.mockito.Mockito.mockStatic(

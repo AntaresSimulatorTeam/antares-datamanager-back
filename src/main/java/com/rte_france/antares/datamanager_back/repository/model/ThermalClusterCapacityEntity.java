@@ -16,7 +16,7 @@ import org.hibernate.annotations.ColumnDefault;
 public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_cluster_capacity_seq_gen")
-    @SequenceGenerator(name = "thermal_cluster_capacity_seq_gen", sequenceName = "tthermal_cluster_capacity_sequence", allocationSize = 1)
+    @SequenceGenerator(name = "thermal_cluster_capacity_seq_gen", sequenceName = "thermal_cluster_capacity_sequence", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Integer id;
 

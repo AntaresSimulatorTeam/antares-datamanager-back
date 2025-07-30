@@ -150,19 +150,19 @@ class TrajectoryServiceImplAdditionalTest {
 
         TrajectoryEntity trajectory1 = TrajectoryEntity.builder()
                 .id(1)
-                .loadArea("FR")
+                .area("FR")
                 .type(TrajectoryType.LOAD.name())
                 .build();
 
         TrajectoryEntity trajectory2 = TrajectoryEntity.builder()
                 .id(2)
-                .loadArea("DE")
+                .area("DE")
                 .type(TrajectoryType.LOAD.name())
                 .build();
 
         TrajectoryEntity trajectory3 = TrajectoryEntity.builder()
                 .id(3)
-                .loadArea("OTHERS")
+                .area("OTHERS")
                 .type(TrajectoryType.LOAD.name())
                 .build();
 

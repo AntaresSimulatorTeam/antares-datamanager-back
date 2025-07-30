@@ -11,7 +11,10 @@ import lombok.*;
 @Entity
 @Table(name = "thermal_cluster_ref", schema = "pegase_local_db_schema")
 public class ThermalClusterRef {
+
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_cluster_ref_sequence_gen")
+    @SequenceGenerator(name = "thermal_cluster_ref_sequence_gen", sequenceName = "thermal_cluster_ref_sequence", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Integer id;
 
@@ -23,7 +26,7 @@ public class ThermalClusterRef {
     @Column(name = "name_pemmdb", length = 40)
     private String namePemmdb;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade =  CascadeType.ALL)
     @JoinColumn(name = "thermal_technology_id")
     private ThermalTechnology thermalTechnology;
 

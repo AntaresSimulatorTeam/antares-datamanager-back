@@ -130,7 +130,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
         List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
                 .stream()
-                .map(TrajectoryEntity::getLoadArea)
+                .map(TrajectoryEntity::getArea)
                 .toList();
 
         return studyAreas.stream()

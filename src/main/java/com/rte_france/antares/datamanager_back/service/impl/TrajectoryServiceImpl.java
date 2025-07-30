@@ -116,7 +116,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
-                .findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
+                .findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
 
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
@@ -216,7 +216,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (area.equals(OTHER_AREA)) {
             listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
                     .stream()
-                    .map(TrajectoryEntity::getLoadArea)
+                    .map(TrajectoryEntity::getArea)
                     .filter(loadArea -> !loadArea.equals(OTHER_AREA))
                     .map(String::toLowerCase)
                     .toList();
@@ -249,7 +249,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             loadEntities.add(loadEntity);
         }
         loadTrajectory.setLoadEntities(loadEntities);
-        loadTrajectory.setLoadArea(area.toUpperCase());
+        loadTrajectory.setArea(area.toUpperCase());
         loadTrajectory.setWarningMessages(warningMessageEntities);
         return trajectoryRepository.save(loadTrajectory);
     }
@@ -285,10 +285,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area) throws IOException {
+    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area, String technology) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
-        var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area);
-        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY);
+        var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology);
+        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY, area);
 
     }
     private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse, String area) throws IOException {
@@ -432,8 +432,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA -> antaressDataManagerProperties.getAreaDirectory();
             case LINK -> antaressDataManagerProperties.getLinkDirectory();
             case THERMAL_COST -> antaressDataManagerProperties.getThermalCostDirectory();
-            case THERMAL_CAPACITY -> Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
+            case THERMAL_CAPACITY ->  thermalCapacityArea.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                     .resolve(thermalCapacityArea)
+                    .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                     .toString();
             case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
             case LOAD -> antaressDataManagerProperties.getLoadDirectory();
@@ -468,7 +469,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
-        if (TrajectoryType.LOAD.equals(type) && OTHER_AREA.equals(trajectory.getLoadArea())) {
+        if (TrajectoryType.LOAD.equals(type) && OTHER_AREA.equals(trajectory.getArea())) {
             var userNni = userService.getCurrentUserDetails().getNni();
             var trajectoryPath = buildTrajectoryPath(trajectory.getFileName());
             var warnings = loadFileProcessorService.checkForMissingLoadFiles(
@@ -519,7 +520,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
             default -> {
-                if (OTHER_AREA.equals(trajectory.getLoadArea())) {
+                if (OTHER_AREA.equals(trajectory.getArea())) {
                     warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
                             trajectory.getHorizon(), studyId, userNni, trajectory);
                 }

@@ -250,10 +250,10 @@ private static void processRemainingTrajectoryTypes(
             String createdBy) {
 
         try {
-            if (type == TrajectoryType.LOAD && trajectory.getLoadArea() != null) {
+            if (type == TrajectoryType.LOAD && trajectory.getArea() != null) {
                 List<String> availableAreas = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
 
-                if (OTHER_AREA.equals(trajectory.getLoadArea())) {
+                if (OTHER_AREA.equals(trajectory.getArea())) {
 
                     Set<String> loadAreas = trajectory.getLoadEntities().stream()
                             .map(LoadEntity::getArea)
@@ -269,7 +269,7 @@ private static void processRemainingTrajectoryTypes(
                     }
                 } else {
 
-                    if (!availableAreas.contains(trajectory.getLoadArea().toUpperCase())) {
+                    if (!availableAreas.contains(trajectory.getArea().toUpperCase())) {
                         missingTrajectoryTypes.add(type.name());
                         return;
                     }

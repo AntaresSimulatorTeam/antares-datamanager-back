@@ -126,7 +126,7 @@ public class Utils {
      * @throws IOException if an I/O error occurs
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
-            createdBy, TrajectoryType trajectoryType) throws IOException {
+            createdBy, TrajectoryType trajectoryType, String area) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
@@ -136,6 +136,7 @@ public class Utils {
                 .checksum(trajectoryType.name().equals(TrajectoryType.LOAD.name()) || trajectoryType.name().equals(TrajectoryType.THERMAL_CAPACITY.name()) ? getFileChecksum(path.toString()) : computeSheetChecksum(path.toString(), horizon))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
+                .area(area)
                 .build();
     }
 
