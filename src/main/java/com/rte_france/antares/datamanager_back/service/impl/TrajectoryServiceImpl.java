@@ -12,7 +12,6 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +25,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -613,7 +610,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Transactional
     public void unlinkAllTrajectoriesFromStudy(Integer studyId) {
         var links = studyTrajectoryRepository.findById_ScenarioId(studyId);
-        studyTrajectoryRepository.deleteAll(links);
+        if (!links.isEmpty()) {
+            studyTrajectoryRepository.deleteAll(links);
+        } else {
+            throw BusinessException.builder()
+                    .message("No links found")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     @Override

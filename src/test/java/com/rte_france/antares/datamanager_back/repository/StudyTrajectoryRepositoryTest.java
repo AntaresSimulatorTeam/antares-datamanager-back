@@ -1,14 +1,11 @@
 package com.rte_france.antares.datamanager_back.repository;
 
-import com.rte_france.antares.datamanager_back.repository.model.StudyTrajectoryEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,9 +24,11 @@ class StudyTrajectoryRepositoryTest {
         var scenarioId = 1;
         var result = studyTrajectoryRepository.findById_ScenarioId(scenarioId);
 
-        assertThat(result).isNotNull();
-        assertThat(result).isNotEmpty();
-        assertThat(result).allMatch(e -> e.getId().getScenarioId().equals(scenarioId));
+        assertThat(result)
+                .isNotNull()
+                .isNotEmpty()
+                .extracting(e -> e.getId().getScenarioId())
+                .allMatch(id -> id.equals(scenarioId));
     }
 
     @Test
@@ -37,7 +36,8 @@ class StudyTrajectoryRepositoryTest {
         var scenarioId = 9999;
         var result = studyTrajectoryRepository.findById_ScenarioId(scenarioId);
 
-        assertThat(result).isNotNull();
-        assertThat(result).isEmpty();
+        assertThat(result)
+                .isNotNull()
+                .isEmpty();
     }
 }

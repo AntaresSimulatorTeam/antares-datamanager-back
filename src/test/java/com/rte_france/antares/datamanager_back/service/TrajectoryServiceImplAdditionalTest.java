@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.configuration.AntaressDataManager
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
@@ -269,5 +268,28 @@ class TrajectoryServiceImplAdditionalTest {
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
             assertTrue(ex.getMessage().contains("already uploaded"));
         }
+    }
+
+    @Test
+    void unlinkAllTrajectoriesFromStudy_deletesLinksWhenFound() {
+        var studyId = 1;
+        var links = List.of(
+                StudyTrajectoryEntity.builder().build()
+        );
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId)).thenReturn(links);
+
+        assertDoesNotThrow(() -> trajectoryService.unlinkAllTrajectoriesFromStudy(studyId));
+        verify(studyTrajectoryRepository).deleteAll(links);
+    }
+
+    @Test
+    void unlinkAllTrajectoriesFromStudy_throwsExceptionWhenNoLinksFound() {
+        var studyId = 999;
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId)).thenReturn(Collections.emptyList());
+
+        var ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.unlinkAllTrajectoriesFromStudy(studyId));
+        assertEquals("No links found", ex.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
 }
