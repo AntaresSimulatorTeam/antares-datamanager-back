@@ -140,7 +140,7 @@ class ThermalFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
         var horizon = "2023-2024";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, false,"FR"), TrajectoryType.THERMAL_CAPACITY);
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, false,"FR","CCGT"), TrajectoryType.THERMAL_CAPACITY,"FR");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -151,7 +151,7 @@ class ThermalFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
         var horizon = "2023-2024";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, false,"CH"), TrajectoryType.THERMAL_PARAMETER);
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, false,"CH","CCGT"), TrajectoryType.THERMAL_PARAMETER,"FR");
 
         verify(trajectoryRepository, times(1)).save(any());
     }

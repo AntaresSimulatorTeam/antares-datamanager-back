@@ -30,12 +30,15 @@ public class ThermalController {
     @Operation(summary = "import Trajectory load to database ")
     @PostMapping("/thermal-capacity")
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("area") String area,
+                                                          @RequestParam("technology") String technology,
                                                           @RequestParam("trajectoryToUse") String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId,
                                                           @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
-        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear,area)), HttpStatus.CREATED);
+        return new ResponseEntity<>(toTrajectoryDTO(
+                trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear,area, technology)
+        ), HttpStatus.CREATED);
     }
 }

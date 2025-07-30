@@ -229,7 +229,7 @@ class StudyGeneratorServiceImplTest {
 
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
                 .type("LOAD")
-                .loadArea("OTHERS")
+                .area("OTHERS")
                 .build();
         loadTrajectory.addLoadEntity(load1);
         loadTrajectory.addLoadEntity(load2);
@@ -273,7 +273,7 @@ class StudyGeneratorServiceImplTest {
 
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
                 .type("LOAD")
-                .loadArea("FR")
+                .area("FR")
                 .loadEntities(Set.of(load1))
                 .build();
 
@@ -312,7 +312,7 @@ class StudyGeneratorServiceImplTest {
 
         var loadTrajectory = TrajectoryEntity.builder()
                 .type("LOAD")
-                .loadArea("OTHERS")
+                .area("OTHERS")
                 .fileName("BP23_A_Ref")
                 .build();
         loadTrajectory.addLoadEntity(load);

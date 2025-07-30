@@ -22,7 +22,7 @@ public class TrajectoryMapper {
                 .version(entity.getVersion())
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
-                .loadArea(entity.getLoadArea())
+                .loadArea(entity.getArea())
                 .build();
     }
 
