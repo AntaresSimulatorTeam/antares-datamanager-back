@@ -121,7 +121,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
   }
 
   private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
-    if ("OTHERS".equals(trajectory.getLoadArea())) {
+    if ("OTHERS".equals(trajectory.getArea())) {
       return trajectory.getLoadEntities().stream()
               .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
               .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
@@ -129,7 +129,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return trajectory.getLoadEntities().stream()
                 .map(loadEntity -> {
                     processLoadEntityWithPattern(loadEntity, trajectory, pattern);
-                    return Map.entry(trajectory.getLoadArea().toUpperCase(), loadEntity.getOutPutFileName());
+                    return Map.entry(trajectory.getArea().toUpperCase(), loadEntity.getOutPutFileName());
                 });
 
     }

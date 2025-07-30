@@ -43,7 +43,7 @@ public class TrajectoryEntity {
     private String horizon;
 
     @Column(name = "area")
-    private String loadArea;
+    private String area;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AreaConfigEntity> areaConfigEntities;

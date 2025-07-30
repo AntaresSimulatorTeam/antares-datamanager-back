@@ -11,10 +11,7 @@ import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorServi
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -23,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -39,6 +37,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private final UserService userService;
 
+    private final ThermalTechnologyRepository thermalTechnologyRepository;
+
     private List<ThermalClusterRef> cachedClusterRefs;
 
     /**
@@ -48,14 +48,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      *
      * @param path the path to the file to process
      */
-    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> listThermalClusterCapacity, TrajectoryType type) throws IOException {
-        var trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()), horizon, type.name());
+    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> listThermalClusterCapacity, TrajectoryType type, String area) throws IOException {
+       // var trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()), horizon, type.name());
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
 
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), listThermalClusterCapacity, type);
-        }
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), listThermalClusterCapacity, type);
+       // if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
+         //   return saveThermalTrajectory(buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_CAPACITY), listThermalClusterCapacity, type);
+        //}
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area), listThermalClusterCapacity, type);
     }
 
     @Override
@@ -104,7 +104,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @return a list of area configurations
      */
     @Override
-    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area) throws IOException {
+    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area, String technology) throws IOException {
+       // check if area and technology not empty and exist in db
+
         List<ThermalClusterCapacityEntity> thermalClusterCapacities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -114,12 +116,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
                 String rowArea = row.getCell(1).getStringCellValue();
-                if (!area.equals("OTHER") && !rowArea.equals(area)) continue;
+                if (!area.equals("OTHER") && !rowArea.equals(area.toUpperCase())) continue;
 
                 for (int i = 5; i < header.getLastCellNum(); i++) {
                     if (!isCellInHorizon(header.getCell(i).getStringCellValue(), horizon, isCivilYear)) continue;
 
                     String techName = row.getCell(2).getStringCellValue();
+                    if( !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) continue;
                     String clusterName = row.getCell(3).getStringCellValue();
 
                     ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
@@ -131,7 +134,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                                             ? ThermalCategoryEnum.POWER.name()
                                             : ThermalCategoryEnum.NUMBER.name()))
                             .monthYear(header.getCell(i).getStringCellValue())
-                            .value(row.getCell(i).getNumericCellValue())
+                            .value(row.getCell(i).getCellType() == CellType.STRING
+                                    ? Double.parseDouble(row.getCell(i).getStringCellValue())
+                                    : row.getCell(i).getNumericCellValue())
                             .build();
                     thermalClusterCapacities.add(entity);
                 }
@@ -289,7 +294,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         cachedClusterRefs = thermalClusterRefRepository.findAll();
     }
 
-    private ThermalClusterRef findOrCreateThermalClusterRef(String name, String technology) {
+    private ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {
         if (cachedClusterRefs == null) {
             loadAllThermalClusterRefs();
         }
@@ -298,10 +303,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))
                 .findFirst()
                 .orElseGet(() -> {
+                  Optional<ThermalTechnology> savedThermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(technology);
                     ThermalClusterRef ref = ThermalClusterRef.builder()
                             .name(name)
                             .namePemmdb("NA")
-                            .thermalTechnology(ThermalTechnology.builder().name(technology).build())
+                            .thermalTechnology(savedThermalTechnology.get())
                             .build();
                     ThermalClusterRef saved = thermalClusterRefRepository.save(ref);
                     cachedClusterRefs.add(saved);

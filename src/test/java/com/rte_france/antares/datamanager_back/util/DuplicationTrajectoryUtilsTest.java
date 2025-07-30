@@ -93,7 +93,7 @@ class DuplicationTrajectoryUtilsTest {
     @Test
     void trajectoryToBeAttached_LoadType_WithNullLoadArea() throws Exception {
         // Given
-        trajectory.setLoadArea(null);
+        trajectory.setArea(null);
 
         // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LOAD);
@@ -107,7 +107,7 @@ class DuplicationTrajectoryUtilsTest {
     @Test
     void trajectoryToBeAttached_LoadType_WithOthersLoadArea_HasValidArea() throws Exception {
         // Given
-        trajectory.setLoadArea("OTHERS");
+        trajectory.setArea("OTHERS");
 
         // When
         Set<LoadEntity> loadEntities = new HashSet<>();
@@ -131,7 +131,7 @@ class DuplicationTrajectoryUtilsTest {
     @Test
     void trajectoryToBeAttached_LoadType_WithOthersLoadArea_NoValidArea() throws Exception {
         // Given
-        trajectory.setLoadArea("OTHERS");
+        trajectory.setArea("OTHERS");
 
         // Create load entities with areas not in available areas
         Set<LoadEntity> loadEntities = new HashSet<>();
@@ -157,7 +157,7 @@ class DuplicationTrajectoryUtilsTest {
     @Test
     void trajectoryToBeAttached_LoadType_WithSpecificLoadArea_AreaAvailable() throws Exception {
         // Given
-        trajectory.setLoadArea("FR");
+        trajectory.setArea("FR");
 
 
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");
@@ -175,7 +175,7 @@ class DuplicationTrajectoryUtilsTest {
     @Test
     void trajectoryToBeAttached_LoadType_WithSpecificLoadArea_AreaNotAvailable() throws Exception {
         // Given
-        trajectory.setLoadArea("IT");
+        trajectory.setArea("IT");
 
         // Mock available areas that don't include the trajectory load area
         List<String> availableAreas = Arrays.asList("FR", "DE", "ES");

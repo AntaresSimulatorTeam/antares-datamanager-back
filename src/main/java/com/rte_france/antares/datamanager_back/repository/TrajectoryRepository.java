@@ -22,7 +22,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(String fileName, String horizon, String type);
 
-    Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(String fileName, String horizon, String loadArea);
+    Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(String fileName, String horizon, String loadArea);
 
 
     @Query("""
@@ -31,14 +31,14 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                  WHERE t.type = :type\s
                  AND t.horizon = :horizon
                  AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
-                 AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t.loadArea = :loadArea)
+                 AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t.area = :loadArea)
                  AND t.version = (
                      SELECT MAX(t1.version)\s
                      FROM Trajectory t1\s
                      WHERE t1.fileName = t.fileName\s
                      AND t1.type = :type\s
                      AND t1.horizon = :horizon \s
-                     AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t1.loadArea = :loadArea) \s
+                     AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t1.area = :loadArea) \s
                  )
                  ORDER BY t.creationDate DESC
             \s""")
