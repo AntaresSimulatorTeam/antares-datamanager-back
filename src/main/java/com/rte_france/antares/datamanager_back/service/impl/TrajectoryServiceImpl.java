@@ -94,12 +94,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         if (!area.equals(OTHER_AREA)) {
-            areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
-                    BusinessException.builder()
-                            .message("Area not found for studyId: {0} ")
-                            .errorMessageArguments(List.of(studyId.toString()))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build());
+            checkIfAreaIsLinkedToStudy(studyId, area);
         }
 
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
@@ -286,11 +281,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area, String technology) throws IOException {
+        checkIfAreaIsLinkedToStudy(studyId, area);
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
         var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology);
         return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY, area);
 
     }
+
+    private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
+        areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
+                BusinessException.builder()
+                        .message("Area not found for studyId: {0} ")
+                        .errorMessageArguments(List.of(studyId.toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+    }
+
     private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse, String area) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
