@@ -32,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@Disabled
 class TrajectoryServiceImplTest {
 
     @Mock
@@ -110,8 +109,9 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("src/test/resources/thermal_capacity/");
+        when(areaRepository.findAreaByNameAndStudyId(any(), any())).thenReturn(Optional.of(AreaEntity.builder().id(1).build()));
 
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_CAPACITY, "thermal_BE_PEMMDB23_26avril", "2023-2024", 1);
+        trajectoryService.processThermalCapacityTrajectory( "thermal_BE_PEMMDB23_26avril", "2023-2024", 1, true, "BE", "PEMMDB");
 
         verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any(), any(), any(), any(), any());
     }
@@ -351,32 +351,6 @@ class TrajectoryServiceImplTest {
         when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.empty());
 
         assertThrows(BusinessException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(trajectoryId, studyId));
-    }
-
-    @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_PARAMETER() throws IOException {
-        var path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/thermal_parameter/testFile.xlsx");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("/thermal_parameters");
-
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_PARAMETER, "testFile", "2023-2024", 1);
-
-        verify(thermalFileProcessorService, times(1)).processThermalParametersFile(any(), any(), any(), eq(TrajectoryType.THERMAL_PARAMETER));
-    }
-
-    @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsTHERMAL_COST() throws IOException {
-        var path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/thermal_cost/testFile.xlsx");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("/thermal_costs");
-
-        trajectoryService.processTrajectory(TrajectoryType.THERMAL_COST, "testFile", "2023-2024", 1);
-
-        verify(thermalFileProcessorService, times(1)).processThermalCostFile(any(), any(), any(), eq(TrajectoryType.THERMAL_COST));
     }
 
     @Test
