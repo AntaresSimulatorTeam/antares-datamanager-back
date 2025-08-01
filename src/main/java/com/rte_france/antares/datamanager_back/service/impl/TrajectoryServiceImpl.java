@@ -281,7 +281,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area, String technology) throws IOException {
-        checkIfAreaIsLinkedToStudy(studyId, area);
+        //checkIfAreaIsLinkedToStudy(studyId, area);
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
         var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology);
         return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY, area);
