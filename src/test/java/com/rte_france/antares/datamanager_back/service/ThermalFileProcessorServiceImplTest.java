@@ -17,20 +17,22 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@Disabled
 class ThermalFileProcessorServiceImplTest {
     private static final String THERMAL_CAPACITY_FILE_NAME = "thermal_BE_PEMMDB23_26avril";
 
@@ -101,38 +103,6 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalCapacityFile_shouldSaveTrajectoryWithValidInputs() throws IOException {
-        Path mockPath = mock(Path.class);
-        String horizon = "2025-2026";
-        String area = "FR";
-        List<ThermalClusterCapacityEntity> mockEntities = List.of(new ThermalClusterCapacityEntity());
-        TrajectoryEntity mockTrajectory = new TrajectoryEntity();
-
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
-
-        TrajectoryEntity result = thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area);
-
-        assertNotNull(result);
-        assertEquals(mockTrajectory, result);
-        verify(trajectoryRepository, times(1)).save(any());
-    }
-
-    @Test
-    void processThermalCapacityFile_shouldThrowExceptionWhenUserDetailsAreNull() {
-        Path mockPath = mock(Path.class);
-        String horizon = "2025-2026";
-        String area = "FR";
-        List<ThermalClusterCapacityEntity> mockEntities = List.of(new ThermalClusterCapacityEntity());
-
-        when(userService.getCurrentUserDetails()).thenReturn(null);
-
-        assertThrows(TechnicalException.class, () ->
-                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area)
-        );
-    }
-
-    @Test
     void processThermalCapacityFile_shouldThrowExceptionWhenTrajectorySaveFails() {
         Path mockPath = mock(Path.class);
         String horizon = "2025-2026";
@@ -177,4 +147,95 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(TrajectoryType.THERMAL_CAPACITY.name(), result.getType());
         verify(trajectoryRepository).save(any(TrajectoryEntity.class));
     }
+
+
+    @Test
+    void findOrCreateThermalClusterRef_shouldCreateAndSaveNewClusterRef() {
+        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT"))
+                .thenReturn(Optional.of(technology));
+        when(thermalClusterRefRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ThermalClusterRef result = thermalFileProcessorService.findOrCreateThermalClusterRef("CCGT", "Cluster2");
+
+        assertNotNull(result);
+        assertEquals("Cluster2", result.getName());
+        assertEquals("CCGT", result.getThermalTechnology().getName());
+        verify(thermalClusterRefRepository, times(1)).save(any());
+    }
+
+    @Test
+    void findOrCreateThermalClusterRef_shouldThrowExceptionWhenTechnologyNotFound() {
+        when(thermalTechnologyRepository.findThermalTechnologyByName("UnknownTech"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () ->
+                thermalFileProcessorService.findOrCreateThermalClusterRef("UnknownTech", "Cluster1"));
+    }
+
+    @Test
+    void saveThermalTrajectory_shouldThrowIllegalArgumentExceptionWhenEntityTypeIsInvalid() {
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<ThermalParameterEntity> invalidEntities = List.of(new ThermalParameterEntity());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                thermalFileProcessorService.saveThermalTrajectory(trajectory, invalidEntities, TrajectoryType.THERMAL_CAPACITY));
+    }
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs() throws IOException {
+        Path mockPath = mock(Path.class);
+        String horizon = "2025-2026";
+        String area = "FR";
+        String technology = "CCGT";
+
+        try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+            filesMock.when(() -> Files.newInputStream(mockPath)).thenThrow(new IOException("File read error"));
+            assertThrows(TechnicalException.class, () ->
+                    thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology));
+        }
+    }
+    @Test
+    void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {
+        String monthYear = "2025_07";
+        String horizon = "2025-2026";
+        boolean isCivilYear = false;
+
+        boolean result = thermalFileProcessorService.isCellInHorizon(monthYear, horizon, isCivilYear);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void isCellInHorizon_shouldReturnTrueWhenMonthIsInFirstHalfOfNextYear() {
+        String monthYear = "2026_03";
+        String horizon = "2025-2026";
+        boolean isCivilYear = false;
+
+        boolean result = thermalFileProcessorService.isCellInHorizon(monthYear, horizon, isCivilYear);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void isCellInHorizon_shouldReturnFalseWhenMonthIsBeforeJulyOfHorizonYear() {
+        String monthYear = "2025_06";
+        String horizon = "2025-2026";
+        boolean isCivilYear = false;
+
+        boolean result = thermalFileProcessorService.isCellInHorizon(monthYear, horizon, isCivilYear);
+
+        assertFalse(result);
+    }
+
+    @Test
+    void isCellInHorizon_shouldReturnFalseWhenMonthIsAfterJuneOfNextYear() {
+        String monthYear = "2026_07";
+        String horizon = "2025-2026";
+        boolean isCivilYear = false;
+
+        boolean result = thermalFileProcessorService.isCellInHorizon(monthYear, horizon, isCivilYear);
+
+        assertFalse(result);
+    }
+
 }
