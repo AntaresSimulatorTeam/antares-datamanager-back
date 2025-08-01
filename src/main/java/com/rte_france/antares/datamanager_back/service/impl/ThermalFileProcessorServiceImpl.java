@@ -64,10 +64,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory.setType(type.name());
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
-            ThermalBaseEntity firstEntity = thermalEntities.getFirst();
-            if (firstEntity instanceof ThermalClusterCapacityEntity)
-            {
+            ThermalBaseEntity firstEntity = thermalEntities.get(0);
+            if (firstEntity instanceof ThermalClusterCapacityEntity) {
                 trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
+            } else {
                 throw new IllegalArgumentException();
             }
         }
@@ -97,7 +97,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     if (!isCellInHorizon(header.getCell(i).getStringCellValue(), horizon, isCivilYear)) continue;
 
                     String techName = row.getCell(2).getStringCellValue();
-                    if( !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) continue;
+                    if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) continue;
                     String clusterName = row.getCell(3).getStringCellValue();
 
                     ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
