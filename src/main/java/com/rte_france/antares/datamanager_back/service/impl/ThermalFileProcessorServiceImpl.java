@@ -3,12 +3,10 @@ package com.rte_france.antares.datamanager_back.service.impl;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
-import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -122,7 +120,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalClusterCapacities;
     }
 
-    private boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
+    public boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
         // monthYear format: yyyy-MM
         String[] parts = monthYear.split("_");
         int year = Integer.parseInt(parts[0]);
@@ -144,7 +142,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         cachedClusterRefs = thermalClusterRefRepository.findAll();
     }
 
-    private ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {
+    public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {
         if (cachedClusterRefs == null) {
             loadAllThermalClusterRefs();
         }

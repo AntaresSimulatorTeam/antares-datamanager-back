@@ -1,13 +1,15 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "thermal_cost")
+@Builder(toBuilder = true)
+@AllArgsConstructor
+@NoArgsConstructor
 public class ThermalCostEntity extends ThermalBaseEntity {
 
     @Id
