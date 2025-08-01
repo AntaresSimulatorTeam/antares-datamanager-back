@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LinkRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -13,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -504,7 +506,52 @@ class LinkFileProcessorServiceImplTest {
 
         assertTrue(warningMessages.isEmpty());
     }
+    @Test
+    void saveTrajectory_shouldThrowExceptionWhenFileNameExceedsMaxLength() {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .fileName("ThisFileNameIsWayTooLongToBeAcceptedByTheSystemAndShouldFail")
+                .build();
 
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                linkFileProcessorService.saveTrajectory(trajectory, List.of(), Set.of()));
 
+        assertEquals("Trajectory name cannot exceed 40 characters.", exception.getMessage());
+    }
 
+    @Test
+    void saveTrajectory_shouldNotThrowExceptionWhenFileNameIsWithinMaxLength() {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .fileName("ValidFileNameWithinLimit")
+                .build();
+
+        assertDoesNotThrow(() ->
+                linkFileProcessorService.saveTrajectory(trajectory, List.of(), Set.of()));
+    }
+
+    @Test
+    void throwBusinessExceptionWhenHorizonNotFoundInHeaderRow() {
+        Sheet mockSheet = mock(Sheet.class);
+        Row mockRow = mock(Row.class);
+        when(mockSheet.getRow(0)).thenReturn(mockRow);
+        when(mockRow.iterator()).thenReturn(Collections.emptyIterator());
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031");
+        });
+
+        assertEquals("Horizon {0} not found in the header row.", exception.getMessage());
+        assertEquals(Collections.singletonList("2030-2031"), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    void throwBusinessExceptionWhenHeaderRowIsMissing() {
+        Sheet mockSheet = mock(Sheet.class);
+        when(mockSheet.getRow(0)).thenReturn(null);
+
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031");
+        });
+
+        assertEquals("Header row is missing in the sheet.", exception.getMessage());
+    }
 }

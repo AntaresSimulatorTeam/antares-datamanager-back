@@ -221,7 +221,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         return linkEntities;
     }
 
-    private int findCellIndexByHorizon(Sheet sheet, String horizon) {
+    public int findCellIndexByHorizon(Sheet sheet, String horizon) {
         Row headerRow = sheet.getRow(0); // Récupère la ligne 0
         if (headerRow == null) {
             throw TechnicalException.builder().message("Header row is missing in the sheet.").build();
