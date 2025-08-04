@@ -222,18 +222,18 @@ class TrajectoryServiceImplAdditionalTest {
     @Test
     void saveLoadTrajectoriesInDb_throwsBadRequestWhenParamsAreNull() {
         var ex = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb(null, "trajectory", "2023-2024", 1)
+                trajectoryService.saveLoadTrajectoriesInDb(null, "trajectory", "2023-2024",1 ,Optional.empty(),"nni")
         );
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         assertTrue(ex.getMessage().contains("must not be null"));
 
         ex = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb("area", null, "2023-2024", 1)
+                trajectoryService.saveLoadTrajectoriesInDb("area", null, "2023-2024", 1,Optional.empty(),"nni")
         );
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
 
         ex = assertThrows(BusinessException.class, () ->
-                trajectoryService.saveLoadTrajectoriesInDb("area", "trajectory", null, 1)
+                trajectoryService.saveLoadTrajectoriesInDb("area", "trajectory", null, 1, Optional.empty(), "nni")
         );
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -244,9 +244,6 @@ class TrajectoryServiceImplAdditionalTest {
         var trajectoryToUse = "testTrajectory";
         var horizon = "2023-2024";
         var studyId = 1;
-
-        when(userService.getCurrentUserDetails())
-                .thenReturn(UserInfoDto.builder().nni("user").build());
 
         when(areaRepository.findAreaByNameAndStudyId(area, studyId))
                 .thenReturn(Optional.of(AreaEntity.builder().name(area).build()));
@@ -260,14 +257,12 @@ class TrajectoryServiceImplAdditionalTest {
                 .horizon(horizon)
                 .loadArea(area)
                 .build();
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
-                .thenReturn(Optional.of(existingTrajectory));
 
         try (var utilsMock = mockStatic(Utils.class)) {
             utilsMock.when(() -> Utils.isSameLoadTrajectory(any(), eq(existingTrajectory))).thenReturn(true);
 
             var ex = assertThrows(BusinessException.class, () ->
-                    trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId)
+                    trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId, Optional.of(existingTrajectory), "nni")
             );
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
             assertTrue(ex.getMessage().contains("already uploaded"));
