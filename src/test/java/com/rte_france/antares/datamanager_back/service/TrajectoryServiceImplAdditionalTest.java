@@ -254,9 +254,9 @@ class TrajectoryServiceImplAdditionalTest {
         var existingTrajectory = TrajectoryEntity.builder()
                 .fileName(trajectoryToUse)
                 .horizon(horizon)
-                .loadArea(area)
+                .area(area)
                 .build();
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndLoadAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(trajectoryToUse, horizon, area))
                 .thenReturn(Optional.of(existingTrajectory));
 
         try (var utilsMock = mockStatic(Utils.class)) {
