@@ -326,8 +326,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String fileNameContains) throws TechnicalException {
-        Path directory = normalizeAndValidateDirectory(trajectoryType);
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String fileNameContains) throws TechnicalException {
+        Path directory = normalizeAndValidateDirectory(trajectoryType, area);
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> isRelevantFile(path, trajectoryType))
@@ -346,7 +346,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType) {
+    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area) {
         String basePath = antaressDataManagerProperties.getNasDirectory();
         String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
         Path baseDirectory = Path.of(basePath).resolve(subPath).normalize();
@@ -359,8 +359,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         Path directory = baseDirectory.resolve(typePath);
 
+        // Si l'area est "FR", ajouter comme sous-répertoire
+        if ("FR".equalsIgnoreCase(area)) {
+            directory = directory.resolve(area);
+        }
 
-        if (!directory.startsWith(baseDirectory)) {
+        if (!directory.normalize().startsWith(baseDirectory)) {
             throw TechnicalException.builder().message("Entry is outside of the target directory").build();
         }
         return directory.normalize();
