@@ -61,14 +61,24 @@ class ThermalFileProcessorServiceImplTest {
             var sheet = workbook.createSheet("ThermalClusterCapacity");
             var headerRow = sheet.createRow(0);
 
-            String[] headers = {"ToUse", "Area", "Type", "Cluster", "Category", "2025_01", "2025_02", "2025_03"};
+            // Colonnes de l’année civile 2025 (janvier à décembre)
+            String[] baseHeaders = {"ToUse", "Area", "Type", "Cluster", "Category"};
+            String[] horizonHeaders = new String[12];
+            for (int i = 0; i < 12; i++) {
+                horizonHeaders[i] = String.format("2025_%02d", i + 1);
+            }
+            String[] headers = new String[baseHeaders.length + horizonHeaders.length];
+            System.arraycopy(baseHeaders, 0, headers, 0, baseHeaders.length);
+            System.arraycopy(horizonHeaders, 0, headers, baseHeaders.length, horizonHeaders.length);
+
             for (var i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
             }
 
+            // Remplir les données avec des valeurs fictives pour chaque colonne
             Object[][] data = {
-                    {0.0, "FR", "CCGT", "Cluster1", "power", 100.0, 120.0, 130.0},
-                    {1.0, "AT", "CCGT", "Cluster2", "number", 90.0, 110.0, 125.0}
+                    {0.0, "FR", "CCGT", "Cluster1", "power", 100.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0, 220.0, 230.0},
+                    {1.0, "AT", "CCGT", "Cluster2", "number", 90.0, 110.0, 125.0, 135.0, 145.0, 155.0, 165.0, 175.0, 185.0, 195.0, 205.0, 215.0, 225.0}
             };
 
             for (var rowIndex = 0; rowIndex < data.length; rowIndex++) {

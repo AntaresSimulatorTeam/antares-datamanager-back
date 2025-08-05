@@ -89,36 +89,149 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
-                String rowArea = row.getCell(1).getStringCellValue();
-                if (!area.equals("OTHER") && !rowArea.equals(area.toUpperCase())) continue;
+                String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
 
-                for (int i = 5; i < header.getLastCellNum(); i++) {
-                    if (!isCellInHorizon(header.getCell(i).getStringCellValue(), horizon, isCivilYear)) continue;
-
-                    String techName = row.getCell(2).getStringCellValue();
-                    if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) continue;
-                    String clusterName = row.getCell(3).getStringCellValue();
-
-                    ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
-                            .toUse(row.getCell(0).getNumericCellValue() == 1)
-                            .area(rowArea)
-                            .thermalClusterRef(findOrCreateThermalClusterRef(techName,clusterName))
-                            .category(ThermalCategoryEnum.valueOf(
-                                    row.getCell(4).getStringCellValue().equals(ThermalCategoryEnum.POWER.name().toLowerCase())
-                                            ? ThermalCategoryEnum.POWER.name()
-                                            : ThermalCategoryEnum.NUMBER.name()))
-                            .monthYear(header.getCell(i).getStringCellValue())
-                            .value(row.getCell(i).getCellType() == CellType.STRING
-                                    ? Double.parseDouble(row.getCell(i).getStringCellValue())
-                                    : row.getCell(i).getNumericCellValue())
-                            .build();
-                    thermalClusterCapacities.add(entity);
+                if (!area.equals("OTHER")) {
+                    if (rowArea.equals(area.toUpperCase())) {
+                        areaFound = true;
+                        processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, thermalClusterCapacities);
+                    }
+                } else {
+                    foundAreas.add(rowArea);
+                    processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, thermalClusterCapacities);
                 }
             }
         } catch (IOException e) {
+            log.error("Erreur lors de la lecture du fichier : {}", e.getMessage());
             throw TechnicalException.builder().message("could not build thermal_capacity cluster  list : " + e.getMessage()).build();
         }
+
+        checkAreaPresence(area, areaFound, foundAreas, studyAreas, path);
+
+        log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), thermalClusterCapacities.size());
         return thermalClusterCapacities;
+    }
+
+    private List<String> getStudyAreasForCurrentStudy() {
+        // À adapter selon votre contexte pour récupérer l'id de l'étude
+        Integer studyId = 1;
+        return areaRepository.findAllByStudyId(studyId)
+                .stream()
+                .map(a -> a.getName().toUpperCase())
+                .collect(Collectors.toList());
+    }
+
+    private void processThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology,
+                                   String rowArea, List<ThermalClusterCapacityEntity> result) {
+        for (int i = 5; i < header.getLastCellNum(); i++) {
+            if (!isCellInHorizon(header.getCell(i).getStringCellValue(), horizon, isCivilYear)) continue;
+
+            String techName = row.getCell(2).getStringCellValue();
+            if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) continue;
+            String clusterName = row.getCell(3).getStringCellValue();
+
+            ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
+                    .toUse(row.getCell(0).getNumericCellValue() == 0)
+                    .area(rowArea)
+                    .thermalClusterRef(findOrCreateThermalClusterRef(techName, clusterName))
+                    .category(ThermalCategoryEnum.valueOf(
+                            row.getCell(4).getStringCellValue().equals(ThermalCategoryEnum.POWER.name().toLowerCase())
+                                    ? ThermalCategoryEnum.POWER.name()
+                                    : ThermalCategoryEnum.NUMBER.name()))
+                    .monthYear(header.getCell(i).getStringCellValue())
+                    .value(capacityValue(row, i))
+                    .build();
+            result.add(entity);
+        }
+    }
+
+    private void checkAreaPresence(String area, boolean areaFound, List<String> foundAreas, List<String> studyAreas, Path path) {
+        if (!area.equals("OTHER") && !areaFound) {
+            log.info("Aucune area '{}' trouvée dans le fichier {}", area, path.getFileName());
+            throw BusinessException.builder()
+                    .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
+                    .build();
+        }
+        if (area.equals("OTHER") && foundAreas.stream().noneMatch(studyAreas::contains)) {
+            log.info("Aucune area de l'étude n'est présente dans le fichier {}", path.getFileName());
+            throw BusinessException.builder()
+                    .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
+                    .build();
+        }
+    }
+
+    private static double capacityValue(Row row, int i) {
+        Cell cell = row.getCell(i);
+        if (cell == null) {
+            throw BusinessException.builder()
+                    .message("La cellule de capacité est vide à la colonne " + i)
+                    .build();
+        }
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return cell.getNumericCellValue();
+        } else if (cell.getCellType() == CellType.STRING) {
+            try {
+                return Double.parseDouble(cell.getStringCellValue());
+            } catch (NumberFormatException e) {
+                throw BusinessException.builder()
+                        .message("La valeur de capacité n'est pas un nombre valide à la colonne " + i + " : " + cell.getStringCellValue())
+                        .build();
+            }
+        } else {
+            throw BusinessException.builder()
+                    .message("Type de cellule non supporté pour la capacité à la colonne " + i + " : " + cell.getCellType())
+                    .build();
+        }
+    }
+
+    /**
+     * Validates that the horizon columns are present in the header row.
+     *
+     * @param header       the header row of the sheet
+     * @param horizon      the horizon to validate
+     * @param isCivilYear  whether the horizon is a civil year
+     * @param path         the path of the file being processed
+     */
+    private void validateHorizonColumnsPresent(Row header, String horizon, boolean isCivilYear, Path path) {
+        List<String> expectedColumns = getExpectedColumns(horizon, isCivilYear);
+        // Vérifie la présence de chaque colonne attendue via isCellInHorizon
+        List<String> actualColumns = new ArrayList<>();
+        for (int i = 5; i < header.getLastCellNum(); i++) {
+            String colName = header.getCell(i).getStringCellValue();
+            if (isCellInHorizon(colName, horizon, isCivilYear)) {
+                actualColumns.add(colName);
+            }
+        }
+        for (String col : expectedColumns) {
+            if (!actualColumns.contains(col)) {
+                throw BusinessException.builder()
+                        .message("The columns representing the horizon " + horizon +
+                                " are missing in THERMAL Installed Power trajectory " + path.getFileName())
+                        .build();
+            }
+        }
+    }
+
+    private static List<String> getExpectedColumns(String horizon, boolean isCivilYear) {
+        List<String> expectedColumns = new ArrayList<>();
+        int horizonYear = Integer.parseInt(horizon.split("-")[0]);
+        // Génère la liste des colonnes attendues selon le mode
+        if (isCivilYear) {
+            for (int m = 1; m <= 12; m++) {
+                String col = String.format("%04d_%02d", horizonYear, m);
+                expectedColumns.add(col);
+            }
+        } else {
+            for (int m = 7; m <= 12; m++) {
+                String col = String.format("%04d_%02d", horizonYear, m);
+                expectedColumns.add(col);
+            }
+            for (int m = 1; m <= 6; m++) {
+                String col = String.format("%04d_%02d", horizonYear + 1, m);
+                expectedColumns.add(col);
+            }
+        }
+        return expectedColumns;
     }
 
     public boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
