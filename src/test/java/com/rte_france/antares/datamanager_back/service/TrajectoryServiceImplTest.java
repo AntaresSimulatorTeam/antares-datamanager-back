@@ -150,7 +150,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // Then
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "test");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,"test");
 
         assertEquals(1, result.size());
         assertEquals("areas_testFile.xlsx", result.getFirst().getFileName());
@@ -160,7 +160,7 @@ class TrajectoryServiceImplTest {
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, "area"));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, "area"));
     }
 
     @Test
@@ -464,7 +464,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
 
         // Then
         assertEquals(1, result.size());
@@ -484,7 +484,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, null);
 
         // Then
         assertEquals(0, result.size());
@@ -849,7 +849,7 @@ class TrajectoryServiceImplTest {
         var trajectory = TrajectoryEntity.builder()
                 .id(trajectoryId)
                 .type(TrajectoryType.LOAD.name())
-                .loadArea(TrajectoryServiceImpl.OTHER_AREA)
+                .area(TrajectoryServiceImpl.OTHER_AREA)
                 .fileName(fileName)
                 .horizon(horizon)
                 .build();
