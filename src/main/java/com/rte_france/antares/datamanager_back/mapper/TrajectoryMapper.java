@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import org.springframework.util.CollectionUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TrajectoryMapper {
     public static TrajectoryDTO toTrajectoryDTO(TrajectoryEntity entity) {
+        var list = entity.getThermalClusterCapacities();
         return TrajectoryDTO.builder()
                 .id(entity.getId())
                 .fileName(entity.getFileName())
@@ -22,7 +24,8 @@ public class TrajectoryMapper {
                 .version(entity.getVersion())
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
-                .loadArea(entity.getArea())
+                .area(entity.getArea())
+                .thermalTechnology(list != null && !CollectionUtils.isEmpty(list) ? list.getFirst().getThermalClusterRef().getThermalTechnology().getName(): null)
                 .build();
     }
 
