@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +9,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.Set;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
@@ -32,11 +30,8 @@ public class TrajectoryDTO {
     @JsonProperty("userName")
     String createdBy;
 
-    @JsonProperty("area")
-    String area;
-
-    @JsonProperty("thermalTechnology")
-    String thermalTechnology;
+    @JsonProperty("loadArea")
+    String loadArea;
 
     @JsonProperty("creationDate")
     LocalDateTime creationDate;
