@@ -1,26 +1,26 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.repository.model.WarningCode.THERMAL_INSTALLED_POWER_MISSING_AREAS;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -30,6 +30,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private final TrajectoryRepository trajectoryRepository;
 
+    private final AreaRepository areaRepository;
+
     private final ThermalClusterRefRepository thermalClusterRefRepository;
 
     private final UserService userService;
@@ -37,6 +39,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final ThermalTechnologyRepository thermalTechnologyRepository;
 
     private List<ThermalClusterRef> cachedClusterRefs;
+
+    private final WarningRepository warningMessageRepository;
+
+    private final StudyRepository studyRepository;
+
 
     /**
      * Processes the given file.
@@ -53,9 +60,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Saves the thermal trajectory and associates it with the given thermal entities.
      *
-     * @param trajectory     the trajectory entity to save
+     * @param trajectory      the trajectory entity to save
      * @param thermalEntities the list of thermal entities to associate with the trajectory
-     * @param type           the type of the trajectory
+     * @param type            the type of the trajectory
      * @return the saved trajectory entity
      */
     @SuppressWarnings("unchecked")
@@ -80,12 +87,23 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @return a list of area configurations
      */
     @Override
-    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area, String technology) throws IOException {
+    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(
+            Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) throws IOException {
+
+        log.info("Début du traitement du fichier THERMAL Installed Power : {}", path.getFileName());
+
+        List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
+        log.info("Areas liés à l'étude récupérés : {}", studyAreas);
+
         List<ThermalClusterCapacityEntity> thermalClusterCapacities = new ArrayList<>();
+        boolean areaFound = false;
+        Set<String> foundAreas = new HashSet<>();
+
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             Row header = sheet.getRow(0);
+            validateHorizonColumnsPresent(header, horizon, isCivilYear, path);
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
@@ -106,15 +124,34 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             throw TechnicalException.builder().message("could not build thermal_capacity cluster  list : " + e.getMessage()).build();
         }
 
-        checkAreaPresence(area, areaFound, foundAreas, studyAreas, path);
+        List<String> listMissingArea = checkForMissingArea(area, areaFound, foundAreas, studyAreas, path);
+        //save warning if missing areas
+        if (!listMissingArea.isEmpty()) {
+            String message = "The following areas are missing in the THERMAL Installed Power trajectory " + path.getFileName() + " : " + String.join(", ", listMissingArea);
+            log.info(message);
+            warningMessageRepository.save(WarningMessageEntity.builder()
+                    .warningContent(message)
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
+                    .warningCode(THERMAL_INSTALLED_POWER_MISSING_AREAS)
+                    .study(studyRepository.findById(studyId)
+                            .orElseThrow(() -> BusinessException.builder()
+                                    .message("Study not found with id: " + studyId)
+                                    .httpStatus(HttpStatus.NOT_FOUND)
+                                    .build()))
+                    .creationDate(LocalDateTime.now())
+                    .createdBy(userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER")
+                    .isAck(false)
+                    .build());
+        } else {
+            log.info("Toutes les areas sont présentes dans le fichier {}", path.getFileName());
+        }
 
         log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), thermalClusterCapacities.size());
         return thermalClusterCapacities;
     }
 
-    private List<String> getStudyAreasForCurrentStudy() {
+    private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
         // À adapter selon votre contexte pour récupérer l'id de l'étude
-        Integer studyId = 1;
         return areaRepository.findAllByStudyId(studyId)
                 .stream()
                 .map(a -> a.getName().toUpperCase())
@@ -145,19 +182,34 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
     }
 
-    private void checkAreaPresence(String area, boolean areaFound, List<String> foundAreas, List<String> studyAreas, Path path) {
+    private List<String> checkForMissingArea(String area, boolean areaFound, Set<String> foundAreas, List<String> studyAreas, Path path) {
         if (!area.equals("OTHER") && !areaFound) {
             log.info("Aucune area '{}' trouvée dans le fichier {}", area, path.getFileName());
             throw BusinessException.builder()
                     .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
                     .build();
         }
-        if (area.equals("OTHER") && foundAreas.stream().noneMatch(studyAreas::contains)) {
-            log.info("Aucune area de l'étude n'est présente dans le fichier {}", path.getFileName());
-            throw BusinessException.builder()
-                    .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
-                    .build();
+        if (area.equals("OTHER")) {
+            List<String> missingAreas = studyAreas.stream()
+                    .filter(studyArea -> !foundAreas.contains(studyArea))
+                    .collect(Collectors.toList());
+
+            boolean atLeastOnePresent = studyAreas.stream().anyMatch(foundAreas::contains);
+
+            if (!atLeastOnePresent) {
+                log.info("Aucune area de l'étude n'est présente dans le fichier {}", path.getFileName());
+                throw BusinessException.builder()
+                        .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
+                        .build();
+            }
+
+            if (!missingAreas.isEmpty()) {
+                return missingAreas;
+            } else {
+                log.info("Toutes les areas de l'étude sont présentes dans le fichier {}", path.getFileName());
+            }
         }
+        return List.of();
     }
 
     private static double capacityValue(Row row, int i) {
@@ -174,7 +226,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 return Double.parseDouble(cell.getStringCellValue());
             } catch (NumberFormatException e) {
                 throw BusinessException.builder()
-                        .message("La valeur de capacité n'est pas un nombre valide à la colonne " + i + " : " + cell.getStringCellValue())
+                        .message("The value of power or number of horizon {0} THERMAL Installed Power trajectory {1} must be numeric")
+                        .errorMessageArguments(List.of(String.valueOf(i), cell.getStringCellValue()))
                         .build();
             }
         } else {
@@ -187,12 +240,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Validates that the horizon columns are present in the header row.
      *
-     * @param header       the header row of the sheet
-     * @param horizon      the horizon to validate
-     * @param isCivilYear  whether the horizon is a civil year
-     * @param path         the path of the file being processed
+     * @param header      the header row of the sheet
+     * @param horizon     the horizon to validate
+     * @param isCivilYear whether the horizon is a civil year
+     * @param path        the path of the file being processed
      */
     private void validateHorizonColumnsPresent(Row header, String horizon, boolean isCivilYear, Path path) {
+        log.info("Vérification de la présence des colonnes pour l'horizon : {}", horizon);
         List<String> expectedColumns = getExpectedColumns(horizon, isCivilYear);
         // Vérifie la présence de chaque colonne attendue via isCellInHorizon
         List<String> actualColumns = new ArrayList<>();
@@ -205,8 +259,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         for (String col : expectedColumns) {
             if (!actualColumns.contains(col)) {
                 throw BusinessException.builder()
-                        .message("The columns representing the horizon " + horizon +
-                                " are missing in THERMAL Installed Power trajectory " + path.getFileName())
+                        .message("The columns representing the horizon  {0} are missing in THERMAL Installed Power trajectory {1}")
+                        .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
                         .build();
             }
         }
