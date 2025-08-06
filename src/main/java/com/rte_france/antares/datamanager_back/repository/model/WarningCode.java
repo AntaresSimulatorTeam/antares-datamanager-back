@@ -9,8 +9,8 @@ public enum WarningCode {
     LINKS_UNILATERAL_VALUES_ZERO("links.unilateral_values_zero"),
     LINKS_AREA_NOT_PRESENT("links.area_not_present"),
     LOAD_MISSING_TRAJECTORY_FOR_AREAS("load.missing_trajectories_for_areas"),
-    DUPLICATION_MISSING_TRAJECTORIES("duplication.missing_trajectories");
-
+    DUPLICATION_MISSING_TRAJECTORIES("duplication.missing_trajectories"),
+    THERMAL_INSTALLED_POWER_MISSING_AREAS("thermal.installed_power_missing_areas");
     private final String value;
 
     public String value() {

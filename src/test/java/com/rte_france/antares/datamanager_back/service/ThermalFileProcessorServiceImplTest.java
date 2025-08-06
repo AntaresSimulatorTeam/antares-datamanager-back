@@ -4,6 +4,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -12,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessor
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -19,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -48,6 +51,9 @@ class ThermalFileProcessorServiceImplTest {
 
     @InjectMocks
     private ThermalFileProcessorServiceImpl thermalFileProcessorService;
+
+    @Mock
+    private AreaRepository areaRepository;
 
     @BeforeEach
      void setup() {
@@ -134,8 +140,10 @@ class ThermalFileProcessorServiceImplTest {
         when(thermalTechnologyRepository.findThermalTechnologyByName(any())).thenReturn(Optional.of(ThermalTechnology.builder().name("CCGT").build()));
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build()));
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+
         var horizon = "2025-2026";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGD"), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGD");
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -211,11 +219,12 @@ class ThermalFileProcessorServiceImplTest {
         String horizon = "2025-2026";
         String area = "FR";
         String technology = "CCGT";
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
             filesMock.when(() -> Files.newInputStream(mockPath)).thenThrow(new IOException("File read error"));
             assertThrows(TechnicalException.class, () ->
-                    thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology));
+                    thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology,1));
         }
     }
     @Test
