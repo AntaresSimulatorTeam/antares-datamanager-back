@@ -45,6 +45,8 @@ public class TrajectoryEntity {
     @Column(name = "area")
     private String area;
 
+    private String technology;
+
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AreaConfigEntity> areaConfigEntities;
 
