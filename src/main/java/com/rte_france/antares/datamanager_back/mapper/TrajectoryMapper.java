@@ -22,7 +22,8 @@ public class TrajectoryMapper {
                 .version(entity.getVersion())
                 .createdBy(entity.getCreatedBy())
                 .creationDate(entity.getCreationDate())
-                .loadArea(entity.getArea())
+                .area(entity.getArea())
+                .technology(entity.getTechnology())
                 .build();
     }
 
