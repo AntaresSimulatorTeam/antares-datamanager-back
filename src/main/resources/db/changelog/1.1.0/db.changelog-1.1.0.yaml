@@ -20,3 +20,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V09-add_area_load_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V10-change_columns_thermal_capacity_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V11-add-technology-column-to-trajectory_table.sql
