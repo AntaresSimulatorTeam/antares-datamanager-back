@@ -113,7 +113,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenThrow(new RuntimeException("Database error"));
 
         assertThrows(RuntimeException.class, () ->
-                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area)
+                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area, "CCGT")
         );
     }
 
@@ -127,7 +127,7 @@ class ThermalFileProcessorServiceImplTest {
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build()));
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
         var horizon = "2025-2026";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT"), TrajectoryType.THERMAL_CAPACITY,"FR");
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGD"), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGD");
 
         verify(trajectoryRepository, times(1)).save(any());
     }

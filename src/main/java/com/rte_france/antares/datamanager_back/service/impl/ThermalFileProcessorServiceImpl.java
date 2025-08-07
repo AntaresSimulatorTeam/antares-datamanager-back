@@ -44,9 +44,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      *
      * @param path the path to the file to process
      */
-    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> listThermalClusterCapacity, TrajectoryType type, String area) throws IOException {
+    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> listThermalClusterCapacity, TrajectoryType type, String area, String technology) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area), listThermalClusterCapacity, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), listThermalClusterCapacity, type);
     }
 
     /**
