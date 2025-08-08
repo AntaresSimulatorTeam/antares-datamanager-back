@@ -480,7 +480,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .build());
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
-        if (!TrajectoryType.LOAD.equals(type) && study.getStudyTrajectoryEntities() != null) {
+        if ((TrajectoryType.AREA.equals(type) || TrajectoryType.LINK.equals(type))  && study.getStudyTrajectoryEntities() != null) {
             existingLink = study.getStudyTrajectoryEntities().stream()
                     .filter(studyTrajectory -> studyTrajectory.getTrajectory() != null
                             && studyTrajectory.getTrajectory().getType() != null
