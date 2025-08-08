@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterCapacityDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -61,21 +62,19 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * Saves the thermal trajectory and associates it with the given thermal entities.
      *
      * @param trajectory      the trajectory entity to save
-     * @param thermalEntities the list of thermal entities to associate with the trajectory
+     * @param thermalClusterCapacityDto the list of thermal entities to associate with the trajectory
      * @param type            the type of the trajectory
      * @return the saved trajectory entity
      */
     @SuppressWarnings("unchecked")
-    public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, List<? extends ThermalBaseEntity> thermalEntities, TrajectoryType type) {
+    public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type) {
         trajectory.setType(type.name());
+        List<ThermalClusterCapacityEntity> thermalEntities = thermalClusterCapacityDto.getThermalClusterCapacities();
+        trajectory.setWarningMessages(Set.of(thermalClusterCapacityDto.getWarningMessage()));
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
-            ThermalBaseEntity firstEntity = thermalEntities.get(0);
-            if (firstEntity instanceof ThermalClusterCapacityEntity) {
-                trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
-            } else {
-                throw new IllegalArgumentException();
-            }
+                trajectory.setThermalClusterCapacities(thermalEntities);
+
         }
         return trajectoryRepository.save(trajectory);
     }
@@ -87,9 +86,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @return a list of area configurations
      */
     @Override
-    public List<ThermalClusterCapacityEntity> buildThermalClusterCapacityValuesList(
+    public ThermalClusterCapacityDto buildThermalClusterCapacityValuesList(
             Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) throws IOException {
-
+            ThermalClusterCapacityDto thermalClusterCapacityDto = new ThermalClusterCapacityDto();
         log.info("Début du traitement du fichier THERMAL Installed Power : {}", path.getFileName());
 
         List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
@@ -126,10 +125,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         List<String> listMissingArea = checkForMissingArea(area, areaFound, foundAreas, studyAreas, path);
         //save warning if missing areas
+        WarningMessageEntity warningMessage = new WarningMessageEntity();
+
         if (!listMissingArea.isEmpty()) {
             String message = "The following areas are missing in the THERMAL Installed Power trajectory " + path.getFileName() + " : " + String.join(", ", listMissingArea);
             log.info(message);
-            warningMessageRepository.save(WarningMessageEntity.builder()
+           warningMessage = WarningMessageEntity.builder()
                     .warningContent(message)
                     .warningLevel(WarningLevel.WARNING_LEVEL)
                     .warningCode(THERMAL_INSTALLED_POWER_MISSING_AREAS)
@@ -141,13 +142,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .creationDate(LocalDateTime.now())
                     .createdBy(userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER")
                     .isAck(false)
-                    .build());
+                    .build();
         } else {
             log.info("Toutes les areas sont présentes dans le fichier {}", path.getFileName());
         }
 
         log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), thermalClusterCapacities.size());
-        return thermalClusterCapacities;
+        thermalClusterCapacityDto.setThermalClusterCapacities(thermalClusterCapacities);
+        thermalClusterCapacityDto.setWarningMessage(warningMessage);
+        return thermalClusterCapacityDto;
     }
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
