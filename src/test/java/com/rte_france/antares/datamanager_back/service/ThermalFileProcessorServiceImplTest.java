@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterCapacityDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -121,13 +122,16 @@ class ThermalFileProcessorServiceImplTest {
         Path mockPath = mock(Path.class);
         String horizon = "2025-2026";
         String area = "FR";
-        List<ThermalClusterCapacityEntity> mockEntities = List.of(new ThermalClusterCapacityEntity());
+        ThermalClusterCapacityDto mockEntities = ThermalClusterCapacityDto.builder()
+                .thermalClusterCapacities(List.of(ThermalClusterCapacityEntity.builder().build()))
+                .warningMessage(WarningMessageEntity.builder().build())
+                .build();
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.save(any())).thenThrow(new RuntimeException("Database error"));
 
         assertThrows(RuntimeException.class, () ->
-                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area, "CCGT")
+                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area)
         );
     }
 
@@ -152,12 +156,14 @@ class ThermalFileProcessorServiceImplTest {
     void saveThermalCapacitiesTrajectory() {
         // Given
         TrajectoryEntity trajectory = new TrajectoryEntity();
-        List<ThermalClusterCapacityEntity> thermalClusterCapacities = List.of(new ThermalClusterCapacityEntity());
-
+        ThermalClusterCapacityDto mockEntities = ThermalClusterCapacityDto.builder()
+                .thermalClusterCapacities(List.of(ThermalClusterCapacityEntity.builder().build()))
+                .warningMessage(WarningMessageEntity.builder().build())
+                .build();
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
 
         // When
-        TrajectoryEntity result = thermalFileProcessorService.saveThermalTrajectory(trajectory, thermalClusterCapacities, TrajectoryType.THERMAL_CAPACITY);
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalTrajectory(trajectory, mockEntities, TrajectoryType.THERMAL_CAPACITY);
 
         // Then
         assertEquals(TrajectoryType.THERMAL_CAPACITY.name(), result.getType());

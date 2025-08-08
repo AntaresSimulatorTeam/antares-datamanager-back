@@ -283,15 +283,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
         //checkIfAreaIsLinkedToStudy(studyId, area);
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
-        var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear, area, technology);
-        if (CollectionUtils.isEmpty(listThermalClusterCapacityEntity)) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse, area, horizon))
-                    .message("No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        return thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY, area, technology);
+        ThermalClusterCapacityDto thermalClusterCapacityDto = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology,studyId);
+        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, thermalClusterCapacityDto, TrajectoryType.THERMAL_CAPACITY, area);
+
     }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
