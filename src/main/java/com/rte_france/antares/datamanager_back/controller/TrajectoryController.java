@@ -103,6 +103,14 @@ public class TrajectoryController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @Operation(summary = "Detach multiple trajectories from a study")
+    @PostMapping("/detach/batch")
+    public ResponseEntity<Map<String, List<Integer>>> unlinkBatch(@RequestParam Integer studyId,
+                                            @RequestBody List<Integer> trajectoryIds) {
+        var result = trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, trajectoryIds);
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
     @DeleteMapping("/detach/all")
     public ResponseEntity<Void> unlinkAllTrajectoriesFromStudy(@RequestParam Integer studyId) {
         trajectoryService.unlinkAllTrajectoriesFromStudy(studyId);

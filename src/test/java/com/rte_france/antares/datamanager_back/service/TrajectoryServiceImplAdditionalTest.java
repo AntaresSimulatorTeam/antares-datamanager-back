@@ -292,4 +292,42 @@ class TrajectoryServiceImplAdditionalTest {
         assertEquals("No links found", ex.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
+
+    @Test
+    void unlinkBatchTrajectoriesFromStudy_shouldReturnSuccessAndFailedLists() {
+        var studyId = 1;
+        var trajectoryIds = List.of(1, 2, 3);
+
+        when(trajectoryRepository.findById(any()))
+                .thenAnswer(inv -> {
+                    var id = (Integer) inv.getArgument(0);
+                    return Optional.of(
+                            TrajectoryEntity.builder()
+                                    .id(id)
+                                    .type(TrajectoryType.LINK.name())
+                                    .build()
+                    );
+                });
+
+        when(studyTrajectoryRepository.findById(any()))
+                .thenAnswer(inv -> {
+                    var key = (StudyTrajectoryKey) inv.getArgument(0);
+                    if (Objects.equals(key.getTrajectoryId(), 3)) {
+                        return Optional.empty();
+                    }
+                    return Optional.of(
+                            StudyTrajectoryEntity.builder()
+                                    .id(key)
+                                    .build()
+                    );
+                });
+
+        var result = trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, trajectoryIds);
+
+        assertEquals(List.of(1, 2), result.get("success"));
+        assertEquals(List.of(3), result.get("failed"));
+
+        verify(studyTrajectoryRepository, times(2)).delete(any(StudyTrajectoryEntity.class));
+    }
+
 }

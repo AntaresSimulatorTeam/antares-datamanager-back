@@ -70,7 +70,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Transactional
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-      return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
+        return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
     }
 
     /**
@@ -108,7 +108,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // Build and normalize the trajectory path
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
 
-        
+
         // Try to find existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
@@ -119,12 +119,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     || (area.equals(OTHER_AREA)
                     && isSameVersionOfOtherLoadTrajectory(existingTrajectory, studyId, trajectoryPath, horizon)
             )
-            )
-            {
-                    throw BusinessException.builder()
-                            .message("Trajectory already uploaded")
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
+            ) {
+                throw BusinessException.builder()
+                        .message("Trajectory already uploaded")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
 
             }
 
@@ -142,7 +141,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
     }
 
-    private  boolean isSameVersionOfOtherLoadTrajectory(TrajectoryEntity existingTrajectory, Integer studyId, Path trajectoryPath, String horizon) {
+    private boolean isSameVersionOfOtherLoadTrajectory(TrajectoryEntity existingTrajectory, Integer studyId, Path trajectoryPath, String horizon) {
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
                 .map(a -> a.getName().toLowerCase())
                 .toList();
@@ -216,7 +215,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .map(String::toLowerCase)
                     .toList();
         }
-        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy->areaStudy.getName().toLowerCase()).toList();
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
 
         List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
@@ -625,6 +624,37 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build();
             }
         }
+    }
+
+    @Override
+    public Map<String, List<Integer>> unlinkBatchTrajectoriesFromStudy(Integer studyId, List<Integer> trajectoryIds) {
+        if (trajectoryIds == null || trajectoryIds.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("trajectoryIds must not be empty")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        var success = new ArrayList<Integer>();
+        var failed = new ArrayList<Integer>();
+
+        trajectoryIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(id -> {
+                    try {
+                        unlinkTrajectoryFromStudy(id, studyId);
+                        success.add(id);
+                    } catch (BusinessException ex) {
+                        failed.add(id);
+                        log.warn("Batch detach: business error on {} ({})", id, ex.getMessage());
+                    } catch (RuntimeException ex) {
+                        failed.add(id);
+                        log.error("Batch detach: unexpected error on {}", id, ex);
+                    }
+                });
+
+        return Map.of("success", success, "failed", failed);
     }
 
     @Override
