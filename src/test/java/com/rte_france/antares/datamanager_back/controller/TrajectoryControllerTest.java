@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -304,4 +305,32 @@ class TrajectoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk());
     }
+
+    // In src/test/java/com/rte_france/antares/datamanager_back/controller/TrajectoryControllerTest.java
+
+    @Test
+    void unlinkBatch_shouldReturnSuccessAndFailedLists() throws Exception {
+        Integer studyId = 1;
+        var trajectoryIds = List.of(1, 2, 3);
+        var response = Map.of(
+                "success", List.of(1, 2),
+                "failed", List.of(3)
+        );
+
+        when(trajectoryServiceImpl.unlinkBatchTrajectoriesFromStudy(eq(studyId), eq(trajectoryIds)))
+                .thenReturn(response);
+
+        this.mockMvc.perform(post("/v1/trajectory/detach/batch")
+                        .param("studyId", studyId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[1,2,3]")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").isArray())
+                .andExpect(jsonPath("$.failed").isArray())
+                .andExpect(jsonPath("$.success[0]").value(1))
+                .andExpect(jsonPath("$.success[1]").value(2))
+                .andExpect(jsonPath("$.failed[0]").value(3));
+    }
+
 }
