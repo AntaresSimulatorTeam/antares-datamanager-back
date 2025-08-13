@@ -29,6 +29,8 @@ public interface TrajectoryService {
 
     void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
 
+    Map<String, List<Integer>> unlinkBatchTrajectoriesFromStudy(Integer studyId, List<Integer> trajectoryIds);
+
     void unlinkAllTrajectoriesFromStudy(Integer studyId);
 
     List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId);
