@@ -639,6 +639,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     }
                 });
 
+        if (success.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No trajectories could be deleted")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
+
         return Map.of("success", success, "failed", failed);
     }
 
