@@ -183,11 +183,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         List<AreaDTO> areaDTOs = AreaMapper.toAreaDTOs(areasEntities);
 
+
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
+        List<ThermalParameterEntity> thermalClusterParameters = trajectory.getThermalClusterParameters();
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
-                        areaDTO -> areasMapGenerator(listArrowLoadFilesByArea.get(areaDTO.getName()))
+                        areaDTO -> areasMapGenerator(listArrowLoadFilesByArea.get(areaDTO.getName()), thermalClusterParameters)
                 ));
 
         areasMap.putAll(areasDataMap);
@@ -222,7 +224,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea) {
+    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, List<ThermalParameterEntity> thermalParameterEntities) {
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
@@ -233,8 +235,23 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         hydroMap.put(PROPERTIES, "HydroProperties as JSON");
         hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
+        Map<String, Object> thermalsMap = new HashMap<>();
+        Map<String, Object> clusterMap = new HashMap<>();
+
+        ObjectMapper mapper = new ObjectMapper();
+        thermalParameterEntities.forEach(thermalParameterEntity -> {
+            var propertiesMap = mapper.convertValue(thermalParameterEntity, Map.class);
+            propertiesMap.remove(thermalParameterEntity.getId());
+            // TODO: used ids for now but has to be replaced with cluster name
+            clusterMap.put(thermalParameterEntity.getId().toString(), Map.of(PROPERTIES, propertiesMap));
+        });
+
+        thermalsMap.put("clusters", clusterMap);
+
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
+        areaMap.put("thermals", thermalsMap);
+
         return areaMap;
     }
 
