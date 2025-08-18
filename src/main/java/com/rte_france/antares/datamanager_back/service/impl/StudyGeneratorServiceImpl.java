@@ -235,24 +235,35 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         hydroMap.put(PROPERTIES, "HydroProperties as JSON");
         hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
-        Map<String, Object> thermalsMap = new HashMap<>();
-        Map<String, Object> clusterMap = new HashMap<>();
-
-        ObjectMapper mapper = new ObjectMapper();
-        thermalParameterEntities.forEach(thermalParameterEntity -> {
-            var propertiesMap = mapper.convertValue(thermalParameterEntity, Map.class);
-            propertiesMap.remove(thermalParameterEntity.getId());
-            // TODO: used ids for now but has to be replaced with cluster name
-            clusterMap.put(thermalParameterEntity.getId().toString(), Map.of(PROPERTIES, propertiesMap));
-        });
-
-        thermalsMap.put("clusters", clusterMap);
+        Map<String, Object> thermalsMap = thermalsMapGenerator(thermalParameterEntities);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
 
         return areaMap;
+    }
+
+    private static Map<String, Object> thermalsMapGenerator(List<ThermalParameterEntity> thermalParameterEntities) {
+        Map<String, Object> clusterMap = new HashMap<>();
+
+        ObjectMapper mapper = new ObjectMapper();
+        thermalParameterEntities.forEach(thermalParameterEntity -> {
+            var propertiesMap = mapper.convertValue(thermalParameterEntity, Map.class);
+            propertiesMap.remove(thermalParameterEntity.getId());
+            Map<String, Object> clusterData = new HashMap<>();
+            clusterData.put(PROPERTIES, propertiesMap);
+            clusterData.put("series", MATRIX_HASH);
+            clusterData.put("fuel_cost", MATRIX_HASH);
+            clusterData.put("co2_cost", MATRIX_HASH);
+            clusterData.put("data", MATRIX_HASH);
+            clusterData.put("modulation", MATRIX_HASH);
+
+            // TODO: used ids for now but has to be replaced with cluster name
+            clusterMap.put(thermalParameterEntity.getId().toString(), clusterData);
+        });
+
+        return new HashMap<>(clusterMap);
     }
 
     private static Map<String, Object> linksMapGenerator() {

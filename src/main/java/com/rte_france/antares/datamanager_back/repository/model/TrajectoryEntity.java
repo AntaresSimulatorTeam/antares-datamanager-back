@@ -5,10 +5,8 @@ import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+
 @BatchSize(size = 1000)
 @Getter
 @Setter
@@ -59,7 +57,8 @@ public class TrajectoryEntity {
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<ThermalParameterEntity> thermalClusterParameters;
+    @Builder.Default
+    List<ThermalParameterEntity> thermalClusterParameters = new ArrayList<>();
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
