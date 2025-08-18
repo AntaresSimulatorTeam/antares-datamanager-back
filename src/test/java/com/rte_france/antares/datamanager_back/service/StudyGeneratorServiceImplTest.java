@@ -362,4 +362,47 @@ class StudyGeneratorServiceImplTest {
                 .isInstanceOf(TechnicalException.class)
                 .hasMessageContaining("Error while call Generate study from generator");
     }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
+        // Given
+        var thermalParam = ThermalParameterEntity.builder().id(1).build();
+
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).build();
+        var areaTrajectory = TrajectoryEntity.builder()
+                .type("AREA")
+                .areaConfigEntities(List.of(areaConfig))
+                .thermalClusterParameters(List.of(thermalParam))
+                .build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("studyTest")
+                .trajectories(Set.of(areaTrajectory))
+                .build();
+
+        // When
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var captorValue = captureGeneratedJson(1);
+
+        var objectMapper = new ObjectMapper();
+        Map<String, Object> jsonMap = objectMapper.readValue(captorValue, new TypeReference<>() {});
+        Map<String, Object> studyMap = objectMapper.convertValue(jsonMap.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
+
+        // Then
+        System.out.println(areasMap);
+        assertThat(frArea).containsKey("thermals");
+        Map<String, Object> thermals = objectMapper.convertValue(frArea.get("thermals"), new TypeReference<>() {});
+        assertThat(thermals).containsKey("1");
+        Map<String, Object> cluster = objectMapper.convertValue(thermals.get("1"), new TypeReference<>() {});
+        assertThat(cluster).containsKey("series");
+        Map<String, Object> properties = objectMapper.convertValue(cluster.get("properties"), new TypeReference<>() {});
+        assertThat(properties).containsKey("efficiencyRange");
+    }
 }
