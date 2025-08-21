@@ -37,6 +37,8 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     private final WarningService warningService;
     private final LoadRepository loadRepository;
 
+    private static final String OTHER_AREA = "OTHERS";
+
     /**
      * Saves a time series matrix read from the given path to NAS with a unique filename.
      *
@@ -101,7 +103,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
                 .map(TrajectoryEntity::getLoadArea)
                 .filter(Objects::nonNull)
                 .map(Utils::normalize)
-                .filter(a -> !TrajectoryServiceImpl.OTHER_AREA.equals(a))
+                .filter(a -> !OTHER_AREA.equals(a))
                 .collect(Collectors.toSet());
 
         return studyAreas.stream()
