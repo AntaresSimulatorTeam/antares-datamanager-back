@@ -30,6 +30,7 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -417,4 +418,13 @@ public class Utils {
         return null;
     }
 
+    /**
+     * Normalize a string (to upper case)
+     * @param s string
+     * @return normalized string s
+     */
+    public static String normalize(String s) {
+        Objects.requireNonNull(s);
+        return s.trim().toUpperCase(Locale.ROOT);
+    }
 }
