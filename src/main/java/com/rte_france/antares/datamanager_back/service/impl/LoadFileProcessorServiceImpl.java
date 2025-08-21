@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -88,21 +89,46 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     /**
      * Main logic for both checkForMissingLoadFiles and checkForMissingLoadByAreaFromDb
      */
-    private Set<WarningMessageEntity> checkMissingLoad(Integer studyId, String userNni,
-                                                       TrajectoryEntity trajectory,
-                                                       LoadChecker loadChecker) {
-        List<String> areasWithoutTrajectory = getAreasLoadWithoutTrajectorySelected(studyId);
-
-        List<String> missingLoadFiles = areasWithoutTrajectory.stream()
-                .filter(area -> !loadChecker.exists(area.toLowerCase()))
+    public List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
+                .map(AreaEntity::getName)
+                .map(n -> n == null ? null : n.trim().toUpperCase(Locale.ROOT))
+                .distinct()
                 .toList();
 
-        if (!areasWithoutTrajectory.isEmpty() && missingLoadFiles.size() == areasWithoutTrajectory.size()) {
+        Set<String> customAreas = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId).stream()
+                .map(TrajectoryEntity::getLoadArea)
+                .filter(Objects::nonNull)
+                .map(n -> n.trim().toUpperCase(Locale.ROOT))
+                .filter(a -> !TrajectoryServiceImpl.OTHER_AREA.equals(a))
+                .collect(Collectors.toSet());
+
+        return studyAreas.stream()
+                .filter(a -> !customAreas.contains(a))
+                .toList();
+    }
+
+
+    private Set<WarningMessageEntity> checkMissingLoad(Integer studyId,
+                                                       String userNni,
+                                                       TrajectoryEntity trajectory,
+                                                       LoadChecker loadChecker) {
+        List<String> impactedAreas = getAreasLoadWithoutTrajectorySelected(studyId).stream()
+                .map(n -> n == null ? null : n.trim().toUpperCase(Locale.ROOT))
+                .toList();
+
+        LoadChecker normalizedChecker = area -> loadChecker.exists(area == null ? null : area.trim().toUpperCase(Locale.ROOT));
+
+        List<String> missingLoadFiles = impactedAreas.stream()
+                .filter(area -> !normalizedChecker.exists(area))
+                .toList();
+
+        if (!impactedAreas.isEmpty() && missingLoadFiles.size() == impactedAreas.size()) {
             throw BusinessException.builder()
                     .message("Missing file(s) for area(s) {0} in LOAD Other areas trajectory {1}\n" +
                             "Please re import trajectory {1} to complete area(s)")
                     .errorMessageArguments(Arrays.asList(
-                            String.join(", ", areasWithoutTrajectory),
+                            String.join(", ", impactedAreas),
                             trajectory.getFileName()
                     ))
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -111,7 +137,8 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
         Set<WarningMessageEntity> warningMessages = new HashSet<>();
         if (!missingLoadFiles.isEmpty()) {
-            warningService.addWarning(warningMessages,
+            warningService.addWarning(
+                    warningMessages,
                     Arrays.asList(String.join(", ", missingLoadFiles), trajectory.getFileName()),
                     WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS,
                     studyId,
@@ -121,21 +148,6 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
         }
 
         return warningMessages;
-    }
-
-    public List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
-                .map(AreaEntity::getName)
-                .toList();
-
-        List<String> areasWithTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
-                .stream()
-                .map(TrajectoryEntity::getLoadArea)
-                .toList();
-
-        return studyAreas.stream()
-                .filter(area -> !areasWithTrajectory.contains(area))
-                .toList();
     }
 
     /**
