@@ -53,6 +53,9 @@ public class StudyServiceImpl implements StudyService {
     private final TrajectoryServiceImpl trajectoryService;
     private final  LoadFileProcessorServiceImpl loadFileProcessorService;
 
+    private static final String STUDY_NOT_FOUND = "Study with id {0} not found.";
+    private static final String HORIZON_FORMAT = "%d-%s";
+
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -101,7 +104,7 @@ public class StudyServiceImpl implements StudyService {
                 studyRepository::delete,
                 () -> {
                     throw BusinessException.builder()
-                            .message("Study with id {0} not found.")
+                            .message(STUDY_NOT_FOUND)
                             .errorMessageArguments(List.of(id.toString()))
                             .httpStatus(HttpStatus.NOT_FOUND)
                             .build();
@@ -114,7 +117,7 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.findById(id)
                 .map(StudyMapper::toStudyDTO)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Study with id {0} not found.")
+                        .message(STUDY_NOT_FOUND)
                         .errorMessageArguments(List.of(id.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
@@ -131,7 +134,7 @@ public class StudyServiceImpl implements StudyService {
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
-        String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+        String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
         List<TrajectoryEntity> trajectories = trajectoryRepository
                 .findMostRecentTrajectoriesForDuplicationByStudyId(studyDTO.getId(), horizon);
 
@@ -198,7 +201,7 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
-        String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+        String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
 
         Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())
                 ? Collections.emptySet()
@@ -318,7 +321,7 @@ public class StudyServiceImpl implements StudyService {
     private StudyEntity loadStudyIfExists(Integer id) {
         return studyRepository.findById(id).orElseThrow(() ->
                 BusinessException.builder()
-                        .message("Study with id {0} not found.")
+                        .message(STUDY_NOT_FOUND)
                         .errorMessageArguments(List.of(id.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build()
@@ -352,7 +355,7 @@ public class StudyServiceImpl implements StudyService {
 
     private void updateHorizonIfPresent(StudyEntity study, StudyDTO dto) {
         validateHorizon(dto);
-        var horizonRange = String.format("%d-%s", Integer.parseInt(dto.getHorizon()) - 1, dto.getHorizon());
+        var horizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(dto.getHorizon()) - 1, dto.getHorizon());
         study.setHorizon(horizonRange);
     }
 
