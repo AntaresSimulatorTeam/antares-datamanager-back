@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.WarningService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
@@ -92,14 +93,14 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     public List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
                 .map(AreaEntity::getName)
-                .map(n -> n == null ? null : n.trim().toUpperCase(Locale.ROOT))
+                .map(Utils::normalize)
                 .distinct()
                 .toList();
 
         Set<String> customAreas = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId).stream()
                 .map(TrajectoryEntity::getLoadArea)
                 .filter(Objects::nonNull)
-                .map(n -> n.trim().toUpperCase(Locale.ROOT))
+                .map(Utils::normalize)
                 .filter(a -> !TrajectoryServiceImpl.OTHER_AREA.equals(a))
                 .collect(Collectors.toSet());
 
@@ -114,10 +115,10 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
                                                        TrajectoryEntity trajectory,
                                                        LoadChecker loadChecker) {
         List<String> impactedAreas = getAreasLoadWithoutTrajectorySelected(studyId).stream()
-                .map(n -> n == null ? null : n.trim().toUpperCase(Locale.ROOT))
+                .map(Utils::normalize)
                 .toList();
 
-        LoadChecker normalizedChecker = area -> loadChecker.exists(area == null ? null : area.trim().toUpperCase(Locale.ROOT));
+        LoadChecker normalizedChecker = area -> loadChecker.exists(Utils.normalize(area));
 
         List<String> missingLoadFiles = impactedAreas.stream()
                 .filter(area -> !normalizedChecker.exists(area))
@@ -161,15 +162,24 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
      * Returns a LoadChecker that checks for file existence in the database.
      * If the file does not exist, it creates a new LoadEntity and saves it.
      */
-    /**
-     * Returns a LoadChecker that checks for file existence in the DB.
-     */
     private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory, Integer studyId) {
-       //TODO FIX
-        return area -> loadRepository.existsByFileName(
-                "load_" + area.toLowerCase() + "_" + horizon + ".txt"
-        );
+        if (trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty()) {
+            Set<String> areasInThisOthers = trajectory.getLoadEntities().stream()
+                    .map(LoadEntity::getArea)
+                    .filter(Objects::nonNull)
+                    .map(Utils::normalize)
+                    .collect(Collectors.toSet());
+
+            return area -> areasInThisOthers.contains(Utils.normalize(area));
+        }
+
+        String trajFileName = trajectory.getFileName();
+        return area -> {
+            String fn = "load_" + Utils.normalize(area) + "_" + horizon + ".txt";
+            return loadRepository.findByFileNameAndTrajectoryFileName(fn, trajFileName).isPresent();
+        };
     }
+
 
     @FunctionalInterface
     private interface LoadChecker {

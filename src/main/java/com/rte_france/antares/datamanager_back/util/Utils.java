@@ -8,7 +8,6 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +30,7 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -335,7 +335,6 @@ public class Utils {
 
     /**
      * Extracts the area identifier from a given file name.
-     *
      * The expected file name format is "load_AREA_HORIZON.txt", where "AREA" represents the area identifier.
      * If the file name does not match the expected format or "load" is not the prefix, the method returns null.
      *
@@ -351,4 +350,13 @@ public class Utils {
         return null;
     }
 
+    /**
+     * Normalize a string (to upper case)
+     * @param s string
+     * @return normalized string s
+     */
+    public static String normalize(String s) {
+        Objects.requireNonNull(s);
+        return s.trim().toUpperCase(Locale.ROOT);
+    }
 }
