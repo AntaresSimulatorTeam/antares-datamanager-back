@@ -302,4 +302,62 @@ public class StudyServiceImpl implements StudyService {
                     .build();
         }
     }
+
+    @Override
+    @Transactional
+    public StudyDTO updateStudy(Integer id, StudyDTO studyDTO) {
+        var study = loadStudyIfExists(id);
+        ensureNotGenerated(study);
+        if (studyDTO.getProject() != null) updateProjectIfPresent(study, studyDTO);
+        if (studyDTO.getHorizon() != null) updateHorizonIfPresent(study, studyDTO);
+        if (studyDTO.getTags() != null) updateTagsIfPresent(study, studyDTO);
+        var saved = studyRepository.save(study);
+        return StudyMapper.toStudyDTO(saved);
+    }
+
+    private StudyEntity loadStudyIfExists(Integer id) {
+        return studyRepository.findById(id).orElseThrow(() ->
+                BusinessException.builder()
+                        .message("Study with id {0} not found.")
+                        .errorMessageArguments(List.of(id.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build()
+        );
+    }
+
+    private void ensureNotGenerated(StudyEntity study) {
+        if (StudyStatus.GENERATED.equals(study.getStatus())) {
+            throw BusinessException.builder()
+                    .message("Only studies with status IN_PROGRESS can be updated.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void updateProjectIfPresent(StudyEntity study, StudyDTO dto) {
+        var newProject = projectRepository.findByName(dto.getProject())
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project not found with name: {0}")
+                        .errorMessageArguments(List.of(dto.getProject()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
+        if (!Objects.equals(study.getProject().getId(), newProject.getId()) && studyExists(study.getName(), newProject.getName())) {
+            throw BusinessException.builder()
+                    .message("A study with the same name already exists for the target project.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
+        study.setProject(newProject);
+    }
+
+    private void updateHorizonIfPresent(StudyEntity study, StudyDTO dto) {
+        validateHorizon(dto);
+        var horizonRange = String.format("%d-%s", Integer.parseInt(dto.getHorizon()) - 1, dto.getHorizon());
+        study.setHorizon(horizonRange);
+    }
+
+    private void updateTagsIfPresent(StudyEntity study, StudyDTO dto) {
+        validateTags(dto);
+        study.setTags(dto.getTags());
+    }
 }

@@ -26,4 +26,6 @@ public interface StudyService {
     void generateStudy(Integer studyId);
 
     StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException;
+
+    StudyDTO updateStudy(Integer id, StudyDTO studyDTO);
 }
