@@ -5,10 +5,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
-import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
@@ -25,9 +22,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -218,6 +213,82 @@ class LoadFileProcessorServiceImplTest {
         assertTrue(result.isEmpty());
         verify(warningService, never()).getMessage(anyString(), any());
         verify(warningService, never()).addWarning(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void checkForMissingLoadByAreaFromDb_usesOnlyThisTrajectoryLoadEntities() {
+        // Given
+        var studyAreas = List.of("BE", "DE");
+        var areaEntities = studyAreas.stream()
+                .map(n -> AreaEntity.builder().name(n).build())
+                .toList();
+        var beLoad = LoadEntity.builder().area("be").fileName("load_BE_" + horizon + ".txt").build();
+
+        // When
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+                .thenReturn(List.of());
+
+        trajectory.setLoadEntities(new HashSet<>(List.of(beLoad)));
+
+        Set<WarningMessageEntity> result = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
+                horizon, studyId, userNni, trajectory
+        );
+
+        // Then
+        verify(warningService).addWarning(
+                eq(result),
+                argThat(args -> args.size() == 2 &&
+                        args.get(0).equals("DE") &&
+                        args.get(1).equals(trajectory.getFileName())),
+                eq(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS),
+                eq(studyId),
+                eq(userNni),
+                eq(trajectory)
+        );
+
+        verify(loadRepository, never()).findByFileNameAndTrajectoryFileName(anyString(), anyString());
+    }
+
+    @Test
+    void checkForMissingLoadByAreaFromDb_fallbacksToDbWhenNoLoadEntities() {
+        // Given
+        var studyAreas = List.of("BE", "DE");
+        var areaEntities = studyAreas.stream()
+                .map(n -> AreaEntity.builder().name(n).build())
+                .toList();
+
+        // When
+        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+                .thenReturn(List.of());
+
+        trajectory.setLoadEntities(Collections.emptySet());
+        trajectory.setFileName("OTHERS");
+
+        when(loadRepository.findByFileNameAndTrajectoryFileName(
+                eq("load_BE_" + horizon + ".txt"), eq("OTHERS"))).thenReturn(Optional.of(LoadEntity.builder().build()));
+        when(loadRepository.findByFileNameAndTrajectoryFileName(
+                eq("load_DE_" + horizon + ".txt"), eq("OTHERS"))).thenReturn(Optional.empty());
+
+        Set<WarningMessageEntity> result = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
+                horizon, studyId, userNni, trajectory
+        );
+
+        // Then
+        verify(warningService).addWarning(
+                eq(result),
+                argThat(args -> args.size() == 2 &&
+                        args.get(0).equals("DE") &&
+                        args.get(1).equals("OTHERS")),
+                eq(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS),
+                eq(studyId),
+                eq(userNni),
+                eq(trajectory)
+        );
+
+        verify(loadRepository).findByFileNameAndTrajectoryFileName("load_BE_" + horizon + ".txt", "OTHERS");
+        verify(loadRepository).findByFileNameAndTrajectoryFileName("load_DE_" + horizon + ".txt", "OTHERS");
     }
 
 }
