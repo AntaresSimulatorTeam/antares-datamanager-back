@@ -407,8 +407,9 @@ class StudyServiceImplTest {
     void updateStudy_throwsNotFound_whenStudyMissing() {
         when(studyRepository.findById(999)).thenReturn(Optional.empty());
 
+        var dto = StudyDTO.builder().build();
         var ex = assertThrows(BusinessException.class,
-                () -> studyServiceImpl.updateStudy(999, StudyDTO.builder().build()));
+                () -> studyServiceImpl.updateStudy(999, dto));
 
         assertEquals("Study with id {0} not found.", ex.getMessage());
         assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
@@ -423,8 +424,9 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
 
+        var dto = StudyDTO.builder().project("P").build();
         var ex = assertThrows(BusinessException.class,
-                () -> studyServiceImpl.updateStudy(1, StudyDTO.builder().project("P").build()));
+                () -> studyServiceImpl.updateStudy(1, dto));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -444,8 +446,9 @@ class StudyServiceImplTest {
         when(projectRepository.findByName("New")).thenReturn(Optional.of(newProject));
         when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "New")).thenReturn(true);
 
+        var dto = StudyDTO.builder().project("New").build();
         var ex = assertThrows(BusinessException.class,
-                () -> studyServiceImpl.updateStudy(1, StudyDTO.builder().project("New").build()));
+                () -> studyServiceImpl.updateStudy(1, dto));
 
         assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
     }
@@ -459,8 +462,9 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
 
+        var dto = StudyDTO.builder().horizon("abc").build();
         var ex = assertThrows(BusinessException.class,
-                () -> studyServiceImpl.updateStudy(1, StudyDTO.builder().horizon("abc").build()));
+                () -> studyServiceImpl.updateStudy(1, dto));
 
         assertEquals("Horizon must be a valid year.", ex.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
