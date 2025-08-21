@@ -226,7 +226,7 @@ class LoadFileProcessorServiceImplTest {
 
         // When
         when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
-        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+        when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
         trajectory.setLoadEntities(new HashSet<>(List.of(beLoad)));
@@ -260,16 +260,16 @@ class LoadFileProcessorServiceImplTest {
 
         // When
         when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
-        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+        when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
         trajectory.setLoadEntities(Collections.emptySet());
         trajectory.setFileName("OTHERS");
 
         when(loadRepository.findByFileNameAndTrajectoryFileName(
-                eq("load_BE_" + horizon + ".txt"), eq("OTHERS"))).thenReturn(Optional.of(LoadEntity.builder().build()));
+                "load_BE_" + horizon + ".txt", "OTHERS")).thenReturn(Optional.of(LoadEntity.builder().build()));
         when(loadRepository.findByFileNameAndTrajectoryFileName(
-                eq("load_DE_" + horizon + ".txt"), eq("OTHERS"))).thenReturn(Optional.empty());
+                "load_DE_" + horizon + ".txt", "OTHERS")).thenReturn(Optional.empty());
 
         Set<WarningMessageEntity> result = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
                 horizon, studyId, userNni, trajectory
