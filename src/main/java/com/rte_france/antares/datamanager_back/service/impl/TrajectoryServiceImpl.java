@@ -458,21 +458,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
-        if (TrajectoryType.LOAD.equals(type) && OTHER_AREA.equals(trajectory.getLoadArea())) {
-            var userNni = userService.getCurrentUserDetails().getNni();
-            var trajectoryPath = buildTrajectoryPath(trajectory.getFileName());
-            var warnings = loadFileProcessorService.checkForMissingLoadFiles(
-                    trajectoryPath,
-                    trajectory.getHorizon(),
-                    studyId,
-                    userNni,
-                    trajectory
-            );
-            warnings.forEach(warning -> warning.setTrajectory(trajectory));
-            warnings.forEach(warning -> warning.setStudy(study));
-            warningRepository.saveAll(warnings);
-        }
-
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
         if (!TrajectoryType.LOAD.equals(type) && study.getStudyTrajectoryEntities() != null) {
             existingLink = study.getStudyTrajectoryEntities().stream()

@@ -863,7 +863,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_shouldCheckForMissingLoadFilesAndSaveWarnings_whenLoadTypeAndOtherArea() throws IOException {
+    void linkTrajectoryToStudy_shouldComputeMissingLoadFromDbAndSaveWarnings_whenLoadOtherArea() throws IOException {
         var trajectoryId = 1;
         var studyId = 2;
         var userNni = "user";
@@ -886,18 +886,18 @@ class TrajectoryServiceImplTest {
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
-        when(loadFileProcessorService.checkForMissingLoadFiles(any(), eq(horizon), eq(studyId), eq(userNni), eq(trajectory)))
+        when(studyTrajectoryRepository.save(any()))
+                .thenReturn(StudyTrajectoryEntity.builder().trajectory(trajectory).build());
+
+        when(loadFileProcessorService.checkForMissingLoadByAreaFromDb(horizon, studyId, userNni, trajectory))
                 .thenReturn(warnings);
-        when(studyTrajectoryRepository.save(any())).thenReturn(StudyTrajectoryEntity.builder().trajectory(trajectory).build());
 
         trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.LOAD);
 
         assertTrue(warnings.stream().allMatch(w -> w.getTrajectory() == trajectory));
-        assertTrue(warnings.stream().allMatch(w -> w.getStudy() == study));
         verify(warningRepository).saveAll(warnings);
-        verify(loadFileProcessorService).checkForMissingLoadFiles(any(), eq(horizon), eq(studyId), eq(userNni), eq(trajectory));
+        verify(loadFileProcessorService).checkForMissingLoadByAreaFromDb(horizon, studyId, userNni, trajectory);
+        verify(loadFileProcessorService, never()).checkForMissingLoadFiles(any(), any(), any(), any(), any());
     }
+
 }
