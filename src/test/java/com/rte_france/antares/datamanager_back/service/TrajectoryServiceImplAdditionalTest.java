@@ -294,40 +294,52 @@ class TrajectoryServiceImplAdditionalTest {
     }
 
     @Test
-    void unlinkBatchTrajectoriesFromStudy_shouldReturnSuccessAndFailedLists() {
+    void unlinkBatch_success_whenDeletedCountEqualsRequested() {
         var studyId = 1;
         var trajectoryIds = List.of(1, 2, 3);
 
-        when(trajectoryRepository.findById(any()))
-                .thenAnswer(inv -> {
-                    var id = (Integer) inv.getArgument(0);
-                    return Optional.of(
-                            TrajectoryEntity.builder()
-                                    .id(id)
-                                    .type(TrajectoryType.LINK.name())
-                                    .build()
-                    );
-                });
+        when(studyTrajectoryRepository.deleteByStudyIdAndTrajectoryIds(studyId, List.of(1,2,3)))
+                .thenReturn(3);
 
-        when(studyTrajectoryRepository.findById(any()))
-                .thenAnswer(inv -> {
-                    var key = (StudyTrajectoryKey) inv.getArgument(0);
-                    if (Objects.equals(key.getTrajectoryId(), 3)) {
-                        return Optional.empty();
-                    }
-                    return Optional.of(
-                            StudyTrajectoryEntity.builder()
-                                    .id(key)
-                                    .build()
-                    );
-                });
+        assertDoesNotThrow(() ->
+                trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, trajectoryIds)
+        );
 
-        var result = trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, trajectoryIds);
-
-        assertEquals(List.of(1, 2), result.get("success"));
-        assertEquals(List.of(3), result.get("failed"));
-
-        verify(studyTrajectoryRepository, times(2)).delete(any(StudyTrajectoryEntity.class));
+        verify(studyTrajectoryRepository).deleteByStudyIdAndTrajectoryIds(studyId, List.of(1,2,3));
     }
 
+    @Test
+    void unlinkBatch_throwsBusinessConflict_whenPartialDeletion() {
+        var studyId = 1;
+        var trajectoryIds = List.of(1, 2, 3);
+
+        when(studyTrajectoryRepository.deleteByStudyIdAndTrajectoryIds(studyId, List.of(1,2,3)))
+                .thenReturn(2);
+
+        var ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, trajectoryIds)
+        );
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+    }
+
+    @Test
+    void unlinkBatch_throwsBadRequest_whenEmptyAfterFilter() {
+        var studyId = 1;
+
+        var ex = assertThrows(BusinessException.class, () ->
+                trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, Arrays.asList(null, null))
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+
+        verifyNoInteractions(studyTrajectoryRepository);
+    }
+
+    @Test
+    void unlinkBatch_throwsNPE_whenListIsNull() {
+        var studyId = 1;
+        assertThrows(NullPointerException.class, () ->
+                trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, null)
+        );
+        verifyNoInteractions(studyTrajectoryRepository);
+    }
 }
