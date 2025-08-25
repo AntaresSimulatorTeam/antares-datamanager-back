@@ -60,6 +60,7 @@ class StudyTrajectoryRepositoryTest {
 
         var after = studyTrajectoryRepository.findById_ScenarioId(studyId);
         var remainingIds = after.stream().map(e -> e.getId().getTrajectoryId()).toList();
+        assertThat(remainingIds).isNotEmpty();
         assertThat(remainingIds).doesNotContainAnyElementsOf(toDelete);
     }
 }
