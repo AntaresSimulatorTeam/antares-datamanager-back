@@ -612,41 +612,26 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public Map<String, List<Integer>> unlinkBatchTrajectoriesFromStudy(Integer studyId, List<Integer> trajectoryIds) {
-        if (trajectoryIds == null || trajectoryIds.isEmpty()) {
+    @Transactional
+    public void unlinkBatchTrajectoriesFromStudy(Integer studyId, List<Integer> trajectoryIds) {
+        Objects.requireNonNull(trajectoryIds);
+
+        var ids = trajectoryIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
             throw BusinessException.builder()
                     .message("trajectoryIds must not be empty")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
-        var success = new ArrayList<Integer>();
-        var failed = new ArrayList<Integer>();
-
-        trajectoryIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .forEach(id -> {
-                    try {
-                        unlinkTrajectoryFromStudy(id, studyId);
-                        success.add(id);
-                    } catch (BusinessException ex) {
-                        failed.add(id);
-                        log.warn("Batch detach: business error on {} ({})", id, ex.getMessage());
-                    } catch (RuntimeException ex) {
-                        failed.add(id);
-                        log.error("Batch detach: unexpected error on {}", id, ex);
-                    }
-                });
-
-        if (success.isEmpty()) {
+        var deleted = studyTrajectoryRepository.deleteByStudyIdAndTrajectoryIds(studyId, ids);
+        if (deleted != ids.size()) {
             throw BusinessException.builder()
-                    .message("No trajectories could be deleted")
+                    .message("Batch detach of trajectories {0} failed")
+                    .errorMessageArguments(List.of(ids.toString()))
                     .httpStatus(HttpStatus.CONFLICT)
                     .build();
         }
-
-        return Map.of("success", success, "failed", failed);
     }
 
     @Override
