@@ -19,7 +19,7 @@ public interface TrajectoryService {
 
     TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException;
 
-    List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains, String loadArea);
+    List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains, String area, String technology);
 
     List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String fileNameContains) throws TechnicalException;
 

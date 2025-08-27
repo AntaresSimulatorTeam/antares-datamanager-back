@@ -40,10 +40,11 @@ public class TrajectoryController {
                                                                             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                             @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                                             @RequestParam(value = "fileNameContains", required = false) String fileNameContains,
-                                                                            @RequestParam(value = "loadArea", required = false) String loadArea) {
+                                                                            @RequestParam(value = "area", required = false) String area,
+                                                                            @RequestParam(value = "technology", required = false) String technology) {
 
 
-        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains, loadArea)), HttpStatus.OK);
+        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains, area, technology)), HttpStatus.OK);
     }
 
 
