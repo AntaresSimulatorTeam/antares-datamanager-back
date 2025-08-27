@@ -30,19 +30,25 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                  FROM Trajectory t
                  WHERE t.type = :type\s
                  AND t.horizon = :horizon
-                 AND (:fileNameContains IS NULL OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
-                 AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t.area = :loadArea)
+                 AND (:fileNameContains IS NULL OR t.fileName ILIKE CONCAT('%', CAST(:fileNameContains AS string), '%'))
+                 AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
+                 AND (:technology IS NULL OR TRIM(:technology) = '' OR t.technology = :technology)
                  AND t.version = (
                      SELECT MAX(t1.version)\s
                      FROM Trajectory t1\s
                      WHERE t1.fileName = t.fileName\s
                      AND t1.type = :type\s
                      AND t1.horizon = :horizon \s
-                     AND (:loadArea IS NULL OR TRIM(:loadArea) = '' OR t1.area = :loadArea) \s
+                     AND (:area IS NULL OR TRIM(:area) = '' OR t1.area = :area) \s
+                     AND (:technology IS NULL OR TRIM(:technology) = '' OR t1.technology = :technology) \s
                  )
                  ORDER BY t.creationDate DESC
             \s""")
-    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type, @Param("horizon") String horizon, @Param("fileNameContains") String fileNameContains, @Param("loadArea") String loadArea);
+    List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type,
+                                                                                       @Param("horizon") String horizon,
+                                                                                       @Param("fileNameContains") String fileNameContains,
+                                                                                       @Param("area") String area,
+                                                                                       @Param("technology") String technology);
 
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);
