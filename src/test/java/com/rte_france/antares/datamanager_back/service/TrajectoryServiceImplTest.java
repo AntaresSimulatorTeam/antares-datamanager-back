@@ -148,6 +148,7 @@ class TrajectoryServiceImplTest {
 
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // Then
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,"test");
@@ -160,6 +161,7 @@ class TrajectoryServiceImplTest {
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area"); // <-- Ajouté
         assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, "area"));
     }
 
@@ -462,6 +464,7 @@ class TrajectoryServiceImplTest {
 
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area"); // <-- Ajouté
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
@@ -482,9 +485,10 @@ class TrajectoryServiceImplTest {
 
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("link"); // <-- Ajouté
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER");
 
         // Then
         assertEquals(0, result.size());
