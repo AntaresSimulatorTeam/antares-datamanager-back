@@ -50,7 +50,7 @@ public class TrajectoryController {
     public ResponseEntity<List<FsTrajectoryDTO>> findTrajectoriesByTypeFromFileSystem(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
             @Parameter(description = "parameter to use just in load case")
-            @RequestParam(value = "zone", required = false) String area,
+            @RequestParam(value = "area", required = false) String area,
             @RequestParam(value = "fileNameContains", required = false) String fileNameContains) throws TechnicalException {
         return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, area, fileNameContains));
     }

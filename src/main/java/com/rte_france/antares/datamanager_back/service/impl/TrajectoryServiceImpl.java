@@ -348,25 +348,15 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area) {
         String basePath = antaressDataManagerProperties.getNasDirectory();
         String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
-        Path baseDirectory = Path.of(basePath).resolve(subPath).normalize();
+        Path baseDirectory = Path.of(basePath).resolve(subPath)
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, area))
+                .normalize();
 
         if (!baseDirectory.endsWith("/")) {
             baseDirectory = baseDirectory.resolve("");
         }
-        String typePath = trajectoryType.name().toLowerCase();
 
-
-        Path directory = baseDirectory.resolve(typePath);
-
-        // Si l'area est "FR", ajouter comme sous-répertoire
-        if ("FR".equalsIgnoreCase(area)) {
-            directory = directory.resolve(area);
-        }
-
-        if (!directory.normalize().startsWith(baseDirectory)) {
-            throw TechnicalException.builder().message("Entry is outside of the target directory").build();
-        }
-        return directory.normalize();
+        return baseDirectory.normalize();
     }
 
     private boolean isRelevantFile(Path path, TrajectoryType trajectoryType) {
