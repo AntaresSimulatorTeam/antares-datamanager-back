@@ -165,12 +165,28 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void findOrCreateThermalClusterRef_shouldThrowExceptionWhenTechnologyNotFound() {
-        when(thermalTechnologyRepository.findThermalTechnologyByName("UnknownTech"))
-                .thenReturn(Optional.empty());
+    void findOrCreateThermalClusterRef_shouldCreateTechnologyWhenNotFound() {
+        // Given
+        String technology = "NewTech";
+        String name = "ClusterA";
+        when(thermalTechnologyRepository.findThermalTechnologyByName(technology)).thenReturn(Optional.empty());
+        ThermalTechnology newTech = ThermalTechnology.builder().name(technology).build();
+        when(thermalTechnologyRepository.save(any())).thenReturn(newTech);
 
-        assertThrows(NoSuchElementException.class, () ->
-                thermalFileProcessorService.findOrCreateThermalClusterRef("UnknownTech", "Cluster1"));
+        ThermalClusterRef expectedRef = ThermalClusterRef.builder()
+                .name(name)
+                .namePemmdb("NA")
+                .thermalTechnology(newTech)
+                .build();
+        when(thermalClusterRefRepository.save(any())).thenReturn(expectedRef);
+
+        // When
+        ThermalClusterRef result = thermalFileProcessorService.findOrCreateThermalClusterRef(technology, name);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(technology, result.getThermalTechnology().getName());
+        verify(thermalTechnologyRepository).save(any(ThermalTechnology.class));
     }
 
     @Test
