@@ -566,6 +566,29 @@ class ProjectServiceImplTest {
         assertTrue(ex.getMessage().contains("Project not found with ID:"));
     }
 
+    @Test
+    void findProjectById_ShouldThrowException_WhenSameProjectNameExists() {
+        Integer projectId = 1;
+        String existingName = "Existing Project";
+
+        ProjectEntity existingProject = new ProjectEntity();
+        existingProject.setId(projectId);
+        existingProject.setName("Old Name");
+
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName(existingName);
+        
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
+        when(projectRepository.findByName(existingName)).thenReturn(Optional.of(new ProjectEntity()));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> projectService.updateProject(projectId, projectInputDto)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
+        assertEquals("A project with the same name already exists.", exception.getMessage());
+    }
 
     @Test
     void findProjectsByCriteria_ShouldReturnResults_WhenSearchIsValid() {

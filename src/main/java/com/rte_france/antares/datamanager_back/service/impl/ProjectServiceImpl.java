@@ -233,6 +233,12 @@ public class ProjectServiceImpl implements ProjectService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+        if (projectInputDto.getName() != null && projectRepository.findByName(projectInputDto.getName()).isPresent()) {
+            throw BusinessException.builder()
+                    .message("A project with the same name already exists.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
 
         if (!isNull(projectInputDto.getDescription())) project.setDescription(projectInputDto.getDescription());
         if (!isNull(projectInputDto.getTags())) project.setTags(projectInputDto.getTags());
