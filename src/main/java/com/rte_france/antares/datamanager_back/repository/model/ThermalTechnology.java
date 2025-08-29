@@ -12,7 +12,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "thermal_technology", schema = "pegase_local_db_schema")
+@Table(name = "thermal_technology")
 public class ThermalTechnology {
     @Id
     @Column(name = "id", nullable = false)
