@@ -151,11 +151,17 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))
                 .findFirst()
                 .orElseGet(() -> {
-                  Optional<ThermalTechnology> savedThermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(technology);
+                    Optional<ThermalTechnology> savedThermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(technology);
+                    ThermalTechnology thermalTechnology = savedThermalTechnology.orElseGet(() -> {
+                        ThermalTechnology newTech = ThermalTechnology.builder()
+                                .name(technology)
+                                .build();
+                        return thermalTechnologyRepository.save(newTech);
+                    });
                     ThermalClusterRef ref = ThermalClusterRef.builder()
                             .name(name)
                             .namePemmdb("NA")
-                            .thermalTechnology(savedThermalTechnology.get())
+                            .thermalTechnology(thermalTechnology)
                             .build();
                     ThermalClusterRef saved = thermalClusterRefRepository.save(ref);
                     cachedClusterRefs.add(saved);
