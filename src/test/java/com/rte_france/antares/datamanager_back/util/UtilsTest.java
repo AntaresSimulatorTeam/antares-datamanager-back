@@ -47,6 +47,7 @@ class UtilsTest {
         trajectoryEntity.setHorizon("2030-2031");
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
+        trajectoryEntity.setType("AREA");
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
         boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
@@ -60,6 +61,7 @@ class UtilsTest {
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("differentFile");
         trajectoryEntity.setFileSize(Files.size(path));
+        trajectoryEntity.setType("LOAD");
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
         boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
@@ -75,6 +77,7 @@ class UtilsTest {
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
         trajectoryEntity.setChecksum("differentChecksum");
+        trajectoryEntity.setType("AREA");
 
         boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
 
@@ -89,6 +92,7 @@ class UtilsTest {
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
+        trajectoryEntity.setType("AREA");
         boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
 
         assertFalse(isSameFileWithDifferentContent);
@@ -120,6 +124,7 @@ class UtilsTest {
         trajectoryEntity.setFileSize(Files.size(filePath));
         trajectoryEntity.setHorizon(sheetName);
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(filePath.toString(), "2030-2031"));
+        trajectoryEntity.setType("AREA");
 
         assertThrows(BusinessException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity));
     }
@@ -134,6 +139,7 @@ class UtilsTest {
         trajectoryEntity.setFileSize(Files.size(Path.of(filePath)));
         trajectoryEntity.setChecksum("differentChecksum");
         trajectoryEntity.setHorizon(sheetName);
+        trajectoryEntity.setType("AREA");
 
         assertTrue(Utils.checkTrajectoryVersion(Path.of(filePath), trajectoryEntity));
     }
@@ -222,6 +228,47 @@ class UtilsTest {
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
 
         );
+    }
+
+    @Test
+    void computeLinkChecksum_changesWhenParametersSheetChanges() throws IOException {
+        var horizon = "2030-2031";
+        var f1 = tempDir.resolve("links_v1.xlsx");
+        var f2 = tempDir.resolve("links_v2.xlsx");
+
+        try (var wb = new XSSFWorkbook()) {
+            var sh = wb.createSheet(horizon);
+            sh.createRow(0).createCell(0).setCellValue("Name");
+            sh.getRow(0).createCell(1).setCellValue("Val");
+            sh.createRow(1).createCell(0).setCellValue("A-B");
+            sh.getRow(1).createCell(1).setCellValue(1);
+            var p = wb.createSheet("parameters");
+            var hdr = p.createRow(0); hdr.createCell(0).setCellValue("Param"); hdr.createCell(1).setCellValue(horizon);
+            var r1 = p.createRow(1); r1.createCell(0).setCellValue("Hurdle Cost"); r1.createCell(1).setCellValue(10);
+            try (var fos = new FileOutputStream(f1.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        // with different hurdle cost
+        try (var wb = new XSSFWorkbook()) {
+            var sh = wb.createSheet(horizon);
+            sh.createRow(0).createCell(0).setCellValue("Name");
+            sh.getRow(0).createCell(1).setCellValue("Val");
+            sh.createRow(1).createCell(0).setCellValue("A-B");
+            sh.getRow(1).createCell(1).setCellValue(1);
+            var p = wb.createSheet("parameters");
+            var hdr = p.createRow(0); hdr.createCell(0).setCellValue("Param"); hdr.createCell(1).setCellValue(horizon);
+            var r1 = p.createRow(1); r1.createCell(0).setCellValue("Hurdle Cost"); r1.createCell(1).setCellValue(20);
+            try (var fos = new FileOutputStream(f2.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon);
+        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon);
+
+        assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
     }
 
 }
