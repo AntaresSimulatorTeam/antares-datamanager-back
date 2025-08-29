@@ -11,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "thermal_parameter")
+@Table(name = "thermal_common_parameters")
 public class ThermalParameterEntity extends ThermalBaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_parameter_seq_gen")
@@ -23,11 +23,11 @@ public class ThermalParameterEntity extends ThermalBaseEntity {
     private Double year;
 
     @Size(max = 255)
-    @Column(name = "node")
-    private String node;
+    @Column(name = "cluster")
+    private String cluster;
 
-    @Column(name = "node_entsoe")
-    private String nodeEntsoe;
+    @Column(name = "cluster_pemmdb")
+    private String clusterPemmdb;
 
     @Column(name = "category")
     private Double category;
@@ -109,7 +109,4 @@ public class ThermalParameterEntity extends ThermalBaseEntity {
 
     @Column(name = "fixed_generation_reduction")
     private Double fixedGenerationReduction;
-
-    @Column(name = "efficiency")
-    private Double efficiency;
 }
