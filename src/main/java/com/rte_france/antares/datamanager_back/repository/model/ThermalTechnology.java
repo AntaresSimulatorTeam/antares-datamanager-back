@@ -1,9 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -15,6 +12,8 @@ import lombok.*;
 @Table(name = "thermal_technology")
 public class ThermalTechnology {
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_technology_ref_sequence_gen")
+    @SequenceGenerator(name = "thermal_technology_ref_sequence_gen", sequenceName = "thermal_technology_ref_sequence", allocationSize = 1)
     @Column(name = "id", nullable = false)
     private Integer id;
 
