@@ -9,7 +9,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "thermal_cluster_ref", schema = "pegase_local_db_schema")
+@Table(name = "thermal_cluster_ref")
 public class ThermalClusterRef {
 
     @Id
