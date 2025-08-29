@@ -23,4 +23,6 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V11-add-technology-column-to-trajectory_table.sql
   - include:
+      file: classpath*:db/changelog/1.1.0/V12-modify-thermal-parameter-to-common-parameters.sql
+  - include:
       file: classpath*:db/changelog/1.1.0/V12-create_thermal_technology_sequence.sql
