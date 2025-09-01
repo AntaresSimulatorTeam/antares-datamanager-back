@@ -8,7 +8,6 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -324,13 +323,13 @@ public class Utils {
     }
 
     private static String cellToString(Cell c) {
-        if (c == null) return "BLANK";
         return switch (c.getCellType()) {
             case STRING -> c.getStringCellValue();
             case NUMERIC -> String.valueOf(c.getNumericCellValue());
             case BOOLEAN -> String.valueOf(c.getBooleanCellValue());
             case FORMULA -> c.getCellFormula();
-            default -> "BLANK";
+            case BLANK -> "BLANK";
+            default -> "NULL";
         };
     }
 
