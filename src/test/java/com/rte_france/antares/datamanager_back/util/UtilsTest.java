@@ -315,4 +315,48 @@ class UtilsTest {
         teDifferentName.setLastModificationContentDate(fileMtime);
         assertFalse(Utils.isSameLoadTrajectory(file, teDifferentName));
     }
+
+    @Test
+    void computeSheetChecksum_throwsTechnicalException_whenSheetMissing() throws Exception {
+        Path file = tempDir.resolve("test_missing_sheet.xlsx");
+        try (var wb = new XSSFWorkbook()) {
+            wb.createSheet("2040-2041");
+            try (var fos = new FileOutputStream(file.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        TechnicalException ex = assertThrows(
+                TechnicalException.class,
+                () -> Utils.computeSheetChecksum(file.toString(), "2030-2031")
+        );
+
+        assertTrue(
+                ex.getMessage().startsWith("Feuille '2030-2031' non trouvée"),
+                "Unexpected exception message: " + ex.getMessage()
+        );
+    }
+
+    @Test
+    void computeChecksumByType_throwsTechnicalException_whenParametersHeaderMissing_forLink() throws Exception {
+        String horizon = "2030-2031";
+        Path file = tempDir.resolve("links_no_header.xlsx");
+
+        try (var wb = new XSSFWorkbook()) {
+            var sh = wb.createSheet(horizon);
+            sh.createRow(0).createCell(0).setCellValue("Name");
+            wb.createSheet("parameters");
+            try (var fos = new FileOutputStream(file.toFile())) { wb.write(fos); }
+        }
+
+        TechnicalException ex = assertThrows(
+                TechnicalException.class,
+                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon)
+        );
+
+        assertTrue(
+                ex.getMessage().startsWith("Header row missing in sheet 'parameters'"),
+                "Unexpected exception message: " + ex.getMessage()
+        );
+    }
 }
