@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -161,7 +163,7 @@ class UtilsTest {
         var filePath = tempDir.resolve("testFile");
         var result = Utils.ensureExtension(filePath, () -> "txt");
 
-        assertEquals(filePath.toString() + ".txt", result.toString());
+        assertEquals(filePath + ".txt", result.toString());
     }
 
     @Test
@@ -188,7 +190,7 @@ class UtilsTest {
         var filePath = tempDir.resolve("testFile");
         var result = Utils.ensureExtension(filePath, () -> "");
 
-        assertEquals(filePath.toString() + ".", result.toString());
+        assertEquals(filePath + ".", result.toString());
     }
 
     @org.junit.jupiter.api.Test
@@ -271,4 +273,46 @@ class UtilsTest {
         assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
     }
 
+    @Test
+    void isSameLoadTrajectory_returnsTrue_whenFilenameAndMtimeMatch() throws Exception {
+        Path file = tempDir.resolve("test.xlsx");
+        Files.writeString(file, "test content");
+
+        var fileMtime = Files.getLastModifiedTime(file)
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+                .truncatedTo(ChronoUnit.SECONDS);
+
+        var te = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
+        te.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
+        te.setFileName("test");
+        te.setLastModificationContentDate(fileMtime);
+
+        assertTrue(Utils.isSameLoadTrajectory(file, te));
+    }
+
+    @Test
+    void isSameLoadTrajectory_returnsFalse_whenMtimeOrFilenameDiffer() throws Exception {
+        Path file = tempDir.resolve("test.xlsx");
+        Files.writeString(file, "test content");
+
+        var fileMtime = Files.getLastModifiedTime(file)
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+                .truncatedTo(ChronoUnit.SECONDS);
+
+        var teDifferentMtime = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
+        teDifferentMtime.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
+        teDifferentMtime.setFileName("test");
+        teDifferentMtime.setLastModificationContentDate(fileMtime.minusSeconds(5));
+        assertFalse(Utils.isSameLoadTrajectory(file, teDifferentMtime));
+
+        var teDifferentName = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
+        teDifferentName.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
+        teDifferentName.setFileName("othertest");
+        teDifferentName.setLastModificationContentDate(fileMtime);
+        assertFalse(Utils.isSameLoadTrajectory(file, teDifferentName));
+    }
 }
