@@ -25,4 +25,6 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V12-modify-thermal-parameter-to-common-parameters.sql
   - include:
+      file: classpath*:db/changelog/1.1.0/V13-create-thermal-specific-parameters.sql
+  - include:
       file: classpath*:db/changelog/1.1.0/V12-create_thermal_technology_sequence.sql
