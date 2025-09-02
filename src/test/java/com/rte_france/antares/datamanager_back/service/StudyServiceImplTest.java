@@ -1,6 +1,4 @@
 package com.rte_france.antares.datamanager_back.service;
-
-import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -361,6 +359,116 @@ class StudyServiceImplTest {
 
     }
 
+    @Test
+    void updateStudy_updatesProjectHorizonAndTags_whenInProgress() {
+        var studyId = 42;
+
+        var oldProject = ProjectEntity.builder()
+                .id(10)
+                .name("Old")
+                .build();
+
+        var study = StudyEntity.builder()
+                .id(studyId)
+                .name("MyStudy_2030")
+                .project(oldProject)
+                .status(StudyStatus.IN_PROGRESS)
+                .horizon("2030")
+                .tags(List.of("a"))
+                .build();
+
+        var dto = StudyDTO.builder()
+                .project("NewProject")
+                .horizon("2032")
+                .tags(List.of("x", "y"))
+                .build();
+
+        var newProject = ProjectEntity.builder()
+                .id(11)
+                .name("NewProject")
+                .build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
+        when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "NewProject")).thenReturn(false);
+        when(studyRepository.save(any(StudyEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = studyServiceImpl.updateStudy(studyId, dto);
+
+        assertEquals("2031-2032", study.getHorizon());
+        assertEquals(newProject, study.getProject());
+        assertEquals(List.of("x", "y"), study.getTags());
+        assertEquals("2031-2032", result.getHorizon());
+
+        verify(studyRepository).save(study);
+    }
+
+    @Test
+    void updateStudy_throwsNotFound_whenStudyMissing() {
+        when(studyRepository.findById(999)).thenReturn(Optional.empty());
+
+        var dto = StudyDTO.builder().build();
+        var ex = assertThrows(BusinessException.class,
+                () -> studyServiceImpl.updateStudy(999, dto));
+
+        assertEquals("Study with id {0} not found.", ex.getMessage());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
+    }
+
+    @Test
+    void updateStudy_throwsBadRequest_whenStatusGenerated() {
+        var study = StudyEntity.builder()
+                .id(1)
+                .status(StudyStatus.GENERATED)
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        var dto = StudyDTO.builder().project("P").build();
+        var ex = assertThrows(BusinessException.class,
+                () -> studyServiceImpl.updateStudy(1, dto));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
+
+    @Test
+    void updateStudy_throwsConflict_whenSameNameExistsInTargetProject() {
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(ProjectEntity.builder().id(7).name("Old").build())
+                .status(StudyStatus.IN_PROGRESS)
+                .build();
+
+        var newProject = ProjectEntity.builder().id(8).name("New").build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("New")).thenReturn(Optional.of(newProject));
+        when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "New")).thenReturn(true);
+
+        var dto = StudyDTO.builder().project("New").build();
+        var ex = assertThrows(BusinessException.class,
+                () -> studyServiceImpl.updateStudy(1, dto));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+    }
+
+    @Test
+    void updateStudy_throwsBadRequest_whenHorizonInvalid() {
+        var study = StudyEntity.builder()
+                .id(1)
+                .status(StudyStatus.IN_PROGRESS)
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        var dto = StudyDTO.builder().horizon("abc").build();
+        var ex = assertThrows(BusinessException.class,
+                () -> studyServiceImpl.updateStudy(1, dto));
+
+        assertEquals("Horizon must be a valid year.", ex.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
 }
 
 

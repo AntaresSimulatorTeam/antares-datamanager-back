@@ -563,7 +563,7 @@ class ProjectServiceImplTest {
         });
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
-        assertTrue(ex.getMessage().contains("Project with ID"));
+        assertTrue(ex.getMessage().contains("Project not found with ID:"));
     }
 
 

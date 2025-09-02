@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.util.ExcelFilesValidators;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.AreasValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
@@ -117,6 +118,16 @@ class AreaFileValidatorTest {
 
     }
 
+    @Test
+    void checkIfColumnsAreValid_shouldThrowTechnicalException_whenFileCannotBeRead() {
+        Path invalidFile = tempDir.resolve("test_not_exist.xlsx");
+
+        TechnicalException exception = assertThrows(TechnicalException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(invalidFile, ExcelFileType.AREAS, "2040-2041", TrajectoryType.AREA.name()));
+
+        assertTrue(exception.getMessage().startsWith("Error reading file"));
+    }
+
 
     @Test
     void checkStringColumnsShouldThrowExceptionWhenDataIsInvalid() throws IOException {
@@ -215,6 +226,31 @@ class AreaFileValidatorTest {
                             exception.getHttpStatus())
             );
         }
+    }
+
+    @Test
+    void checkIfColumnsAreValid_shouldThrowBusinessException_whenSheetIsMissing() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "test_sheet.xlsx", "missing",
+                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "True", "True", "230", "420", "128", "260", "113")
+                )
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2030-2040", TrajectoryType.AREA.name()));
+
+        assertAll(
+                () -> assertEquals(
+                        "File {0} does not contain the expected sheet: {1}",
+                        exception.getMessage()),
+                () -> assertEquals(
+                        List.of("test_sheet.xlsx", "2030-2040"),
+                        exception.getErrorMessageArguments()),
+                () -> assertEquals(
+                        HttpStatus.BAD_REQUEST,
+                        exception.getHttpStatus())
+        );
     }
 
     @Test

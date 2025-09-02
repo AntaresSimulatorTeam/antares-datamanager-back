@@ -213,4 +213,49 @@ class StudyControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void updateStudy_returnsOkAndBody() throws Exception {
+        var id = 123;
+        var payload = StudyDTO.builder()
+                .project("TargetProject")
+                .horizon("2031")
+                .tags(List.of("k1", "k2"))
+                .build();
+
+        var returned = StudyDTO.builder()
+                .id(id)
+                .name("MyStudy_2031")
+                .project("TargetProject")
+                .horizon("2030-2031")
+                .tags(List.of("k1", "k2"))
+                .build();
+
+        when(studyService.updateStudy(eq(id), any(StudyDTO.class))).thenReturn(returned);
+
+        mockMvc.perform(put("/v1/study/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(Utils.asJsonString(payload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.project").value("TargetProject"))
+                .andExpect(jsonPath("$.horizon").value("2030-2031"));
+
+        verify(studyService).updateStudy(eq(id), any(StudyDTO.class));
+    }
+
+    @Test
+    void updateStudy_returns500_whenServiceThrowsBusinessException() throws Exception {
+        var id = 555;
+        when(studyService.updateStudy(eq(id), any(StudyDTO.class)))
+                .thenThrow(BusinessException.builder().message("Kaboom").build());
+
+        mockMvc.perform(put("/v1/study/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(Utils.asJsonString(StudyDTO.builder().project("X").build())))
+                .andExpect(status().isInternalServerError());
+
+        verify(studyService).updateStudy(eq(id), any(StudyDTO.class));
+    }
+
 }
