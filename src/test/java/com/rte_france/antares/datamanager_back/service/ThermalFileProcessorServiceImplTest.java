@@ -4,6 +4,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterCapacityDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
@@ -85,6 +86,7 @@ class ThermalFileProcessorServiceImplTest {
             // Remplir les données avec des valeurs fictives pour chaque colonne
             Object[][] data = {
                     {0.0, "FR", "CCGT", "Cluster1", "power", 100.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0, 220.0, 230.0},
+                    {0.0, "FR", "CCGT", "Cluster1", "number", 100.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0, 220.0, 230.0},
                     {1.0, "AT", "CCGT", "Cluster2", "number", 90.0, 110.0, 125.0, 135.0, 145.0, 155.0, 165.0, 175.0, 185.0, 195.0, 205.0, 215.0, 225.0}
             };
 
@@ -277,4 +279,94 @@ class ThermalFileProcessorServiceImplTest {
         assertFalse(result);
     }
 
+    @Test
+    void checkPowerAndNumberWithSameToUse_shouldThrowExceptionWhenInvalidGroupsExist() {
+        List<ThermalClusterCapacityEntity> entities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                        .category(ThermalCategoryEnum.POWER)
+                        .toUse(true)
+                        .build(),
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                        .category(ThermalCategoryEnum.NUMBER)
+                        .toUse(false)
+                        .build()
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+        );
+
+        assertTrue(exception.getMessage().contains("Les couples area/cluster suivants sont invalides"));
+    }
+
+    @Test
+    void checkPowerAndNumberWithSameToUse_shouldNotThrowExceptionWhenAllGroupsAreValid() {
+        List<ThermalClusterCapacityEntity> entities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                        .category(ThermalCategoryEnum.POWER)
+                        .toUse(true)
+                        .build(),
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                        .category(ThermalCategoryEnum.NUMBER)
+                        .toUse(true)
+                        .build()
+        );
+
+        assertDoesNotThrow(() ->
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+        );
+    }
+
+    @Test
+    void checkPowerAndNumberWithSameToUse_shouldThrowExceptionWhenPowerCategoryIsMissing() {
+        List<ThermalClusterCapacityEntity> entities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                        .category(ThermalCategoryEnum.NUMBER)
+                        .toUse(true)
+                        .build()
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+        );
+
+        assertTrue(exception.getMessage().contains("Les couples area/cluster suivants sont invalides"));
+    }
+
+    @Test
+    void checkPowerAndNumberWithSameToUse_shouldThrowExceptionWhenNumberCategoryIsMissing() {
+        List<ThermalClusterCapacityEntity> entities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                        .category(ThermalCategoryEnum.POWER)
+                        .toUse(true)
+                        .build()
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+        );
+
+        assertTrue(exception.getMessage().contains("Les couples area/cluster suivants sont invalides"));
+    }
+
+    @Test
+    void checkPowerAndNumberWithSameToUse_shouldNotThrowExceptionWhenNoEntitiesExist() {
+        List<ThermalClusterCapacityEntity> entities = List.of();
+
+        assertDoesNotThrow(() ->
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+        );
+    }
 }
