@@ -81,6 +81,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.LINK);
         }
 
+        validateLinksAlphabeticalOrder(path, horizon, studyId, trajectory);
+
         TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
         String userNni = findUserNni();
 
@@ -90,14 +92,26 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         return saveTrajectory(trajectory, listLink, warningMessageEntities);
     }
 
+    private void validateLinksAlphabeticalOrder(Path path, String horizon, Integer studyId, TrajectoryEntity trajectory) {
+        List<String> areasSavedForScenario = findListArea(studyId);
+        List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
+        if (!listLinksAlphabeticalOrder.isEmpty()) {
+            var detail = String.join(", ", listLinksAlphabeticalOrder);
+            var errorMessage = "Error: {0} cannot be imported.\nLinks {1} must be arranged in alphabetical order.";
+            throw BusinessException.builder()
+                    .message(errorMessage)
+                    .errorMessageArguments(List.of(trajectory.getFileName(), detail))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
     /**
-     * Check for warnings Isolated Zone, Unilateral link and Alphabetical order
+     * Check for warnings Isolated Zone, Unilateral link
      * When all values are zero (across both direct and indirect columns) only Isolated Zone
      * warning should be raised
      */
     private void checkForWarnings(Path path, String horizon, Integer studyId, Set<WarningMessageEntity> warningMessageEntities, String userNni, TrajectoryEntity trajectory) {
-        List<String> areasSavedForScenario = findListArea(studyId);
-
         List<String> allZeroRows = LinksValidator.checkPowerColumnsForZeroValues(path, horizon);
 
         List<String> directColumns = LinksColumns.getDirectColumnNames();
@@ -112,12 +126,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         allUnilateralZeroRows.addAll(directUnilateralZeroRows);
         allUnilateralZeroRows.addAll(indirectUnilateralZeroRows);
 
-
-        List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
-
         addWarning(warningMessageEntities, allZeroRows, WarningCode.LINKS_ALL_VALUES_ZERO, studyId, userNni, trajectory);
         addWarning(warningMessageEntities, allUnilateralZeroRows, WarningCode.LINKS_UNILATERAL_VALUES_ZERO, studyId, userNni, trajectory);
-        addWarning(warningMessageEntities, listLinksAlphabeticalOrder, WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY, studyId, userNni, trajectory);
     }
 
 
@@ -238,6 +248,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         log.info("Linked areas from LINKS file: {}", linkedAreas);
 
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
+        // Validate each link individually
+        for (LinkEntity linkEntity : linkEntities) {
+            validateLinkAreas(linkEntity.getName(), areaNames);
+        }
         Set<String> missingAreas = areaNames.stream()
                 .filter(area -> !linkedAreas.contains(area))
                 .collect(Collectors.toSet());

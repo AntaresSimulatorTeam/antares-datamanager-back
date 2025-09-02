@@ -20,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -195,7 +196,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testProcessLinkFileAlphebaticallyOrderedWarning() throws IOException {
+    void testProcessLinkFileAlphebaticallyOrderedException() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
@@ -228,18 +229,20 @@ class LinkFileProcessorServiceImplTest {
                 .thenReturn(Optional.of(trajectory));
 
 
-        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
+        var exception = assertThrows(BusinessException.class, () -> {
+            linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
+        });
 
-        verify(warningService).getMessage(
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(), "FR-CH, GE-FR"
-        );
+        System.out.println(exception.getMessage());
+        assertTrue(exception.getMessage().contains("Links {1} must be arranged in alphabetical order."));
+        assertEquals(exception.getErrorMessageArguments().get(1), "FR-CH, GE-FR");
     }
 
     @Test
     void validateLinkAreas_validLink() {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         List<String> areaNames = new ArrayList<>(List.of("FR", "CH", "IT"));
-        String link = "FR-CH";
+        String link = "CH-FR";
         String result = linkFileProcessorService.validateLinkAreas(link, areaNames);
         assertEquals(link, result);
     }
@@ -312,7 +315,7 @@ class LinkFileProcessorServiceImplTest {
             parametersSheet.createRow(1).createCell(1).setCellValue(0.5);
 
             Object[][] mockValues = {
-                    {"FR-CH", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", "false", "true", "false"}
+                    {"CH-FR", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", "false", "true", "false"}
             };
 
             Row headerRow = sheet.createRow(0);
@@ -373,45 +376,6 @@ class LinkFileProcessorServiceImplTest {
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(),
                 "CH-FR, FR-IT"
 
-        );
-    }
-
-    @Test
-    void testAccumulatedWarningsForNotOrderedAlphabetically() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
-                tempDir,
-                "TestFileWar.xlsx",
-                List.of("parameters", "2033-2034"),
-                List.of(
-                        List.of("", "2033-2034"),
-                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
-                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
-                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
-                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC")
-                ),
-                List.of(
-                        List.of(List.of("Hurdle Costs", 0, 5
-                        )),
-                        List.of(
-                                List.of("GE-CH", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", "FALSE", "TRUE", "FALSE"),
-                                List.of("IT-FR", 100, 200, 300, 400, 500, 600, 800, 800, "TRUE", "FALSE", "TRUE", "FALSE")
-                        )
-                ));
-
-        TrajectoryEntity trajectory = new TrajectoryEntity();
-        trajectory.setFileName("TestFileWar.xlsx");
-        trajectory.setVersion(1);
-        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
-                .thenReturn(Optional.of(trajectory));
-
-        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
-
-        verify(warningService, times(1)).getMessage(
-                WarningCode.AREAS_NOT_ORDERED_ALPHABETICALLY.value(),
-                "GE-CH, IT-FR"
         );
     }
 
@@ -494,5 +458,53 @@ class LinkFileProcessorServiceImplTest {
                 eq("CH-FR, FR-IT, FR-GE")
         );
     }
+
+    @Test
+    void testCheckConsistencyTrajectoryLinkAndArea_WithException_StopsExecution() {
+        // Given
+        List<LinkEntity> linkEntities = List.of(
+                LinkEntity.builder().name("FR-DE").build()
+        );
+        List<String> areaNames = Arrays.asList("FR", "ES");
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+        Integer studyId = 1;
+        Integer trajectoryId = 2;
+        String userNni = "testUser";
+        TrajectoryEntity secondTrajectory = TrajectoryEntity.builder().id(3).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+
+        // When
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+
+        // Spy to verify methods calls
+        LinkFileProcessorServiceImpl serviceSpy = spy(linkFileProcessorService);
+        doThrow(BusinessException.builder()
+                .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .errorMessageArguments(List.of("ES"))
+                .build())
+                .when(serviceSpy)
+                .validateLinkAreas(anyString(), anyList());
+
+
+        assertThrows(BusinessException.class, () ->
+                serviceSpy.checkConsistencyTrajectoryLinkAndArea(
+                        linkEntities, areaNames, warningMessages,
+                        studyId, trajectoryId, secondTrajectory, userNni)
+        );
+
+
+        verify(studyRepository).findById(studyId);
+
+        verify(serviceSpy).validateLinkAreas(anyString(), anyList());
+
+
+        verify(warningService, never()).getMessage(anyString(), any());
+        verify(warningRepository, never()).existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt());
+
+        assertTrue(warningMessages.isEmpty());
+    }
+
+
 
 }

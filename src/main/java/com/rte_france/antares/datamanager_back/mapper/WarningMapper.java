@@ -32,6 +32,8 @@ public class WarningMapper {
                 .code(entity.getWarningCode().name())
                 .generatedAt(entity.getCreationDate())
                 .generatedBy(entity.getCreatedBy())
+                .trajectoryId(entity.getTrajectory().getId())
+                .trajectoryName(entity.getTrajectory().getFileName())
                 .secondTrajectory(entity.getSecondTrajectory() != null ? entity.getSecondTrajectory().getFileName() : null)
                 .isAck(entity.getIsAck())
                 .build();

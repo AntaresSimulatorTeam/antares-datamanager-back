@@ -2,7 +2,6 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.service.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -89,4 +88,15 @@ public class StudyController {
         StudyDTO duplicatedStudy = studyService.duplicateStudy(studyDTO);
         return new ResponseEntity<>(duplicatedStudy, HttpStatus.CREATED);
     }
+
+    @Operation(summary = "Update a study that is not generated yet (project, horizon, keywords)")
+    @PutMapping("/{id}")
+    public ResponseEntity<StudyDTO> updateStudy(
+            @PathVariable Integer id,
+            @RequestBody StudyDTO studyDTO
+    ) {
+        StudyDTO updated = studyService.updateStudy(id, studyDTO);
+        return ResponseEntity.ok(updated);
+    }
+
 }

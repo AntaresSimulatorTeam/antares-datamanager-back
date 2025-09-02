@@ -27,6 +27,8 @@ public interface TrajectoryService {
 
     void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
 
+    void unlinkAllTrajectoriesFromStudy(Integer studyId);
+
     List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId);
 
     Map<String, Integer> countWarningMessage(Integer studyId);

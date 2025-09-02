@@ -1,8 +1,10 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.WarningDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -35,6 +37,9 @@ class WarningMessageServiceImplTest {
 
     @Mock
     private StudyRepository studyRepository;
+
+    @Mock
+    private StudyTrajectoryRepository studyTrajectoryRepository;
 
     @InjectMocks
     private WarningServiceImpl warningService;
@@ -98,15 +103,15 @@ class WarningMessageServiceImplTest {
         // Given
         Integer trajectoryId = 1;
         Integer studyId = 1;
-        when(trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)))
+        when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
                 .thenReturn(Collections.emptySet());
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
 
         // Then
         assertTrue(result.isEmpty());
-        verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
     }
 
     @Test
@@ -119,21 +124,20 @@ class WarningMessageServiceImplTest {
                 .warningMessages(null)
                 .build();
 
-        when(trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)))
-                .thenReturn(Set.of(trajectory));
+        when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
+                .thenReturn(Collections.emptySet());
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
 
         // Then
         assertTrue(result.isEmpty());
-        verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
     }
 
     @Test
     void getWarningsForTrajectory_shouldReturnWarnings_whenWarningsExist() {
         // Given
-        Integer trajectoryId = 1;
         Integer studyId = 1;
         StudyEntity study = StudyEntity.builder().id(studyId).build();
         WarningMessageEntity warning = WarningMessageEntity.builder()
@@ -143,20 +147,17 @@ class WarningMessageServiceImplTest {
                 .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
                 .creationDate(LocalDateTime.now())
                 .createdBy("testUser")
+                .trajectory(TrajectoryEntity.builder().id(1).type(TrajectoryType.AREA.name()).build())
                 .study(study)
                 .isAck(false)
                 .build();
 
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId)
-                .warningMessages(Set.of(warning))
-                .build();
-
-        when(trajectoryRepository.findAllByIdWithWarnings(List.of(trajectoryId)))
-                .thenReturn(Set.of(trajectory));
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of(warning));
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(true);
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(trajectoryId, studyId);
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
 
         // Then
         assertFalse(result.isEmpty());
@@ -170,7 +171,113 @@ class WarningMessageServiceImplTest {
         assertEquals(warning.getCreatedBy(), warningDTO.getGeneratedBy());
         assertEquals(warning.getIsAck(), warningDTO.getIsAck());
 
-        verify(trajectoryRepository).findAllByIdWithWarnings(List.of(trajectoryId));
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
+    }
+
+    @Test
+    void getWarningsForTrajectory_returnsSortedWarningsByAckAndCreationDate() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.AREA.name())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        WarningMessageEntity warning1 = WarningMessageEntity.builder()
+                .id(1)
+                .isAck(false)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now().minusDays(1))
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+        WarningMessageEntity warning2 = WarningMessageEntity.builder()
+                .id(2)
+                .isAck(false)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now())
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+        WarningMessageEntity warning3 = WarningMessageEntity.builder()
+                .id(3)
+                .isAck(true)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now().minusDays(2))
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+        WarningMessageEntity warning4 = WarningMessageEntity.builder()
+                .id(4)
+                .isAck(true)
+                .trajectory(trajectory)
+                .study(study)
+                .creationDate(LocalDateTime.now().minusDays(1))
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of(warning1, warning2, warning3, warning4));
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(true);
+
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+
+        assertEquals(4, result.size());
+        Iterator<WarningDTO> iterator = result.iterator();
+        assertEquals(warning2.getId(), iterator.next().getId());
+        assertEquals(warning1.getId(), iterator.next().getId());
+        assertEquals(warning4.getId(), iterator.next().getId());
+        assertEquals(warning3.getId(), iterator.next().getId());
+    }
+
+    @Test
+    void getWarningsForTrajectory_returnsEmptySet_whenNoWarningsMatchCriteria() {
+        Integer studyId = 1;
+
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of());
+        when(studyTrajectoryRepository.existsById(any())).thenReturn(false);
+
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+
+        assertTrue(result.isEmpty());
+        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
+    }
+
+    @Test
+    void getWarningsForTrajectory_returnsWarningOnlyIfBothTrajectoriesLinked() {
+        Integer studyId = 1;
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        TrajectoryEntity trajectory1 = TrajectoryEntity.builder().id(1).type(TrajectoryType.AREA.name()).build();
+        TrajectoryEntity trajectory2 = TrajectoryEntity.builder().id(2).type(TrajectoryType.AREA.name()).build();
+
+        WarningMessageEntity warning = WarningMessageEntity.builder()
+                .id(1)
+                .isAck(false)
+                .trajectory(trajectory1)
+                .secondTrajectory(trajectory2)
+                .study(study)
+                .creationDate(LocalDateTime.now())
+                .warningLevel(WarningLevel.ERROR_LEVEL)
+                .warningCode(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS)
+                .build();
+
+        when(warningRepository.findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name()))
+                .thenReturn(Set.of(warning));
+        when(studyTrajectoryRepository.existsById(
+                StudyTrajectoryKey.builder().trajectoryId(1).scenarioId(studyId).build()))
+                .thenReturn(true);
+        when(studyTrajectoryRepository.existsById(
+                StudyTrajectoryKey.builder().trajectoryId(2).scenarioId(studyId).build()))
+                .thenReturn(true);
+
+        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+
+        assertEquals(1, result.size());
+        assertEquals(warning.getId(), result.iterator().next().getId());
     }
 
     @Test

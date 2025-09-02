@@ -53,6 +53,9 @@ public class StudyServiceImpl implements StudyService {
     private final TrajectoryServiceImpl trajectoryService;
     private final  LoadFileProcessorServiceImpl loadFileProcessorService;
 
+    private static final String STUDY_NOT_FOUND = "Study with id {0} not found.";
+    private static final String HORIZON_FORMAT = "%d-%s";
+
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -101,7 +104,7 @@ public class StudyServiceImpl implements StudyService {
                 studyRepository::delete,
                 () -> {
                     throw BusinessException.builder()
-                            .message("Study with id {0} not found.")
+                            .message(STUDY_NOT_FOUND)
                             .errorMessageArguments(List.of(id.toString()))
                             .httpStatus(HttpStatus.NOT_FOUND)
                             .build();
@@ -114,7 +117,7 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.findById(id)
                 .map(StudyMapper::toStudyDTO)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Study with id {0} not found.")
+                        .message(STUDY_NOT_FOUND)
                         .errorMessageArguments(List.of(id.toString()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
@@ -131,7 +134,7 @@ public class StudyServiceImpl implements StudyService {
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
-        String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+        String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
         List<TrajectoryEntity> trajectories = trajectoryRepository
                 .findMostRecentTrajectoriesForDuplicationByStudyId(studyDTO.getId(), horizon);
 
@@ -198,7 +201,7 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private StudyEntity buildAndSaveNewStudy(StudyDTO studyDTO, ProjectEntity projectEntity) {
-        String horizon = String.format("%d-%s", Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+        String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
 
         Set<TrajectoryEntity> trajectories = CollectionUtils.isEmpty(studyDTO.getTrajectoryIds())
                 ? Collections.emptySet()
@@ -301,5 +304,63 @@ public class StudyServiceImpl implements StudyService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+    }
+
+    @Override
+    @Transactional
+    public StudyDTO updateStudy(Integer id, StudyDTO studyDTO) {
+        var study = loadStudyIfExists(id);
+        ensureNotGenerated(study);
+        if (studyDTO.getProject() != null) updateProjectIfPresent(study, studyDTO);
+        if (studyDTO.getHorizon() != null) updateHorizonIfPresent(study, studyDTO);
+        if (studyDTO.getTags() != null) updateTagsIfPresent(study, studyDTO);
+        var saved = studyRepository.save(study);
+        return StudyMapper.toStudyDTO(saved);
+    }
+
+    private StudyEntity loadStudyIfExists(Integer id) {
+        return studyRepository.findById(id).orElseThrow(() ->
+                BusinessException.builder()
+                        .message(STUDY_NOT_FOUND)
+                        .errorMessageArguments(List.of(id.toString()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build()
+        );
+    }
+
+    private void ensureNotGenerated(StudyEntity study) {
+        if (StudyStatus.GENERATED.equals(study.getStatus())) {
+            throw BusinessException.builder()
+                    .message("Only studies with status IN_PROGRESS can be updated.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void updateProjectIfPresent(StudyEntity study, StudyDTO dto) {
+        var newProject = projectRepository.findByName(dto.getProject())
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Project not found with name: {0}")
+                        .errorMessageArguments(List.of(dto.getProject()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
+        if (!Objects.equals(study.getProject().getId(), newProject.getId()) && studyExists(study.getName(), newProject.getName())) {
+            throw BusinessException.builder()
+                    .message("A study with the same name already exists for the target project.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
+        study.setProject(newProject);
+    }
+
+    private void updateHorizonIfPresent(StudyEntity study, StudyDTO dto) {
+        validateHorizon(dto);
+        var horizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(dto.getHorizon()) - 1, dto.getHorizon());
+        study.setHorizon(horizonRange);
+    }
+
+    private void updateTagsIfPresent(StudyEntity study, StudyDTO dto) {
+        validateTags(dto);
+        study.setTags(dto.getTags());
     }
 }

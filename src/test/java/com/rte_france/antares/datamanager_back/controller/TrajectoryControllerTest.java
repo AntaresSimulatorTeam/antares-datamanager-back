@@ -23,7 +23,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -58,6 +57,25 @@ class TrajectoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
                         .param("trajectoryToUse", "test")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                //Then
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any());
+    }
+
+    @Test
+    void uploadTrajectory_withSpacesInFileName_returnsCreatedTrajectory() throws Exception {
+        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryType", "AREA")
+                        .param("trajectoryToUse", "test file with spaces")
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
@@ -188,6 +206,32 @@ class TrajectoryControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void unlinkTrajectoryFromStudy_returnsConflictWhenAreaHasOtherLinks() throws Exception {
+        doThrow(BusinessException.builder()
+                .message("Other trajectories are linked. Confirmation required")
+                .httpStatus(HttpStatus.CONFLICT)
+                .build())
+                .when(trajectoryServiceImpl).unlinkTrajectoryFromStudy(1, 1);
+
+        this.mockMvc.perform(delete("/v1/trajectory/detach")
+                        .param("trajectoryId", "1")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void unlinkAllTrajectoriesFromStudy_returnsNoContent() throws Exception {
+        doNothing().when(trajectoryServiceImpl).unlinkAllTrajectoriesFromStudy(1);
+
+        this.mockMvc.perform(delete("/v1/trajectory/detach/all")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isNoContent());
+
+        verify(trajectoryServiceImpl, times(1)).unlinkAllTrajectoriesFromStudy(1);
+    }
 
     @Test
     void getTrajectoryDataByTypeAndId() throws Exception {
