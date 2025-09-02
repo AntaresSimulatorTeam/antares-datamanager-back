@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @Entity
 @Table(name = "thermal_common_parameters")
-public class ThermalParameterEntity extends ThermalBaseEntity {
+public class ThermalCommonParameterEntity extends ThermalBaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_parameter_seq_gen")
     @SequenceGenerator(name = "thermal_parameter_seq_gen", sequenceName = "thermal_parameter_sequence", allocationSize = 1)

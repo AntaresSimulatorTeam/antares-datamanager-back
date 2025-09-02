@@ -57,8 +57,7 @@ public class TrajectoryEntity {
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    @Builder.Default
-    List<ThermalParameterEntity> thermalClusterParameters = new ArrayList<>();
+    List<ThermalCommonParameterEntity> thermalClusterParameters;
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
@@ -109,4 +108,5 @@ public class TrajectoryEntity {
 
     @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;
+
 }
