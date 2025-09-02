@@ -12,7 +12,6 @@ import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessor
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -20,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -176,7 +174,7 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void saveThermalTrajectory_shouldThrowIllegalArgumentExceptionWhenEntityTypeIsInvalid() {
         TrajectoryEntity trajectory = new TrajectoryEntity();
-        List<ThermalParameterEntity> invalidEntities = List.of(new ThermalParameterEntity());
+        List<ThermalCommonParameterEntity> invalidEntities = List.of(new ThermalCommonParameterEntity());
 
         assertThrows(IllegalArgumentException.class, () ->
                 thermalFileProcessorService.saveThermalTrajectory(trajectory, invalidEntities, TrajectoryType.THERMAL_CAPACITY));
