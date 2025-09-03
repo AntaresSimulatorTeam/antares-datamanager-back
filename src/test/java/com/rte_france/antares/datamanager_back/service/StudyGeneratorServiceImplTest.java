@@ -366,7 +366,7 @@ class StudyGeneratorServiceImplTest {
     @Test
     void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
         // Given
-        var thermalParam = ThermalParameterEntity.builder().id(1).build();
+        var thermalParam = ThermalCommonParameterEntity.builder().id(1).build();
 
         var areaEntity = AreaEntity.builder().name("FR").build();
         var areaConfig = AreaConfigEntity.builder().area(areaEntity).build();

@@ -185,7 +185,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
 
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
-        List<ThermalParameterEntity> thermalClusterParameters = trajectory.getThermalClusterParameters();
+        List<ThermalCommonParameterEntity> thermalClusterParameters = trajectory.getThermalClusterParameters();
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
@@ -224,7 +224,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, List<ThermalParameterEntity> thermalParameterEntities) {
+    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, List<ThermalCommonParameterEntity> thermalParameterEntities) {
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
@@ -244,8 +244,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return areaMap;
     }
 
-    private static Map<String, Object> thermalsMapGenerator(List<ThermalParameterEntity> thermalParameterEntities) {
+    private static Map<String, Object> thermalsMapGenerator(List<ThermalCommonParameterEntity> thermalParameterEntities) {
         Map<String, Object> clusterMap = new HashMap<>();
+        if (thermalParameterEntities == null || thermalParameterEntities.isEmpty()) {
+            return clusterMap;
+        }
 
         ObjectMapper mapper = new ObjectMapper();
         thermalParameterEntities.forEach(thermalParameterEntity -> {
