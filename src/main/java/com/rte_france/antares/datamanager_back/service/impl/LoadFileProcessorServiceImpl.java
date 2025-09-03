@@ -100,7 +100,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
                 .toList();
 
         Set<String> customAreas = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId).stream()
-                .map(TrajectoryEntity::getLoadArea)
+                .map(TrajectoryEntity::getArea)
                 .filter(Objects::nonNull)
                 .map(Utils::normalize)
                 .filter(a -> !OTHER_AREA.equals(a))
