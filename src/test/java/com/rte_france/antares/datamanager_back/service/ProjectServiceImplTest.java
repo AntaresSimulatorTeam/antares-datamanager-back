@@ -474,6 +474,7 @@ class ProjectServiceImplTest {
         Integer projectId = 1;
         ProjectEntity existingProject = new ProjectEntity();
         existingProject.setId(projectId);
+        existingProject.setDescription("BP 2028");
         existingProject.setDescription("New description");
         existingProject.setTags(List.of("tag1", "tag2"));
 
@@ -493,10 +494,11 @@ class ProjectServiceImplTest {
     }
 
     @Test
-    void updateProject_ShouldUpdateField_WhenInputIsNull() {
+    void updateProject_ShouldNotUpdateField_WhenInputIsNull() {
         Integer projectId = 1;
         ProjectEntity existingProject = new ProjectEntity();
         existingProject.setId(projectId);
+        existingProject.setDescription("BP 2027");
         existingProject.setDescription("New description");
         existingProject.setTags(List.of("tag1", "tag2"));
 
@@ -509,25 +511,26 @@ class ProjectServiceImplTest {
 
         ProjectEntity result = projectService.updateProject(projectId, inputDto);
 
+        assertEquals(existingProject.getName(), result.getName());
         assertEquals(existingProject.getDescription(), result.getDescription());
         assertEquals(existingProject.getTags().size(), result.getTags().size());
     }
 
     @Test
-        void updateProject_ShouldThrowException_WhenProjectNotFound() {
+    void updateProject_ShouldThrowException_WhenProjectNotFound() {
         Integer projectId = 999;
         ProjectInputDto inputDto = new ProjectInputDto();
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
 
         BusinessException ex = assertThrows(BusinessException.class,
-             () -> projectService.updateProject(projectId, inputDto));
+                () -> projectService.updateProject(projectId, inputDto));
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
     }
 
     @Test
-        void updateProject_ShouldThrowException_WhenTagsExceedLimit() {
+    void updateProject_ShouldThrowException_WhenTagsExceedLimit() {
         Integer projectId = 1;
         ProjectEntity project = new ProjectEntity();
 
@@ -537,9 +540,53 @@ class ProjectServiceImplTest {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
 
         BusinessException ex = assertThrows(BusinessException.class,
-              () -> projectService.updateProject(projectId, inputDto));
+                () -> projectService.updateProject(projectId, inputDto));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
+
+    @Test
+    void updateProject_ShouldNotThrowException_WhenExistingProjectNameIsTheSameNameAsInputName() {
+        Integer projectId = 1;
+        String existingName = "Existing Project";
+
+        ProjectEntity existingProject = new ProjectEntity();
+        existingProject.setId(projectId);
+        existingProject.setName(existingName);
+
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName(existingName);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
+        when(projectRepository.save(any(ProjectEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProjectEntity result = projectService.updateProject(projectId, projectInputDto);
+
+        assertEquals(projectInputDto.getName(), result.getName());
+    }
+
+    @Test
+    void updateProject_ShouldThrowException_WhenSameProjectNameExists() {
+        Integer projectId = 1;
+        String existingName = "Existing Project";
+
+        ProjectEntity existingProject = new ProjectEntity();
+        existingProject.setId(projectId);
+        existingProject.setName("Old Name");
+
+        ProjectInputDto projectInputDto = new ProjectInputDto();
+        projectInputDto.setName(existingName);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
+        when(projectRepository.findByName(existingName)).thenReturn(Optional.of(new ProjectEntity()));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> projectService.updateProject(projectId, projectInputDto)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
+        assertEquals("A project with the same name already exists.", exception.getMessage());
     }
 
     @Test
@@ -568,30 +615,6 @@ class ProjectServiceImplTest {
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
         assertTrue(ex.getMessage().contains("Project not found with ID:"));
-    }
-
-    @Test
-    void findProjectById_ShouldThrowException_WhenSameProjectNameExists() {
-        Integer projectId = 1;
-        String existingName = "Existing Project";
-
-        ProjectEntity existingProject = new ProjectEntity();
-        existingProject.setId(projectId);
-        existingProject.setName("Old Name");
-
-        ProjectInputDto projectInputDto = new ProjectInputDto();
-        projectInputDto.setName(existingName);
-        
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(existingProject));
-        when(projectRepository.findByName(existingName)).thenReturn(Optional.of(new ProjectEntity()));
-
-        BusinessException exception = assertThrows(
-                BusinessException.class,
-                () -> projectService.updateProject(projectId, projectInputDto)
-        );
-
-        assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
-        assertEquals("A project with the same name already exists.", exception.getMessage());
     }
 
     @Test
