@@ -504,7 +504,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
             default -> {
-                if (OTHER_AREA.equals(trajectory.getArea())) {
+                if (OTHER_AREA.equals(trajectory.getArea()) && TrajectoryType.LOAD.name().equals(trajectory.getType())) {
                     warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
                             trajectory.getHorizon(), studyId, userNni, trajectory);
                 }
