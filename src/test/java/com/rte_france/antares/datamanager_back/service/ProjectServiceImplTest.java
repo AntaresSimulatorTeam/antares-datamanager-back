@@ -455,6 +455,7 @@ class ProjectServiceImplTest {
         existingProject.setId(projectId);
 
         ProjectInputDto inputDto = new ProjectInputDto();
+        inputDto.setName("Bilan prévisionnel");
         inputDto.setDescription("New description");
         inputDto.setTags(List.of("tag1", "tag2"));
 
@@ -463,6 +464,7 @@ class ProjectServiceImplTest {
 
         ProjectEntity result = projectService.updateProject(projectId, inputDto);
 
+        assertEquals("Bilan prévisionnel", result.getName());
         assertEquals("New description", result.getDescription());
         assertEquals(2, result.getTags().size());
     }
@@ -476,6 +478,7 @@ class ProjectServiceImplTest {
         existingProject.setTags(List.of("tag1", "tag2"));
 
         ProjectInputDto inputDto = new ProjectInputDto();
+        inputDto.setName("");
         inputDto.setDescription("");
         inputDto.setTags(List.of());
 
@@ -484,6 +487,7 @@ class ProjectServiceImplTest {
 
         ProjectEntity result = projectService.updateProject(projectId, inputDto);
 
+        assertEquals("", result.getName());
         assertEquals("", result.getDescription());
         assertEquals(0, result.getTags().size());
     }
