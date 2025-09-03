@@ -5,8 +5,6 @@ CREATE TABLE IF NOT EXISTS thermal_specific_parameters (
     node VARCHAR(20),
     node_entsoe VARCHAR(20),
     comments VARCHAR(255),
-    cluster_pemmdb VARCHAR(20),
-    cluster VARCHAR(20),
     min_stable_generation NUMERIC,
     spinning NUMERIC,
     efficiency NUMERIC,
@@ -47,6 +45,7 @@ CREATE TABLE IF NOT EXISTS thermal_specific_parameters (
     p11 INTEGER,
     p12 INTEGER,
     trajectory_id    INTEGER,
+    thermal_cluster_ref_id INTEGER,
     CONSTRAINT pk_thermal_specific_parameters PRIMARY KEY (id)
     );
 
@@ -57,5 +56,9 @@ CREATE
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
+
 ALTER TABLE thermal_specific_parameters
     ADD CONSTRAINT "thermal_specific_parameters_FK1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id);
+
+ALTER TABLE thermal_specific_parameters
+    ADD CONSTRAINT "thermal_specific_parameters_FK2" FOREIGN KEY (thermal_cluster_ref_id) REFERENCES thermal_cluster_ref (id);

@@ -22,13 +22,6 @@ public class ThermalCommonParameterEntity extends ThermalBaseEntity {
     @Column(name = "year_parameter")
     private Double year;
 
-    @Size(max = 255)
-    @Column(name = "cluster")
-    private String cluster;
-
-    @Column(name = "cluster_pemmdb")
-    private String clusterPemmdb;
-
     @Column(name = "category")
     private Double category;
 
@@ -109,4 +102,9 @@ public class ThermalCommonParameterEntity extends ThermalBaseEntity {
 
     @Column(name = "fixed_generation_reduction")
     private Double fixedGenerationReduction;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thermal_cluster_ref_id")
+    private ThermalClusterRef thermalClusterRef;
+
 }

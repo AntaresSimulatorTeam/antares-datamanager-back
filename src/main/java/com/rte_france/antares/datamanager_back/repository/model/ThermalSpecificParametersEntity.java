@@ -28,12 +28,6 @@ public class ThermalSpecificParametersEntity {
     @Column(name = "comments", length = 255)
     private String comment;
 
-    @Column(name = "cluster_pemmdb", length = 20)
-    private String clusterPemmdb;
-
-    @Column(name = "cluster", length = 20)
-    private String cluster;
-
     @Column(name = "min_stable_generation")
     private Double minStableGeneration;
 
@@ -104,5 +98,9 @@ public class ThermalSpecificParametersEntity {
     @Column(name = "p10") private Integer p10;
     @Column(name = "p11") private Integer p11;
     @Column(name = "p12") private Integer p12;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thermal_cluster_ref_id")
+    private ThermalClusterRef thermalClusterRef;
 
 }
