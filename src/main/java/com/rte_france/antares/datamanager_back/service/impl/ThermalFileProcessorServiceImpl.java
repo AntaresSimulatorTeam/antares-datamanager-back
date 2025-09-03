@@ -96,8 +96,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         log.info("Areas liés à l'étude récupérées : {}", studyAreas);
 
         List<ThermalClusterCapacityEntity> thermalClusterCapacities = new ArrayList<>();
-        boolean areaFound = false;
-        Set<String> foundAreas = new HashSet<>();
+        boolean isSpecificAreaFound = false;
+        Set<String> listOfOtherArea = new HashSet<>();
 
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -108,16 +108,16 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
-                // le cas FR
+                // le cas FR ou (AT, BE,CH,DE,IT,LU,NL.......)
                 if (!area.equals("OTHER")) {
                     if (rowArea.equals(area.toUpperCase())) {
-                        areaFound = true;
+                        isSpecificAreaFound = true;
                         processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, thermalClusterCapacities);
                     }
                 }
-                // le cas OTHER (AT, BE,CH,DE,IT,LU,NL.......)
+                // le cas OTHER
                 else {
-                    foundAreas.add(rowArea);
+                    listOfOtherArea.add(rowArea);
                     processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, thermalClusterCapacities);
                 }
             }
@@ -128,7 +128,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         //check if power and number have the same toUse value for each cluster/area
         checkPowerAndNumberWithSameToUse(thermalClusterCapacities);
         //check if at least one area of the AREA trajectory is present in THERMAL Installed
-        WarningMessageEntity warningMessage = buildWarningMessage(path, area, studyId, areaFound, foundAreas, studyAreas);
+        WarningMessageEntity warningMessage = buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
 
         log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), thermalClusterCapacities.size());
         thermalClusterCapacityDto.setThermalClusterCapacities(thermalClusterCapacities);
@@ -136,8 +136,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalClusterCapacityDto;
     }
 
-    private WarningMessageEntity buildWarningMessage(Path path, String area, Integer studyId, boolean areaFound, Set<String> foundAreas, List<String> studyAreas) {
-        List<String> listMissingArea = checkForMissingArea(area, areaFound, foundAreas, studyAreas, path);
+    private WarningMessageEntity buildWarningMessage(Path path, String area, Integer studyId, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas) {
+        List<String> listMissingArea = checkForMissingArea(area, isSpecificAreaFound, listOfOtherArea, studyAreas, path);
         //save warning if missing areas
         WarningMessageEntity warningMessage = new WarningMessageEntity();
 
@@ -187,21 +187,34 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
+            double value = capacityValue(row, i);
+            boolean toUse = row.getCell(0).getNumericCellValue() == 0;
+
+            // Ajout des valeurs au checksum
+            StringBuilder checksum = new StringBuilder();
+            checksum.append(rowArea).append("|")
+                    .append(techName).append("|")
+                    .append(clusterName).append("|")
+                    .append(category.name()).append("|")
+                    .append(monthYear).append("|")
+                    .append(value).append("|")
+                    .append(toUse).append("\n");
+
             ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
-                    .toUse(row.getCell(0).getNumericCellValue() == 0)
+                    .toUse(toUse)
                     .area(rowArea)
                     .thermalClusterRef(findOrCreateThermalClusterRef(techName, clusterName))
                     .category(category)
                     .monthYear(monthYear)
-                    .value(capacityValue(row, i))
+                    .value(value)
                     .build();
             result.add(entity);
         }
     }
 
-    private List<String> checkForMissingArea(String area, boolean areaFound, Set<String> foundAreas, List<String> studyAreas, Path path) {
+    private List<String> checkForMissingArea(String area, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas, Path path) {
         if (!"OTHER".equals(area)) {
-            if (!areaFound) {
+            if (!isSpecificAreaFound) {
                 throw BusinessException.builder()
                         .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
                         .build();
@@ -210,7 +223,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
 
         List<String> missingAreas = studyAreas.stream()
-                .filter(studyArea -> !foundAreas.contains(studyArea))
+                .filter(studyArea -> !listOfOtherArea.contains(studyArea))
                 .toList();
 
         if (missingAreas.size() == studyAreas.size()) {
