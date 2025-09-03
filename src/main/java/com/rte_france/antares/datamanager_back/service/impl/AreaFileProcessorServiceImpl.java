@@ -71,7 +71,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
-    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon) throws IOException {
+    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
@@ -82,10 +82,10 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
                 if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
 
                 AreaEntity areaEntity = findOrCreateAreaEntity(row);
-                Boolean value1 = getBooleanCellValue(row.getCell(1));
-                Boolean value2 = getBooleanCellValue(row.getCell(2));
+                var value1 = getBooleanCellValue(row.getCell(1));
+                var value2 = getBooleanCellValue(row.getCell(2));
 
-                areaConfigEntities.add(new AreaConfigEntity(value1, value2, areaEntity));
+                areaConfigEntities.add(new AreaConfigEntity(value1.orElseThrow(), value2.orElseThrow(), areaEntity));
             }
             return areaConfigEntities;
         } catch (IOException e) {

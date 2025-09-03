@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,6 +49,7 @@ class UtilsTest {
         trajectoryEntity.setHorizon("2030-2031");
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
+        trajectoryEntity.setType("AREA");
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
         boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
@@ -60,6 +63,7 @@ class UtilsTest {
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("differentFile");
         trajectoryEntity.setFileSize(Files.size(path));
+        trajectoryEntity.setType("LOAD");
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
         boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
@@ -75,6 +79,7 @@ class UtilsTest {
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
         trajectoryEntity.setChecksum("differentChecksum");
+        trajectoryEntity.setType("AREA");
 
         boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
 
@@ -89,6 +94,7 @@ class UtilsTest {
         trajectoryEntity.setFileName("testFile");
         trajectoryEntity.setFileSize(Files.size(path));
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
+        trajectoryEntity.setType("AREA");
         boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
 
         assertFalse(isSameFileWithDifferentContent);
@@ -120,6 +126,7 @@ class UtilsTest {
         trajectoryEntity.setFileSize(Files.size(filePath));
         trajectoryEntity.setHorizon(sheetName);
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(filePath.toString(), "2030-2031"));
+        trajectoryEntity.setType("AREA");
 
         assertThrows(BusinessException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity));
     }
@@ -134,6 +141,7 @@ class UtilsTest {
         trajectoryEntity.setFileSize(Files.size(Path.of(filePath)));
         trajectoryEntity.setChecksum("differentChecksum");
         trajectoryEntity.setHorizon(sheetName);
+        trajectoryEntity.setType("AREA");
 
         assertTrue(Utils.checkTrajectoryVersion(Path.of(filePath), trajectoryEntity));
     }
@@ -155,7 +163,7 @@ class UtilsTest {
         var filePath = tempDir.resolve("testFile");
         var result = Utils.ensureExtension(filePath, () -> "txt");
 
-        assertEquals(filePath.toString() + ".txt", result.toString());
+        assertEquals(filePath + ".txt", result.toString());
     }
 
     @Test
@@ -182,7 +190,7 @@ class UtilsTest {
         var filePath = tempDir.resolve("testFile");
         var result = Utils.ensureExtension(filePath, () -> "");
 
-        assertEquals(filePath.toString() + ".", result.toString());
+        assertEquals(filePath + ".", result.toString());
     }
 
     @org.junit.jupiter.api.Test
@@ -224,4 +232,131 @@ class UtilsTest {
         );
     }
 
+    @Test
+    void computeLinkChecksum_changesWhenParametersSheetChanges() throws IOException {
+        var horizon = "2030-2031";
+        var f1 = tempDir.resolve("links_v1.xlsx");
+        var f2 = tempDir.resolve("links_v2.xlsx");
+
+        try (var wb = new XSSFWorkbook()) {
+            var sh = wb.createSheet(horizon);
+            sh.createRow(0).createCell(0).setCellValue("Name");
+            sh.getRow(0).createCell(1).setCellValue("Val");
+            sh.createRow(1).createCell(0).setCellValue("A-B");
+            sh.getRow(1).createCell(1).setCellValue(1);
+            var p = wb.createSheet("parameters");
+            var hdr = p.createRow(0); hdr.createCell(0).setCellValue("Param"); hdr.createCell(1).setCellValue(horizon);
+            var r1 = p.createRow(1); r1.createCell(0).setCellValue("Hurdle Cost"); r1.createCell(1).setCellValue(10);
+            try (var fos = new FileOutputStream(f1.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        // with different hurdle cost
+        try (var wb = new XSSFWorkbook()) {
+            var sh = wb.createSheet(horizon);
+            sh.createRow(0).createCell(0).setCellValue("Name");
+            sh.getRow(0).createCell(1).setCellValue("Val");
+            sh.createRow(1).createCell(0).setCellValue("A-B");
+            sh.getRow(1).createCell(1).setCellValue(1);
+            var p = wb.createSheet("parameters");
+            var hdr = p.createRow(0); hdr.createCell(0).setCellValue("Param"); hdr.createCell(1).setCellValue(horizon);
+            var r1 = p.createRow(1); r1.createCell(0).setCellValue("Hurdle Cost"); r1.createCell(1).setCellValue(20);
+            try (var fos = new FileOutputStream(f2.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon);
+        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon);
+
+        assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
+    }
+
+    @Test
+    void isSameLoadTrajectory_returnsTrue_whenFilenameAndMtimeMatch() throws Exception {
+        Path file = tempDir.resolve("test.xlsx");
+        Files.writeString(file, "test content");
+
+        var fileMtime = Files.getLastModifiedTime(file)
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+                .truncatedTo(ChronoUnit.SECONDS);
+
+        var te = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
+        te.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
+        te.setFileName("test");
+        te.setLastModificationContentDate(fileMtime);
+
+        assertTrue(Utils.isSameLoadTrajectory(file, te));
+    }
+
+    @Test
+    void isSameLoadTrajectory_returnsFalse_whenMtimeOrFilenameDiffer() throws Exception {
+        Path file = tempDir.resolve("test.xlsx");
+        Files.writeString(file, "test content");
+
+        var fileMtime = Files.getLastModifiedTime(file)
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+                .truncatedTo(ChronoUnit.SECONDS);
+
+        var teDifferentMtime = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
+        teDifferentMtime.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
+        teDifferentMtime.setFileName("test");
+        teDifferentMtime.setLastModificationContentDate(fileMtime.minusSeconds(5));
+        assertFalse(Utils.isSameLoadTrajectory(file, teDifferentMtime));
+
+        var teDifferentName = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
+        teDifferentName.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
+        teDifferentName.setFileName("othertest");
+        teDifferentName.setLastModificationContentDate(fileMtime);
+        assertFalse(Utils.isSameLoadTrajectory(file, teDifferentName));
+    }
+
+    @Test
+    void computeSheetChecksum_throwsTechnicalException_whenSheetMissing() throws Exception {
+        Path file = tempDir.resolve("test_missing_sheet.xlsx");
+        try (var wb = new XSSFWorkbook()) {
+            wb.createSheet("2040-2041");
+            try (var fos = new FileOutputStream(file.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        TechnicalException ex = assertThrows(
+                TechnicalException.class,
+                () -> Utils.computeSheetChecksum(file.toString(), "2030-2031")
+        );
+
+        assertTrue(
+                ex.getMessage().startsWith("Feuille '2030-2031' non trouvée"),
+                "Unexpected exception message: " + ex.getMessage()
+        );
+    }
+
+    @Test
+    void computeChecksumByType_throwsTechnicalException_whenParametersHeaderMissing_forLink() throws Exception {
+        String horizon = "2030-2031";
+        Path file = tempDir.resolve("links_no_header.xlsx");
+
+        try (var wb = new XSSFWorkbook()) {
+            var sh = wb.createSheet(horizon);
+            sh.createRow(0).createCell(0).setCellValue("Name");
+            wb.createSheet("parameters");
+            try (var fos = new FileOutputStream(file.toFile())) { wb.write(fos); }
+        }
+
+        TechnicalException ex = assertThrows(
+                TechnicalException.class,
+                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon)
+        );
+
+        assertTrue(
+                ex.getMessage().startsWith("Header row missing in sheet 'parameters'"),
+                "Unexpected exception message: " + ex.getMessage()
+        );
+    }
 }

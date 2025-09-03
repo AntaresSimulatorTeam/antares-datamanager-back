@@ -70,12 +70,12 @@ public class Utils {
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
+                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && !trajectoryEntity.getChecksum().equals(computeSheetChecksum(path.toString(), trajectoryEntity.getHorizon()));
+                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon()));
     }
 
     public static boolean isSameLoadTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
@@ -133,7 +133,7 @@ public class Utils {
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
-                .checksum(trajectoryType.name().equals(TrajectoryType.LOAD.name()) || trajectoryType.name().equals(TrajectoryType.THERMAL_CAPACITY.name()) ? getFileChecksum(path.toString()) : computeSheetChecksum(path.toString(), horizon))
+                .checksum(computeChecksumByType(path, trajectoryType, horizon))
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .build();
@@ -292,46 +292,114 @@ public class Utils {
         return path.toString().endsWith(ext) ? path : path.resolveSibling(path.getFileName() + ext);
     }
 
-
     /**
-     * Calcule le checksum SHA-256 d'une feuille Excel par nom
+     * Calcule le checksum SHA-256 d'un fichier de trajectoire en fonction de son type
      *
-     * @param filePath  chemin vers le fichier .xlsx
-     * @param sheetName nom exact de la feuille Excel
+     * @param path  chemin vers le fichier .xlsx
+     * @param type  type de la trajectoire
+     * @param horizon horizon concerné
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
      */
+    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon) throws IOException {
+        return switch (type) {
+            case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
+            case LINK -> computeLinkChecksum(path.toString(), horizon);
+            default -> computeSheetChecksum(path.toString(), horizon);
+        };
+    }
+
     public static String computeSheetChecksum(String filePath, String sheetName) throws IOException {
-        try (InputStream inputStream = Files.newInputStream(Path.of(filePath));
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
+        try (InputStream in = Files.newInputStream(Path.of(filePath));
+             Workbook wb = WorkbookFactory.create(in)) {
 
-            Sheet sheet = workbook.getSheet(sheetName);
+            Sheet sheet = wb.getSheet(sheetName);
             if (sheet == null) {
-                throw TechnicalException.builder().message("Feuille '" + sheetName + "' non trouvée dans le fichier : " + filePath).build();
+                throw TechnicalException.builder()
+                        .message("Feuille '" + sheetName + "' non trouvée dans le fichier : " + filePath)
+                        .build();
             }
-
-            StringBuilder sb = new StringBuilder();
-
-            for (Row row : sheet) {
-                for (Cell cell : row) {
-                    switch (cell.getCellType()) {
-                        case STRING -> sb.append(cell.getStringCellValue());
-                        case NUMERIC -> sb.append(cell.getNumericCellValue());
-                        case BOOLEAN -> sb.append(cell.getBooleanCellValue());
-                        case FORMULA -> sb.append(cell.getCellFormula());
-                        case BLANK -> sb.append("BLANK");
-                        default -> sb.append("NULL");
-                    }
-                    sb.append("|");
-                }
-                sb.append("\n");
-            }
-
-            return Hashing.sha256()
-                    .hashString(sb.toString(), StandardCharsets.UTF_8)
-                    .toString();
+            return hashWholeSheet(sheet);
         }
     }
+
+    private static String cellToString(Cell c) {
+        return switch (c.getCellType()) {
+            case STRING -> c.getStringCellValue();
+            case NUMERIC -> String.valueOf(c.getNumericCellValue());
+            case BOOLEAN -> String.valueOf(c.getBooleanCellValue());
+            case FORMULA -> c.getCellFormula();
+            case BLANK -> "BLANK";
+            default -> "NULL";
+        };
+    }
+
+    private static String hashWholeSheet(Sheet sheet) {
+        var sb = new StringBuilder();
+        for (var row : sheet) {
+            for (var cell : row) {
+                sb.append(cellToString(cell)).append('|');
+            }
+            sb.append('\n');
+        }
+        return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
+    }
+
+    private static String hashColumnByHeader(Sheet sheet, String headerNameRaw) {
+        var headerName = headerNameRaw.trim();
+        var header = sheet.getRow(0);
+        if (header == null) {
+            throw TechnicalException.builder().message("Header row missing in sheet '" + sheet.getSheetName() + "'").build();
+        }
+
+        var col = -1;
+        for (var c : header) {
+            if (c != null && c.getCellType() == CellType.STRING
+                    && headerName.equalsIgnoreCase(c.getStringCellValue().trim())) {
+                col = c.getColumnIndex();
+                break;
+            }
+        }
+        if (col < 0) {
+            throw TechnicalException.builder().message(
+                    "Column '" + headerName + "' not found in header of sheet '" + sheet.getSheetName() + "'").build();
+        }
+
+        var entries = new ArrayList<String>();
+        for (var r = 1; r <= sheet.getLastRowNum(); r++) {
+            var row = sheet.getRow(r);
+            if (row == null) continue;
+
+            var key = "ROW_" + r;
+            var k = row.getCell(0);
+            if (k != null && k.getCellType() == CellType.STRING) key = k.getStringCellValue().trim();
+
+            entries.add(key + "=" + cellToString(row.getCell(col)));
+        }
+        entries.sort(String.CASE_INSENSITIVE_ORDER);
+        return Hashing.sha256().hashString(String.join("\n", entries), StandardCharsets.UTF_8).toString();
+    }
+
+    private static String computeLinkChecksum(String filePath, String horizon) throws IOException {
+        try (var in = Files.newInputStream(Path.of(filePath));
+             var wb = WorkbookFactory.create(in)) {
+
+            var horizonSheet = wb.getSheet(horizon);
+            if (horizonSheet == null) {
+                throw TechnicalException.builder().message("Sheet '" + horizon + "' not found: " + filePath).build();
+            }
+            var hHash = hashWholeSheet(horizonSheet);
+
+            var params = wb.getSheet("parameters");
+            if (params == null) {
+                throw TechnicalException.builder().message("Sheet 'parameters' not found: " + filePath).build();
+            }
+            var pHash = hashColumnByHeader(params, horizon);
+
+            return Hashing.sha256().hashString(hHash + pHash, StandardCharsets.UTF_8).toString();
+        }
+    }
+
 
     /**
      * Extracts the area identifier from a given file name.
