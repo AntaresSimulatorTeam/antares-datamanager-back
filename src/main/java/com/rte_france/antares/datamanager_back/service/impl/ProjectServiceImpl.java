@@ -221,7 +221,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectEntity updateProject(Integer projectId, ProjectInputDto projectInputDto) {
-        ProjectEntity project = projectRepository.findById(projectId)
+        ProjectEntity projectToUpdate = projectRepository.findById(projectId)
                 .orElseThrow(() -> BusinessException.builder()
                         .message(PROJECT_NOT_FOUND)
                         .errorMessageArguments(List.of(projectId.toString()))
@@ -233,15 +233,16 @@ public class ProjectServiceImpl implements ProjectService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        if (projectInputDto.getName() != null && projectRepository.findByName(projectInputDto.getName()).isPresent()) {
+        if (projectInputDto.getName() != null && !projectInputDto.getName().equals(projectToUpdate.getName()) && projectRepository.findByName(projectInputDto.getName()).isPresent()) {
             throw BusinessException.builder()
                     .message("A project with the same name already exists.")
                     .httpStatus(HttpStatus.CONFLICT)
                     .build();
         }
 
-        if (!isNull(projectInputDto.getDescription())) project.setDescription(projectInputDto.getDescription());
-        if (!isNull(projectInputDto.getTags())) project.setTags(projectInputDto.getTags());
-        return projectRepository.save(project);
+        if (!isNull(projectInputDto.getDescription())) projectToUpdate.setDescription(projectInputDto.getDescription());
+        if (!isNull(projectInputDto.getTags())) projectToUpdate.setTags(projectInputDto.getTags());
+        if (!isNull(projectInputDto.getName())) projectToUpdate.setName(projectInputDto.getName());
+        return projectRepository.save(projectToUpdate);
     }
 }
