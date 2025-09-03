@@ -11,3 +11,16 @@ ALTER TABLE thermal_common_parameters RENAME COLUMN node_ENTSOE TO cluster_PEMMD
 
 -- 4) drop efficiency column if exists
 ALTER TABLE thermal_common_parameters DROP COLUMN efficiency;
+
+-- 5) drop cluster column if exists
+ALTER TABLE thermal_common_parameters DROP COLUMN cluster;
+
+-- 6) drop cluster_pemmdb column if exists
+ALTER TABLE thermal_common_parameters DROP COLUMN cluster_pemmdb;
+
+-- 7) add thermal_cluster_ref_id column
+ALTER TABLE thermal_common_parameters ADD COLUMN thermal_cluster_ref_id INTEGER;
+
+-- 8) add constraint for thermal_cluster_ref table
+ALTER TABLE thermal_common_parameters
+    ADD CONSTRAINT "thermal_common_parameters_fk" FOREIGN KEY (thermal_cluster_ref_id) REFERENCES thermal_cluster_ref (id);
