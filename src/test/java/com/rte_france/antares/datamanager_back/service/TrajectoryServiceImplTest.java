@@ -103,17 +103,52 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsThermalCapacity() throws IOException {
-        Path path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/thermal_capacity/thermal_BE_PEMMDB23_26avril.xlsx");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("src/test/resources/thermal_capacity/");
-        when(areaRepository.findAreaByNameAndStudyId(any(), any())).thenReturn(Optional.of(AreaEntity.builder().id(1).build()));
+    void processThermalCapacityTrajectory_returnsEntityWhenValidDataProvided() throws IOException {
+        String trajectoryToUse = "thermal_BE_PEMMDB23_26avril";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        boolean isCivilYear = true;
+        String area = "BE";
+        String technology = "CCGT";
 
-        trajectoryService.processThermalCapacityTrajectory( "thermal_BE_PEMMDB23_26avril", "2023-2024", 1, true, "BE", "PEMMDB");
+        Path mockPath = mock(Path.class);
+        List<ThermalClusterCapacityEntity> mockEntities = List.of(new ThermalClusterCapacityEntity());
 
-        verify(thermalFileProcessorService, times(1)).processThermalCapacityFile(any(), any(), any(), any(), any(), any());
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        doReturn(mockPath).when(spyService).getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
+
+        when(thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, isCivilYear, area, technology)).thenReturn(mockEntities);
+        when(thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area, technology))
+                .thenReturn(new TrajectoryEntity());
+
+        TrajectoryEntity result = spyService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    void processThermalCapacityTrajectory_throwsExceptionWhenThermalClusterCapacityListIsEmpty() throws IOException {
+        String trajectoryToUse = "thermal_BE_PEMMDB23_26avril";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        boolean isCivilYear = true;
+        String area = "BE";
+        String technology = "CCGT";
+
+        Path mockPath = mock(Path.class);
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("thermal_capacity");
+        when(thermalFileProcessorService.buildThermalClusterCapacityValuesList(
+                any(Path.class), eq(horizon), eq(isCivilYear), eq(area), eq(technology))
+        ).thenReturn(Collections.emptyList());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology));
+
+        assertEquals("No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}", exception.getMessage());
+        assertEquals(List.of(trajectoryToUse, area, horizon), exception.getErrorMessageArguments());
     }
 
     @Test
