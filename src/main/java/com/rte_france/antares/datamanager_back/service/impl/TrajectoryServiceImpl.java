@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -259,7 +260,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse,"");
+        Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse, "");
 
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
@@ -279,12 +280,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear , String area, String technology) throws IOException {
+    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
         //checkIfAreaIsLinkedToStudy(studyId, area);
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
-        var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology);
-        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY, area, technology);
-
+        var listThermalClusterCapacityEntity = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear, area, technology);
+        if (CollectionUtils.isEmpty(listThermalClusterCapacityEntity)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse, area, horizon))
+                    .message("No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, listThermalClusterCapacityEntity, TrajectoryType.THERMAL_CAPACITY, area, technology);
     }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
@@ -296,7 +303,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build());
     }
 
-    private Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse, String area) throws IOException {
+    public Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse, String area) throws IOException {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
@@ -431,10 +438,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA -> antaressDataManagerProperties.getAreaDirectory();
             case LINK -> antaressDataManagerProperties.getLinkDirectory();
             case THERMAL_COST -> antaressDataManagerProperties.getThermalCostDirectory();
-            case THERMAL_CAPACITY ->  thermalCapacityArea.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
-                    .resolve(thermalCapacityArea)
-                    .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
-                    .toString();
+            case THERMAL_CAPACITY ->
+                    thermalCapacityArea.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
+                            .resolve(thermalCapacityArea)
+                            .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
+                            .toString();
             case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
             case LOAD -> antaressDataManagerProperties.getLoadDirectory();
             case MISC ->
@@ -469,7 +477,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .build());
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
-        if ((TrajectoryType.AREA.equals(type) || TrajectoryType.LINK.equals(type))  && study.getStudyTrajectoryEntities() != null) {
+        if ((TrajectoryType.AREA.equals(type) || TrajectoryType.LINK.equals(type)) && study.getStudyTrajectoryEntities() != null) {
             existingLink = study.getStudyTrajectoryEntities().stream()
                     .filter(studyTrajectory -> studyTrajectory.getTrajectory() != null
                             && studyTrajectory.getTrajectory().getType() != null

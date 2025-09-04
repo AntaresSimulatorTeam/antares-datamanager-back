@@ -99,7 +99,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     String clusterName = row.getCell(3).getStringCellValue();
 
                     ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
-                            .toUse(row.getCell(0).getNumericCellValue() == 0)
+                            .toUse(row.getCell(0).getNumericCellValue() == 1)
                             .area(rowArea)
                             .thermalClusterRef(findOrCreateThermalClusterRef(techName,clusterName))
                             .category(ThermalCategoryEnum.valueOf(

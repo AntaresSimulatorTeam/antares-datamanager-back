@@ -26,7 +26,7 @@ public class ThermalClusterRef {
     @Column(name = "name_pemmdb", length = 40)
     private String namePemmdb;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade =  CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.EAGER, cascade =  CascadeType.ALL)
     @JoinColumn(name = "thermal_technology_id")
     private ThermalTechnology thermalTechnology;
 
