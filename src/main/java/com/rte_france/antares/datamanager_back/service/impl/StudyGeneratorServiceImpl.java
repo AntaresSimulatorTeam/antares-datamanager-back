@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
@@ -41,6 +42,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
     private final LoadFileProcessorService loadFileProcessorService;
+
+    private final ThermalClusterPropertiesBuilder thermalClusterPropertiesBuilder;
 
     private static final String PROPERTIES = "properties";
 
@@ -185,11 +188,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
 
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
-        List<ThermalCommonParameterEntity> thermalClusterParameters = trajectory.getThermalClusterParameters();
+
+        Map<String, ThermalClusterPropertiesDto> clusterProps =
+                thermalClusterPropertiesBuilder.buildForTrajectory(trajectory);
+
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
-                        areaDTO -> areasMapGenerator(listArrowLoadFilesByArea.get(areaDTO.getName()), thermalClusterParameters)
+                        areaDTO -> areasMapGenerator(listArrowLoadFilesByArea.get(areaDTO.getName()), clusterProps)
                 ));
 
         areasMap.putAll(areasDataMap);
@@ -224,7 +230,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, List<ThermalCommonParameterEntity> thermalParameterEntities) {
+    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, Map<String, ThermalClusterPropertiesDto> clusterProps) {
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
@@ -235,7 +241,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         hydroMap.put(PROPERTIES, "HydroProperties as JSON");
         hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
-        Map<String, Object> thermalsMap = thermalsMapGenerator(thermalParameterEntities);
+        Map<String, Object> thermalsMap = thermalsMapGenerator(clusterProps);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
@@ -244,30 +250,30 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return areaMap;
     }
 
-    private static Map<String, Object> thermalsMapGenerator(List<ThermalCommonParameterEntity> thermalParameterEntities) {
-        Map<String, Object> clusterMap = new HashMap<>();
-        if (thermalParameterEntities == null || thermalParameterEntities.isEmpty()) {
-            return clusterMap;
+    private static Map<String, Object> thermalsMapGenerator(
+            Map<String, ThermalClusterPropertiesDto> clusterProps
+    ) {
+        if (clusterProps == null || clusterProps.isEmpty()) {
+            return Collections.emptyMap();
         }
 
-        ObjectMapper mapper = new ObjectMapper();
-        thermalParameterEntities.forEach(thermalParameterEntity -> {
-            var propertiesMap = mapper.convertValue(thermalParameterEntity, Map.class);
-            propertiesMap.remove(thermalParameterEntity.getId());
+        Map<String, Object> clusterMap = new LinkedHashMap<>();
+
+        clusterProps.forEach((clusterName, dto) -> {
             Map<String, Object> clusterData = new HashMap<>();
-            clusterData.put(PROPERTIES, propertiesMap);
+            clusterData.put(PROPERTIES, dto);
             clusterData.put("series", MATRIX_HASH);
             clusterData.put("fuel_cost", MATRIX_HASH);
             clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put("data", MATRIX_HASH);
             clusterData.put("modulation", MATRIX_HASH);
 
-            // TODO: used ids for now but has to be replaced with cluster name
-            clusterMap.put(thermalParameterEntity.getId().toString(), clusterData);
+            clusterMap.put(clusterName, clusterData);
         });
 
-        return new HashMap<>(clusterMap);
+        return clusterMap;
     }
+
 
     private static Map<String, Object> linksMapGenerator() {
         Map<String, Object> linkMap = new HashMap<>();
