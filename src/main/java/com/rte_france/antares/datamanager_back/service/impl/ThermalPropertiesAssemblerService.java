@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ThermalClusterPropertiesBuilder {
+public class ThermalPropertiesAssemblerService {
   private final ThermalGroupMappingService thermalGroupMappingService;
 
 
-  public Map<String, ThermalClusterPropertiesDto> buildForTrajectory(TrajectoryEntity trajectory) {
+  public Map<String, ThermalClusterPropertiesDto> assembleForTrajectory(TrajectoryEntity trajectory) {
     var clusterCapacityRows = Optional.ofNullable(trajectory.getThermalClusterCapacities()).orElseGet(List::of);
     var commonParams = Optional.ofNullable(trajectory.getThermalClusterParameters()).orElseGet(List::of);
 
