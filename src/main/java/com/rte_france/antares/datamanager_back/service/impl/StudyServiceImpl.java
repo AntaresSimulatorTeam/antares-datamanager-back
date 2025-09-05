@@ -277,9 +277,9 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private static void validateTags(StudyDTO studyDTO) {
-        if (studyDTO.getTags() != null && studyDTO.getTags().size() > 10) {
+        if (studyDTO.getTags() != null && studyDTO.getTags().size() > 6) {
             throw BusinessException.builder()
-                    .message("Tags list must not exceed 10 items.")
+                    .message("Tags list must not exceed 6 items.")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
