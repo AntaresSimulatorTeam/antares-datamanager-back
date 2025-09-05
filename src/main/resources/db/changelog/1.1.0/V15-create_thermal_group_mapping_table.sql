@@ -14,13 +14,6 @@ CREATE SEQUENCE thermal_group_mapping_sequence
     NO MAXVALUE
     CACHE 1;
 
-INSERT INTO thermal_group_mapping (source_value, pemmdb_group)
-VALUES
-    ('CCGT'),
-    ( 'Coal'),
-    ( 'DSR'),
-    ( 'Nuclear'),
-    ( 'Puissance complémentaire'),
-    ( 'Storage battery'),
-    ( 'Storage EV'),
-    ( 'TBD');
+-- TODO: add the mappings
+-- INSERT INTO thermal_group_mapping (source_value, pemmdb_group)
+-- VALUES
