@@ -16,8 +16,6 @@ CREATE SEQUENCE thermal_group_mapping_sequence
 
 ALTER TABLE thermal_group_mapping
     ALTER COLUMN id SET DEFAULT nextval('thermal_group_mapping_sequence');
-ALTER SEQUENCE thermal_group_mapping_sequence
-    OWNED BY thermal_group_mapping.id;
 
 INSERT INTO thermal_group_mapping (cluster, group_name) VALUES
                                                                    ('Nuclear', 'Nuclear'),
