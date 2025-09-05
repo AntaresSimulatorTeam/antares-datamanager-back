@@ -24,21 +24,21 @@ class ThermalGroupMappingRepositoryTest {
     @Test
     void findBySourceValueIgnoreCase_returnsHit_caseInsensitive() {
         var e = ThermalGroupMappingEntity.builder()
-                .sourceValue("conventional old 1")
-                .pemmdbGroup("Gas")
+                .cluster("conventional old 1")
+                .groupName("Gas")
                 .build();
         em.persistAndFlush(e);
 
-        Optional<ThermalGroupMappingEntity> test1 = repository.findBySourceValueIgnoreCase("conventional old 1");
-        Optional<ThermalGroupMappingEntity> test2 = repository.findBySourceValueIgnoreCase("CONVENTIONAL OLD 1");
+        Optional<ThermalGroupMappingEntity> test1 = repository.findByClusterIgnoreCase("conventional old 1");
+        Optional<ThermalGroupMappingEntity> test2 = repository.findByClusterIgnoreCase("CONVENTIONAL OLD 1");
 
         assertThat(test1).isPresent();
-        assertThat(test1.get().getPemmdbGroup()).isEqualTo("Gas");
+        assertThat(test1.get().getGroupName()).isEqualTo("Gas");
         assertThat(test2).isPresent();
     }
 
     @Test
     void findBySourceValueIgnoreCase_returnsEmpty_whenNoMatch() {
-        assertThat(repository.findBySourceValueIgnoreCase("no_match_test")).isEmpty();
+        assertThat(repository.findByClusterIgnoreCase("no_match_test")).isEmpty();
     }
 }

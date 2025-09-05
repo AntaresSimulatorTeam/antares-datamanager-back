@@ -26,12 +26,12 @@ class ThermalGroupMappingServiceTest {
     @Test
     void toGroup_found_caseInsensitive_andTrimmed() {
         var entity = ThermalGroupMappingEntity.builder()
-                .sourceValue("conventional old 1")
-                .pemmdbGroup("Gas")
+                .cluster("conventional old 1")
+                .groupName("Gas")
                 .build();
 
-        when(repository.findBySourceValueIgnoreCase("conventional old 1")).thenReturn(Optional.of(entity));
-        when(repository.findBySourceValueIgnoreCase("CONVENTIONAL OLD 1")).thenReturn(Optional.of(entity));
+        when(repository.findByClusterIgnoreCase("conventional old 1")).thenReturn(Optional.of(entity));
+        when(repository.findByClusterIgnoreCase("CONVENTIONAL OLD 1")).thenReturn(Optional.of(entity));
 
         assertThat(service.toGroup(" CONVENTIONAL OLD 1 ")).isEqualTo("Gas");
         assertThat(service.toGroup("conventional old 1")).isEqualTo("Gas");
@@ -39,7 +39,7 @@ class ThermalGroupMappingServiceTest {
 
     @Test
     void toGroup_notFound_returnsDefault_OTHER1() {
-        when(repository.findBySourceValueIgnoreCase("abcdefg")).thenReturn(Optional.empty());
+        when(repository.findByClusterIgnoreCase("abcdefg")).thenReturn(Optional.empty());
         assertThat(service.toGroup("abcdefg")).isEqualTo("OTHER1");
     }
 

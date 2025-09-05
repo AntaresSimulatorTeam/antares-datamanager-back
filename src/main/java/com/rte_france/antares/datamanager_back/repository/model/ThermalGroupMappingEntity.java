@@ -17,9 +17,9 @@ public class ThermalGroupMappingEntity {
   @Column(name = "id", nullable = false)
   private Integer id;
 
-  @Column(name = "source_value", nullable = false, unique = true)
-  private String sourceValue;
+  @Column(name = "cluster", nullable = false, unique = true)
+  private String cluster;
 
-  @Column(name = "pemmdb_group", nullable = false)
-  private String pemmdbGroup;
+  @Column(name = "group_name", nullable = false)
+  private String groupName;
 }
