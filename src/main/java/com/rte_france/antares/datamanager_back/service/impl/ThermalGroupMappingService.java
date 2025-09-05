@@ -17,8 +17,8 @@ public class ThermalGroupMappingService {
   public String toGroup(String raw) {
     Objects.requireNonNull(raw);
     if (raw.isBlank()) return "OTHER1";
-    return thermalGroupMappingRepository.findBySourceValueIgnoreCase(raw.trim())
-               .map(ThermalGroupMappingEntity::getPemmdbGroup)
+    return thermalGroupMappingRepository.findByClusterIgnoreCase(raw.trim())
+               .map(ThermalGroupMappingEntity::getGroupName)
                .orElse("OTHER1"); // antares-craft default value
   }
 }
