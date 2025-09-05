@@ -49,6 +49,7 @@ public class ThermalPropertiesAssemblerService {
     // enabled
     thermalClusterCapacities.stream()
             .map(ThermalClusterCapacityEntity::getToUse)
+            .filter(Objects::nonNull)
             .findFirst()
             .ifPresent(builder::enabled);
 
