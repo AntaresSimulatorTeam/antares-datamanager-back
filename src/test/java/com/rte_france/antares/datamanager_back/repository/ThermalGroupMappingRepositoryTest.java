@@ -5,9 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,26 +18,27 @@ class ThermalGroupMappingRepositoryTest {
     private ThermalGroupMappingRepository repository;
 
     @Autowired
-    private org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager em;
+    private TestEntityManager em;
 
     @Test
-    void findBySourceValueIgnoreCase_returnsHit_caseInsensitive() {
+    void findByClusterIgnoreCase_isCaseInsensitive() {
         var e = ThermalGroupMappingEntity.builder()
                 .cluster("conventional old 1")
                 .groupName("Gas")
                 .build();
         em.persistAndFlush(e);
 
-        Optional<ThermalGroupMappingEntity> test1 = repository.findByClusterIgnoreCase("conventional old 1");
-        Optional<ThermalGroupMappingEntity> test2 = repository.findByClusterIgnoreCase("CONVENTIONAL OLD 1");
+        var lower = repository.findByClusterIgnoreCase("conventional old 1");
+        var upper = repository.findByClusterIgnoreCase("CONVENTIONAL OLD 1");
 
-        assertThat(test1).isPresent();
-        assertThat(test1.get().getGroupName()).isEqualTo("Gas");
-        assertThat(test2).isPresent();
+        assertThat(lower).isPresent();
+        assertThat(lower.map(ThermalGroupMappingEntity::getGroupName)).contains("Gas");
+        assertThat(upper).isPresent();
     }
 
     @Test
-    void findBySourceValueIgnoreCase_returnsEmpty_whenNoMatch() {
-        assertThat(repository.findByClusterIgnoreCase("no_match_test")).isEmpty();
+    void findByClusterIgnoreCase_returnsEmpty_whenNoMatch() {
+        var result = repository.findByClusterIgnoreCase("does_not_exist");
+        assertThat(result).isEmpty();
     }
 }
