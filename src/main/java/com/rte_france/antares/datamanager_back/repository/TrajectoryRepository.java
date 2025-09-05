@@ -19,6 +19,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
             "LEFT JOIN FETCH t.scenarioEntities " +
             "WHERE t.id IN :ids")
     Set<TrajectoryEntity> findAllByIdWithWarnings(@Param("ids") List<Integer> ids);
+
     @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(String fileName, String horizon, String type);
 
@@ -26,24 +27,30 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
 
 
     @Query("""
-                 SELECT t
-                 FROM Trajectory t
-                 WHERE t.type = :type\s
-                 AND t.horizon = :horizon
-                 AND (:fileNameContains IS NULL OR t.fileName ILIKE CONCAT('%', CAST(:fileNameContains AS string), '%'))
-                 AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
-                 AND (:technology IS NULL OR TRIM(:technology) = '' OR t.technology = :technology)
-                 AND t.version = (
-                     SELECT MAX(t1.version)\s
-                     FROM Trajectory t1\s
-                     WHERE t1.fileName = t.fileName\s
-                     AND t1.type = :type\s
-                     AND t1.horizon = :horizon \s
-                     AND (:area IS NULL OR TRIM(:area) = '' OR t1.area = :area) \s
-                     AND (:technology IS NULL OR TRIM(:technology) = '' OR t1.technology = :technology) \s
-                 )
-                 ORDER BY t.creationDate DESC
-            \s""")
+                SELECT t
+                FROM Trajectory t
+                WHERE t.type = :type
+                  AND t.horizon = :horizon
+                  AND (:fileNameContains IS NULL OR t.fileName ILIKE CONCAT('%', CAST(:fileNameContains AS string), '%'))
+                  AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
+                  AND (
+                      (:technology IS NULL AND t.technology IS NULL)
+                      OR (:technology IS NOT NULL AND t.technology = :technology)
+                  )
+                  AND t.version = (
+                      SELECT MAX(t1.version)
+                      FROM Trajectory t1
+                      WHERE t1.fileName = t.fileName
+                        AND t1.type = :type
+                        AND t1.horizon = :horizon
+                        AND (:area IS NULL OR TRIM(:area) = '' OR t1.area = :area)
+                        AND (
+                            (:technology IS NULL AND t1.technology IS NULL)
+                            OR (:technology IS NOT NULL AND t1.technology = :technology)
+                        )
+                  )
+                ORDER BY t.creationDate DESC
+            """)
     List<TrajectoryEntity> findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(@Param("type") String type,
                                                                                        @Param("horizon") String horizon,
                                                                                        @Param("fileNameContains") String fileNameContains,
@@ -55,22 +62,22 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
 
 
     @Query("""
-    SELECT t FROM Trajectory t
-    WHERE t.fileName IN (
-        SELECT DISTINCT t2.fileName
-        FROM Trajectory t2
-        JOIN t2.scenarioEntities s
-        WHERE s.id = :studyId
-    )
-    AND t.horizon = :targetHorizon
-    AND t.version = (
-        SELECT MAX(t3.version)
-        FROM Trajectory t3
-        WHERE t3.fileName = t.fileName
-        AND t3.horizon = t.horizon
-    )
-    ORDER BY t.creationDate DESC
-""")
+                SELECT t FROM Trajectory t
+                WHERE t.fileName IN (
+                    SELECT DISTINCT t2.fileName
+                    FROM Trajectory t2
+                    JOIN t2.scenarioEntities s
+                    WHERE s.id = :studyId
+                )
+                AND t.horizon = :targetHorizon
+                AND t.version = (
+                    SELECT MAX(t3.version)
+                    FROM Trajectory t3
+                    WHERE t3.fileName = t.fileName
+                    AND t3.horizon = t.horizon
+                )
+                ORDER BY t.creationDate DESC
+            """)
     List<TrajectoryEntity> findMostRecentTrajectoriesForDuplicationByStudyId(
             @Param("studyId") Integer studyId,
             @Param("targetHorizon") String targetHorizon
