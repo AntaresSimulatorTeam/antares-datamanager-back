@@ -82,7 +82,7 @@ public class ThermalClusterPropertiesDto {
             .op3(0)
             .op4(0)
             .op5(0)
-            .costGeneration("SET_MANUALLY")
+            .costGeneration("set_manually")
             .efficiency(100)
             .variableOMCost(0)
             .build();
