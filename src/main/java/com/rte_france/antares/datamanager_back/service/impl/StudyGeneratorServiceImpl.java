@@ -43,7 +43,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final LoadFileProcessorService loadFileProcessorService;
 
-    private final ThermalClusterPropertiesBuilder thermalClusterPropertiesBuilder;
+    private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
 
@@ -190,7 +190,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
 
         Map<String, ThermalClusterPropertiesDto> clusterProps =
-                thermalClusterPropertiesBuilder.buildForTrajectory(trajectory);
+                thermalPropertiesAssemblerService.assembleForTrajectory(trajectory);
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(

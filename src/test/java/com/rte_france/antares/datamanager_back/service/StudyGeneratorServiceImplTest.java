@@ -3,12 +3,14 @@ package com.rte_france.antares.datamanager_back.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.impl.StudyGeneratorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.ThermalPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +60,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private LoadFileProcessorService loadFileProcessorService;
+
+    @Mock
+    private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -366,14 +371,12 @@ class StudyGeneratorServiceImplTest {
     @Test
     void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
         // Given
-        var thermalParam = ThermalCommonParameterEntity.builder().id(1).build();
-
         var areaEntity = AreaEntity.builder().name("FR").build();
         var areaConfig = AreaConfigEntity.builder().area(areaEntity).build();
         var areaTrajectory = TrajectoryEntity.builder()
                 .type("AREA")
                 .areaConfigEntities(List.of(areaConfig))
-                .thermalClusterParameters(List.of(thermalParam))
+                .area("FR")
                 .build();
 
         var study = StudyEntity.builder()
@@ -382,27 +385,36 @@ class StudyGeneratorServiceImplTest {
                 .trajectories(Set.of(areaTrajectory))
                 .build();
 
-        // When
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
 
+        var dto = ThermalClusterPropertiesDto.defaults().toBuilder()
+                .efficiency(100.0)
+                .build();
+        when(thermalPropertiesAssemblerService.assembleForTrajectory(areaTrajectory))
+                .thenReturn(Map.of("FR_Gas1", dto));
+
+        // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
+        // Then
         var captorValue = captureGeneratedJson(1);
-
         var objectMapper = new ObjectMapper();
+
         Map<String, Object> jsonMap = objectMapper.readValue(captorValue, new TypeReference<>() {});
         Map<String, Object> studyMap = objectMapper.convertValue(jsonMap.get("studyTest"), new TypeReference<>() {});
         Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
         Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
 
-        // Then
-        System.out.println(areasMap);
         assertThat(frArea).containsKey("thermals");
+
         Map<String, Object> thermals = objectMapper.convertValue(frArea.get("thermals"), new TypeReference<>() {});
-        assertThat(thermals).containsKey("1");
-        Map<String, Object> cluster = objectMapper.convertValue(thermals.get("1"), new TypeReference<>() {});
-        assertThat(cluster).containsKey("series");
+        assertThat(thermals).containsKey("FR_Gas1");
+
+        Map<String, Object> cluster = objectMapper.convertValue(thermals.get("FR_Gas1"), new TypeReference<>() {});
+        assertThat(cluster).containsKeys("series", "fuel_cost", "co2_cost", "data", "modulation", "properties");
+
         Map<String, Object> properties = objectMapper.convertValue(cluster.get("properties"), new TypeReference<>() {});
-        assertThat(properties).containsKey("efficiencyRange");
+        assertThat(properties).containsKey("efficiency");
     }
+
 }
