@@ -437,13 +437,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return switch (trajectoryType) {
             case AREA -> antaressDataManagerProperties.getAreaDirectory();
             case LINK -> antaressDataManagerProperties.getLinkDirectory();
-            case THERMAL_COST -> antaressDataManagerProperties.getThermalCostDirectory();
+            case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
             case THERMAL_CAPACITY ->
                     thermalCapacityArea.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .resolve(thermalCapacityArea)
                             .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
-            case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
             case LOAD -> antaressDataManagerProperties.getLoadDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
