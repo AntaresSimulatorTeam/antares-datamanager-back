@@ -415,9 +415,11 @@ class StudyGeneratorServiceImplTest {
         assertThat(cluster).containsKeys("series", "fuel_cost", "co2_cost", "data", "modulation", "properties");
 
         Map<String, Object> properties = objectMapper.convertValue(cluster.get("properties"), new TypeReference<>() {});
-        assertThat(properties).containsKey("efficiency");
-        assertThat(properties).doesNotContainKey("enabled"); // will be set to default in antares craft
-        assertThat(properties).doesNotContainKey("nominalCapacity");
+        assertAll(
+                () -> assertThat(properties).containsKey("efficiency"),
+                () -> assertThat(properties).doesNotContainKey("enabled"), // will be set to default in antares craft
+                () -> assertThat(properties).doesNotContainKey("nominalCapacity")
+        );
     }
 
 }
