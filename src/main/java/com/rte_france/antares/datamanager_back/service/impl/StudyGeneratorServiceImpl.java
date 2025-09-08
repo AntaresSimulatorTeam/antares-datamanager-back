@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
@@ -80,16 +81,17 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Map<String, Object> linksMap = new TreeMap<>();
 
             for (TrajectoryEntity trajectory : trajectories) {
-                var trajectoryType = trajectory.getType();
+                var trajectoryType =  TrajectoryType.valueOf(trajectory.getType());
 
                 switch (trajectoryType) {
-                    case "AREA" -> buildAreasDataMap(study, trajectory, areasMap);
-                    case "LINK" -> buildLinksDataMap(trajectory, linksMap);
-                    case "LOAD" ->
+                    case AREA -> buildAreasDataMap(study, trajectory, areasMap);
+                    case LINK -> buildLinksDataMap(trajectory, linksMap);
+                    case LOAD ->
                             log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
-
+                    case THERMAL_CAPACITY, THERMAL_PARAMETER, THERMAL_COST ->
+                            log.warn("Thermal trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                     default ->
-                            throw TechnicalException.builder().message("Unexpected value: " + trajectoryType).build();
+                            throw TechnicalException.builder().message("Unhandled type: " + trajectoryType).build();
                 }
             }
 
