@@ -37,7 +37,7 @@ public class ThermalPropertiesAssemblerService {
       List<ThermalClusterCapacityEntity> thermalClusterCapacities,
       List<ThermalCommonParameterEntity> thermalCommonParameters
   ) {
-    var builder = ThermalClusterPropertiesDto.defaults().toBuilder();
+    var builder = ThermalClusterPropertiesDto.builder();
 
     buildFromClusterCapacity(thermalClusterCapacities, builder);
     buildFromClusterParameters(thermalCommonParameters, builder);
@@ -72,16 +72,19 @@ public class ThermalPropertiesAssemblerService {
             .map(ThermalClusterCapacityEntity::getThermalClusterRef)
             .map(ThermalClusterRef::getName)
             .map(thermalGroupMappingService::toGroup)
+            .flatMap(Optional::stream)
             .findFirst()
             .ifPresent(builder::group);
   }
   private void buildFromClusterParameters(List<ThermalCommonParameterEntity> thermalCommonParameters, ThermalClusterPropertiesDto.ThermalClusterPropertiesDtoBuilder builder) {
     // min_stable_power
     var nominalCapacity = builder.build().getNominalCapacity();
-    thermalCommonParameters.stream()
-            .mapToDouble(ThermalCommonParameterEntity::getMinStableGenerationDefault)
-            .findFirst()
-            .ifPresent(minStableGen -> builder.minStablePower(minStableGen * nominalCapacity));
+    if (nominalCapacity != null) {
+      thermalCommonParameters.stream()
+              .mapToDouble(ThermalCommonParameterEntity::getMinStableGenerationDefault)
+              .findFirst()
+              .ifPresent(minStableGen -> builder.minStablePower(minStableGen * nominalCapacity));
+    }
 
     // min_up_time
     thermalCommonParameters.stream()

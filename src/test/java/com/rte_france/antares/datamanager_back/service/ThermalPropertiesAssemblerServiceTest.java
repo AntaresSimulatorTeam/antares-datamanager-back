@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -52,7 +53,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 ))
                 .build();
 
-        when(groupMappingService.toGroup("Gas1")).thenReturn("GAS");
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
         var out = service.assembleForTrajectory(t);
@@ -61,7 +62,7 @@ class ThermalPropertiesAssemblerServiceTest {
         assertThat(out).hasSize(1).containsKey("FR_Gas1");
         ThermalClusterPropertiesDto dto = out.get("FR_Gas1");
 
-        assertThat(dto.isEnabled()).isTrue();
+        assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getUnitCount()).isEqualTo(3);
         assertThat(dto.getNominalCapacity()).isEqualTo(500.0);
         assertThat(dto.getGroup()).isEqualTo("GAS");
@@ -89,8 +90,8 @@ class ThermalPropertiesAssemblerServiceTest {
                 ))
                 .build();
 
-        when(groupMappingService.toGroup("Gas1")).thenReturn("GAS");
-        when(groupMappingService.toGroup("NuclearA")).thenReturn("NUCLEAR");
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+        when(groupMappingService.toGroup("NuclearA")).thenReturn(Optional.of("NUCLEAR"));
 
         // when
         Map<String, ThermalClusterPropertiesDto> out = service.assembleForTrajectory(t);
@@ -102,8 +103,8 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     @Test
-    void assembleForTrajectory_missingCategories_fallsBackToDtoDefaults() {
-        // given: no POWER category => nominalCapacity stays default (0) => minStablePower = 0
+    void assembleForTrajectory_missingCategories_fallsBackToNull() {
+        // given: no POWER category => nominalCapacity stays null => minStablePower is not computed and stays null too
         var t = TrajectoryEntity.builder()
                 .type("AREA")
                 .area("FR")
@@ -115,16 +116,16 @@ class ThermalPropertiesAssemblerServiceTest {
                 ))
                 .build();
 
-        when(groupMappingService.toGroup("Gas1")).thenReturn("GAS");
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
         var out = service.assembleForTrajectory(t);
 
         // then
         var dto = out.get("FR_Gas1");
-        assertThat(dto.getNominalCapacity()).isEqualTo(0.0);
-        assertThat(dto.getMinStablePower()).isEqualTo(0.0);
-        assertThat(dto.isEnabled()).isTrue();
+        assertThat(dto.getNominalCapacity()).isNull();
+        assertThat(dto.getMinStablePower()).isNull();
+        assertThat(dto.getEnabled()).isNull();
     }
 
     private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, ThermalCategoryEnum cat, double value, Boolean toUse) {

@@ -5,8 +5,11 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalGroupMapp
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -14,11 +17,11 @@ public class ThermalGroupMappingService {
   private final ThermalGroupMappingRepository thermalGroupMappingRepository;
 
   @Cacheable("thermal-group-map")
-  public String toGroup(String raw) {
+  @Transactional(readOnly = true)
+  public Optional<String> toGroup(String raw) {
     Objects.requireNonNull(raw);
-    if (raw.isBlank()) return "OTHER1";
-    return thermalGroupMappingRepository.findByClusterIgnoreCase(raw.trim())
-               .map(ThermalGroupMappingEntity::getGroupName)
-               .orElse("OTHER1"); // antares-craft default value
+    var normalized = raw.trim().toUpperCase(Locale.ROOT);
+    return thermalGroupMappingRepository.findByClusterIgnoreCase(normalized)
+               .map(ThermalGroupMappingEntity::getGroupName);
   }
 }

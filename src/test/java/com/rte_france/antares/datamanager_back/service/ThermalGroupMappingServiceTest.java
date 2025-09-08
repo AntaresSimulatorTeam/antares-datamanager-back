@@ -30,22 +30,21 @@ class ThermalGroupMappingServiceTest {
                 .groupName("Gas")
                 .build();
 
-        when(repository.findByClusterIgnoreCase("conventional old 1")).thenReturn(Optional.of(entity));
         when(repository.findByClusterIgnoreCase("CONVENTIONAL OLD 1")).thenReturn(Optional.of(entity));
 
-        assertThat(service.toGroup(" CONVENTIONAL OLD 1 ")).isEqualTo("Gas");
-        assertThat(service.toGroup("conventional old 1")).isEqualTo("Gas");
+        assertThat(service.toGroup(" CONVENTIONAL OLD 1 ")).isEqualTo(Optional.of("Gas"));
+        assertThat(service.toGroup("conventional old 1")).isEqualTo(Optional.of("Gas"));
     }
 
     @Test
     void toGroup_notFound_returnsDefault_OTHER1() {
-        when(repository.findByClusterIgnoreCase("abcdefg")).thenReturn(Optional.empty());
-        assertThat(service.toGroup("abcdefg")).isEqualTo("OTHER1");
+        when(repository.findByClusterIgnoreCase("ABCDEFG")).thenReturn(Optional.empty());
+        assertThat(service.toGroup("abcdefg")).isEqualTo(Optional.empty());
     }
 
     @Test
     void toGroup_blank_returnsDefault_OTHER1() {
-        assertThat(service.toGroup("   ")).isEqualTo("OTHER1");
+        assertThat(service.toGroup("   ")).isEqualTo(Optional.empty());
     }
 
     @Test

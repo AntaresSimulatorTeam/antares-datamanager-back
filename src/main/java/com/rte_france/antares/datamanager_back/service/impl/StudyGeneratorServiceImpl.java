@@ -96,6 +96,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Map<String, Object> innerGeneratorMap = new TreeMap<>();
             innerGeneratorMap.put("version", "880");
             innerGeneratorMap.put("settings", "will be refactored so we'll put nothing for the moment");
+            // TODO: get input for random generation flag and number of years, maybe also move them somewhere else
+            innerGeneratorMap.put("enable_random_ts", true);
+            innerGeneratorMap.put("nb_years", 1);
             innerGeneratorMap.put("areas", areasMap);
             innerGeneratorMap.put("links", linksMap);
 
