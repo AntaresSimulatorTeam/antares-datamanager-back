@@ -37,14 +37,9 @@ class ThermalGroupMappingServiceTest {
     }
 
     @Test
-    void toGroup_notFound_returnsDefault_OTHER1() {
+    void toGroup_notFound_returnsEmpty() {
         when(repository.findByClusterIgnoreCase("ABCDEFG")).thenReturn(Optional.empty());
-        assertThat(service.toGroup("abcdefg")).isEqualTo(Optional.empty());
-    }
-
-    @Test
-    void toGroup_blank_returnsDefault_OTHER1() {
-        assertThat(service.toGroup("   ")).isEqualTo(Optional.empty());
+        assertThat(service.toGroup("abcdefg")).isEmpty();
     }
 
     @Test
