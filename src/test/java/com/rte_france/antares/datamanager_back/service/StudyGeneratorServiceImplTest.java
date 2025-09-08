@@ -387,7 +387,7 @@ class StudyGeneratorServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
 
-        var dto = ThermalClusterPropertiesDto.defaults().toBuilder()
+        var dto = ThermalClusterPropertiesDto.builder()
                 .efficiency(100.0)
                 .build();
         when(thermalPropertiesAssemblerService.assembleForTrajectory(areaTrajectory))
@@ -402,6 +402,7 @@ class StudyGeneratorServiceImplTest {
 
         Map<String, Object> jsonMap = objectMapper.readValue(captorValue, new TypeReference<>() {});
         Map<String, Object> studyMap = objectMapper.convertValue(jsonMap.get("studyTest"), new TypeReference<>() {});
+        assertThat(studyMap).containsKey("enable_random_ts");
         Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
         Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
 
@@ -415,6 +416,8 @@ class StudyGeneratorServiceImplTest {
 
         Map<String, Object> properties = objectMapper.convertValue(cluster.get("properties"), new TypeReference<>() {});
         assertThat(properties).containsKey("efficiency");
+        assertThat(properties).doesNotContainKey("enabled"); // will be set to default in antares craft
+        assertThat(properties).doesNotContainKey("nominalCapacity");
     }
 
 }
