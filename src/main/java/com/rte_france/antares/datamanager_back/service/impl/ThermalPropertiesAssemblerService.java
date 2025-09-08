@@ -15,6 +15,7 @@ public class ThermalPropertiesAssemblerService {
 
 
   public Map<String, ThermalClusterPropertiesDto> assembleForTrajectory(TrajectoryEntity trajectory) {
+    Objects.requireNonNull(trajectory);
     var clusterCapacityRows = Optional.ofNullable(trajectory.getThermalClusterCapacities()).orElseGet(List::of);
     var commonParams = Optional.ofNullable(trajectory.getThermalClusterParameters()).orElseGet(List::of);
 
