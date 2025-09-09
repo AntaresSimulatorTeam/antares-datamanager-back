@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalGroupMappingService;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalPropertiesAssemblerService;
@@ -12,8 +11,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -39,15 +38,18 @@ class ThermalPropertiesAssemblerServiceTest {
     @Test
     void assembleForTrajectory_buildsOneCluster_withComputedValues() {
         // given
-        var t = TrajectoryEntity.builder()
-                .type("AREA")
-                .area("FR")
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true),
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null), // max= 3
-                        cap(gasRef, ThermalCategoryEnum.POWER, 450.0, null),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, null) // max= 500
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(), // max NUMBER = 3
+                        cap(gasRef, ThermalCategoryEnum.POWER, 450.0, null).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, null).toBuilder().area("FR").build()  // max POWER = 500
                 ))
+                .build();
+
+        var paramTraj = TrajectoryEntity.builder()
+                .type("THERMAL_PARAMETER")
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.40, 3, 2, 41.5, 7.2) // minStablePower = 0.40 * 500
                 ))
@@ -56,11 +58,11 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectory(t);
+        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
 
         // then
-        assertThat(out).hasSize(1).containsKey("FR_Gas1");
-        ThermalClusterPropertiesDto dto = out.get("FR_Gas1");
+        assertThat(out).hasSize(1).containsKey(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
 
         assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getUnitCount()).isEqualTo(3);
@@ -77,13 +79,16 @@ class ThermalPropertiesAssemblerServiceTest {
     @Test
     void assembleForTrajectory_groupsByClusterRef_multipleClusters() {
         // given
-        var t = TrajectoryEntity.builder()
-                .type("AREA")
-                .area("FR")
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true),
-                        cap(nucRef, ThermalCategoryEnum.POWER, 1200.0, true)
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(nucRef, ThermalCategoryEnum.POWER, 1200.0, true).toBuilder().area("FR").build()
                 ))
+                .build();
+
+        var paramTraj = TrajectoryEntity.builder()
+                .type("THERMAL_PARAMETER")
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.30, 1, 1, 55.0, 1.0),
                         params(nucRef, 0.90, 10, 8, 33.0, 3.0)
@@ -94,23 +99,29 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("NuclearA")).thenReturn(Optional.of("NUCLEAR"));
 
         // when
-        Map<String, ThermalClusterPropertiesDto> out = service.assembleForTrajectory(t);
+        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
 
         // then
-        assertThat(out.keySet()).containsExactlyInAnyOrder("FR_Gas1", "FR_NuclearA");
-        assertThat(out.get("FR_Gas1").getGroup()).isEqualTo("GAS");
-        assertThat(out.get("FR_NuclearA").getGroup()).isEqualTo("NUCLEAR");
+        assertThat(out.keySet()).containsExactlyInAnyOrder(
+                new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef),
+                new ThermalPropertiesAssemblerService.AreaRefKey("FR", nucRef)
+        );
+        assertThat(out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef)).getGroup()).isEqualTo("GAS");
+        assertThat(out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", nucRef)).getGroup()).isEqualTo("NUCLEAR");
     }
 
     @Test
-    void assembleForTrajectory_missingCategories_fallsBackToNull() {
-        // given: no POWER category => nominalCapacity stays null => minStablePower is not computed and stays null too
-        var t = TrajectoryEntity.builder()
-                .type("AREA")
-                .area("FR")
+    void assembleAreaRefMap_missingCategories_fallsBackToNull() {
+        // given: no POWER category => nominalCapacity stays null => minStablePower stays null too
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, null) // only NUMBER provided
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, null).toBuilder().area("FR").build()
                 ))
+                .build();
+
+        var paramTraj = TrajectoryEntity.builder()
+                .type("THERMAL_PARAMETER")
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.50, 2, 2, 60.0, 5.0)
                 ))
@@ -119,14 +130,15 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectory(t);
+        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
 
         // then
-        var dto = out.get("FR_Gas1");
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
         assertThat(dto.getNominalCapacity()).isNull();
         assertThat(dto.getMinStablePower()).isNull();
         assertThat(dto.getEnabled()).isNull();
     }
+
 
     private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, ThermalCategoryEnum cat, double value, Boolean toUse) {
         return ThermalClusterCapacityEntity.builder()

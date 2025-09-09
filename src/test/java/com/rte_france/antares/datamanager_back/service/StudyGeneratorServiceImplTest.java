@@ -390,8 +390,9 @@ class StudyGeneratorServiceImplTest {
         var dto = ThermalClusterPropertiesDto.builder()
                 .efficiency(100.0)
                 .build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectory(areaTrajectory))
-                .thenReturn(Map.of("FR_Gas1", dto));
+        var ref = ThermalClusterRef.builder().name("Gas1").build();
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study.getTrajectories()))
+                .thenReturn(Map.of(new ThermalPropertiesAssemblerService.AreaRefKey("FR", ref), dto));
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
@@ -407,6 +408,7 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
 
         assertThat(frArea).containsKey("thermals");
+        System.out.println(areasMap);
 
         Map<String, Object> thermals = objectMapper.convertValue(frArea.get("thermals"), new TypeReference<>() {});
         assertThat(thermals).containsKey("FR_Gas1");
