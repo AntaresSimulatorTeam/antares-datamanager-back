@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -190,12 +189,29 @@ public class Utils {
     public static boolean isSheetNameYearNumber(Sheet sheet) {
         String sheetName = sheet.getSheetName();
         try {
-            int year = Integer.parseInt(sheetName);
-            int currentYear = Year.now().getValue();
-            return year >= currentYear;
+            Integer.parseInt(sheetName);
+            return true;
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    /**
+     * Searches for and returns the first sheet in the given workbook whose name
+     * is a valid year (numeric).
+     *
+     * @param workbook the workbook to search through
+     * @param horizon a string parameter not currently used in the method logic
+     * @return the first sheet with a numerically valid year name, or null if no such sheet is found
+     */
+    public static Sheet findHorizonSheet(Workbook workbook, String horizon) {
+        for (var i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet currentSheet = workbook.getSheetAt(i);
+            if (isSheetNameYearNumber(currentSheet)) {
+                return currentSheet;
+            }
+        }
+        return null;
     }
 
 

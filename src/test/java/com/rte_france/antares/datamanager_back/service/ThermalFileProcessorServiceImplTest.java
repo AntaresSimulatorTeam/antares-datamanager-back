@@ -29,9 +29,11 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
+    private static final String THERMAL_PARAMETERS_FILE_NAME = "thermal_common_parameters_test.xlsx";
     private static final String THERMAL_CAPACITY_FILE_NAME = "thermal_BE_PEMMDB23_26avril";
 
     @Mock
@@ -82,6 +84,15 @@ class ThermalFileProcessorServiceImplTest {
                 }
             }
 
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private static byte[] generateCommonParametersExcelFile(String horizonSheetName) throws IOException {
+        try (var outputStream = new ByteArrayOutputStream();
+             var workbook = new XSSFWorkbook()) {
+            workbook.createSheet(horizonSheetName);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
@@ -252,4 +263,37 @@ class ThermalFileProcessorServiceImplTest {
         assertFalse(result);
     }
 
+    @Test
+    void processThermalCommonParameterFile_shouldSaveTrajectoryAndLinkEntities(@TempDir Path tempDir) throws Exception {
+        String horizon = "2025"; // sheet name expected by checksum computation
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile(horizon));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+
+        ThermalCommonParameterEntity e = new ThermalCommonParameterEntity();
+        ArgumentCaptor<TrajectoryEntity> captor = ArgumentCaptor.forClass(TrajectoryEntity.class);
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(e), TrajectoryType.THERMAL_COMMON_PARAMETER);
+
+        verify(trajectoryRepository).save(captor.capture());
+        TrajectoryEntity saved = captor.getValue();
+        assertEquals(TrajectoryType.THERMAL_COMMON_PARAMETER.name(), saved.getType());
+        assertSame(saved, e.getTrajectory(), "Entity should be linked to saved trajectory");
+        assertEquals(result.getType(), saved.getType());
+        assertEquals(horizon, saved.getHorizon());
+        assertEquals(file.getFileName().toString().replaceFirst("\\.xlsx$", ""), saved.getFileName());
+    }
+
+    @Test
+    void processThermalCommonParameterFile_shouldPropagateRepositoryException(@TempDir Path tempDir) throws Exception {
+        String horizon = "2025";
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile(horizon));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.save(any())).thenThrow(new RuntimeException("DB down"));
+
+        assertThrows(RuntimeException.class, () ->
+                thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(new ThermalCommonParameterEntity()), TrajectoryType.THERMAL_COMMON_PARAMETER)
+        );
+    }
 }

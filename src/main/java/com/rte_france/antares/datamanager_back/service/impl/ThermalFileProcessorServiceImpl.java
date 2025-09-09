@@ -37,6 +37,78 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private List<ThermalClusterRef> cachedClusterRefs;
 
+    @Override
+    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, boolean isCivilYear) throws IOException {
+        List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = findHorizonSheet(workbook, horizon);
+            if (sheet == null) {
+                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing suitable sheet for horizon '" + horizon + "'").build();
+            }
+            for (Row row : sheet) {
+                if (row.getRowNum() > 4) {
+                    var technology = castString(getCellValue(row, 4));
+                    var clusterName = castString(getCellValue(row, 1));
+                    var clusterPemmdb= castString(getCellValue(row, 0));
+                    ThermalCommonParameterEntity param = ThermalCommonParameterEntity.builder()
+                            .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName,clusterPemmdb))
+                            .category(castDouble(getCellValue(row, 2)))
+                            .fuel(castString(getCellValue(row, 3)))
+                            .efficiencyRange(castString(getCellValue(row, 5)))
+                            .efficiencyDefault(castDouble(getCellValue(row, 6)))
+                            .co2(castDouble(getCellValue(row, 7)))
+                            .omCost(castDouble(getCellValue(row, 8)))
+                            .minUpTime(castDouble(getCellValue(row, 9)))
+                            .minDownTime(castDouble(getCellValue(row, 10)))
+                            .startUpFuel(castDouble(getCellValue(row, 11)))
+                            .startUpFixCost(castDouble(getCellValue(row, 12)))
+                            .startUpFuelColdStart(castDouble(getCellValue(row, 13)))
+                            .startUpFixCostColdStart(castDouble(getCellValue(row, 14)))
+                            .startUpFuelHotStart(castDouble(getCellValue(row, 15)))
+                            .startUpFixCostHotStart(castDouble(getCellValue(row, 16)))
+                            .transitionHotWarm(castDouble(getCellValue(row, 17)))
+                            .transitionHotCold(castDouble(getCellValue(row, 18)))
+                            .shutdownTime(castDouble(getCellValue(row, 19)))
+                            .foRateDefault(castDouble(getCellValue(row, 20)))
+                            .foDurationDefault(castDouble(getCellValue(row, 21)))
+                            .poDurationDefault(castDouble(getCellValue(row, 22)))
+                            .poWinterDefault(castDouble(getCellValue(row, 23)))
+                            .minStableGenerationDefault(castDouble(getCellValue(row, 24)))
+                            .rampUp(castDouble(getCellValue(row, 25)))
+                            .rampDown(castDouble(getCellValue(row, 26)))
+                            .fixedGenerationReduction(castDouble(getCellValue(row, 27)))
+                            .build();
+                    thermalParameters.add(param);
+                }
+            }
+            return thermalParameters;
+        } catch (IOException e) {
+            throw TechnicalException.builder().message("could not build thermal_common_parameter list : " + e.getMessage()).build();
+        }
+    }
+
+    @Override
+    public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws IOException {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+        // Find existing trajectory for same file name/horizon/type
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_COMMON_PARAMETER.name()),
+                horizon,
+                TrajectoryType.THERMAL_COMMON_PARAMETER.name()
+        );
+
+        TrajectoryEntity trajectory;
+        if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
+            // Same identifiers but different checksum -> version +1
+            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_COMMON_PARAMETER, null, null);
+        } else {
+            // No existing or not same file -> new trajectory with version 1
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_COMMON_PARAMETER, null, null);
+        }
+        return saveThermalTrajectory(trajectory, list, TrajectoryType.THERMAL_COMMON_PARAMETER);
+    }
+
     /**
      * Processes the given file.
      * If a trajectory with the same file name exists, it updates the trajectory.
@@ -64,7 +136,16 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         if (!thermalEntities.isEmpty()) {
             ThermalBaseEntity firstEntity = thermalEntities.get(0);
             if (firstEntity instanceof ThermalClusterCapacityEntity) {
+                // ensure provided type matches entity class
+                if (type != TrajectoryType.THERMAL_CAPACITY) {
+                    throw new IllegalArgumentException("Entity list type does not match trajectory type");
+                }
                 trajectory.setThermalClusterCapacities((List<ThermalClusterCapacityEntity>) thermalEntities);
+            } else if (firstEntity instanceof ThermalCommonParameterEntity) {
+                if (type != TrajectoryType.THERMAL_COMMON_PARAMETER) {
+                    throw new IllegalArgumentException("Entity list type does not match trajectory type");
+                }
+                trajectory.setThermalClusterParameters((List<ThermalCommonParameterEntity>) thermalEntities);
             } else {
                 throw new IllegalArgumentException();
             }
@@ -120,6 +201,23 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalClusterCapacities;
     }
 
+
+
+
+    private static String castString(Object o) {
+        return o == null ? null : String.valueOf(o);
+    }
+
+    private static Double castDouble(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.doubleValue();
+        try {
+            return Double.valueOf(String.valueOf(o));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     public boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
         // monthYear format: yyyy-MM
         String[] parts = monthYear.split("_");
@@ -143,29 +241,73 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {
+        // Backward-compatible delegate: no PEMMDB provided
+        return findOrCreateThermalClusterRef(technology, name, null);
+    }
+
+    /**
+     * Finds an existing ThermalClusterRef by technology and name, or creates a new one if not found.
+     * If a `namePemmdb` value is provided, the method may update an existing entry if its `namePemmdb`
+     * field is blank or set to "NA".
+     *
+     * The method first checks the cached `ThermalClusterRef` instances. If not present or not matching
+     * the search parameters, it attempts to find an associated `ThermalTechnology`. If the technology
+     * does not exist, it creates a new one and associates it with the created ThermalClusterRef.
+     *
+     * @param technology the name of the thermal technology; a default value of "UNKNOWN" is used if null or blank
+     * @param name the name of the thermal cluster; defaults to an empty string if null
+     * @param namePemmdb an optional value to be associated with the ThermalClusterRef; if null or blank, "NA" is used
+     * @return the existing or newly created ThermalClusterRef instance with the specified properties
+     */
+    public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
         if (cachedClusterRefs == null) {
             loadAllThermalClusterRefs();
         }
-        return cachedClusterRefs.stream()
-                .filter(ref -> ref.getName().equalsIgnoreCase(name)
-                        && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))
-                .findFirst()
-                .orElseGet(() -> {
-                    Optional<ThermalTechnology> savedThermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(technology);
-                    ThermalTechnology thermalTechnology = savedThermalTechnology.orElseGet(() -> {
-                        ThermalTechnology newTech = ThermalTechnology.builder()
-                                .name(technology)
-                                .build();
-                        return thermalTechnologyRepository.save(newTech);
-                    });
-                    ThermalClusterRef ref = ThermalClusterRef.builder()
-                            .name(name)
-                            .namePemmdb("NA")
-                            .thermalTechnology(thermalTechnology)
-                            .build();
-                    ThermalClusterRef saved = thermalClusterRefRepository.save(ref);
-                    cachedClusterRefs.add(saved);
+        String safeTech = (technology == null || technology.isBlank()) ? "UNKNOWN" : technology;
+        String safeName = (name == null) ? "" : name;
+        if (cachedClusterRefs == null) {
+            loadAllThermalClusterRefs();
+        }
+        Optional<ThermalClusterRef> existingOpt = cachedClusterRefs.stream()
+                .filter(ref -> ref.getName() != null && ref.getName().equalsIgnoreCase(safeName)
+                        && ref.getThermalTechnology() != null
+                        && ref.getThermalTechnology().getName() != null
+                        && ref.getThermalTechnology().getName().equalsIgnoreCase(safeTech))
+                .findFirst();
+
+        if (existingOpt.isPresent()) {
+            ThermalClusterRef existing = existingOpt.get();
+            // If PEMMDB value is provided and existing is null or equals to "NA", update it instead of creating a new row
+            if (namePemmdb != null && !namePemmdb.isBlank()) {
+                String current = existing.getNamePemmdb();
+                if (current == null || current.isBlank() || "NA".equalsIgnoreCase(current)) {
+                    existing.setNamePemmdb(namePemmdb);
+                    ThermalClusterRef saved = thermalClusterRefRepository.save(existing);
+                    // also update the cached list instance (already same reference), but ensure it's consistent
                     return saved;
-                });
+                }
+            }
+            return existing;
+        }
+
+        Optional<ThermalTechnology> savedThermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(safeTech);
+        ThermalTechnology thermalTechnology = savedThermalTechnology.orElseGet(() -> {
+            ThermalTechnology newTech = ThermalTechnology.builder()
+                    .name(safeTech)
+                    .build();
+            return thermalTechnologyRepository.save(newTech);
+        });
+        ThermalClusterRef.ThermalClusterRefBuilder refBuilder = ThermalClusterRef.builder()
+                .name(safeName)
+                .thermalTechnology(thermalTechnology);
+        if (namePemmdb != null && !namePemmdb.isBlank()) {
+            refBuilder.namePemmdb(namePemmdb);
+        } else {
+            refBuilder.namePemmdb("NA");
+        }
+        ThermalClusterRef ref = refBuilder.build();
+        ThermalClusterRef saved = thermalClusterRefRepository.save(ref);
+        cachedClusterRefs.add(saved);
+        return saved;
     }
 }
