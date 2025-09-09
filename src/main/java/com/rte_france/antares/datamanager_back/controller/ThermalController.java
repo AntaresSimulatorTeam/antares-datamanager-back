@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.TrajectoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,15 +29,27 @@ public class ThermalController {
     @Operation(summary = "import thermal capacity trajectory to database ")
     @PostMapping("/thermal-capacity")
     public ResponseEntity<TrajectoryDTO> uploadThermalCapacityTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
-                                                          @RequestParam(value = "technology", required = false) String technology,
-                                                          @RequestParam("trajectoryToUse") String trajectoryToUse,
-                                                          @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
-                                                          @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                          @RequestParam("studyId") Integer studyId,
-                                                          @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+                                                         @RequestParam(value = "technology", required = false) String technology,
+                                                         @RequestParam("trajectoryToUse") String trajectoryToUse,
+                                                         @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                         @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                         @RequestParam("studyId") Integer studyId,
+                                                         @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(
                 trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology)
+        ), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import thermal common parameters trajectory to database ")
+    @PostMapping("/thermal-common-parameter")
+    public ResponseEntity<TrajectoryDTO> uploadThermalParameterTrajectory(
+                                                         @RequestParam("trajectoryToUse") String trajectoryToUse,
+                                                         @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                         @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                         @RequestParam("studyId") Integer studyId) throws IOException {
+        return new ResponseEntity<>(toTrajectoryDTO(
+                trajectoryService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
     }
 }

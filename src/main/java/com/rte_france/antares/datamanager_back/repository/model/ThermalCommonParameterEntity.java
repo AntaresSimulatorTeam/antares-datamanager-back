@@ -19,17 +19,12 @@ public class ThermalCommonParameterEntity extends ThermalBaseEntity {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @Column(name = "year_parameter")
-    private Double year;
-
     @Column(name = "category")
     private Double category;
 
     @Column(name = "fuel")
     private String fuel;
 
-    @Column(name = "type")
-    private String type;
 
     @Column(name = "efficiency_range")
     private String efficiencyRange;

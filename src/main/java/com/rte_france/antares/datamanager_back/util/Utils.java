@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -189,6 +188,54 @@ public class Utils {
         return fileName.substring(0, lastDotIndex);
     }
 
+    private static String isLinkTypePrefix(String trajectoryType) {
+        return Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
+    }
+
+
+    public static boolean isSheetNameYearNumber(Sheet sheet) {
+        String sheetName = sheet.getSheetName();
+        try {
+            Integer.parseInt(sheetName);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Searches for and returns the first sheet in the given workbook whose name
+     * is a valid year (numeric).
+     *
+     * @param workbook the workbook to search through
+     * @param horizon a string parameter not currently used in the method logic
+     * @return the first sheet with a numerically valid year name, or null if no such sheet is found
+     */
+    public static Sheet findHorizonSheet(Workbook workbook, String horizon) {
+        for (var i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet currentSheet = workbook.getSheetAt(i);
+            if (isSheetNameYearNumber(currentSheet)) {
+                return currentSheet;
+            }
+        }
+        return null;
+    }
+
+
+    public Object getCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex);
+        if (cell == null) {
+            return null;
+        }
+
+        return switch (cell.getCellType()) {
+            case NUMERIC -> cell.getNumericCellValue();
+            case STRING -> cell.getStringCellValue();
+            case BOOLEAN -> cell.getBooleanCellValue();
+            case FORMULA -> cell.getCellFormula();
+            default -> null;
+        };
+    }
 
     public void checkIfHorizonExist(Path path, String horizon, String trajectoryType) {
         try (InputStream inputStream = Files.newInputStream(path);
