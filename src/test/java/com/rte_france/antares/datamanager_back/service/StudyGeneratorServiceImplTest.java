@@ -420,7 +420,7 @@ class StudyGeneratorServiceImplTest {
         assertAll(
                 () -> assertThat(properties).containsKey("efficiency"),
                 () -> assertThat(properties).doesNotContainKey("enabled"), // will be set to default in antares craft
-                () -> assertThat(properties).doesNotContainKey("nominalCapacity")
+                () -> assertThat(properties).doesNotContainKey("nominal_capacity")
         );
     }
 
