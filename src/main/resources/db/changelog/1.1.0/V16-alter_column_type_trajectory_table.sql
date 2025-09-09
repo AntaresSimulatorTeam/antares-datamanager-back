@@ -1,0 +1,2 @@
+ALTER TABLE trajectory
+ALTER COLUMN  type  TYPE VARCHAR(100);

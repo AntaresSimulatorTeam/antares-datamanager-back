@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_CAPACITY;
-import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_PARAMETER;
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +39,7 @@ public class ThermalPropertiesAssemblerService {
 
     var parameterTrajs = trajectories.stream()
             .filter(Objects::nonNull)
-            .filter(t -> THERMAL_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+            .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
             .toList();
 
     var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajs);

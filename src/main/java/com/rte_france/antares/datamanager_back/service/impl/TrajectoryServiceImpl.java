@@ -337,6 +337,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> isRelevantFile(path, trajectoryType))
+                    .filter(path -> switch (trajectoryType) {
+                        case THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
+                                path.getFileName().toString().startsWith("specific");
+                        case THERMAL_TECHNICAL_COMMON_PARAMETER -> path.getFileName().toString().startsWith("common");
+                        default -> true;
+                    })
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -347,10 +353,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .flatMap(Optional::stream)
                     .sorted(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed())
                     .toList();
+
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
+
 
     private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area) {
         String basePath = antaressDataManagerProperties.getNasDirectory();
@@ -411,7 +419,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
 
-    private Set<WarningMessageEntity> filterWarningMessages(Integer studyId, Set<WarningMessageEntity> warningMessages) {
+    private Set<WarningMessageEntity> filterWarningMessages(Integer
+                                                                    studyId, Set<WarningMessageEntity> warningMessages) {
         if (warningMessages == null) {
             return new LinkedHashSet<>();
         }
@@ -433,18 +442,19 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String thermalCapacityArea) {
+    public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area) {
         return switch (trajectoryType) {
             case AREA -> antaressDataManagerProperties.getAreaDirectory();
             case LINK -> antaressDataManagerProperties.getLinkDirectory();
-            case THERMAL_COST -> antaressDataManagerProperties.getThermalCostDirectory();
+            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
             case THERMAL_CAPACITY ->
-                    thermalCapacityArea.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
-                            .resolve(thermalCapacityArea)
+                    area.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
+                            .resolve(area)
                             .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
-            case THERMAL_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
-            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
+                    antaressDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
@@ -460,7 +470,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the linked TrajectoryEntity
      */
     @Transactional
-    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException {
+    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws
+            IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
         StudyEntity study = studyRepository.findById(studyId)
@@ -507,7 +518,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return savedStudyTrajectoryEntity.getTrajectory();
     }
 
-    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
+    public void checkTrajectoryCoherence(Integer
+                                                 studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws
+            IOException {
         switch (trajectory.getType()) {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
@@ -522,7 +535,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         warningRepository.saveAll(warningMessages);
     }
 
-    public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
+    public void checkLinkCoherence(Integer
+                                           studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         var listLink = trajectory.getLinkEntities();
         List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
         if (!areasSavedForScenario.isEmpty()) {
@@ -554,7 +568,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private void checkAreaCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
+    private void checkAreaCoherence(Integer
+                                            studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         List<String> areasSavedForScenario = trajectory.getAreaConfigEntities().stream()
                 .map(area -> area.getArea().getName())
                 .toList();

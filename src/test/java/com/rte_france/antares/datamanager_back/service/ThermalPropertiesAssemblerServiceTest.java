@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalGroupMappingService;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalPropertiesAssemblerService;
@@ -49,7 +50,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var paramTraj = TrajectoryEntity.builder()
-                .type("THERMAL_PARAMETER")
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.40, 3, 2, 41.5, 7.2) // minStablePower = 0.40 * 500
                 ))
@@ -88,7 +89,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var paramTraj = TrajectoryEntity.builder()
-                .type("THERMAL_PARAMETER")
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.30, 1, 1, 55.0, 1.0),
                         params(nucRef, 0.90, 10, 8, 33.0, 3.0)
@@ -121,7 +122,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var paramTraj = TrajectoryEntity.builder()
-                .type("THERMAL_PARAMETER")
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.50, 2, 2, 60.0, 5.0)
                 ))

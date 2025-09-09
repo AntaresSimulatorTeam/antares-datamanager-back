@@ -193,6 +193,46 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsSpecificFilesForThermalTechnicalSpecificParameter(@TempDir Path tempDir) throws IOException {
+        Path thermalDir = tempDir.resolve("thermal");
+        Files.createDirectories(thermalDir);
+
+        Path specificFile = thermalDir.resolve("specific_tech_param.xlsx");
+        Path commonFile = thermalDir.resolve("common_tech_param.xlsx");
+        Files.createFile(specificFile);
+        Files.createFile(commonFile);
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null);
+
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().getFileName().startsWith("specific"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsSpecificFilesForThermalTechnicalCommonParameter(@TempDir Path tempDir) throws IOException {
+        Path thermalDir = tempDir.resolve("thermal");
+        Files.createDirectories(thermalDir);
+
+        Path specificFile = thermalDir.resolve("specific_tech_param.xlsx");
+        Path commonFile = thermalDir.resolve("common_tech_param.xlsx");
+        Files.createFile(specificFile);
+        Files.createFile(commonFile);
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
+
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().getFileName().startsWith("common"));
+    }
+
+    @Test
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
@@ -912,6 +952,29 @@ class TrajectoryServiceImplTest {
         verify(warningRepository).saveAll(warnings);
         verify(loadFileProcessorService).checkForMissingLoadByAreaFromDb(horizon, studyId, userNni, trajectory);
         verify(loadFileProcessorService, never()).checkForMissingLoadFiles(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsLoadDirectory_whenTypeIsLoad() {
+        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("loadDir");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.LOAD, null);
+        assertEquals("loadDir", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsThermalCostDirectory_whenTypeIsThermalEconomicCostParameter() {
+        when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("thermalCostDir");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null);
+        assertEquals("thermalCostDir", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_throwsTechnicalException_whenTypeIsMisc() {
+        TechnicalException exception = assertThrows(
+                TechnicalException.class,
+                () -> trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC, null)
+        );
+        assertTrue(exception.getMessage().contains("No directory defined for TrajectoryType"));
     }
 
 }
