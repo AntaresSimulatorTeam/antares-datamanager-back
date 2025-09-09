@@ -44,6 +44,78 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private List<ThermalClusterRef> cachedClusterRefs;
 
+    @Override
+    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, boolean isCivilYear) throws IOException {
+        List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
+        try (InputStream inputStream = Files.newInputStream(path);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = findHorizonSheet(workbook, horizon);
+            if (sheet == null) {
+                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing suitable sheet for horizon '" + horizon + "'").build();
+            }
+            for (Row row : sheet) {
+                if (row.getRowNum() > 4) {
+                    var technology = castString(getCellValue(row, 4));
+                    var clusterName = castString(getCellValue(row, 1));
+                    var clusterPemmdb= castString(getCellValue(row, 0));
+                    ThermalCommonParameterEntity param = ThermalCommonParameterEntity.builder()
+                            .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName,clusterPemmdb))
+                            .category(castDouble(getCellValue(row, 2)))
+                            .fuel(castString(getCellValue(row, 3)))
+                            .efficiencyRange(castString(getCellValue(row, 5)))
+                            .efficiencyDefault(castDouble(getCellValue(row, 6)))
+                            .co2(castDouble(getCellValue(row, 7)))
+                            .omCost(castDouble(getCellValue(row, 8)))
+                            .minUpTime(castDouble(getCellValue(row, 9)))
+                            .minDownTime(castDouble(getCellValue(row, 10)))
+                            .startUpFuel(castDouble(getCellValue(row, 11)))
+                            .startUpFixCost(castDouble(getCellValue(row, 12)))
+                            .startUpFuelColdStart(castDouble(getCellValue(row, 13)))
+                            .startUpFixCostColdStart(castDouble(getCellValue(row, 14)))
+                            .startUpFuelHotStart(castDouble(getCellValue(row, 15)))
+                            .startUpFixCostHotStart(castDouble(getCellValue(row, 16)))
+                            .transitionHotWarm(castDouble(getCellValue(row, 17)))
+                            .transitionHotCold(castDouble(getCellValue(row, 18)))
+                            .shutdownTime(castDouble(getCellValue(row, 19)))
+                            .foRateDefault(castDouble(getCellValue(row, 20)))
+                            .foDurationDefault(castDouble(getCellValue(row, 21)))
+                            .poDurationDefault(castDouble(getCellValue(row, 22)))
+                            .poWinterDefault(castDouble(getCellValue(row, 23)))
+                            .minStableGenerationDefault(castDouble(getCellValue(row, 24)))
+                            .rampUp(castDouble(getCellValue(row, 25)))
+                            .rampDown(castDouble(getCellValue(row, 26)))
+                            .fixedGenerationReduction(castDouble(getCellValue(row, 27)))
+                            .build();
+                    thermalParameters.add(param);
+                }
+            }
+            return thermalParameters;
+        } catch (IOException e) {
+            throw TechnicalException.builder().message("could not build thermal_common_parameter list : " + e.getMessage()).build();
+        }
+    }
+
+    @Override
+    public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws IOException {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+        // Find existing trajectory for same file name/horizon/type
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_COMMON_PARAMETER.name()),
+                horizon,
+                TrajectoryType.THERMAL_COMMON_PARAMETER.name()
+        );
+
+        TrajectoryEntity trajectory;
+        if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
+            // Same identifiers but different checksum -> version +1
+            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_COMMON_PARAMETER, null, null);
+        } else {
+            // No existing or not same file -> new trajectory with version 1
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_COMMON_PARAMETER, null, null);
+        }
+        return saveThermalTrajectory(trajectory, list, TrajectoryType.THERMAL_COMMON_PARAMETER);
+    }
+
     private final StudyRepository studyRepository;
 
     private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
@@ -366,6 +438,23 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             }
         }
         return expectedColumns;
+    }
+
+
+
+
+    private static String castString(Object o) {
+        return o == null ? null : String.valueOf(o);
+    }
+
+    private static Double castDouble(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.doubleValue();
+        try {
+            return Double.valueOf(String.valueOf(o));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {

@@ -32,3 +32,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V15-create_thermal_group_mapping_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V16-alter_column_type_trajectory_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V16-drop-year-parameter-from-thermal-common-parameters.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V17-alter-type-length-trajectory.sql
