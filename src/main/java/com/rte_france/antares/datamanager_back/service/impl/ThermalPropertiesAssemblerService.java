@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.impl;
 
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -8,30 +9,71 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_CAPACITY;
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_PARAMETER;
+
 @Service
 @RequiredArgsConstructor
 public class ThermalPropertiesAssemblerService {
   private final ThermalGroupMappingService thermalGroupMappingService;
 
+  public record AreaRefKey(String area, ThermalClusterRef ref) {}
 
-  public Map<String, ThermalClusterPropertiesDto> assembleForTrajectory(TrajectoryEntity trajectory) {
-    Objects.requireNonNull(trajectory);
-    var clusterCapacityRows = Optional.ofNullable(trajectory.getThermalClusterCapacities()).orElseGet(List::of);
-    var commonParams = Optional.ofNullable(trajectory.getThermalClusterParameters()).orElseGet(List::of);
+  public Map<AreaRefKey, ThermalClusterPropertiesDto> assembleForTrajectories(Collection<TrajectoryEntity> trajectories) {
+    Objects.requireNonNull(trajectories);
 
-    var capacityByCluster = clusterCapacityRows.stream().collect(Collectors.groupingBy(ThermalClusterCapacityEntity::getThermalClusterRef));
-    var commonParamsByCluster = commonParams.stream().collect(Collectors.groupingBy(ThermalCommonParameterEntity::getThermalClusterRef));
+    var capacityTrajs = trajectories.stream()
+            .filter(Objects::nonNull)
+            .filter(t -> THERMAL_CAPACITY.equals(TrajectoryType.valueOf(t.getType())))
+            .toList();
 
-    var out = new LinkedHashMap<String, ThermalClusterPropertiesDto>();
-    for (var entry : capacityByCluster.entrySet()) {
-      var ref = entry.getKey();
-      var thermalClusterCapacities = entry.getValue();
-      var thermalCommonParams = commonParamsByCluster.get(ref);
+    var parameterTrajs = trajectories.stream()
+            .filter(Objects::nonNull)
+            .filter(t -> THERMAL_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+            .toList();
 
-      var dto = computeClusterProperties(thermalClusterCapacities, thermalCommonParams);
-      out.put(trajectory.getArea() + "_" + ref.getName(), dto);
+    var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajs);
+    var commonsByRef = extractCommonParamsByClusterRef(parameterTrajs);
+
+    var out = new LinkedHashMap<AreaRefKey, ThermalClusterPropertiesDto>();
+
+    for (var entry : capacitiesByAreaRef.entrySet()) {
+      var areaRef = entry.getKey();
+      var thermalCapacities = entry.getValue();
+
+      var ref = areaRef.ref();
+      var commonsForRef = commonsByRef.getOrDefault(ref, List.of());
+
+      var dto = computeClusterProperties(thermalCapacities, commonsForRef);
+
+      out.put(new AreaRefKey(areaRef.area(), ref), dto);
     }
+
     return out;
+  }
+
+  private static LinkedHashMap<ThermalClusterRef, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajs) {
+    return parameterTrajs.stream()
+            .flatMap(t -> Optional.ofNullable(t.getThermalClusterParameters()).orElseGet(List::of).stream())
+            .collect(Collectors.groupingBy(
+                    ThermalCommonParameterEntity::getThermalClusterRef,
+                    LinkedHashMap::new,
+                    Collectors.toList()
+            ));
+  }
+
+  private static LinkedHashMap<AreaRefKey, List<ThermalClusterCapacityEntity>> extractThermalCapacitiesByAreaClusterRef(List<TrajectoryEntity> capacityTrajs) {
+    return capacityTrajs.stream()
+            .flatMap(t -> Optional.ofNullable(t.getThermalClusterCapacities()).orElseGet(List::of).stream()
+                    .map(cap -> Map.entry(
+                            new AreaRefKey(cap.getArea(), cap.getThermalClusterRef()),
+                            cap
+                    )))
+            .collect(Collectors.groupingBy(
+                    Map.Entry::getKey,
+                    LinkedHashMap::new,
+                    Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+            ));
   }
 
   private ThermalClusterPropertiesDto computeClusterProperties(

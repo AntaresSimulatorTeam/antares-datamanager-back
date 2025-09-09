@@ -194,17 +194,30 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
 
-        Map<String, ThermalClusterPropertiesDto> clusterProps =
-                thermalPropertiesAssemblerService.assembleForTrajectory(trajectory);
+        var areaRefProps = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity.getTrajectories());
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
-                        areaDTO -> areasMapGenerator(listArrowLoadFilesByArea.get(areaDTO.getName()), clusterProps)
+                        areaDTO -> areasMapGenerator(
+                                listArrowLoadFilesByArea.get(areaDTO.getName()),
+                                getClusterPropsForArea(areaRefProps, areaDTO.getName())
+                        )
                 ));
 
         areasMap.putAll(areasDataMap);
 
+    }
+
+    private static Map<String, ThermalClusterPropertiesDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaRefKey, ThermalClusterPropertiesDto> areaRefProps, String areaName) {
+        return areaRefProps.entrySet().stream()
+                .filter(e -> e.getKey().area().equalsIgnoreCase(areaName))
+                .collect(Collectors.toMap(
+                        e -> e.getKey().area().toUpperCase(Locale.ROOT) + "_" + e.getKey().ref().getName(),
+                        Map.Entry::getValue,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
     }
 
     private void buildLinksDataMap(TrajectoryEntity trajectory, Map<String, Object> linksMap) {
