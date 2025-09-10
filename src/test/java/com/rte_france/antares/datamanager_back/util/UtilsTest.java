@@ -154,6 +154,7 @@ class UtilsTest {
         trajectoryEntity.setFileName("newFile");
         trajectoryEntity.setFileSize(0L);
         trajectoryEntity.setChecksum("newChecksum");
+        trajectoryEntity.setType(TrajectoryType.AREA.name());
 
         assertFalse(Utils.checkTrajectoryVersion(tempFile, trajectoryEntity));
     }

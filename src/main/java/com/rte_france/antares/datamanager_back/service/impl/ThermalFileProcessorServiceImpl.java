@@ -15,14 +15,17 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.repository.model.WarningCode.THERMAL_INSTALLED_POWER_MISSING_AREAS;
-import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
+import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
 @Service
@@ -41,9 +44,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private List<ThermalClusterRef> cachedClusterRefs;
 
-    private final WarningRepository warningMessageRepository;
-
     private final StudyRepository studyRepository;
+
+    private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
 
 
     /**
@@ -68,13 +71,19 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      */
     public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type) {
         trajectory.setType(type.name());
+        trajectory.setVersion(thermalClusterCapacityDto.getVersion());
+        trajectory.setChecksum(thermalClusterCapacityDto.getChecksum());
         List<ThermalClusterCapacityEntity> thermalEntities = thermalClusterCapacityDto.getThermalClusterCapacities();
-        trajectory.setWarningMessages(Set.of(thermalClusterCapacityDto.getWarningMessage()));
         thermalEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         if (!thermalEntities.isEmpty()) {
             trajectory.setThermalClusterCapacities(thermalEntities);
 
         }
+        if (thermalClusterCapacityDto.getWarningMessage() != null) {
+            thermalClusterCapacityDto.getWarningMessage().setTrajectory(trajectory);
+            trajectory.setWarningMessages(Set.of(thermalClusterCapacityDto.getWarningMessage()));
+        }
+
         return trajectoryRepository.save(trajectory);
     }
 
@@ -87,55 +96,93 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     @Override
     public ThermalClusterCapacityDto buildThermalClusterCapacityValuesList(
             Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) {
-
-        ThermalClusterCapacityDto thermalClusterCapacityDto = new ThermalClusterCapacityDto();
+        WarningMessageEntity warningMessage = null;
+        ThermalClusterCapacityDto dto = new ThermalClusterCapacityDto();
         log.info("Début du traitement du fichier THERMAL Installed Power : {}", path.getFileName());
 
-        List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
-        log.info("Areas liés à l'étude récupérées : {}", studyAreas);
-
-        List<ThermalClusterCapacityEntity> thermalClusterCapacities = new ArrayList<>();
+        List<ThermalClusterCapacityEntity> capacities = new ArrayList<>();
+        Set<String> otherAreas = new HashSet<>();
+        StringBuilder checksumBuilder = new StringBuilder();
         boolean isSpecificAreaFound = false;
-        Set<String> listOfOtherArea = new HashSet<>();
 
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
+
             Sheet sheet = workbook.getSheetAt(0);
             Row header = sheet.getRow(0);
+            validateHeaderColumns(header, path);
             validateHorizonColumnsPresent(header, horizon, isCivilYear, path);
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
-                // le cas FR ou (AT, BE,CH,DE,IT,LU,NL.......)
-                if (!area.equals("OTHER")) {
+
+                if (!area.equals(OTHERS_AREA)) {
                     if (rowArea.equals(area.toUpperCase())) {
                         isSpecificAreaFound = true;
-                        processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, thermalClusterCapacities);
+                        processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder);
                     }
-                }
-                // le cas OTHER
-                else {
-                    listOfOtherArea.add(rowArea);
-                    processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, thermalClusterCapacities);
+                } else {
+                    otherAreas.add(rowArea);
+                    processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder);
                 }
             }
         } catch (IOException e) {
             log.error("Erreur lors de la lecture du fichier : {}", e.getMessage());
-            throw TechnicalException.builder().message("could not build thermal_capacity cluster  list : " + e.getMessage()).build();
+            throw TechnicalException.builder()
+                    .message("could not build thermal_capacity cluster  list : " + e.getMessage())
+                    .build();
         }
-        //check if power and number have the same toUse value for each cluster/area
-        checkPowerAndNumberWithSameToUse(thermalClusterCapacities);
-        //check if at least one area of the AREA trajectory is present in THERMAL Installed
-        WarningMessageEntity warningMessage = buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
 
-        log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), thermalClusterCapacities.size());
-        thermalClusterCapacityDto.setThermalClusterCapacities(thermalClusterCapacities);
-        thermalClusterCapacityDto.setWarningMessage(warningMessage);
-        return thermalClusterCapacityDto;
+        String checksum = calculateChecksum(checksumBuilder.toString());
+        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(path, horizon, area, technology);
+
+        handleChecksumAndVersion(dto, existingTrajectory, checksum, path);
+
+        checkPowerAndNumberWithSameToUse(capacities, path.getFileName().toString());
+
+        if (area.equals(OTHERS_AREA)) {
+            List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
+            log.info("Areas liés à l'étude récupérées : {}", studyAreas);
+            warningMessage = buildWarningMessage(path, area, studyId, isSpecificAreaFound, otherAreas, studyAreas);
+        }
+        log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), capacities.size());
+        dto.setThermalClusterCapacities(capacities);
+        dto.setWarningMessage(warningMessage);
+
+        return dto;
     }
 
-    private WarningMessageEntity buildWarningMessage(Path path, String area, Integer studyId, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas) {
+    private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, String technology) {
+        return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()),
+                TrajectoryType.THERMAL_CAPACITY.name(),
+                horizon,
+                area,
+                technology);
+    }
+
+    public void handleChecksumAndVersion(ThermalClusterCapacityDto dto, Optional<TrajectoryEntity> existingTrajectory, String checksum, Path path) {
+        if (existingTrajectory.isPresent() && existingTrajectory.get().getChecksum() != null) {
+            if (existingTrajectory.get().getChecksum().equals(checksum)) {
+                log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
+                throw BusinessException.builder()
+                        .message("File already processed with same content {0}")
+                        .errorMessageArguments(List.of(path.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            } else {
+                dto.setChecksum(checksum);
+                dto.setVersion(existingTrajectory.get().getVersion() + 1);
+            }
+        } else if (existingTrajectory.isEmpty()) {
+            dto.setChecksum(checksum);
+            dto.setVersion(1);
+        }
+    }
+
+
+    public WarningMessageEntity buildWarningMessage(Path path, String area, Integer studyId, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas) {
         List<String> listMissingArea = checkForMissingArea(area, isSpecificAreaFound, listOfOtherArea, studyAreas, path);
         //save warning if missing areas
         WarningMessageEntity warningMessage = new WarningMessageEntity();
@@ -171,7 +218,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void processThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology,
-                                   String rowArea, List<ThermalClusterCapacityEntity> result) {
+                                   String rowArea, List<ThermalClusterCapacityEntity> result, StringBuilder checksum) {
         String techName = row.getCell(2).getStringCellValue();
         String clusterName = row.getCell(3).getStringCellValue();
         String categoryStr = row.getCell(4).getStringCellValue().toLowerCase();
@@ -186,11 +233,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
-            double value = capacityValue(row, i);
+            double value = capacityValue(row, i, horizon);
             boolean toUse = row.getCell(0).getNumericCellValue() == 0;
 
             // Ajout des valeurs au checksum
-            StringBuilder checksum = new StringBuilder();
             checksum.append(rowArea).append("|")
                     .append(techName).append("|")
                     .append(clusterName).append("|")
@@ -212,7 +258,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private List<String> checkForMissingArea(String area, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas, Path path) {
-        if (!"OTHER".equals(area)) {
+        if (!OTHERS_AREA.equals(area)) {
             if (!isSpecificAreaFound) {
                 throw BusinessException.builder()
                         .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
@@ -234,7 +280,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return missingAreas;
     }
 
-    private static double capacityValue(Row row, int i) {
+    private static double capacityValue(Row row, int i, String horizon) {
         Cell cell = row.getCell(i);
         if (cell == null) {
             throw BusinessException.builder()
@@ -248,8 +294,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 return Double.parseDouble(cell.getStringCellValue());
             } catch (NumberFormatException e) {
                 throw BusinessException.builder()
-                        .message("The value of power or number of horizon {0} THERMAL Installed Power trajectory {1} must be numeric")
-                        .errorMessageArguments(List.of(String.valueOf(i), cell.getStringCellValue()))
+                        .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory must be numeric, found {1} instead")
+                        .errorMessageArguments(List.of(horizon, cell.getStringCellValue()))
                         .build();
             }
         } else {
@@ -288,22 +334,34 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
     }
 
+    private void validateHeaderColumns(Row header, Path path) {
+        List<String> requiredColumns = List.of("ToUse", "Area", "Type", "Cluster", "Category");
+        for (int i = 0; i < requiredColumns.size(); i++) {
+            String cellValue = header.getCell(i).getStringCellValue();
+            if (!cellValue.equalsIgnoreCase(requiredColumns.get(i))) {
+                throw BusinessException.builder()
+                        .message("The expected column '" + requiredColumns.get(i) + "' is missing or misplaced in the file " + path.getFileName())
+                        .build();
+            }
+        }
+    }
+
     private static List<String> getExpectedColumns(String horizon, boolean isCivilYear) {
         List<String> expectedColumns = new ArrayList<>();
         int horizonYear = Integer.parseInt(horizon.split("-")[0]);
         // Génère la liste des colonnes attendues selon le mode
         if (isCivilYear) {
             for (int m = 1; m <= 12; m++) {
-                String col = String.format("%04d_%02d", horizonYear, m);
+                String col = String.format(YEAR_MONTH_PATTERN, horizonYear, m);
                 expectedColumns.add(col);
             }
         } else {
             for (int m = 7; m <= 12; m++) {
-                String col = String.format("%04d_%02d", horizonYear, m);
+                String col = String.format(YEAR_MONTH_PATTERN, horizonYear, m);
                 expectedColumns.add(col);
             }
             for (int m = 1; m <= 6; m++) {
-                String col = String.format("%04d_%02d", horizonYear + 1, m);
+                String col = String.format(YEAR_MONTH_PATTERN, horizonYear + 1, m);
                 expectedColumns.add(col);
             }
         }
@@ -359,11 +417,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 });
     }
 
-    public static void checkPowerAndNumberWithSameToUse(List<ThermalClusterCapacityEntity> thermalClusterCapacities) {
+    public static void checkPowerAndNumberWithSameToUse(List<ThermalClusterCapacityEntity> thermalClusterCapacities, String fileName) {
         Map<String, List<ThermalClusterCapacityEntity>> grouped = thermalClusterCapacities.stream()
                 .collect(Collectors.groupingBy(e -> e.getArea() + "/" + e.getThermalClusterRef().getName()));
 
-        List<String> invalidGroups = new ArrayList<>();
+        List<String> missingCategoryGroups = new ArrayList<>();
+        List<String> invalidToUseGroups = new ArrayList<>();
 
         for (Map.Entry<String, List<ThermalClusterCapacityEntity>> entry : grouped.entrySet()) {
             Optional<ThermalClusterCapacityEntity> power = entry.getValue().stream()
@@ -373,15 +432,43 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .filter(e -> e.getCategory() == ThermalCategoryEnum.NUMBER)
                     .findFirst();
 
-            if (power.isEmpty() || number.isEmpty() || !Objects.equals(power.get().getToUse(), number.get().getToUse())) {
-                invalidGroups.add(entry.getKey());
+            if (power.isEmpty() || number.isEmpty()) {
+                missingCategoryGroups.add(entry.getKey());
+            } else if (!Objects.equals(power.get().getToUse(), number.get().getToUse())) {
+                invalidToUseGroups.add(entry.getKey());
             }
         }
 
-        if (!invalidGroups.isEmpty()) {
+        if (!missingCategoryGroups.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Les couples area/cluster suivants sont invalides : " + String.join(", ", invalidGroups))
+                    .message("Area/Cluster {0} must have power AND number category in THERMAL Installed Power trajectory {1}")
+                    .errorMessageArguments(List.of(String.join(", ", missingCategoryGroups), fileName))
                     .build();
+        }
+
+        if (!invalidToUseGroups.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Area/Cluster {0} must have same to_use value for power AND number category in THERMAL Installed Power trajectory {1}")
+                    .errorMessageArguments(List.of(String.join(", ", invalidToUseGroups), fileName))
+                    .build();
+        }
+    }
+
+
+    // Méthode utilitaire pour calculer le checksum SHA-256
+    private String calculateChecksum(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Erreur lors du calcul du checksum", e);
         }
     }
 }

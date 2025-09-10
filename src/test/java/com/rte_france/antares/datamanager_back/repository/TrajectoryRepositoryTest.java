@@ -144,6 +144,26 @@ class TrajectoryRepositoryTest {
         );
     }
 
+    @Test
+    void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc_returnsTrajectoryEntity() {
+        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+                "testFile.txt", "AREA", "2023-2024", "FR", "technology1");
+
+        assertThat(foundEntity).isPresent();
+        assertThat(foundEntity.get().getFileName()).isEqualTo("testFile.txt");
+        assertThat(foundEntity.get().getType()).isEqualTo("AREA");
+        assertThat(foundEntity.get().getHorizon()).isEqualTo("2023-2024");
+        assertThat(foundEntity.get().getArea()).isEqualTo("FR");
+        assertThat(foundEntity.get().getTechnology()).isEqualTo("technology1");
+    }
+
+    @Test
+    void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc_returnsEmptyOptionalForNonExistentFile() {
+        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+                "nonExistentFile.txt", "AREA", "2023-2024", "FR", "technology1");
+
+        assertThat(foundEntity).isNotPresent();
+    }
 
 }
 
