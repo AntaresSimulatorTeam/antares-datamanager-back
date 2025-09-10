@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.service.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +59,9 @@ class TrajectoryServiceImplAdditionalTest {
 
     @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
+
+    @Mock
+    private ThermalFileProcessorService thermalFileProcessorService;
 
 
     @Captor
@@ -341,5 +345,48 @@ class TrajectoryServiceImplAdditionalTest {
                 trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, null)
         );
         verifyNoInteractions(studyTrajectoryRepository);
+    }
+
+    @Test
+    void processThermalCommonParameterTrajectory_returnsEntityWhenValidDataProvided() throws IOException {
+        String trajectoryToUse = "thermal_common_params_ref";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+
+        Path mockPath = mock(Path.class);
+        List<ThermalCommonParameterEntity> params = List.of(new ThermalCommonParameterEntity());
+
+        // Spy to bypass filesystem path building
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        doReturn(mockPath).when(spyService).getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse, "");
+
+        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(mockPath, horizon, true))
+                .thenReturn(params);
+        when(thermalFileProcessorService.processThermalCommonParameterFile(mockPath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER))
+                .thenReturn(new TrajectoryEntity());
+
+        TrajectoryEntity result = spyService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId);
+        assertNotNull(result);
+    }
+
+    @Test
+    void processThermalCommonParameterTrajectory_throwsExceptionWhenParamListIsEmpty() throws IOException {
+        String trajectoryToUse = "thermal_common_params_ref";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+
+        Path mockPath = mock(Path.class);
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        doReturn(mockPath).when(spyService).getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse, "");
+
+        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(mockPath, horizon, true))
+                .thenReturn(Collections.emptyList());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                spyService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}", exception.getMessage());
+        assertEquals(List.of(trajectoryToUse, horizon), exception.getErrorMessageArguments());
     }
 }
