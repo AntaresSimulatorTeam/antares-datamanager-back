@@ -40,7 +40,7 @@ class ThermalPropertiesAssemblerServiceTest {
     void assembleForTrajectory_buildsOneCluster_withComputedValues() {
         // given
         var capTraj = TrajectoryEntity.builder()
-                .type("THERMAL_CAPACITY")
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
                         cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
                         cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(), // max NUMBER = 3
@@ -81,7 +81,7 @@ class ThermalPropertiesAssemblerServiceTest {
     void assembleForTrajectory_groupsByClusterRef_multipleClusters() {
         // given
         var capTraj = TrajectoryEntity.builder()
-                .type("THERMAL_CAPACITY")
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
                         cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
                         cap(nucRef, ThermalCategoryEnum.POWER, 1200.0, true).toBuilder().area("FR").build()
@@ -115,14 +115,14 @@ class ThermalPropertiesAssemblerServiceTest {
     void assembleAreaRefMap_missingCategories_fallsBackToNull() {
         // given: no POWER category => nominalCapacity stays null => minStablePower stays null too
         var capTraj = TrajectoryEntity.builder()
-                .type("THERMAL_CAPACITY")
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
                         cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, null).toBuilder().area("FR").build()
                 ))
                 .build();
 
         var paramTraj = TrajectoryEntity.builder()
-                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .type(TrajectoryType.THERMAL_COMMON_PARAMETERS.name())
                 .thermalClusterParameters(List.of(
                         params(gasRef, 0.50, 2, 2, 60.0, 5.0)
                 ))

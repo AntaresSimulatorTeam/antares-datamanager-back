@@ -500,11 +500,11 @@ class ThermalFileProcessorServiceImplTest {
         ArgumentCaptor<TrajectoryEntity> captor = ArgumentCaptor.forClass(TrajectoryEntity.class);
         when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(e), TrajectoryType.THERMAL_COMMON_PARAMETER);
+        var result = thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(e), TrajectoryType.THERMAL_COMMON_PARAMETERS);
 
         verify(trajectoryRepository).save(captor.capture());
         TrajectoryEntity saved = captor.getValue();
-        assertEquals(TrajectoryType.THERMAL_COMMON_PARAMETER.name(), saved.getType());
+        assertEquals(TrajectoryType.THERMAL_COMMON_PARAMETERS.name(), saved.getType());
         assertSame(saved, e.getTrajectory(), "Entity should be linked to saved trajectory");
         assertEquals(result.getType(), saved.getType());
         assertEquals(horizon, saved.getHorizon());
@@ -519,7 +519,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenThrow(new RuntimeException("DB down"));
 
         assertThrows(RuntimeException.class, () ->
-                thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(new ThermalCommonParameterEntity()), TrajectoryType.THERMAL_COMMON_PARAMETER)
+                thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(new ThermalCommonParameterEntity()), TrajectoryType.THERMAL_COMMON_PARAMETERS)
         );
     }
 }
