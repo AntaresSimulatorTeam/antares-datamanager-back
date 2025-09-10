@@ -194,7 +194,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
 
-        var areaRefProps = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity.getTrajectories());
+//        var areaRefProps = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity.getTrajectories()); // TODO: uncomment this and remove next line for thermal gen
+        var areaRefProps = new HashMap<ThermalPropertiesAssemblerService.AreaRefKey, ThermalClusterPropertiesDto>(); // TODO: remove and uncomment line before for thermal gen
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(

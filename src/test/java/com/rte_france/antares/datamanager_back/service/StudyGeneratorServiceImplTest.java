@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -368,6 +369,7 @@ class StudyGeneratorServiceImplTest {
                 .hasMessageContaining("Error while call Generate study from generator");
     }
 
+    @Disabled   // TODO: remove when thermal gen is enabled
     @Test
     void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
         // Given
@@ -408,7 +410,6 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
 
         assertThat(frArea).containsKey("thermals");
-        System.out.println(areasMap);
 
         Map<String, Object> thermals = objectMapper.convertValue(frArea.get("thermals"), new TypeReference<>() {});
         assertThat(thermals).containsKey("FR_Gas1");

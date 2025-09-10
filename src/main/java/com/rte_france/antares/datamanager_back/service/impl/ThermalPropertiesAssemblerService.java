@@ -19,6 +19,16 @@ public class ThermalPropertiesAssemblerService {
 
   public record AreaRefKey(String area, ThermalClusterRef ref) {}
 
+  /**
+   * Builds thermal properties by {@code (area, cluster_ref)} from the given trajectories.
+   * Uses {@code THERMAL_CAPACITY} rows (grouped by capacity.area + cluster_ref) and aggregates with
+   * {@code THERMAL_PARAMETER} by cluster_ref
+   *
+   * @param trajectories input trajectories
+   * @return map with {@link AreaRefKey} as keys and {@link ThermalClusterPropertiesDto} values
+   * @throws NullPointerException if {@code trajectories} is null
+   * @throws IllegalArgumentException if a trajectory has an invalid {@link TrajectoryType}
+   */
   public Map<AreaRefKey, ThermalClusterPropertiesDto> assembleForTrajectories(Collection<TrajectoryEntity> trajectories) {
     Objects.requireNonNull(trajectories);
 
