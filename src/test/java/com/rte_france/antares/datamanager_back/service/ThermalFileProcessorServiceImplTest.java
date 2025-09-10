@@ -133,7 +133,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenThrow(new RuntimeException("Database error"));
 
         assertThrows(RuntimeException.class, () ->
-                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area)
+                thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area, "CCGT")
         );
     }
 
@@ -149,7 +149,7 @@ class ThermalFileProcessorServiceImplTest {
         when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         var horizon = "2025-2026";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR");
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -213,14 +213,6 @@ class ThermalFileProcessorServiceImplTest {
         verify(thermalTechnologyRepository).save(any(ThermalTechnology.class));
     }
 
-    @Test
-    void saveThermalTrajectory_shouldThrowIllegalArgumentExceptionWhenEntityTypeIsInvalid() {
-        TrajectoryEntity trajectory = new TrajectoryEntity();
-        List<ThermalCommonParameterEntity> invalidEntities = List.of(new ThermalCommonParameterEntity());
-
-        assertThrows(IllegalArgumentException.class, () ->
-                thermalFileProcessorService.saveThermalTrajectory(trajectory, invalidEntities, TrajectoryType.THERMAL_CAPACITY));
-    }
     @Test
     void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs() throws IOException {
         Path mockPath = mock(Path.class);

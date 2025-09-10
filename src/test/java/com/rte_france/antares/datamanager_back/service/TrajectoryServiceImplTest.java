@@ -113,12 +113,13 @@ class TrajectoryServiceImplTest {
 
         Path mockPath = mock(Path.class);
         List<ThermalClusterCapacityEntity> mockEntities = List.of(new ThermalClusterCapacityEntity());
+        ThermalClusterCapacityDto thermalClusterCapacityDto = ThermalClusterCapacityDto.builder().thermalClusterCapacities(mockEntities).build();
 
         TrajectoryServiceImpl spyService = spy(trajectoryService);
         doReturn(mockPath).when(spyService).getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
 
-        when(thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, isCivilYear, area, technology)).thenReturn(mockEntities);
-        when(thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, mockEntities, TrajectoryType.THERMAL_CAPACITY, area, technology))
+        when(thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, isCivilYear, area, technology, studyId)).thenReturn(thermalClusterCapacityDto);
+        when(thermalFileProcessorService.processThermalCapacityFile(mockPath, horizon, thermalClusterCapacityDto, TrajectoryType.THERMAL_CAPACITY, area, technology))
                 .thenReturn(new TrajectoryEntity());
 
         TrajectoryEntity result = spyService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology);
@@ -135,14 +136,12 @@ class TrajectoryServiceImplTest {
         String area = "BE";
         String technology = "CCGT";
 
-        Path mockPath = mock(Path.class);
-
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("thermal_capacity");
         when(thermalFileProcessorService.buildThermalClusterCapacityValuesList(
-                any(Path.class), eq(horizon), eq(isCivilYear), eq(area), eq(technology))
-        ).thenReturn(Collections.emptyList());
+                any(Path.class), eq(horizon), eq(isCivilYear), eq(area), eq(technology), eq(studyId))
+        ).thenReturn(ThermalClusterCapacityDto.builder().thermalClusterCapacities(Collections.emptyList()).build());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology));
@@ -659,7 +658,6 @@ class TrajectoryServiceImplTest {
 
     @Test
     void shouldCallCheckForMissingLoadFilesWhenOtherArea() {
-        String area = "OTHERS";
         String horizon = "2023-2024";
         String trajectoryToUse = "testTrajectory";
         Integer studyId = 1;

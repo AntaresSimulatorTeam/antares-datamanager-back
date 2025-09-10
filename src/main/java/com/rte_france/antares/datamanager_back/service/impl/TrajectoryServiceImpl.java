@@ -284,7 +284,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //checkIfAreaIsLinkedToStudy(studyId, area);
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
         ThermalClusterCapacityDto thermalClusterCapacityDto = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology,studyId);
-        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, thermalClusterCapacityDto, TrajectoryType.THERMAL_CAPACITY, area);
+        if (CollectionUtils.isEmpty(thermalClusterCapacityDto.getThermalClusterCapacities())) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse, area, horizon))
+                    .message("No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, thermalClusterCapacityDto, TrajectoryType.THERMAL_CAPACITY, area, technology);
 
     }
 

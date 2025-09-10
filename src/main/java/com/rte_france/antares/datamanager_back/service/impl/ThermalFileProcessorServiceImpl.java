@@ -53,9 +53,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      *
      * @param path the path to the file to process
      */
-    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, List<ThermalClusterCapacityEntity> listThermalClusterCapacity, TrajectoryType type, String area, String technology) throws IOException {
+    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), listThermalClusterCapacity, type);
+        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), thermalClusterCapacityDto, type);
     }
 
     /**
@@ -66,7 +66,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @param type                      the type of the trajectory
      * @return the saved trajectory entity
      */
-    @SuppressWarnings("unchecked")
     public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type) {
         trajectory.setType(type.name());
         List<ThermalClusterCapacityEntity> thermalEntities = thermalClusterCapacityDto.getThermalClusterCapacities();
