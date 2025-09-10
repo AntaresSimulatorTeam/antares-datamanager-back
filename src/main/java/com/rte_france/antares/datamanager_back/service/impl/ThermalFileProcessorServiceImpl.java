@@ -51,7 +51,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, horizon);
             if (sheet == null) {
-                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing suitable sheet for horizon '" + horizon + "'").build();
+                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing sheet for horizon '" + horizon + "'").build();
             }
             for (Row row : sheet) {
                 if (row.getRowNum() > 4) {
@@ -476,7 +476,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void loadAllThermalClusterRefs() {
-        cachedClusterRefs = thermalClusterRefRepository.findAll();
+        List<ThermalClusterRef> list = thermalClusterRefRepository.findAll();
+        cachedClusterRefs = (list == null) ? new ArrayList<>() : new ArrayList<>(list);
     }
 
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {

@@ -33,6 +33,7 @@ import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
+    private static final String HORIZON_SHEET = "2025";
     private static final String THERMAL_PARAMETERS_FILE_NAME = "thermal_common_parameters_test.xlsx";
     private static final String THERMAL_CAPACITY_FILE_NAME = "thermal_BE_PEMMDB23_26avril";
     private static final String TRAJECTORY_NAME = "trajectory_test";
@@ -521,5 +522,73 @@ class ThermalFileProcessorServiceImplTest {
         assertThrows(RuntimeException.class, () ->
                 thermalFileProcessorService.processThermalCommonParameterFile(file, horizon, List.of(new ThermalCommonParameterEntity()), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER)
         );
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldParseRowsAfterHeader(@TempDir Path tempDir) throws Exception {
+        // Create a workbook with a horizon sheet and one data row at row index 5 (rowNum > 4)
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                // create the first 5 rows as headers/ignored
+                for (int i = 0; i <= 4; i++) sheet.createRow(i);
+                var row = sheet.createRow(5);
+
+                row.createCell(0).setCellValue("pemmdb_name"); // clusterPemmdb
+                row.createCell(1).setCellValue("ClusterA"); // clusterName
+                row.createCell(2).setCellValue(1.0); // category (double)
+                row.createCell(3).setCellValue("GAS"); // fuel
+                row.createCell(4).setCellValue("CCGT"); // technology
+                row.createCell(5).setCellValue("40-60"); // efficiencyRange
+                row.createCell(6).setCellValue(0.55); // efficiencyDefault
+                row.createCell(7).setCellValue(370.0); // co2
+                row.createCell(8).setCellValue(2.3); // omCost
+                row.createCell(9).setCellValue(4.0); // minUpTime
+                row.createCell(10).setCellValue(3.0); // minDownTime
+                row.createCell(11).setCellValue(10.0); // startUpFuel
+                row.createCell(12).setCellValue(100.0); // startUpFixCost
+                row.createCell(13).setCellValue(12.0); // startUpFuelColdStart
+                row.createCell(14).setCellValue(120.0); // startUpFixCostColdStart
+                row.createCell(15).setCellValue(8.0); // startUpFuelHotStart
+                row.createCell(16).setCellValue(80.0); // startUpFixCostHotStart
+                row.createCell(17).setCellValue(2.0); // transitionHotWarm
+                row.createCell(18).setCellValue(5.0); // transitionHotCold
+                row.createCell(19).setCellValue(1.0); // shutdownTime
+                row.createCell(20).setCellValue(0.02); // foRateDefault
+                row.createCell(21).setCellValue(10.0); // foDurationDefault
+                row.createCell(22).setCellValue(3.0); // poDurationDefault
+                row.createCell(23).setCellValue(1.0); // poWinterDefault
+                row.createCell(24).setCellValue(15.0); // minStableGenerationDefault
+                row.createCell(25).setCellValue(20.0); // rampUp
+                row.createCell(26).setCellValue(21.0); // rampDown
+                row.createCell(27).setCellValue(0.0); // fixedGenerationReduction
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        // Mock repositories for findOrCreateThermalClusterRef
+        when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
+        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT")).thenReturn(Optional.of(tech));
+        when(thermalClusterRefRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, true);
+        assertEquals(1, list.size());
+        ThermalCommonParameterEntity e = list.get(0);
+        assertNotNull(e.getThermalClusterRef());
+        assertEquals("CCGT", e.getThermalClusterRef().getThermalTechnology().getName());
+        assertEquals("ClusterA", e.getThermalClusterRef().getName());
+        assertEquals(0.55, e.getEfficiencyDefault());
+        assertEquals(370.0, e.getCo2());
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldThrowTechnicalExceptionWhenHorizonSheetMissing(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile("OTHER_SHEET"));
+        TechnicalException ex = assertThrows(TechnicalException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, true)
+        );
+        assertTrue(ex.getMessage().contains("missing sheet"));
     }
 }
