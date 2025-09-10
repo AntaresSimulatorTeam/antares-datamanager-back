@@ -302,7 +302,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public TrajectoryEntity processThermalCommonParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_COMMON_PARAMETERS, trajectoryToUse,"");
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse,"");
         var params = thermalFileProcessorService.buildThermalCommonParameterValuesList(trajectoryFilePath, horizon, true);
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
@@ -311,7 +311,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return thermalFileProcessorService.processThermalCommonParameterFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_COMMON_PARAMETERS);
+        return thermalFileProcessorService.processThermalCommonParameterFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
@@ -472,7 +472,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .resolve(area)
                             .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
-            case THERMAL_COMMON_PARAMETERS -> antaressDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_TECHNICAL_COMMON_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
             case LOAD -> antaressDataManagerProperties.getLoadDirectory();
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaressDataManagerProperties.getThermalParameterDirectory();

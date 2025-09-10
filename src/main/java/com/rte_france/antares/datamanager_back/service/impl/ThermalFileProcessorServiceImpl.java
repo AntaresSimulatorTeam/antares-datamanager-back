@@ -100,20 +100,20 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
         // Find existing trajectory for same file name/horizon/type
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_COMMON_PARAMETERS.name()),
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()),
                 horizon,
-                TrajectoryType.THERMAL_COMMON_PARAMETERS.name()
+                TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()
         );
 
         TrajectoryEntity trajectory;
         if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_COMMON_PARAMETERS, null, null);
+            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
         } else {
             // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_COMMON_PARAMETERS, null, null);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
         }
-        return saveThermalTrajectory(trajectory, list, TrajectoryType.THERMAL_COMMON_PARAMETERS);
+        return saveThermalTrajectory(trajectory, list, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
 
     private final StudyRepository studyRepository;
