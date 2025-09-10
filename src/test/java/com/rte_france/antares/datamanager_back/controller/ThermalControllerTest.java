@@ -62,4 +62,22 @@ class ThermalControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
     }
+
+    @Test
+    void uploadThermalCommonParametersTrjactoryTest() throws Exception {
+
+        when(trajectoryService.processThermalCommonParameterTrajectory(any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory/thermal-common-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "common_parameter_test")
+                        .param("studyId", "1")
+                        .param("horizon", "2023-2024")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+
+                //Then
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+    }
 }
