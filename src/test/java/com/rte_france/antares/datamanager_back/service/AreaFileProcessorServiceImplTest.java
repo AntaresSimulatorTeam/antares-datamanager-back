@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
@@ -62,6 +63,8 @@ class AreaFileProcessorServiceImplTest {
         void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
             when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             var trajectoryEntity = mock(TrajectoryEntity.class);
+            trajectoryEntity.setType(TrajectoryType.AREA.name());
+            trajectoryEntity.setFileName(tempFile.toString());
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
                     .thenReturn(Optional.of(trajectoryEntity));
 

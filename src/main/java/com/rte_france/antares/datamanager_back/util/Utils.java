@@ -46,6 +46,7 @@ public class Utils {
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
+    private static final String THERMAL_PREFIX = "thermal_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -168,51 +169,26 @@ public class Utils {
         if (fileName.isBlank()) {
             throw TechnicalException.builder().message("Empty fileName").build();
         }
-        String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX :
-                isLinkTypePrefix(trajectoryType);
+        String prefix;
+        if (Objects.equals(trajectoryType, TrajectoryType.AREA.toString())) {
+            prefix = AREAS_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.LINK.toString())) {
+            prefix = LINKS_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_CAPACITY.toString())) {
+            prefix = THERMAL_PREFIX;
+        } else {
+            prefix = "";
+        }
         if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
             fileName = fileName.substring(prefix.length());
-
         }
-        var lastDotIndex = fileName.lastIndexOf('.');
+        int lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex <= 0) {
-// takes into account files with already no extension or hidden files (.gitignore)
             return fileName;
         }
         return fileName.substring(0, lastDotIndex);
     }
 
-    private static String isLinkTypePrefix(String trajectoryType) {
-        return Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
-    }
-
-
-    public static boolean isSheetNameYearNumber(Sheet sheet) {
-        String sheetName = sheet.getSheetName();
-        try {
-            int year = Integer.parseInt(sheetName);
-            int currentYear = Year.now().getValue();
-            return year >= currentYear;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
-
-    public Object getCellValue(Row row, int cellIndex) {
-        Cell cell = row.getCell(cellIndex);
-        if (cell == null) {
-            return null;
-        }
-
-        return switch (cell.getCellType()) {
-            case NUMERIC -> cell.getNumericCellValue();
-            case STRING -> cell.getStringCellValue();
-            case BOOLEAN -> cell.getBooleanCellValue();
-            case FORMULA -> cell.getCellFormula();
-            default -> null;
-        };
-    }
 
     public void checkIfHorizonExist(Path path, String horizon, String trajectoryType) {
         try (InputStream inputStream = Files.newInputStream(path);
@@ -297,8 +273,8 @@ public class Utils {
     /**
      * Calcule le checksum SHA-256 d'un fichier de trajectoire en fonction de son type
      *
-     * @param path  chemin vers le fichier .xlsx
-     * @param type  type de la trajectoire
+     * @param path    chemin vers le fichier .xlsx
+     * @param type    type de la trajectoire
      * @param horizon horizon concerné
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
@@ -422,6 +398,7 @@ public class Utils {
 
     /**
      * Normalize a string (to upper case)
+     *
      * @param s string
      * @return normalized string s
      */

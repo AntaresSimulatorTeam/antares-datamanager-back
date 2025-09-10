@@ -151,6 +151,22 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void throwsExceptionWhenTrajectoryToUseIsNull() {
+        String trajectoryToUse = null;
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        boolean isCivilYear = true;
+        String area = "BE";
+        String technology = "CCGT";
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology));
+
+        assertEquals("The trajectory file name must start with 'thermal_'", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
     void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEntitiesWhenExist() {
         List<TrajectoryEntity> expectedEntities = List.of(new TrajectoryEntity());
         when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "fileNameStartsWith", "FR","tech")).thenReturn(expectedEntities);

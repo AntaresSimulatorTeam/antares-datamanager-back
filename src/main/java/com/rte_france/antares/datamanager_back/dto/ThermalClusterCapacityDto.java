@@ -16,4 +16,6 @@ import java.util.List;
 public class ThermalClusterCapacityDto {
     private  List<ThermalClusterCapacityEntity> thermalClusterCapacities;
     private  WarningMessageEntity warningMessage;
+    private String checksum;
+    private  int version;
 }

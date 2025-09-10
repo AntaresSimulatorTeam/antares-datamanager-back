@@ -6,16 +6,12 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -23,14 +19,13 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +33,7 @@ import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
     private static final String THERMAL_CAPACITY_FILE_NAME = "thermal_BE_PEMMDB23_26avril";
+    private static final String TRAJECTORY_NAME = "trajectory_test";
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -56,6 +52,9 @@ class ThermalFileProcessorServiceImplTest {
 
     @Mock
     private AreaRepository areaRepository;
+
+    @Mock
+    private StudyRepository studyRepository;
 
     @BeforeEach
      void setup() {
@@ -289,10 +288,10 @@ class ThermalFileProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities, TRAJECTORY_NAME)
         );
 
-        assertTrue(exception.getMessage().contains("Les couples area/cluster suivants sont invalides"));
+        assertTrue(exception.getMessage().contains("must have same to_use value for power AND number category in THERMAL Installed Power"));
     }
 
     @Test
@@ -313,7 +312,7 @@ class ThermalFileProcessorServiceImplTest {
         );
 
         assertDoesNotThrow(() ->
-                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities, TRAJECTORY_NAME)
         );
     }
 
@@ -329,10 +328,10 @@ class ThermalFileProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities,TRAJECTORY_NAME)
         );
 
-        assertTrue(exception.getMessage().contains("Les couples area/cluster suivants sont invalides"));
+        assertTrue(exception.getMessage().contains("must have power AND number category in THERMAL Installed Power trajectory"));
     }
 
     @Test
@@ -347,10 +346,10 @@ class ThermalFileProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities, TRAJECTORY_NAME)
         );
 
-        assertTrue(exception.getMessage().contains("Les couples area/cluster suivants sont invalides"));
+        assertTrue(exception.getMessage().contains("must have power AND number category in THERMAL Installed Power trajectory "));
     }
 
     @Test
@@ -358,7 +357,125 @@ class ThermalFileProcessorServiceImplTest {
         List<ThermalClusterCapacityEntity> entities = List.of();
 
         assertDoesNotThrow(() ->
-                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities)
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities, TRAJECTORY_NAME)
         );
     }
+
+    @Test
+    void handleChecksumAndVersion_shouldThrowExceptionWhenChecksumMatchesExistingTrajectory() {
+        ThermalClusterCapacityDto dto = new ThermalClusterCapacityDto();
+        TrajectoryEntity existingTrajectory = new TrajectoryEntity();
+        existingTrajectory.setChecksum("existingChecksum");
+        Optional<TrajectoryEntity> existingTrajectoryOptional = Optional.of(existingTrajectory);
+        String checksum = "existingChecksum";
+        Path path = Path.of("testFile.xlsx");
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.handleChecksumAndVersion(dto, existingTrajectoryOptional, checksum, path)
+        );
+
+        assertTrue(exception.getMessage().contains("File already processed with same content"));
+    }
+
+    @Test
+    void handleChecksumAndVersion_shouldUpdateVersionWhenChecksumDiffersFromExistingTrajectory() {
+        ThermalClusterCapacityDto dto = new ThermalClusterCapacityDto();
+        TrajectoryEntity existingTrajectory = new TrajectoryEntity();
+        existingTrajectory.setChecksum("existingChecksum");
+        existingTrajectory.setVersion(2);
+        Optional<TrajectoryEntity> existingTrajectoryOptional = Optional.of(existingTrajectory);
+        String checksum = "newChecksum";
+        Path path = Path.of("testFile.xlsx");
+
+        thermalFileProcessorService.handleChecksumAndVersion(dto, existingTrajectoryOptional, checksum, path);
+
+        assertEquals("newChecksum", dto.getChecksum());
+        assertEquals(3, dto.getVersion());
+    }
+
+    @Test
+    void handleChecksumAndVersion_shouldSetVersionToOneWhenNoExistingTrajectory() {
+        ThermalClusterCapacityDto dto = new ThermalClusterCapacityDto();
+        Optional<TrajectoryEntity> existingTrajectoryOptional = Optional.empty();
+        String checksum = "newChecksum";
+        Path path = Path.of("testFile.xlsx");
+
+        thermalFileProcessorService.handleChecksumAndVersion(dto, existingTrajectoryOptional, checksum, path);
+
+        assertEquals("newChecksum", dto.getChecksum());
+        assertEquals(1, dto.getVersion());
+    }
+
+        @Test
+        void buildWarningMessage_shouldReturnWarningWhenMissingAreasExist() {
+            Path path = Path.of("testFile.xlsx");
+            String area = "OTHERS";
+            Integer studyId = 1;
+            boolean isSpecificAreaFound = false;
+            Set<String> listOfOtherArea = Set.of("FR", "DE");
+            List<String> studyAreas = List.of("FR", "DE", "IT");
+
+            when(studyRepository.findById(studyId)).thenReturn(Optional.of(StudyEntity.builder().id(studyId).build()));
+            when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+
+            WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
+
+            assertNotNull(result);
+            assertTrue(result.getWarningContent().contains("The following areas are missing"));
+            assertTrue(result.getWarningContent().contains("IT"));
+            assertEquals(WarningLevel.WARNING_LEVEL, result.getWarningLevel());
+            verify(studyRepository).findById(studyId);
+        }
+
+        @Test
+        void buildWarningMessage_shouldNotReturnWarningWhenAllAreasArePresent() {
+            Path path = Path.of("testFile.xlsx");
+            String area = "OTHERS";
+            Integer studyId = 1;
+            boolean isSpecificAreaFound = false;
+            Set<String> listOfOtherArea = Set.of("FR", "DE", "IT");
+            List<String> studyAreas = List.of("FR", "DE", "IT");
+
+            WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
+
+            assertNull(result.getWarningContent());
+            verifyNoInteractions(studyRepository);
+        }
+
+        @Test
+        void buildWarningMessage_shouldThrowExceptionWhenStudyNotFound() {
+            Path path = Path.of("testFile.xlsx");
+            String area = "OTHERS";
+            Integer studyId = 1;
+            boolean isSpecificAreaFound = false;
+            Set<String> listOfOtherArea = Set.of("FR", "DE");
+            List<String> studyAreas = List.of("FR", "DE", "IT");
+
+            when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
+
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas)
+            );
+
+            assertTrue(exception.getMessage().contains("Study not found with id"));
+            verify(studyRepository).findById(studyId);
+        }
+
+        @Test
+        void buildWarningMessage_shouldThrowExceptionWhenSpecificAreaNotFound() {
+            Path path = Path.of("testFile.xlsx");
+            String area = "FR";
+            Integer studyId = 1;
+            boolean isSpecificAreaFound = false;
+            Set<String> listOfOtherArea = Set.of();
+            List<String> studyAreas = List.of("FR");
+
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas)
+            );
+
+            assertTrue(exception.getMessage().contains("No area of the AREA trajectory is present"));
+            verifyNoInteractions(studyRepository);
+        }
+
 }

@@ -281,7 +281,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
-        //checkIfAreaIsLinkedToStudy(studyId, area);
+        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith("thermal_")) {
+            throw BusinessException.builder()
+                    .message("The trajectory file name must start with 'thermal_'")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
         ThermalClusterCapacityDto thermalClusterCapacityDto = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology,studyId);
         if (CollectionUtils.isEmpty(thermalClusterCapacityDto.getThermalClusterCapacities())) {
