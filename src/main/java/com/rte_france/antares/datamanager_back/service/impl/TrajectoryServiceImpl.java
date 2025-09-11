@@ -362,10 +362,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .filter(path -> isRelevantFile(path, trajectoryType))
                     .filter(path -> switch (trajectoryType) {
                         case THERMAL_CAPACITY ->
-                                path.getFileName().toString().startsWith(CAPACITY_PREFIX);
+                                path.getFileName().toString().toLowerCase().startsWith(CAPACITY_PREFIX);
                         case THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
-                                path.getFileName().toString().startsWith(SPECIFIC_PREFIX);
-                        case THERMAL_TECHNICAL_COMMON_PARAMETER -> path.getFileName().toString().startsWith(COMMON_PREFIX);
+                                path.getFileName().toString().toLowerCase().startsWith(SPECIFIC_PREFIX);
+                        case THERMAL_TECHNICAL_COMMON_PARAMETER -> path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
                         default -> true;
                     })
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
