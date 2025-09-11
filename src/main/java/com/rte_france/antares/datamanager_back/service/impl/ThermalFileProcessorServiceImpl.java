@@ -237,8 +237,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void loadAllThermalClusterRefs() {
+
         List<ThermalClusterRef> list = thermalClusterRefRepository.findAll();
-        cachedClusterRefs = (list == null) ? new ArrayList<>() : new ArrayList<>(list);
+        cachedClusterRefs = new ArrayList<>(list);
     }
 
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {
