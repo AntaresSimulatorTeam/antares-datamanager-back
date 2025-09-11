@@ -66,6 +66,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
+    private static final String SPECIFIC_PREFIX = "specific_param_";
+    private static final String COMMON_PREFIX = "common_param_";
+    private static final String CAPACITY_PREFIX = "thermal_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -358,9 +361,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             return stream
                     .filter(path -> isRelevantFile(path, trajectoryType))
                     .filter(path -> switch (trajectoryType) {
+                        case THERMAL_CAPACITY ->
+                                path.getFileName().toString().startsWith(CAPACITY_PREFIX);
                         case THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
-                                path.getFileName().toString().toLowerCase().startsWith("specific");
-                        case THERMAL_TECHNICAL_COMMON_PARAMETER -> path.getFileName().toString().toLowerCase().startsWith("common");
+                                path.getFileName().toString().startsWith(SPECIFIC_PREFIX);
+                        case THERMAL_TECHNICAL_COMMON_PARAMETER -> path.getFileName().toString().startsWith(COMMON_PREFIX);
                         default -> true;
                     })
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
@@ -423,12 +428,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     private boolean isValidTrajectoryFile(Path path, TrajectoryType trajectoryType) {
         String fileName = path.getFileName().toString().toLowerCase();
+        boolean isXlsx = fileName.endsWith(".xlsx");
 
         return switch (trajectoryType) {
-            case AREA -> fileName.startsWith(AREAS_PREFIX);
-            case LINK -> fileName.startsWith(LINKS_PREFIX);
-            default -> true;
+            case AREA -> isXlsx && fileName.startsWith(AREAS_PREFIX);
+            case LINK -> isXlsx && fileName.startsWith(LINKS_PREFIX);
+            default -> isXlsx; // for all other types, only accept .xlsx files
         };
+
     }
 
     @Override
