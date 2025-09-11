@@ -169,7 +169,7 @@ public class Utils {
         }
         String prefix = Objects.equals(trajectoryType, TrajectoryType.AREA.toString()) ? AREAS_PREFIX :
                 isLinkTypePrefix(trajectoryType);
-        if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
+        if (!prefix.isEmpty() && fileName.regionMatches(true, 0, prefix, 0, prefix.length())) {
             fileName = fileName.substring(prefix.length());
 
         }
