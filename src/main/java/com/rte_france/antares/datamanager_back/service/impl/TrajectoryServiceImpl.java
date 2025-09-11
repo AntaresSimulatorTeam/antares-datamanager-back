@@ -472,8 +472,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .resolve(area)
                             .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
-            case THERMAL_TECHNICAL_COMMON_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
-            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
