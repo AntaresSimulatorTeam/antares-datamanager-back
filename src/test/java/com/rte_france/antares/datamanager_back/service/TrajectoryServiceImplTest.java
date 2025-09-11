@@ -212,8 +212,8 @@ class TrajectoryServiceImplTest {
         Path thermalDir = tempDir.resolve("thermal");
         Files.createDirectories(thermalDir);
 
-        Path specificFile = thermalDir.resolve("specific_tech_param.xlsx");
-        Path commonFile = thermalDir.resolve("common_tech_param.xlsx");
+        Path specificFile = thermalDir.resolve("specific_param_file.xlsx");
+        Path commonFile = thermalDir.resolve("common_param_file.xlsx");
         Files.createFile(specificFile);
         Files.createFile(commonFile);
 
@@ -224,7 +224,7 @@ class TrajectoryServiceImplTest {
         java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null);
 
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().getFileName().startsWith("specific"));
+        assertTrue(result.getFirst().getFileName().startsWith("specific_param_"));
     }
 
     @Test
@@ -232,8 +232,8 @@ class TrajectoryServiceImplTest {
         Path thermalDir = tempDir.resolve("thermal");
         Files.createDirectories(thermalDir);
 
-        Path specificFile = thermalDir.resolve("specific_tech_param.xlsx");
-        Path commonFile = thermalDir.resolve("common_tech_param.xlsx");
+        Path specificFile = thermalDir.resolve("specific_param_test.xlsx");
+        Path commonFile = thermalDir.resolve("common_param_test.xlsx");
         Files.createFile(specificFile);
         Files.createFile(commonFile);
 
@@ -244,7 +244,7 @@ class TrajectoryServiceImplTest {
         java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
 
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().getFileName().startsWith("common"));
+        assertTrue(result.getFirst().getFileName().startsWith("common_param_"));
     }
 
     @Test
@@ -549,19 +549,19 @@ class TrajectoryServiceImplTest {
         Path areaDir = tempDir.resolve("area");
         Files.createDirectories(areaDir);
 
-        Path testFile = areaDir.resolve("areas_test1.txt");
+        Path testFile = areaDir.resolve("areas_test1.xlsx");
         Files.createFile(testFile);
 
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area"); // <-- Ajouté
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
 
         // Then
         assertEquals(1, result.size());
-        assertEquals("areas_test1.txt", result.getFirst().getFileName());
+        assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
     }
 
     @Test
