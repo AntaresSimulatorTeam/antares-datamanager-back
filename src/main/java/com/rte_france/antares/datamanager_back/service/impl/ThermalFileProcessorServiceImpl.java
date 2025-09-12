@@ -48,9 +48,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             }
             for (Row row : sheet) {
                 if (row.getRowNum() > 4) {
-                    var technology = castString(getCellValue(row, 4));
+                    var technology = castString(getCellValue(row, 4));// à verifier si c'est bien la colonne 4 ou 3 !!
                     var clusterName = castString(getCellValue(row, 1));
                     var clusterPemmdb= castString(getCellValue(row, 0));
+                    if ((technology == null || technology.isEmpty()) || (clusterName == null || clusterName.isEmpty())) continue;
+
                     ThermalCommonParameterEntity param = ThermalCommonParameterEntity.builder()
                             .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName,clusterPemmdb))
                             .category(castDouble(getCellValue(row, 2)))
@@ -262,54 +264,59 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @return the existing or newly created ThermalClusterRef instance with the specified properties
      */
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
-        if (cachedClusterRefs == null) {
-            loadAllThermalClusterRefs();
-        }
-        String safeTech = (technology == null || technology.isBlank()) ? "UNKNOWN" : technology;
-        String safeName = (name == null) ? "" : name;
-        if (cachedClusterRefs == null) {
-            loadAllThermalClusterRefs();
-        }
-        Optional<ThermalClusterRef> existingOpt = cachedClusterRefs.stream()
-                .filter(ref -> ref.getName() != null && ref.getName().equalsIgnoreCase(safeName)
-                        && ref.getThermalTechnology() != null
-                        && ref.getThermalTechnology().getName() != null
-                        && ref.getThermalTechnology().getName().equalsIgnoreCase(safeTech))
-                .findFirst();
+        ensureClusterRefsLoaded();
+
+        Optional<ThermalClusterRef> existingOpt = findCachedClusterRef(technology, name);
 
         if (existingOpt.isPresent()) {
-            ThermalClusterRef existing = existingOpt.get();
-            // If PEMMDB value is provided and existing is null or equals to "NA", update it instead of creating a new row
-            if (namePemmdb != null && !namePemmdb.isBlank()) {
-                String current = existing.getNamePemmdb();
-                if (current == null || current.isBlank() || "NA".equalsIgnoreCase(current)) {
-                    existing.setNamePemmdb(namePemmdb);
-                    ThermalClusterRef saved = thermalClusterRefRepository.save(existing);
-                    // also update the cached list instance (already same reference), but ensure it's consistent
-                    return saved;
-                }
-            }
-            return existing;
+            return updatePemmdbIfNeeded(existingOpt.get(), namePemmdb);
         }
 
-        Optional<ThermalTechnology> savedThermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(safeTech);
-        ThermalTechnology thermalTechnology = savedThermalTechnology.orElseGet(() -> {
-            ThermalTechnology newTech = ThermalTechnology.builder()
-                    .name(safeTech)
-                    .build();
-            return thermalTechnologyRepository.save(newTech);
-        });
-        ThermalClusterRef.ThermalClusterRefBuilder refBuilder = ThermalClusterRef.builder()
-                .name(safeName)
-                .thermalTechnology(thermalTechnology);
-        if (namePemmdb != null && !namePemmdb.isBlank()) {
-            refBuilder.namePemmdb(namePemmdb);
-        } else {
-            refBuilder.namePemmdb("NA");
-        }
-        ThermalClusterRef ref = refBuilder.build();
-        ThermalClusterRef saved = thermalClusterRefRepository.save(ref);
+        ThermalTechnology thermalTechnology = findOrCreateTechnology(technology);
+        ThermalClusterRef newRef = buildClusterRef(name, thermalTechnology, namePemmdb);
+        ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
         cachedClusterRefs.add(saved);
         return saved;
     }
+
+    private void ensureClusterRefsLoaded() {
+        if (cachedClusterRefs == null) {
+            loadAllThermalClusterRefs();
+        }
+    }
+
+    private Optional<ThermalClusterRef> findCachedClusterRef(String technology, String name) {
+        return cachedClusterRefs.stream()
+                .filter(ref -> ref.getName() != null && ref.getName().equalsIgnoreCase(name)
+                        && ref.getThermalTechnology() != null
+                        && ref.getThermalTechnology().getName() != null
+                        && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))
+                .findFirst();
+    }
+
+    private ThermalClusterRef updatePemmdbIfNeeded(ThermalClusterRef ref, String namePemmdb) {
+        if (namePemmdb != null && !namePemmdb.isBlank()) {
+            String current = ref.getNamePemmdb();
+            if (current == null || current.isBlank() || "NA".equalsIgnoreCase(current)) {
+                ref.setNamePemmdb(namePemmdb);
+                return thermalClusterRefRepository.save(ref);
+            }
+        }
+        return ref;
+    }
+
+    private ThermalTechnology findOrCreateTechnology(String technology) {
+        return thermalTechnologyRepository.findThermalTechnologyByName(technology)
+                .orElseGet(() -> thermalTechnologyRepository.save(
+                        ThermalTechnology.builder().name(technology).build()));
+    }
+
+    private ThermalClusterRef buildClusterRef(String name, ThermalTechnology technology, String namePemmdb) {
+        return ThermalClusterRef.builder()
+                .name(name)
+                .thermalTechnology(technology)
+                .namePemmdb((namePemmdb != null && !namePemmdb.isBlank()) ? namePemmdb : "NA")
+                .build();
+    }
+
 }
