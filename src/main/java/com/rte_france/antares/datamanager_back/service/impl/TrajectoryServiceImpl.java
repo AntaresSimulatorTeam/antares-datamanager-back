@@ -551,12 +551,19 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         switch (trajectory.getType()) {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
-            default -> {
-                if (OTHER_AREA.equals(trajectory.getArea()) && TrajectoryType.LOAD.name().equals(trajectory.getType())) {
+            case "LOAD" -> {
+                if (OTHER_AREA.equals(trajectory.getArea())) {
                     warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
                             trajectory.getHorizon(), studyId, userNni, trajectory);
                 }
             }
+            case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> {
+                var area = trajectory.getArea();
+                if (area != null && !area.isBlank()) {
+                    checkIfAreaIsLinkedToStudy(studyId, area);
+                }
+            }
+            default -> {}
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
