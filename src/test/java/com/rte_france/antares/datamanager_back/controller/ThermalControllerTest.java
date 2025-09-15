@@ -62,4 +62,43 @@ class ThermalControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
     }
+
+    @Test
+    void uploadThermalParameterTrajectory_shouldReturnCreatedStatusWhenValidRequest() throws Exception {
+        when(trajectoryService.processThermalCommonParameterTrajectory(any(), any(), anyInt()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        mockMvc.perform(post("/v1/trajectory/thermal-common-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "test")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void uploadThermalParameterTrajectory_shouldReturnBadRequestWhenHorizonIsInvalid() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/thermal-common-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "test")
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void uploadThermalParameterTrajectory_shouldReturnBadRequestWhenStudyIdIsMissing() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/thermal-common-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "test")
+                        .param("horizon", "2023-2024")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
 }
