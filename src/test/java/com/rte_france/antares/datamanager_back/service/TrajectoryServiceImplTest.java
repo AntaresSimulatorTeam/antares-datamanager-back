@@ -74,7 +74,11 @@ class TrajectoryServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
     }
+
 
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTYpeIsAREA() throws IOException {
@@ -549,19 +553,19 @@ class TrajectoryServiceImplTest {
         Path areaDir = tempDir.resolve("area");
         Files.createDirectories(areaDir);
 
-        Path testFile = areaDir.resolve("areas_test1.txt");
+        Path testFile = areaDir.resolve("areas_test1.xlsx");
         Files.createFile(testFile);
 
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area"); // <-- Ajouté
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
 
         // Then
         assertEquals(1, result.size());
-        assertEquals("areas_test1.txt", result.getFirst().getFileName());
+        assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
     }
 
     @Test
@@ -991,4 +995,38 @@ class TrajectoryServiceImplTest {
         assertTrue(exception.getMessage().contains("No directory defined for TrajectoryType"));
     }
 
+    @Test
+    void processThermalCommonParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters() throws IOException {
+        String trajectoryToUse = "thermal_common_parameters";
+        String horizon = "2025";
+        Integer studyId = 1;
+        List<ThermalCommonParameterEntity> params = List.of(ThermalCommonParameterEntity.builder().id(1).build());
+
+        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(any(Path.class), eq(horizon), anyBoolean())).thenReturn(params);
+        when(thermalFileProcessorService.processThermalCommonParameterFile(any(Path.class), eq(horizon), eq(params), eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER)))
+                .thenReturn(new TrajectoryEntity());
+
+        TrajectoryEntity result = trajectoryService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId);
+
+        assertNotNull(result);
+        verify(thermalFileProcessorService, times(1)).processThermalCommonParameterFile(any(Path.class), eq(horizon), eq(params), eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER));
+    }
+
+
+    @Test
+    void processThermalCommonParameterTrajectory_shouldThrowBusinessExceptionWhenParamsAreEmpty() throws IOException {
+        String trajectoryToUse = "thermal_common_parameters";
+        String horizon = "2025";
+        Integer studyId = 1;
+        Path mockPath = mock(Path.class);
+
+        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(mockPath, horizon, true)).thenReturn(Collections.emptyList());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId)
+        );
+
+        assertTrue(exception.getMessage().contains("No valid thermal common parameter found"));
+        verify(thermalFileProcessorService, never()).processThermalCommonParameterFile(any(), any(), any(), any());
+    }
 }
