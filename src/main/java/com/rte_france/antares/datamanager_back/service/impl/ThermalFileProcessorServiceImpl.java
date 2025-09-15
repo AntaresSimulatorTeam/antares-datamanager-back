@@ -374,7 +374,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 return Double.parseDouble(cell.getStringCellValue());
             } catch (NumberFormatException e) {
                 throw BusinessException.builder()
-                        .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory must be numeric, found {1} instead")
+                        .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory must be numeric")
                         .errorMessageArguments(List.of(horizon, cell.getStringCellValue()))
                         .build();
             }
