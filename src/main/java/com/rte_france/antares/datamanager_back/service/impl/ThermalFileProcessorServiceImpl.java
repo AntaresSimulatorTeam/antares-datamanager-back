@@ -44,6 +44,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private List<ThermalClusterRef> cachedClusterRefs;
 
+    private final StudyRepository studyRepository;
+
+    private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
+
+
     @Override
     public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, boolean isCivilYear) throws IOException {
         List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
@@ -51,17 +56,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, horizon);
             if (sheet == null) {
-                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing sheet for horizon '" + horizon + "'").build();
+                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing suitable sheet for horizon '" + horizon + "'").build();
             }
             for (Row row : sheet) {
                 if (row.getRowNum() > 4) {
-                    var technology = castString(getCellValue(row, 4));// à verifier si c'est bien la colonne 4 ou 3 !!
+                    var technology = castString(getCellValue(row, 4));
                     var clusterName = castString(getCellValue(row, 1));
-                    var clusterPemmdb= castString(getCellValue(row, 0));
-                    if ((technology == null || technology.isEmpty()) || (clusterName == null || clusterName.isEmpty())) continue;
-
+                    var clusterPemmdb = castString(getCellValue(row, 0));
                     ThermalCommonParameterEntity param = ThermalCommonParameterEntity.builder()
-                            .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName,clusterPemmdb))
+                            .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
                             .category(castDouble(getCellValue(row, 2)))
                             .fuel(castString(getCellValue(row, 3)))
                             .efficiencyRange(castString(getCellValue(row, 5)))
@@ -115,13 +118,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             // No existing or not same file -> new trajectory with version 1
             trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
         }
-        return saveThermalTrajectory(trajectory, list, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+        return saveThermalCommonTrajectory(trajectory, list, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
-
-    private final StudyRepository studyRepository;
-
-    private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
-
 
     /**
      * Processes the given file.
@@ -132,7 +130,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      */
     public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
-        return saveThermalTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), thermalClusterCapacityDto, type);
+        return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), thermalClusterCapacityDto, type);
     }
 
     /**
@@ -143,7 +141,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @param type                      the type of the trajectory
      * @return the saved trajectory entity
      */
-    public TrajectoryEntity saveThermalTrajectory(TrajectoryEntity trajectory, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type) {
+    public TrajectoryEntity saveThermalCapacitiesTrajectory(TrajectoryEntity trajectory, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type) {
         trajectory.setType(type.name());
         trajectory.setVersion(thermalClusterCapacityDto.getVersion());
         trajectory.setChecksum(thermalClusterCapacityDto.getChecksum());
@@ -158,6 +156,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             trajectory.setWarningMessages(Set.of(thermalClusterCapacityDto.getWarningMessage()));
         }
 
+        return trajectoryRepository.save(trajectory);
+    }
+
+    @Override
+    public TrajectoryEntity saveThermalCommonTrajectory(TrajectoryEntity trajectory, List<ThermalCommonParameterEntity> thermalCommonParameterEntityList, TrajectoryType type) {
+        trajectory.setType(type.name());
+        thermalCommonParameterEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
+        trajectory.setThermalClusterParameters(thermalCommonParameterEntityList);
         return trajectoryRepository.save(trajectory);
     }
 
@@ -443,8 +449,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
 
-
-
     private static String castString(Object o) {
         return o == null ? null : String.valueOf(o);
     }
@@ -492,13 +496,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * Finds an existing ThermalClusterRef by technology and name, or creates a new one if not found.
      * If a `namePemmdb` value is provided, the method may update an existing entry if its `namePemmdb`
      * field is blank or set to "NA".
-     *
+     * <p>
      * The method first checks the cached `ThermalClusterRef` instances. If not present or not matching
      * the search parameters, it attempts to find an associated `ThermalTechnology`. If the technology
      * does not exist, it creates a new one and associates it with the created ThermalClusterRef.
      *
      * @param technology the name of the thermal technology; a default value of "UNKNOWN" is used if null or blank
-     * @param name the name of the thermal cluster; defaults to an empty string if null
+     * @param name       the name of the thermal cluster; defaults to an empty string if null
      * @param namePemmdb an optional value to be associated with the ThermalClusterRef; if null or blank, "NA" is used
      * @return the existing or newly created ThermalClusterRef instance with the specified properties
      */
@@ -558,4 +562,58 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .build();
     }
 
+    public static void checkPowerAndNumberWithSameToUse(List<ThermalClusterCapacityEntity> thermalClusterCapacities, String fileName) {
+        Map<String, List<ThermalClusterCapacityEntity>> grouped = thermalClusterCapacities.stream()
+                .collect(Collectors.groupingBy(e -> e.getArea() + "/" + e.getThermalClusterRef().getName()));
+
+        List<String> missingCategoryGroups = new ArrayList<>();
+        List<String> invalidToUseGroups = new ArrayList<>();
+
+        for (Map.Entry<String, List<ThermalClusterCapacityEntity>> entry : grouped.entrySet()) {
+            Optional<ThermalClusterCapacityEntity> power = entry.getValue().stream()
+                    .filter(e -> e.getCategory() == ThermalCategoryEnum.POWER)
+                    .findFirst();
+            Optional<ThermalClusterCapacityEntity> number = entry.getValue().stream()
+                    .filter(e -> e.getCategory() == ThermalCategoryEnum.NUMBER)
+                    .findFirst();
+
+            if (power.isEmpty() || number.isEmpty()) {
+                missingCategoryGroups.add(entry.getKey());
+            } else if (!Objects.equals(power.get().getToUse(), number.get().getToUse())) {
+                invalidToUseGroups.add(entry.getKey());
+            }
+        }
+
+        if (!missingCategoryGroups.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Area/Cluster {0} must have power AND number category in THERMAL Installed Power trajectory {1}")
+                    .errorMessageArguments(List.of(String.join(", ", missingCategoryGroups), fileName))
+                    .build();
+        }
+
+        if (!invalidToUseGroups.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Area/Cluster {0} must have same to_use value for power AND number category in THERMAL Installed Power trajectory {1}")
+                    .errorMessageArguments(List.of(String.join(", ", invalidToUseGroups), fileName))
+                    .build();
+        }
+    }
+
+
+    // Méthode utilitaire pour calculer le checksum SHA-256
+    private String calculateChecksum(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Erreur lors du calcul du checksum", e);
+        }
+    }
 }

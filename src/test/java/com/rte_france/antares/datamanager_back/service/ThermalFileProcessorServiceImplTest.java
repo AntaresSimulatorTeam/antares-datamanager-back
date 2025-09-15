@@ -176,7 +176,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
 
         // When
-        TrajectoryEntity result = thermalFileProcessorService.saveThermalTrajectory(trajectory, mockEntities, TrajectoryType.THERMAL_CAPACITY);
+        TrajectoryEntity result = thermalFileProcessorService.saveThermalCapacitiesTrajectory(trajectory, mockEntities, TrajectoryType.THERMAL_CAPACITY);
 
         // Then
         assertEquals(TrajectoryType.THERMAL_CAPACITY.name(), result.getType());
@@ -292,15 +292,7 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void saveThermalTrajectory_shouldThrowIllegalArgumentExceptionWhenEntityTypeIsInvalid() {
-        TrajectoryEntity trajectory = new TrajectoryEntity();
-        List<ThermalCommonParameterEntity> invalidEntities = List.of(new ThermalCommonParameterEntity());
-
-        assertThrows(IllegalArgumentException.class, () ->
-                thermalFileProcessorService.saveThermalTrajectory(trajectory, invalidEntities, TrajectoryType.THERMAL_CAPACITY));
-    }
-    @Test
-    void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs() throws IOException {
+    void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs(){
         Path mockPath = mock(Path.class);
         String horizon = "2025-2026";
         String area = "FR";
@@ -664,6 +656,6 @@ class ThermalFileProcessorServiceImplTest {
         TechnicalException ex = assertThrows(TechnicalException.class, () ->
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, true)
         );
-        assertTrue(ex.getMessage().contains("missing sheet"));
+        assertTrue(ex.getMessage().contains("missing suitable sheet"));
     }
 }
