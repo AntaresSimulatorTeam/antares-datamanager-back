@@ -179,7 +179,7 @@ public class Utils {
         } else {
             prefix = "";
         }
-        if (!prefix.isEmpty() && fileName.startsWith(prefix)) {
+        if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {
             fileName = fileName.substring(prefix.length());
         }
         int lastDotIndex = fileName.lastIndexOf('.');
