@@ -28,7 +28,6 @@ public class StudyController {
 
     private static final String DEFAULT_SORT_COLUMN = "creationDate";
     private static final String DEFAULT_SORT_DIRECTION = "DESC";
-    private static final Map<String, String> COLUMN_NAME_MAPPING = Map.of("project", "project.name");
     private final StudyService studyService;
 
     @GetMapping("/search")
@@ -42,7 +41,7 @@ public class StudyController {
 
         Sort sort = Sort.by(
                 Sort.Direction.fromString(sortDirection),
-                COLUMN_NAME_MAPPING.getOrDefault(sortColumn, sortColumn)
+                sortColumn
         );
         Pageable paging = PageRequest.of(page - 1, size, sort);
 
