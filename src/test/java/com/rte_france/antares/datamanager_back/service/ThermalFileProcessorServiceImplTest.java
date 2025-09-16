@@ -640,7 +640,7 @@ class ThermalFileProcessorServiceImplTest {
         when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT")).thenReturn(Optional.of(tech));
         when(thermalClusterRefRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, true);
+        var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET);
         assertEquals(1, list.size());
         ThermalCommonParameterEntity e = list.get(0);
         assertNotNull(e.getThermalClusterRef());
@@ -654,7 +654,7 @@ class ThermalFileProcessorServiceImplTest {
     void buildThermalCommonParameterValuesList_shouldThrowTechnicalExceptionWhenHorizonSheetMissing(@TempDir Path tempDir) throws Exception {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile("OTHER_SHEET"));
         TechnicalException ex = assertThrows(TechnicalException.class, () ->
-                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, true)
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET)
         );
         assertTrue(ex.getMessage().contains("missing suitable sheet"));
     }
