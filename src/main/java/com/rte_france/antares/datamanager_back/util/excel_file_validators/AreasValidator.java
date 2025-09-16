@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
-import lombok.NoArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 

@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.mapper;
 import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import lombok.*;
-import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;

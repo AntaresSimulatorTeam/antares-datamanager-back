@@ -231,9 +231,8 @@ class LinkFileProcessorServiceImplTest {
                 .thenReturn(Optional.of(trajectory));
 
 
-        var exception = assertThrows(BusinessException.class, () -> {
-            linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
-        });
+        var exception = assertThrows(BusinessException.class, () ->
+                linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1));
 
         System.out.println(exception.getMessage());
         assertTrue(exception.getMessage().contains("Links {1} must be arranged in alphabetical order."));
@@ -253,9 +252,8 @@ class LinkFileProcessorServiceImplTest {
     void validateLinkAreas_invalidLinkFormat() {
         List<String> areaNames = List.of("FR", "CH", "IT");
         String link = "FRCH";
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            linkFileProcessorService.validateLinkAreas(link, areaNames);
-        });
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+            linkFileProcessorService.validateLinkAreas(link, areaNames));
         assertEquals("Error: Link {0} in LINKS file is not valid", exception.getMessage());
         assertEquals(Collections.singletonList("FRCH"), exception.getErrorMessageArguments());
     }
@@ -264,9 +262,8 @@ class LinkFileProcessorServiceImplTest {
     void validateLinkAreas_areaNotInTrajectory() {
         List<String> areaNames = List.of("FR", "CH", "IT", "ZE", "OT");
         String link = "FR-ES";
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            linkFileProcessorService.validateLinkAreas(link, areaNames);
-        });
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+            linkFileProcessorService.validateLinkAreas(link, areaNames));
         assertEquals("Areas {0} in LINKS file is not present in AREA trajectory", exception.getMessage());
         assertEquals(List.of("ES"), exception.getErrorMessageArguments());
 
@@ -535,9 +532,8 @@ class LinkFileProcessorServiceImplTest {
         when(mockSheet.getRow(0)).thenReturn(mockRow);
         when(mockRow.iterator()).thenReturn(Collections.emptyIterator());
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031");
-        });
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031"));
 
         assertEquals("Horizon {0} not found in the header row.", exception.getMessage());
         assertEquals(Collections.singletonList("2030-2031"), exception.getErrorMessageArguments());
@@ -548,9 +544,8 @@ class LinkFileProcessorServiceImplTest {
         Sheet mockSheet = mock(Sheet.class);
         when(mockSheet.getRow(0)).thenReturn(null);
 
-        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
-            linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031");
-        });
+        TechnicalException exception = assertThrows(TechnicalException.class, () ->
+                linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031"));
 
         assertEquals("Header row is missing in the sheet.", exception.getMessage());
     }

@@ -480,8 +480,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         } else {
             // Année à cheval : juillet année horizon à juin année horizon+1
             if (year == horizonYear && month >= 7) return true;
-            if (year == horizonYear + 1 && month <= 6) return true;
-            return false;
+            return year == horizonYear + 1 && month <= 6;
         }
     }
 
