@@ -85,7 +85,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
                 studyId,
                 userNni,
                 trajectory,
-                getFileCheckerByDatabase(horizon, trajectory, studyId)
+                getFileCheckerByDatabase(horizon, trajectory)
         );
     }
 
@@ -164,7 +164,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
      * Returns a LoadChecker that checks for file existence in the database.
      * If the file does not exist, it creates a new LoadEntity and saves it.
      */
-    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory, Integer studyId) {
+    private LoadChecker getFileCheckerByDatabase(String horizon, TrajectoryEntity trajectory) {
         if (trajectory.getLoadEntities() != null && !trajectory.getLoadEntities().isEmpty()) {
             Set<String> areasInThisOthers = trajectory.getLoadEntities().stream()
                     .map(LoadEntity::getArea)

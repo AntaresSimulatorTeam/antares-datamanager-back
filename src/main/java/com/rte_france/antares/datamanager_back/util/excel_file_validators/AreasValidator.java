@@ -39,7 +39,7 @@ public class AreasValidator {
 
             checkColumnsRules(sheet, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames(), TrajectoryType.AREA.name());
             checkAreasValuesLength(sheet, horizon, AreaColumns.AREAS.getDisplayName());
-            checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), path, horizon, false, TrajectoryType.AREA.name());
+            checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), horizon, false, TrajectoryType.AREA.name());
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("Error reading file:  {0}")

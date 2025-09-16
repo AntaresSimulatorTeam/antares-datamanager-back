@@ -192,11 +192,6 @@ public class Utils {
         return fileName.substring(0, lastDotIndex);
     }
 
-    private static String isLinkTypePrefix(String trajectoryType) {
-        return Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
-    }
-
-
     public static boolean isSheetNameYearNumber(Sheet sheet) {
         String sheetName = sheet.getSheetName();
         try {

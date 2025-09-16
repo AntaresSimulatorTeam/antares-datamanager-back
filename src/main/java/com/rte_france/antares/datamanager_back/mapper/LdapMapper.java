@@ -2,14 +2,15 @@ package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
 
-@Component
-@RequiredArgsConstructor
+@Value
+@Builder(toBuilder = true)
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class LdapMapper {
 
     public static List<UserInfoDto> toUsersDto(List<Employee> employees) {

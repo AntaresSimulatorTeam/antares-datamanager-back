@@ -70,9 +70,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         );
         String createdBy = userService.getCurrentUserDetails().getNni();
 
-        List<String> areaNames = findListArea(studyId);
 
-        List<LinkEntity> listLink = buildLinkList(path, horizon, areaNames);
+        List<LinkEntity> listLink = buildLinkList(path, horizon);
 
         TrajectoryEntity trajectory;
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
@@ -86,6 +85,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         TrajectoryEntity secondTrajectory = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), studyId).stream().findFirst().orElse(null);
         String userNni = findUserNni();
 
+        List<String> areaNames = findListArea(studyId);
         checkForWarnings(path, horizon, studyId, warningMessageEntities, userNni, trajectory);
         checkConsistencyTrajectoryLinkAndArea(listLink, areaNames, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
 
@@ -186,7 +186,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(Path path, String horizon, List<String> listArea) throws IOException {
+    private List<LinkEntity> buildLinkList(Path path, String horizon) {
         List<LinkEntity> linkEntities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {

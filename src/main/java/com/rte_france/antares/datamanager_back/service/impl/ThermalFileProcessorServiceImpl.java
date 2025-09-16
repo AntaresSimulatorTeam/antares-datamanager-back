@@ -47,7 +47,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final StudyRepository studyRepository;
 
     private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
+    private static final String UNKNOWN_USER = "UNKNOWN__USER";
 
+    private record ThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology,
+                              String rowArea) {}
 
     @Override
     public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon) throws IOException {
@@ -102,7 +105,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     @Override
     public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws IOException {
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         // Find existing trajectory for same file name/horizon/type
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()),
@@ -129,7 +132,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @param path the path to the file to process
      */
     public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws IOException {
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), thermalClusterCapacityDto, type);
     }
 
@@ -197,14 +200,16 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 if (row.getRowNum() == 0) continue;
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
 
+                var thermalRow = new ThermalRow(row, header, horizon, isCivilYear, technology, rowArea);
                 if (!area.equals(OTHERS_AREA)) {
                     if (rowArea.equals(area.toUpperCase())) {
                         isSpecificAreaFound = true;
-                        processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder);
+
+                        processThermalRow(thermalRow, capacities, checksumBuilder);
                     }
                 } else {
                     otherAreas.add(rowArea);
-                    processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder);
+                    processThermalRow(thermalRow, capacities, checksumBuilder);
                 }
             }
         } catch (IOException e) {
@@ -280,7 +285,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                                     .httpStatus(HttpStatus.NOT_FOUND)
                                     .build()))
                     .creationDate(LocalDateTime.now())
-                    .createdBy(userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER")
+                    .createdBy(userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER)
                     .isAck(false)
                     .build();
         } else {
@@ -297,27 +302,26 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .toList();
     }
 
-    private void processThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology,
-                                   String rowArea, List<ThermalClusterCapacityEntity> result, StringBuilder checksum) {
-        String techName = row.getCell(2).getStringCellValue();
-        String clusterName = row.getCell(3).getStringCellValue();
-        String categoryStr = row.getCell(4).getStringCellValue().toLowerCase();
+    private void processThermalRow(ThermalRow thermalRow, List<ThermalClusterCapacityEntity> result, StringBuilder checksum) {
+        String techName = thermalRow.row().getCell(2).getStringCellValue();
+        String clusterName = thermalRow.row().getCell(3).getStringCellValue();
+        String categoryStr = thermalRow.row().getCell(4).getStringCellValue().toLowerCase();
 
-        if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) return;
+        if (thermalRow.technology() != null && !thermalRow.technology().isEmpty() && !techName.equalsIgnoreCase(thermalRow.technology())) return;
 
-        for (int i = 5; i < header.getLastCellNum(); i++) {
-            String monthYear = header.getCell(i).getStringCellValue();
-            if (!isCellInHorizon(monthYear, horizon, isCivilYear)) continue;
+        for (int i = 5; i < thermalRow.header().getLastCellNum(); i++) {
+            String monthYear = thermalRow.header().getCell(i).getStringCellValue();
+            if (!isCellInHorizon(monthYear, thermalRow.horizon(), thermalRow.isCivilYear())) continue;
 
             ThermalCategoryEnum category = categoryStr.equals(ThermalCategoryEnum.POWER.name().toLowerCase())
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
-            double value = capacityValue(row, i, horizon);
-            boolean toUse = row.getCell(0).getNumericCellValue() == 0;
+            double value = capacityValue(thermalRow.row(), i, thermalRow.horizon());
+            boolean toUse = thermalRow.row().getCell(0).getNumericCellValue() == 0;
 
             // Ajout des valeurs au checksum
-            checksum.append(rowArea).append("|")
+            checksum.append(thermalRow.rowArea()).append("|")
                     .append(techName).append("|")
                     .append(clusterName).append("|")
                     .append(category.name()).append("|")
@@ -327,7 +331,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
                     .toUse(toUse)
-                    .area(rowArea)
+                    .area(thermalRow.rowArea())
                     .thermalClusterRef(findOrCreateThermalClusterRef(techName, clusterName))
                     .category(category)
                     .monthYear(monthYear)
@@ -613,7 +617,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             }
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Erreur lors du calcul du checksum", e);
+            throw TechnicalException.builder().message("Erreur lors du calcul du checksum: " + e.getMessage()).build();
         }
     }
 }

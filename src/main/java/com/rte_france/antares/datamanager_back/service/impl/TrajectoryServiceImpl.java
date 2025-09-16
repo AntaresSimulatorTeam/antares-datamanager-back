@@ -284,7 +284,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
-        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith("thermal_")) {
+        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(CAPACITY_PREFIX)) {
             throw BusinessException.builder()
                     .message("The trajectory file name must start with 'thermal_'")
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -440,9 +440,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
-        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
-                .peek(trajectory ->
-                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()))).toList();
+        List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId);
+        trajectoryEntities.forEach(trajectory ->
+                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages())));
         return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
 
@@ -717,10 +717,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public Map<String, Integer> countWarningMessage(Integer studyId) {
-        return trajectoryRepository.findByTypeAndStudyId(null, studyId).stream()
-                .peek(trajectory ->
-                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()))).toList()
-                .stream()
+        var trajectories = trajectoryRepository.findByTypeAndStudyId(null, studyId);
+        trajectories.forEach(trajectory ->
+                trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages())));
+        return trajectories.stream()
                 .collect(Collectors.groupingBy(
                         TrajectoryEntity::getType,
                         Collectors.summingInt(trajectory -> trajectory.getWarningMessages() != null ? trajectory.getWarningMessages().size() : 0)

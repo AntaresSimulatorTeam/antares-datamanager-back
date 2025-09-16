@@ -268,7 +268,7 @@ class AreaFileValidatorTest {
             Sheet sheet = workbook.getSheet("2035-2036");
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> ExcelCommonValidator.checkForDuplicateValues(sheet, "areas", tempFile,"2035-2036", false, TrajectoryType.AREA.name()));
+                    () -> ExcelCommonValidator.checkForDuplicateValues(sheet, "areas","2035-2036", false, TrajectoryType.AREA.name()));
 
             assertAll(
                     () -> assertEquals("Duplicate value for {0}(s): {1} for {2} trajectory",

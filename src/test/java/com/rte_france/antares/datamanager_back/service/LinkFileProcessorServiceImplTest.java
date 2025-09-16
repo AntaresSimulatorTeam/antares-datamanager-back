@@ -237,7 +237,7 @@ class LinkFileProcessorServiceImplTest {
 
         System.out.println(exception.getMessage());
         assertTrue(exception.getMessage().contains("Links {1} must be arranged in alphabetical order."));
-        assertEquals(exception.getErrorMessageArguments().get(1), "FR-CH, GE-FR");
+        assertEquals("FR-CH, GE-FR", exception.getErrorMessageArguments().get(1));
     }
 
     @Test
