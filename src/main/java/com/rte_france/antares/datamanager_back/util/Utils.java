@@ -47,6 +47,7 @@ public class Utils {
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String THERMAL_PREFIX = "thermal_";
+    private static final String THERMAL_COMMON_PREFIX = "common_param";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -175,7 +176,9 @@ public class Utils {
         } else if (Objects.equals(trajectoryType, TrajectoryType.LINK.toString())) {
             prefix = LINKS_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_CAPACITY.toString())) {
-            prefix = THERMAL_PREFIX;
+            prefix = THERMAL_PREFIX;}
+        else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.toString())) {
+            prefix = THERMAL_COMMON_PREFIX;
         } else {
             prefix = "";
         }
@@ -205,26 +208,26 @@ public class Utils {
     }
 
     /**
-     * Searches for and returns the first sheet in the given workbook whose name
-     * is a valid year (numeric).
+     * Finds a sheet in the provided workbook that matches the given horizon name.
+     * The search attempts an exact match with the horizon name if it is not null or blank.
      *
-     * @param workbook the workbook to search through
-     * @param horizon a string parameter not currently used in the method logic
-     * @return the first sheet with a numerically valid year name, or null if no such sheet is found
+     * @param workbook the workbook to search in; must not be null
+     * @param horizon the name of the horizon to locate; can be null or blank
+     * @return the sheet matching the horizon name, or null if no match is found
      */
     public static Sheet findHorizonSheet(Workbook workbook, String horizon) {
-        for (var i = 0; i < workbook.getNumberOfSheets(); i++) {
-            Sheet currentSheet = workbook.getSheetAt(i);
-            if (isSheetNameYearNumber(currentSheet)) {
-                return currentSheet;
-            }
+        if (workbook == null) return null;
+
+        if (horizon != null && !horizon.isBlank()) {
+            return workbook.getSheet(horizon);
+
         }
         return null;
     }
 
 
-    public Object getCellValue(Row row, int cellIndex) {
-        Cell cell = row.getCell(cellIndex);
+    public static Object getCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         if (cell == null) {
             return null;
         }
