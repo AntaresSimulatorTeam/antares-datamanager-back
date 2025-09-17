@@ -52,53 +52,106 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     @Override
     public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon) throws IOException {
         List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
+
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, horizon);
             if (sheet == null) {
-                throw TechnicalException.builder().message("could not build thermal_common_parameter list : missing suitable sheet for horizon '" + horizon + "'").build();
+                throw TechnicalException.builder()
+                        .message("Missing suitable sheet for horizon '" + horizon + "'")
+                        .build();
             }
+            Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
+            Set<String> commonParamClusters = new HashSet<>();
+            List<String> clustersWithoutParameters = new ArrayList<>();
+
+            Row header = sheet.getRow(0);
             for (Row row : sheet) {
-                if (row.getRowNum() > 4) {
-                    var technology = castString(getCellValue(row, 4));
-                    var clusterName = castString(getCellValue(row, 1));
-                    var clusterPemmdb = castString(getCellValue(row, 0));
-                    ThermalCommonParameterEntity param = ThermalCommonParameterEntity.builder()
-                            .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
-                            .category(castDouble(getCellValue(row, 2)))
-                            .fuel(castString(getCellValue(row, 3)))
-                            .efficiencyRange(castString(getCellValue(row, 5)))
-                            .efficiencyDefault(castDouble(getCellValue(row, 6)))
-                            .co2(castDouble(getCellValue(row, 7)))
-                            .omCost(castDouble(getCellValue(row, 8)))
-                            .minUpTime(castDouble(getCellValue(row, 9)))
-                            .minDownTime(castDouble(getCellValue(row, 10)))
-                            .startUpFuel(castDouble(getCellValue(row, 11)))
-                            .startUpFixCost(castDouble(getCellValue(row, 12)))
-                            .startUpFuelColdStart(castDouble(getCellValue(row, 13)))
-                            .startUpFixCostColdStart(castDouble(getCellValue(row, 14)))
-                            .startUpFuelHotStart(castDouble(getCellValue(row, 15)))
-                            .startUpFixCostHotStart(castDouble(getCellValue(row, 16)))
-                            .transitionHotWarm(castDouble(getCellValue(row, 17)))
-                            .transitionHotCold(castDouble(getCellValue(row, 18)))
-                            .shutdownTime(castDouble(getCellValue(row, 19)))
-                            .foRateDefault(castDouble(getCellValue(row, 20)))
-                            .foDurationDefault(castDouble(getCellValue(row, 21)))
-                            .poDurationDefault(castDouble(getCellValue(row, 22)))
-                            .poWinterDefault(castDouble(getCellValue(row, 23)))
-                            .minStableGenerationDefault(castDouble(getCellValue(row, 24)))
-                            .rampUp(castDouble(getCellValue(row, 25)))
-                            .rampDown(castDouble(getCellValue(row, 26)))
-                            .fixedGenerationReduction(castDouble(getCellValue(row, 27)))
-                            .build();
-                    thermalParameters.add(param);
-                }
+                if (row.getRowNum() <= 4) continue;
+
+                String technology = castString(getCellValue(row, 4));
+                String clusterName = castString(getCellValue(row, 1));
+                String clusterPemmdb = castString(getCellValue(row, 0));
+                commonParamClusters.add(clusterName);
+
+                ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, technology, clusterName, clusterPemmdb, header);
+                thermalParameters.add(param);
             }
+
+            if (thermalParameters.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("No data found from line 6 in Common Param file")
+                        .build();
+            }
+
+            installedPowerClusters.stream()
+                    .filter(cluster -> !commonParamClusters.contains(cluster))
+                    .forEach(clustersWithoutParameters::add);
+
+            if (!clustersWithoutParameters.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Missing clusters: " + String.join(", ", clustersWithoutParameters))
+                        .build();
+            }
+
             return thermalParameters;
         } catch (IOException e) {
-            throw TechnicalException.builder().message("could not build thermal_common_parameter list : " + e.getMessage()).build();
+            throw TechnicalException.builder()
+                    .message("Error processing file: " + e.getMessage())
+                    .build();
         }
     }
+
+    private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String technology, String clusterName, String clusterPemmdb, Row header) {
+        return ThermalCommonParameterEntity.builder()
+                .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
+                .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue()))
+                .fuel(castString(getCellValue(row, 3)))
+                .efficiencyRange(castString(getCellValue(row, 5)))
+                .efficiencyDefault(castDouble(getCellValue(row, 6), header.getCell(6).getStringCellValue()))
+                .co2(castDouble(getCellValue(row, 7), header.getCell(7).getStringCellValue()))
+                .omCost(castDouble(getCellValue(row, 8), header.getCell(8).getStringCellValue()))
+                .minUpTime(castDouble(getCellValue(row, 9), header.getCell(9).getStringCellValue()))
+                .minDownTime(castDouble(getCellValue(row, 10), header.getCell(10).getStringCellValue()))
+                .startUpFuel(castDouble(getCellValue(row, 11), header.getCell(11).getStringCellValue()))
+                .startUpFixCost(castDouble(getCellValue(row, 12), header.getCell(12).getStringCellValue()))
+                .startUpFuelColdStart(castDouble(getCellValue(row, 13), header.getCell(13).getStringCellValue()))
+                .startUpFixCostColdStart(castDouble(getCellValue(row, 14), header.getCell(14).getStringCellValue()))
+                .startUpFuelHotStart(castDouble(getCellValue(row, 15), header.getCell(15).getStringCellValue()))
+                .startUpFixCostHotStart(castDouble(getCellValue(row, 16), header.getCell(16).getStringCellValue()))
+                .transitionHotWarm(castDouble(getCellValue(row, 17), header.getCell(17).getStringCellValue()))
+                .transitionHotCold(castDouble(getCellValue(row, 18), header.getCell(18).getStringCellValue()))
+                .shutdownTime(castDouble(getCellValue(row, 19), header.getCell(19).getStringCellValue()))
+                .foRateDefault(castDouble(getCellValue(row, 20), header.getCell(20).getStringCellValue()))
+                .foDurationDefault(castDouble(getCellValue(row, 21), header.getCell(21).getStringCellValue()))
+                .poDurationDefault(castDouble(getCellValue(row, 22), header.getCell(22).getStringCellValue()))
+                .poWinterDefault(castDouble(getCellValue(row, 23), header.getCell(23).getStringCellValue()))
+                .minStableGenerationDefault(castDouble(getCellValue(row, 24), header.getCell(24).getStringCellValue()))
+                .rampUp(castDouble(getCellValue(row, 25), header.getCell(25).getStringCellValue()))
+                .rampDown(castDouble(getCellValue(row, 26), header.getCell(26).getStringCellValue()))
+                .fixedGenerationReduction(castDouble(getCellValue(row, 27), header.getCell(27).getStringCellValue()))
+                .build();
+    }
+
+
+    public Set<String> getInstalledPowerClustersByStudyId(Integer studyId, String horizon) {
+        List<TrajectoryEntity> installedTrajectories = trajectoryRepository
+                .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name());
+
+        if (installedTrajectories == null || installedTrajectories.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No Installed Power trajectory found for study " + studyId + " and horizon " + horizon)
+                    .build();
+        }
+
+        return installedTrajectories.stream()
+                .map(TrajectoryEntity::getThermalClusterCapacities)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .map(e -> e.getThermalClusterRef().getName())
+                .collect(Collectors.toSet());
+    }
+
 
     @Override
     public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws IOException {
