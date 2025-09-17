@@ -23,6 +23,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -304,6 +306,54 @@ class ThermalFileProcessorServiceImplTest {
             assertThrows(TechnicalException.class, () ->
                     thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology,1));
         }
+
+    }
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenNoSuchAlgorithmExceptionOccurs(@TempDir Path tempDir) throws Exception {
+        var file = mockExcelFile(tempDir, "test.xlsx", () -> {
+            try (var out = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet("Sheet1");
+                var header = sheet.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("Type");
+                header.createCell(3).setCellValue("Cluster");
+                header.createCell(4).setCellValue("Category");
+                for (var i = 1; i <= 12; i++) {
+                    header.createCell(4 + i).setCellValue(String.format("%04d_%02d", 2025, i));
+                }
+                var row = sheet.createRow(1);
+                row.createCell(0).setCellValue(0.0);
+                row.createCell(1).setCellValue("FR");
+                row.createCell(2).setCellValue("CCGT");
+                row.createCell(3).setCellValue("Cluster1");
+                row.createCell(4).setCellValue("power");
+                for (var i = 1; i <= 12; i++) {
+                    row.createCell(4 + i).setCellValue(100.0);
+                }
+                wb.write(out);
+                return out.toByteArray();
+            }
+        });
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
+        var tech = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT")).thenReturn(Optional.of(tech));
+        when(thermalClusterRefRepository.save(any())).thenAnswer(inv -> {
+            ThermalClusterRef ref = inv.getArgument(0);
+            ref.setId(1);
+            return ref;
+        });
+
+        try (var mdMock = mockStatic(MessageDigest.class)) {
+            mdMock.when(() -> MessageDigest.getInstance("SHA-256"))
+                    .thenThrow(new NoSuchAlgorithmException("SHA-256 not available"));
+
+            var ex = assertThrows(TechnicalException.class, () ->
+                    thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025", true, "FR", "CCGT", 1)
+            );
+            assertTrue(ex.getMessage().contains("Erreur lors du calcul du checksum"));
+        }
     }
 
     @Test
@@ -393,6 +443,106 @@ class ThermalFileProcessorServiceImplTest {
                 thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025", true, "FR", "CCGT", 1)
         );
     }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldProcessAllAreasWhenAreaIsOTHERS(@TempDir Path tempDir) throws Exception {
+        var file = mockExcelFile(tempDir, "test.xlsx", () -> {
+            try (var out = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet("Sheet1");
+                var header = sheet.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("Type");
+                header.createCell(3).setCellValue("Cluster");
+                header.createCell(4).setCellValue("Category");
+                // Add a non-horizon column (should be ignored)
+                header.createCell(5).setCellValue("2024_12");
+                // Add horizon columns
+                for (int i = 1; i <= 12; i++) {
+                    header.createCell(5 + i).setCellValue(String.format("2025_%02d", i));
+                }
+                // FR/Cluster1 - POWER (toUse = 0.0)
+                var row1 = sheet.createRow(1);
+                row1.createCell(0).setCellValue(0.0); // ToUse
+                row1.createCell(1).setCellValue("FR");
+                row1.createCell(2).setCellValue("CCGT");
+                row1.createCell(3).setCellValue("Cluster1");
+                row1.createCell(4).setCellValue("power");
+                row1.createCell(5).setCellValue(999.0); // 2024_12, should be ignored
+                for (int i = 1; i <= 12; i++) {
+                    row1.createCell(5 + i).setCellValue(100 + i);
+                }
+                // FR/Cluster1 - NUMBER (toUse = 0.0, must match POWER)
+                var row2 = sheet.createRow(2);
+                row2.createCell(0).setCellValue(0.0); // ToUse (was 1.0, now 0.0)
+                row2.createCell(1).setCellValue("FR");
+                row2.createCell(2).setCellValue("CCGT");
+                row2.createCell(3).setCellValue("Cluster1");
+                row2.createCell(4).setCellValue("number");
+                row2.createCell(5).setCellValue(888.0); // 2024_12, should be ignored
+                for (int i = 1; i <= 12; i++) {
+                    row2.createCell(5 + i).setCellValue(10 + i);
+                }
+                // DE/Cluster2 - POWER
+                var row3 = sheet.createRow(3);
+                row3.createCell(0).setCellValue(0.0);
+                row3.createCell(1).setCellValue("DE");
+                row3.createCell(2).setCellValue("CCGT");
+                row3.createCell(3).setCellValue("Cluster2");
+                row3.createCell(4).setCellValue("power");
+                for (int i = 1; i <= 12; i++) {
+                    row3.createCell(5 + i).setCellValue(200 + i);
+                }
+                // DE/Cluster2 - NUMBER
+                var row4 = sheet.createRow(4);
+                row4.createCell(0).setCellValue(0.0);
+                row4.createCell(1).setCellValue("DE");
+                row4.createCell(2).setCellValue("CCGT");
+                row4.createCell(3).setCellValue("Cluster2");
+                row4.createCell(4).setCellValue("number");
+                for (int i = 1; i <= 12; i++) {
+                    row4.createCell(5 + i).setCellValue(20 + i);
+                }
+                // Row with different technology (should be ignored)
+                var row5 = sheet.createRow(5);
+                row5.createCell(0).setCellValue(0.0);
+                row5.createCell(1).setCellValue("FR");
+                row5.createCell(2).setCellValue("NUCLEAR");
+                row5.createCell(3).setCellValue("ClusterX");
+                row5.createCell(4).setCellValue("power");
+                for (int i = 1; i <= 12; i++) {
+                    row5.createCell(5 + i).setCellValue(300 + i);
+                }
+                wb.write(out);
+                return out.toByteArray();
+            }
+        });
+
+        when(areaRepository.findAllByStudyId(any()))
+                .thenReturn(List.of(
+                        AreaEntity.builder().id(1).name("FR").build(),
+                        AreaEntity.builder().id(2).name("DE").build()
+                ));
+        when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
+        var tech = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT")).thenReturn(Optional.of(tech));
+        when(thermalClusterRefRepository.save(any())).thenAnswer(inv -> {
+            ThermalClusterRef ref = inv.getArgument(0);
+            ref.setId(1);
+            return ref;
+        });
+
+        var OTHERS_AREA = "OTHERS";
+        var dto = thermalFileProcessorService.buildThermalClusterCapacityValuesList(
+                file, "2025", true, OTHERS_AREA, "CCGT", 1
+        );
+
+        assertTrue(dto.getThermalClusterCapacities().stream().anyMatch(e -> "FR".equals(e.getArea())));
+        assertTrue(dto.getThermalClusterCapacities().stream().anyMatch(e -> "DE".equals(e.getArea())));
+        assertTrue(dto.getThermalClusterCapacities().stream().noneMatch(e -> "NUCLEAR".equals(e.getThermalClusterRef().getThermalTechnology().getName())));
+        assertTrue(dto.getThermalClusterCapacities().stream().noneMatch(e -> "2024_12".equals(e.getMonthYear())));
+    }
+
 
     @Test
     void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {

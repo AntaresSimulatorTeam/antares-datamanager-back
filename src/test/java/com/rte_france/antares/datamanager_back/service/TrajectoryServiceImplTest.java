@@ -13,10 +13,7 @@ import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
@@ -157,6 +154,22 @@ class TrajectoryServiceImplTest {
     @Test
     void throwsExceptionWhenTrajectoryToUseIsNull() {
         String trajectoryToUse = null;
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        boolean isCivilYear = true;
+        String area = "BE";
+        String technology = "CCGT";
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology));
+
+        assertEquals("The trajectory file name must start with 'thermal_'", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void processThermalCapacityTrajectory_shouldThrowExceptionWhenFileNameDoesNotStartWithThermal() {
+        String trajectoryToUse = "invalid_file";
         String horizon = "2023-2024";
         Integer studyId = 1;
         boolean isCivilYear = true;
