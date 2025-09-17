@@ -50,7 +50,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
 
     @Override
-    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon) throws IOException {
+    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, boolean isCivilYear) throws IOException {
         List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
 
         try (InputStream inputStream = Files.newInputStream(path);
@@ -506,15 +506,18 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return o == null ? null : String.valueOf(o);
     }
 
-    private static Double castDouble(Object o) {
+    private static Double castDouble(Object o, String columnName) {
         if (o == null) return null;
         if (o instanceof Number n) return n.doubleValue();
         try {
             return Double.valueOf(String.valueOf(o));
         } catch (NumberFormatException e) {
-            return null;
+            throw BusinessException.builder()
+                    .message("The value '" + o + "' in column '" + columnName + "' is not numeric")
+                    .build();
         }
     }
+
 
     public boolean isCellInHorizon(String monthYear, String horizon, boolean isCivilYear) {
         // monthYear format: yyyy-MM
