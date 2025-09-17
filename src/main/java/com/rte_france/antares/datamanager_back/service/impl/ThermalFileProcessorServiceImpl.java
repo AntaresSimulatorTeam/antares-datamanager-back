@@ -50,7 +50,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
 
     @Override
-    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, boolean isCivilYear) throws IOException {
+    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) throws IOException {
         List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
 
         try (InputStream inputStream = Files.newInputStream(path);
