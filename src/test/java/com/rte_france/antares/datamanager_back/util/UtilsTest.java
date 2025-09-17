@@ -21,6 +21,37 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UtilsTest {
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_areaPrefixRemoved() {
+        String result = Utils.getFileNameWithoutExtensionAndWithoutPrefix("areas_BP23.xlsx", TrajectoryType.AREA.name());
+        assertEquals("BP23", result);
+    }
+
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_linkPrefixRemoved() {
+        String result = Utils.getFileNameWithoutExtensionAndWithoutPrefix("links_Scenario1.xlsx", TrajectoryType.LINK.name());
+        assertEquals("Scenario1", result);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalCapacityPrefixRemoved() {
+        String result = Utils.getFileNameWithoutExtensionAndWithoutPrefix("thermal_nuke.xlsx", TrajectoryType.THERMAL_CAPACITY.name());
+        assertEquals("nuke", result);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalCommonParamPrefixRemoved() {
+        String result = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_global.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
+        assertEquals("global", result);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_unrecognizedType_noPrefixRemoval() {
+        String result = Utils.getFileNameWithoutExtensionAndWithoutPrefix("load_BP50.xlsx", TrajectoryType.LOAD.name());
+        assertEquals("load_BP50", result);
+    }
+
     @TempDir
     Path tempDir;
 
