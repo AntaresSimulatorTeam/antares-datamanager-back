@@ -25,6 +25,8 @@ public class ThermalCommonParameterEntity extends ThermalBaseEntity {
     @Column(name = "fuel")
     private String fuel;
 
+    @Column(name = "type")
+    private String type;
 
     @Column(name = "efficiency_range")
     private String efficiencyRange;
