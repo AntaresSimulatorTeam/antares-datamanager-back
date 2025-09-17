@@ -20,6 +20,6 @@ public interface ThermalFileProcessorService {
 
      ThermalClusterCapacityDto buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) throws IOException;
 
-     List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId, boolean isCivilYear) throws IOException;
+     List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) throws IOException;
 
     }

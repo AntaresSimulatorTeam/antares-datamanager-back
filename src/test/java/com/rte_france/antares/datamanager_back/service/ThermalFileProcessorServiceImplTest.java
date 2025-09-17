@@ -645,7 +645,7 @@ class ThermalFileProcessorServiceImplTest {
         when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT")).thenReturn(Optional.of(tech));
         when(thermalClusterRefRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, studyId, true);
+        var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, studyId);
         assertEquals(1, list.size());
         ThermalCommonParameterEntity e = list.get(0);
         assertNotNull(e.getThermalClusterRef());
@@ -660,7 +660,7 @@ class ThermalFileProcessorServiceImplTest {
     void buildThermalCommonParameterValuesList_shouldThrowTechnicalExceptionWhenHorizonSheetMissing(@TempDir Path tempDir) throws Exception {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile("OTHER_SHEET"));
         TechnicalException ex = assertThrows(TechnicalException.class, () ->
-                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET,1, true)
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET,1)
         );
         assertTrue(ex.getMessage().contains("Missing suitable sheet for horizon"));
     }
@@ -677,7 +677,7 @@ class ThermalFileProcessorServiceImplTest {
         ));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1, true)
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
         assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param file"));
@@ -709,7 +709,7 @@ class ThermalFileProcessorServiceImplTest {
                 )).build()));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1, true)
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
         assertTrue(exception.getMessage().contains("Missing clusters: ClusterB"));
@@ -740,7 +740,7 @@ class ThermalFileProcessorServiceImplTest {
                                 .build()
                 )).build()));
 
-        var result = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1, true);
+        var result = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1);
 
         assertEquals(1, result.size());
     }

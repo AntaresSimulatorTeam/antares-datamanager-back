@@ -1002,7 +1002,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         List<ThermalCommonParameterEntity> params = List.of(ThermalCommonParameterEntity.builder().id(1).build());
 
-        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(any(Path.class), eq(horizon), any(), anyBoolean())).thenReturn(params);
+        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(any(Path.class), eq(horizon), any())).thenReturn(params);
         when(thermalFileProcessorService.processThermalCommonParameterFile(any(Path.class), eq(horizon), eq(params), eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER)))
                 .thenReturn(new TrajectoryEntity());
 
@@ -1020,7 +1020,7 @@ class TrajectoryServiceImplTest {
         Integer studyId = 1;
         Path mockPath = mock(Path.class);
 
-        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(mockPath, horizon, 1,true)).thenReturn(Collections.emptyList());
+        when(thermalFileProcessorService.buildThermalCommonParameterValuesList(mockPath, horizon, 1)).thenReturn(Collections.emptyList());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId)
