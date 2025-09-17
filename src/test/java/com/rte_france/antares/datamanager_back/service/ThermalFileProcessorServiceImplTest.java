@@ -305,6 +305,95 @@ class ThermalFileProcessorServiceImplTest {
                     thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology,1));
         }
     }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowBusinessExceptionWhenCellIsNull(@TempDir Path tempDir) throws Exception {
+        var file = mockExcelFile(tempDir, "test.xlsx", () -> {
+            try (var out = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet("Sheet1");
+                var header = sheet.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("Type");
+                header.createCell(3).setCellValue("Cluster");
+                header.createCell(4).setCellValue("Category");
+                header.createCell(5).setCellValue("2025_01");
+
+                var row = sheet.createRow(1);
+                row.createCell(0).setCellValue(0.0);
+                row.createCell(1).setCellValue("FR");
+                row.createCell(2).setCellValue("CCGT");
+                row.createCell(3).setCellValue("Cluster1");
+                row.createCell(4).setCellValue("power");
+                // cell 5 is missing for the test
+                wb.write(out);
+                return out.toByteArray();
+            }
+        });
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025", true, "FR", "CCGT", 1)
+        );
+    }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowBusinessExceptionWhenCellIsNonNumericString(@TempDir Path tempDir) throws Exception {
+        var file = mockExcelFile(tempDir, "test.xlsx", () -> {
+            try (var out = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet("Sheet1");
+                var header = sheet.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("Type");
+                header.createCell(3).setCellValue("Cluster");
+                header.createCell(4).setCellValue("Category");
+                header.createCell(5).setCellValue("2025_01");
+                var row = sheet.createRow(1);
+                row.createCell(0).setCellValue(0.0);
+                row.createCell(1).setCellValue("FR");
+                row.createCell(2).setCellValue("CCGT");
+                row.createCell(3).setCellValue("Cluster1");
+                row.createCell(4).setCellValue("power");
+                row.createCell(5).setCellValue("not_a_number");
+                wb.write(out);
+                return out.toByteArray();
+            }
+        });
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025", true, "FR", "CCGT", 1)
+        );
+    }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowBusinessExceptionWhenCellTypeIsUnsupported(@TempDir Path tempDir) throws Exception {
+        var file = mockExcelFile(tempDir, "test.xlsx", () -> {
+            try (var out = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet("Sheet1");
+                var header = sheet.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("Type");
+                header.createCell(3).setCellValue("Cluster");
+                header.createCell(4).setCellValue("Category");
+                header.createCell(5).setCellValue("2025_01");
+                var row = sheet.createRow(1);
+                row.createCell(0).setCellValue(0.0);
+                row.createCell(1).setCellValue("FR");
+                row.createCell(2).setCellValue("CCGT");
+                row.createCell(3).setCellValue("Cluster1");
+                row.createCell(4).setCellValue("power");
+                row.createCell(5).setCellValue(true); // boolean type
+                wb.write(out);
+                return out.toByteArray();
+            }
+        });
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025", true, "FR", "CCGT", 1)
+        );
+    }
+
     @Test
     void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {
         String monthYear = "2025_07";
