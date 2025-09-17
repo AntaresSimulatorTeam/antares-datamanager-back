@@ -69,12 +69,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             for (Row row : sheet) {
                 if (row.getRowNum() <= 4) continue;
 
-                String technology = castString(getCellValue(row, 4));
                 String clusterName = castString(getCellValue(row, 1));
                 String clusterPemmdb = castString(getCellValue(row, 0));
                 commonParamClusters.add(clusterName);
 
-                ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, technology, clusterName, clusterPemmdb, header);
+                ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, clusterName, clusterPemmdb, header);
                 thermalParameters.add(param);
             }
 
@@ -102,11 +101,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
     }
 
-    private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String technology, String clusterName, String clusterPemmdb, Row header) {
+    private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
+                .thermalClusterRef(findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue()))
                 .fuel(castString(getCellValue(row, 3)))
+                .type(castString(getCellValue(row, 4)))
                 .efficiencyRange(castString(getCellValue(row, 5)))
                 .efficiencyDefault(castDouble(getCellValue(row, 6), header.getCell(6).getStringCellValue()))
                 .co2(castDouble(getCellValue(row, 7), header.getCell(7).getStringCellValue()))
@@ -572,7 +572,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             return updatePemmdbIfNeeded(existingOpt.get(), namePemmdb);
         }
 
-        ThermalTechnology thermalTechnology = findOrCreateTechnology(technology);
+        ThermalTechnology thermalTechnology =  technology != null ? findOrCreateTechnology(technology) : null;
         ThermalClusterRef newRef = buildClusterRef(name, thermalTechnology, namePemmdb);
         ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
         cachedClusterRefs.add(saved);
@@ -588,11 +588,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private Optional<ThermalClusterRef> findCachedClusterRef(String technology, String name) {
         return cachedClusterRefs.stream()
                 .filter(ref -> ref.getName() != null && ref.getName().equalsIgnoreCase(name)
-                        && ref.getThermalTechnology() != null
+                        && (technology == null || technology.isBlank()
+                        || (ref.getThermalTechnology() != null
                         && ref.getThermalTechnology().getName() != null
-                        && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))
+                        && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))))
                 .findFirst();
     }
+
 
     private ThermalClusterRef updatePemmdbIfNeeded(ThermalClusterRef ref, String namePemmdb) {
         if (namePemmdb != null && !namePemmdb.isBlank()) {

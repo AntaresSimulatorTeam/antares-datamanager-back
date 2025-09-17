@@ -291,7 +291,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_CAPACITY, trajectoryToUse, area);
-        ThermalClusterCapacityDto thermalClusterCapacityDto = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear,area, technology,studyId);
+        ThermalClusterCapacityDto thermalClusterCapacityDto = thermalFileProcessorService.buildThermalClusterCapacityValuesList(trajectoryFilePath, horizon, isCivilYear, area, technology, studyId);
         if (CollectionUtils.isEmpty(thermalClusterCapacityDto.getThermalClusterCapacities())) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, area, horizon))
@@ -299,13 +299,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return   thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, thermalClusterCapacityDto, TrajectoryType.THERMAL_CAPACITY, area, technology);
+        return thermalFileProcessorService.processThermalCapacityFile(trajectoryFilePath, horizon, thermalClusterCapacityDto, TrajectoryType.THERMAL_CAPACITY, area, technology);
 
     }
 
+    @Transactional
     @Override
     public TrajectoryEntity processThermalCommonParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse,"");
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse, "");
         var params = thermalFileProcessorService.buildThermalCommonParameterValuesList(trajectoryFilePath, horizon, studyId);
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
@@ -365,7 +366,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 path.getFileName().toString().toLowerCase().startsWith(CAPACITY_PREFIX);
                         case THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
                                 path.getFileName().toString().toLowerCase().startsWith(SPECIFIC_PREFIX);
-                        case THERMAL_TECHNICAL_COMMON_PARAMETER -> path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
+                        case THERMAL_TECHNICAL_COMMON_PARAMETER ->
+                                path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
                         default -> true;
                     })
                     .map(path -> createFsTrajectoryDTO(path, trajectoryType))
@@ -563,7 +565,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     checkIfAreaIsLinkedToStudy(studyId, area);
                 }
             }
-            default -> {}
+            default -> {
+            }
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);

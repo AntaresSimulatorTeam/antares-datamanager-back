@@ -650,7 +650,6 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(1, list.size());
         ThermalCommonParameterEntity e = list.get(0);
         assertNotNull(e.getThermalClusterRef());
-        assertEquals("CCGT", e.getThermalClusterRef().getThermalTechnology().getName());
         assertEquals("ClusterA", e.getThermalClusterRef().getName());
         assertEquals(0.55, e.getEfficiencyDefault());
         assertEquals(370.0, e.getCo2());
