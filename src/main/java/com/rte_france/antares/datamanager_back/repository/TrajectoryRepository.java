@@ -27,6 +27,15 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
 
     Optional<TrajectoryEntity> findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(String fileName, String type, String horizon, String area, String technology);
 
+    @Query("""
+                SELECT t FROM Trajectory t
+                JOIN t.scenarioEntities s
+                WHERE s.id = :studyId
+                  AND t.horizon = :horizon
+                  AND t.type = :type
+                ORDER BY t.version DESC
+            """)
+    List<TrajectoryEntity> findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(@Param("studyId") Integer studyId, @Param("horizon") String horizon, @Param("type") String type);
 
     @Query("""
                 SELECT t

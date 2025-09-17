@@ -306,7 +306,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processThermalCommonParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse,"");
-        var params = thermalFileProcessorService.buildThermalCommonParameterValuesList(trajectoryFilePath, horizon);
+        var params = thermalFileProcessorService.buildThermalCommonParameterValuesList(trajectoryFilePath, horizon, studyId, true);
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
