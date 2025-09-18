@@ -47,7 +47,7 @@ public class Utils {
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String THERMAL_PREFIX = "thermal_";
-    private static final String THERMAL_COMMON_PREFIX = "common_param";
+    private static final String THERMAL_COMMON_PREFIX = "common_param_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
