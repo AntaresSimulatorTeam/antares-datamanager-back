@@ -122,15 +122,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .transitionHotWarm(castDouble(getCellValue(row, 17), header.getCell(17).getStringCellValue()))
                 .transitionHotCold(castDouble(getCellValue(row, 18), header.getCell(18).getStringCellValue()))
                 .shutdownTime(castDouble(getCellValue(row, 19), header.getCell(19).getStringCellValue()))
-                .startupTime(castDouble(getCellValue(row, 20), header.getCell(20).getStringCellValue()))
-                .foRateDefault(castDouble(getCellValue(row, 21), header.getCell(21).getStringCellValue()))
-                .foDurationDefault(castDouble(getCellValue(row, 22), header.getCell(22).getStringCellValue()))
-                .poDurationDefault(castDouble(getCellValue(row, 23), header.getCell(23).getStringCellValue()))
-                .poWinterDefault(castDouble(getCellValue(row, 24), header.getCell(24).getStringCellValue()))
-                .minStableGenerationDefault(castDouble(getCellValue(row, 25), header.getCell(25).getStringCellValue()))
-                .rampUp(castDouble(getCellValue(row, 26), header.getCell(26).getStringCellValue()))
-                .rampDown(castDouble(getCellValue(row, 27), header.getCell(27).getStringCellValue()))
-                .fixedGenerationReduction(castDouble(getCellValue(row, 28), header.getCell(28).getStringCellValue()))
+                .foRateDefault(castDouble(getCellValue(row, 20), header.getCell(20).getStringCellValue()))
+                .foDurationDefault(castDouble(getCellValue(row, 21), header.getCell(21).getStringCellValue()))
+                .poDurationDefault(castDouble(getCellValue(row, 22), header.getCell(22).getStringCellValue()))
+                .poWinterDefault(castDouble(getCellValue(row, 23), header.getCell(23).getStringCellValue()))
+                .minStableGenerationDefault(castDouble(getCellValue(row, 24), header.getCell(24).getStringCellValue()))
+                .rampUp(castDouble(getCellValue(row, 25), header.getCell(25).getStringCellValue()))
+                .rampDown(castDouble(getCellValue(row, 26), header.getCell(26).getStringCellValue()))
+                .fixedGenerationReduction(castDouble(getCellValue(row, 27), header.getCell(27).getStringCellValue()))
                 .build();
     }
 

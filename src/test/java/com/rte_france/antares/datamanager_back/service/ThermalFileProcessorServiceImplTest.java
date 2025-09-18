@@ -599,7 +599,7 @@ class ThermalFileProcessorServiceImplTest {
                 var sheet = wb.createSheet(HORIZON_SHEET);
                 // Crée le header (ligne 0) avec toutes les cellules nécessaires
                 var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
+                for (int i = 0; i <= 27; i++) {
                     header.createCell(i).setCellValue("Header" + i);
                 }
                 // Crée les 4 lignes ignorées
@@ -634,7 +634,6 @@ class ThermalFileProcessorServiceImplTest {
                 row.createCell(25).setCellValue(20.0);
                 row.createCell(26).setCellValue(21.0);
                 row.createCell(27).setCellValue(0.0);
-                row.createCell(28).setCellValue(1.0);
                 wb.write(contentStream);
                 return contentStream.toByteArray();
             }
@@ -690,7 +689,7 @@ class ThermalFileProcessorServiceImplTest {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
                 var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
+                for (int i = 0; i <= 27; i++) {
                     header.createCell(i).setCellValue("Header" + i);
                 }
                 var row = sheet.createRow(5);
@@ -722,7 +721,7 @@ class ThermalFileProcessorServiceImplTest {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
                 var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
+                for (int i = 0; i <= 27; i++) {
                     header.createCell(i).setCellValue("Header" + i);
                 }
                 var row = sheet.createRow(5);
