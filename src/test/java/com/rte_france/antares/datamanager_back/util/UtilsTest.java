@@ -360,4 +360,29 @@ class UtilsTest {
                 "Unexpected exception message: " + ex.getMessage()
         );
     }
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_areaType_stripsPrefixAndExtension() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("areas_BP_2020-2021.xlsx", TrajectoryType.AREA.name());
+        assertEquals("BP_2020-2021", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_linkType_stripsPrefixAndExtension() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("links_scenario.xlsx", TrajectoryType.LINK.name());
+        assertEquals("scenario", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalCapacityType_stripsPrefixAndExtension() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("thermal_capacity.xlsx", TrajectoryType.THERMAL_CAPACITY.name());
+        assertEquals("capacity", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalCommonParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_ALF34.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
+        assertEquals("ALF34", name);
+    }
+
+
 }
