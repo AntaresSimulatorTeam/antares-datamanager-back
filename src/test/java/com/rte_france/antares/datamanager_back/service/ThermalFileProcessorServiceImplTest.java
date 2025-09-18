@@ -10,14 +10,12 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,9 +25,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
@@ -60,7 +58,7 @@ class ThermalFileProcessorServiceImplTest {
     private StudyRepository studyRepository;
 
     @BeforeEach
-     void setup() {
+    void setup() {
         MockitoAnnotations.openMocks(this);
     }
 
@@ -111,11 +109,13 @@ class ThermalFileProcessorServiceImplTest {
     private static byte[] generateCommonParametersExcelFile(String horizonSheetName) throws IOException {
         try (var outputStream = new ByteArrayOutputStream();
              var workbook = new XSSFWorkbook()) {
-            workbook.createSheet(horizonSheetName);
+            var sheet = workbook.createSheet(horizonSheetName);
+            createHeader(sheet);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
     }
+
 
     private static Path mockExcelFile(Path tempDir, String fileName, ByteSupplier excelFileSupplier) throws IOException {
         var tempFile = tempDir.resolve(fileName);
@@ -153,14 +153,14 @@ class ThermalFileProcessorServiceImplTest {
         var tempFile = mockExcelFile(tempDir, THERMAL_CAPACITY_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCapacityExcelFile);
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.of(trajectoryEntity));
         when(thermalTechnologyRepository.findThermalTechnologyByName(any())).thenReturn(Optional.of(ThermalTechnology.builder().name("CCGT").build()));
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build()));
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
         when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         var horizon = "2025-2026";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true, "FR", "CCGT", 1), TrajectoryType.THERMAL_CAPACITY, "FR", "CCGT");
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -292,7 +292,7 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs(){
+    void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs() {
         Path mockPath = mock(Path.class);
         String horizon = "2025-2026";
         String area = "FR";
@@ -302,9 +302,10 @@ class ThermalFileProcessorServiceImplTest {
         try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
             filesMock.when(() -> Files.newInputStream(mockPath)).thenThrow(new IOException("File read error"));
             assertThrows(TechnicalException.class, () ->
-                    thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology,1));
+                    thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology, 1));
         }
     }
+
     @Test
     void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {
         String monthYear = "2025_07";
@@ -407,7 +408,7 @@ class ThermalFileProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities,TRAJECTORY_NAME)
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities, TRAJECTORY_NAME)
         );
 
         assertTrue(exception.getMessage().contains("must have power AND number category in THERMAL Installed Power trajectory"));
@@ -485,77 +486,77 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(1, dto.getVersion());
     }
 
-        @Test
-        void buildWarningMessage_shouldReturnWarningWhenMissingAreasExist() {
-            Path path = Path.of("testFile.xlsx");
-            String area = "OTHERS";
-            Integer studyId = 1;
-            boolean isSpecificAreaFound = false;
-            Set<String> listOfOtherArea = Set.of("FR", "DE");
-            List<String> studyAreas = List.of("FR", "DE", "IT");
+    @Test
+    void buildWarningMessage_shouldReturnWarningWhenMissingAreasExist() {
+        Path path = Path.of("testFile.xlsx");
+        String area = "OTHERS";
+        Integer studyId = 1;
+        boolean isSpecificAreaFound = false;
+        Set<String> listOfOtherArea = Set.of("FR", "DE");
+        List<String> studyAreas = List.of("FR", "DE", "IT");
 
-            when(studyRepository.findById(studyId)).thenReturn(Optional.of(StudyEntity.builder().id(studyId).build()));
-            when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(StudyEntity.builder().id(studyId).build()));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
 
-            WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
+        WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
 
-            assertNotNull(result);
-            assertTrue(result.getWarningContent().contains("The following areas are missing"));
-            assertTrue(result.getWarningContent().contains("IT"));
-            assertEquals(WarningLevel.WARNING_LEVEL, result.getWarningLevel());
-            verify(studyRepository).findById(studyId);
-        }
+        assertNotNull(result);
+        assertTrue(result.getWarningContent().contains("The following areas are missing"));
+        assertTrue(result.getWarningContent().contains("IT"));
+        assertEquals(WarningLevel.WARNING_LEVEL, result.getWarningLevel());
+        verify(studyRepository).findById(studyId);
+    }
 
-        @Test
-        void buildWarningMessage_shouldNotReturnWarningWhenAllAreasArePresent() {
-            Path path = Path.of("testFile.xlsx");
-            String area = "OTHERS";
-            Integer studyId = 1;
-            boolean isSpecificAreaFound = false;
-            Set<String> listOfOtherArea = Set.of("FR", "DE", "IT");
-            List<String> studyAreas = List.of("FR", "DE", "IT");
+    @Test
+    void buildWarningMessage_shouldNotReturnWarningWhenAllAreasArePresent() {
+        Path path = Path.of("testFile.xlsx");
+        String area = "OTHERS";
+        Integer studyId = 1;
+        boolean isSpecificAreaFound = false;
+        Set<String> listOfOtherArea = Set.of("FR", "DE", "IT");
+        List<String> studyAreas = List.of("FR", "DE", "IT");
 
-            WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
+        WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
 
-            assertNull(result.getWarningContent());
-            verifyNoInteractions(studyRepository);
-        }
+        assertNull(result.getWarningContent());
+        verifyNoInteractions(studyRepository);
+    }
 
-        @Test
-        void buildWarningMessage_shouldThrowExceptionWhenStudyNotFound() {
-            Path path = Path.of("testFile.xlsx");
-            String area = "OTHERS";
-            Integer studyId = 1;
-            boolean isSpecificAreaFound = false;
-            Set<String> listOfOtherArea = Set.of("FR", "DE");
-            List<String> studyAreas = List.of("FR", "DE", "IT");
+    @Test
+    void buildWarningMessage_shouldThrowExceptionWhenStudyNotFound() {
+        Path path = Path.of("testFile.xlsx");
+        String area = "OTHERS";
+        Integer studyId = 1;
+        boolean isSpecificAreaFound = false;
+        Set<String> listOfOtherArea = Set.of("FR", "DE");
+        List<String> studyAreas = List.of("FR", "DE", "IT");
 
-            when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
 
-            BusinessException exception = assertThrows(BusinessException.class, () ->
-                    thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas)
-            );
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas)
+        );
 
-            assertTrue(exception.getMessage().contains("Study not found with id"));
-            verify(studyRepository).findById(studyId);
-        }
+        assertTrue(exception.getMessage().contains("Study not found with id"));
+        verify(studyRepository).findById(studyId);
+    }
 
-        @Test
-        void buildWarningMessage_shouldThrowExceptionWhenSpecificAreaNotFound() {
-            Path path = Path.of("testFile.xlsx");
-            String area = "FR";
-            Integer studyId = 1;
-            boolean isSpecificAreaFound = false;
-            Set<String> listOfOtherArea = Set.of();
-            List<String> studyAreas = List.of("FR");
+    @Test
+    void buildWarningMessage_shouldThrowExceptionWhenSpecificAreaNotFound() {
+        Path path = Path.of("testFile.xlsx");
+        String area = "FR";
+        Integer studyId = 1;
+        boolean isSpecificAreaFound = false;
+        Set<String> listOfOtherArea = Set.of();
+        List<String> studyAreas = List.of("FR");
 
-            BusinessException exception = assertThrows(BusinessException.class, () ->
-                    thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas)
-            );
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas)
+        );
 
-            assertTrue(exception.getMessage().contains("No area of the AREA trajectory is present"));
-            verifyNoInteractions(studyRepository);
-        }
+        assertTrue(exception.getMessage().contains("No area of the AREA trajectory is present"));
+        verifyNoInteractions(studyRepository);
+    }
 
     @Test
     void processThermalCommonParameterFile_shouldSaveTrajectoryAndLinkEntities(@TempDir Path tempDir) throws Exception {
@@ -598,12 +599,8 @@ class ThermalFileProcessorServiceImplTest {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
                 // Crée le header (ligne 0) avec toutes les cellules nécessaires
-                var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
-                    header.createCell(i).setCellValue("Header" + i);
-                }
+                createHeader(sheet);
                 // Crée les 4 lignes ignorées
-                for (int i = 1; i <= 4; i++) sheet.createRow(i);
                 // Crée la ligne de données à parser
                 var row = sheet.createRow(5);
                 row.createCell(0).setCellValue("pemmdb_name");
@@ -655,12 +652,19 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(370.0, e.getCo2());
     }
 
+    private static void createHeader(XSSFSheet sheet) {
+        var header = sheet.createRow(4);
+        for (int i = 0; i < REQUIRED_COMMON_PARAM_HEADER_COLUMNS.size(); i++) {
+            header.createCell(i).setCellValue(REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i));
+        }
+    }
+
 
     @Test
     void buildThermalCommonParameterValuesList_shouldThrowTechnicalExceptionWhenHorizonSheetMissing(@TempDir Path tempDir) throws Exception {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile("OTHER_SHEET"));
         TechnicalException ex = assertThrows(TechnicalException.class, () ->
-                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET,1)
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
         assertTrue(ex.getMessage().contains("Missing suitable sheet for horizon"));
     }
@@ -680,7 +684,7 @@ class ThermalFileProcessorServiceImplTest {
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
-        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param file"));
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
     }
 
     @Test
@@ -688,10 +692,7 @@ class ThermalFileProcessorServiceImplTest {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
-                var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
-                    header.createCell(i).setCellValue("Header" + i);
-                }
+                createHeader(sheet);
                 var row = sheet.createRow(5);
                 row.createCell(0).setCellValue("pemmdb_name");
                 row.createCell(1).setCellValue("ClusterA");
@@ -712,7 +713,7 @@ class ThermalFileProcessorServiceImplTest {
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
-        assertTrue(exception.getMessage().contains("Missing clusters: ClusterB"));
+        assertTrue(exception.getMessage().contains("The following clusters are missing in the Common Parameters trajectory: ClusterB"));
     }
 
     @Test
@@ -720,10 +721,7 @@ class ThermalFileProcessorServiceImplTest {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
-                var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
-                    header.createCell(i).setCellValue("Header" + i);
-                }
+                createHeader(sheet);
                 var row = sheet.createRow(5);
                 row.createCell(0).setCellValue("pemmdb_name");
                 row.createCell(1).setCellValue("ClusterA");
@@ -745,4 +743,85 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(1, result.size());
     }
 
+    @Test
+    void buildThermalCommonParameterValuesList_shouldThrowBusinessExceptionWhenNoDataFoundAndRowsExist(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                // Ajouter des lignes vides après l'en-tête
+                for (int i = 5; i < 10; i++) {
+                    sheet.createRow(i);
+                }
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldNotThrowExceptionWhenNoRowsExistAfterHeader(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldSkipRowsWithNullClusterName(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                var row = sheet.createRow(5);
+                row.createCell(1).setBlank(); // Null cluster name
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldSkipRowsWithEmptyClusterName(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                var row = sheet.createRow(5);
+                row.createCell(1).setCellValue(""); // Empty cluster name
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+    }
 }
