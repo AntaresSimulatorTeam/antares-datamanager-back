@@ -48,9 +48,17 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
 
+    public static final List<String> REQUIRED_COMMON_PARAM_HEADER_COLUMNS = List.of(
+            "cluster_PEMMDB", "cluster_BP", "Category", "Fuel", "Type", "efficiency_range", "efficiency_default",
+            "CO2", "OM_cost", "min_up_time", "min_down_time", "start_up_fuel", "start_up_fix_cost",
+            "start_up_fuel_cold_start", "start_up_fix_cost_cold_start", "start_up_fuel_hot_start", "start_up_fix_cost_hot_start",
+            "transition_hot_warm", "transition_hot_cold", "shutdown_time", "startup_time", "FO_rate_default",
+            "FO_duration_default", "PO_duration_default", "PO_winter_default", "min_stable_generation_default",
+            "ramp_up", "ramp_down", "fixed_generation_reduction");
+
 
     @Override
-    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) throws IOException {
+    public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) {
         List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
 
         try (InputStream inputStream = Files.newInputStream(path);
@@ -59,17 +67,20 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             if (sheet == null) {
                 throw TechnicalException.builder()
                         .message("Missing suitable sheet for horizon '" + horizon + "'")
-                        .build();
+                        .build();          
             }
-            Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
+            Row header = sheet.getRow(4);
+            validateCommonParamHeaderColumns(header, path);
             Set<String> commonParamClusters = new HashSet<>();
             List<String> clustersWithoutParameters = new ArrayList<>();
 
-            Row header = sheet.getRow(0);
             for (Row row : sheet) {
                 if (row.getRowNum() <= 4) continue;
 
                 String clusterName = castString(getCellValue(row, 1));
+                if(clusterName == null || clusterName.isEmpty()) {
+                    continue; // Skip rows with empty cluster names
+                }
                 String clusterPemmdb = castString(getCellValue(row, 0));
                 commonParamClusters.add(clusterName);
 
@@ -79,17 +90,17 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             if (thermalParameters.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("No data found from line 6 in Common Param file")
+                        .message("No data found from line 6 in Common Param trajectory")
                         .build();
             }
 
-            installedPowerClusters.stream()
+            getInstalledPowerClustersByStudyId(studyId, horizon).stream()
                     .filter(cluster -> !commonParamClusters.contains(cluster))
                     .forEach(clustersWithoutParameters::add);
 
             if (!clustersWithoutParameters.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("Missing clusters: " + String.join(", ", clustersWithoutParameters))
+                        .message("The following clusters are missing in the Common Parameters trajectory: " + String.join(", ", clustersWithoutParameters))
                         .build();
             }
 
@@ -675,4 +686,18 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             throw new RuntimeException("Erreur lors du calcul du checksum", e);
         }
     }
+
+    private void validateCommonParamHeaderColumns(Row header, Path path) {
+        for (int i = 0; i < REQUIRED_COMMON_PARAM_HEADER_COLUMNS.size(); i++) {
+            Cell cell = header.getCell(i);
+            String cellValue = cell != null ? cell.getStringCellValue() : null;
+            if (cellValue == null || !cellValue.equalsIgnoreCase(REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i))) {
+                throw BusinessException.builder()
+                        .message("The expected column '" + REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i) + "' is missing or misplaced in the Common Parameters file " + path.getFileName())
+                        .build();
+            }
+        }
+    }
+
+
 }
