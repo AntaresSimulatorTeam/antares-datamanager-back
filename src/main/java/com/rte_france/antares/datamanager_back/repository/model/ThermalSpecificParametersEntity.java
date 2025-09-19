@@ -11,7 +11,7 @@ import java.lang.Double;
 @NoArgsConstructor
 @Entity
 @Table(name = "thermal_specific_parameters")
-public class ThermalSpecificParametersEntity {
+public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "thermal_specific_parameters_seq_gen")
@@ -86,18 +86,18 @@ public class ThermalSpecificParametersEntity {
     @Column(name = "f11") private Double f11;
     @Column(name = "f12") private Double f12;
 
-    @Column(name = "p1") private Integer p1;
-    @Column(name = "p2") private Integer p2;
-    @Column(name = "p3") private Integer p3;
-    @Column(name = "p4") private Integer p4;
-    @Column(name = "p5") private Integer p5;
-    @Column(name = "p6") private Integer p6;
-    @Column(name = "p7") private Integer p7;
-    @Column(name = "p8") private Integer p8;
-    @Column(name = "p9") private Integer p9;
-    @Column(name = "p10") private Integer p10;
-    @Column(name = "p11") private Integer p11;
-    @Column(name = "p12") private Integer p12;
+    @Column(name = "p1") private Double p1;
+    @Column(name = "p2") private Double p2;
+    @Column(name = "p3") private Double p3;
+    @Column(name = "p4") private Double p4;
+    @Column(name = "p5") private Double p5;
+    @Column(name = "p6") private Double p6;
+    @Column(name = "p7") private Double p7;
+    @Column(name = "p8") private Double p8;
+    @Column(name = "p9") private Double p9;
+    @Column(name = "p10") private Double p10;
+    @Column(name = "p11") private Double p11;
+    @Column(name = "p12") private Double p12;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "thermal_cluster_ref_id")

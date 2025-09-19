@@ -236,7 +236,19 @@ public class Utils {
             case NUMERIC -> cell.getNumericCellValue();
             case STRING -> cell.getStringCellValue();
             case BOOLEAN -> cell.getBooleanCellValue();
-            case FORMULA -> cell.getCellFormula();
+            case FORMULA -> {
+                FormulaEvaluator evaluator = row.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                CellValue evaluated = evaluator.evaluate(cell);
+                if (evaluated == null) {
+                    yield null;
+                }
+                yield switch (evaluated.getCellType()) {
+                    case NUMERIC -> evaluated.getNumberValue();
+                    case STRING -> evaluated.getStringValue();
+                    case BOOLEAN -> evaluated.getBooleanValue();
+                    default -> null; // BLANK or ERROR
+                };
+            }
             default -> null;
         };
     }

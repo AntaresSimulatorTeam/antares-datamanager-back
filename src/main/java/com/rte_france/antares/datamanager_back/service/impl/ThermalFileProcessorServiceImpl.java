@@ -130,6 +130,121 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
 
+    @Override
+    public List<ThermalSpecificParametersEntity> buildThermalSpecificParameterValueList(Path trajectoryFilePath, String horizon, Integer studyId) {
+        List<ThermalSpecificParametersEntity> result = new ArrayList<>();
+        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = findHorizonSheet(workbook, horizon);
+            if (sheet == null) {
+                throw TechnicalException.builder()
+                        .message("Missing suitable sheet for horizon '" + horizon + "'")
+                        .build();
+            }
+
+           // Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
+            Set<String> specificParamClusters = new HashSet<>();
+          //  List<String> clustersWithoutParameters = new ArrayList<>();
+
+            Row header = sheet.getRow(0);
+            for (Row row : sheet) {
+                if (row.getRowNum() <= 2) continue; // skip headers/metadata lines
+
+                String clusterName = castString(getCellValue(row, 4));
+                String clusterPemmdb = castString(getCellValue(row, 3));
+                if ((clusterName == null || clusterName.isBlank()) && (clusterPemmdb == null || clusterPemmdb.isBlank())) {
+                    continue;
+                }
+                specificParamClusters.add(clusterName);
+
+                ThermalSpecificParametersEntity entity = ThermalSpecificParametersEntity.builder()
+                        .thermalClusterRef(findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb))
+                        .node(castString(getCellValue(row, 0)))
+                        .nodeEntsoe(castString(getCellValue(row, 1)))
+                        .comment(castString(getCellValue(row, 2)))
+                        .minStableGeneration(castDouble(getCellValue(row, 5), header.getCell(5).getStringCellValue()))
+                        .spinning(castDouble(getCellValue(row, 6), header.getCell(6).getStringCellValue()))
+                        .efficiency(castDouble(getCellValue(row, 7), header.getCell(7).getStringCellValue()))
+                        .foRate(castDouble(getCellValue(row, 8), header.getCell(8).getStringCellValue()))
+                        .foDuration(castDouble(getCellValue(row, 9), header.getCell(9).getStringCellValue()))
+                        .poDuration(castDouble(getCellValue(row, 10), header.getCell(10).getStringCellValue()))
+                        .poWinter(castDouble(getCellValue(row, 11), header.getCell(11).getStringCellValue()))
+                        .marginalCost(castDouble(getCellValue(row, 12), header.getCell(12).getStringCellValue()))
+                        .marketBid(castDouble(getCellValue(row, 13), header.getCell(13).getStringCellValue()))
+                        .mrSpecific(castInt(getCellValue(row, 14)))
+                        .cmSpecific(castInt(getCellValue(row, 15)))
+                        .npoMaxWinther(castInt
+                                (getCellValue(row, 16)))
+                        .npoMaxSummer(castInt
+                                (getCellValue(row, 17)))
+                        .nbUnit(castInt
+                                (getCellValue(row, 18)))
+                        .poWinterRate(castDouble(getCellValue(row, 19), header.getCell(19).getStringCellValue()))
+                        .f1(castDouble(getCellValue(row, 20), header.getCell(20).getStringCellValue()))
+                        .f2(castDouble(getCellValue(row, 21), header.getCell(21).getStringCellValue()))
+                        .f3(castDouble(getCellValue(row, 22), header.getCell(22).getStringCellValue()))
+                        .f4(castDouble(getCellValue(row, 23), header.getCell(23).getStringCellValue()))
+                        .f5(castDouble(getCellValue(row, 24), header.getCell(24).getStringCellValue()))
+                        .f6(castDouble(getCellValue(row, 25), header.getCell(25).getStringCellValue()))
+                        .f7(castDouble(getCellValue(row, 26), header.getCell(26).getStringCellValue()))
+                        .f8(castDouble(getCellValue(row, 27), header.getCell(27).getStringCellValue()))
+                        .f9(castDouble(getCellValue(row, 28), header.getCell(28).getStringCellValue()))
+                        .f10(castDouble(getCellValue(row, 29), header.getCell(29).getStringCellValue()))
+                        .f11(castDouble(getCellValue(row, 30), header.getCell(30).getStringCellValue()))
+                        .f12(castDouble(getCellValue(row, 31), header.getCell(31).getStringCellValue()))
+                        .p1(castDouble(getCellValue(row, 32), header.getCell(32).getStringCellValue()))
+                        .p2(castDouble(getCellValue(row, 33), header.getCell(33).getStringCellValue()))
+                        .p3(castDouble(getCellValue(row, 34), header.getCell(34).getStringCellValue()))
+                        .p4(castDouble(getCellValue(row, 35), header.getCell(35).getStringCellValue()))
+                        .p5(castDouble(getCellValue(row, 36), header.getCell(36).getStringCellValue()))
+                        .p6(castDouble(getCellValue(row, 37), header.getCell(37).getStringCellValue()))
+                        .p7(castDouble(getCellValue(row, 38), header.getCell(38).getStringCellValue()))
+                        .p8(castDouble(getCellValue(row, 39), header.getCell(39).getStringCellValue()))
+                        .p9(castDouble(getCellValue(row, 40), header.getCell(40).getStringCellValue()))
+                        .p10(castDouble(getCellValue(row, 41), header.getCell(41).getStringCellValue()))
+                        .p11(castDouble(getCellValue(row, 42), header.getCell(42).getStringCellValue()))
+                        .p12(castDouble(getCellValue(row, 43), header.getCell(43).getStringCellValue()))
+                        .build();
+                result.add(entity);
+            }
+
+            if (result.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("No data found from line 6 in Specific Param file")
+                        .build();
+            }
+
+            //installedPowerClusters.stream()
+              //      .filter(cluster -> !specificParamClusters.contains(cluster))
+               //     .forEach(clustersWithoutParameters::add);
+
+           // if (!clustersWithoutParameters.isEmpty()) {
+             //   throw BusinessException.builder()
+               //         .message("Missing clusters: " + String.join(", ", clustersWithoutParameters))
+                 //       .build();
+           // }
+
+            return result;
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: " + e.getMessage())
+                    .build();
+        }
+    }
+
+
+    // Java
+    private Integer castInt(Object cellValue) {
+        if (cellValue == null) return null;
+        else if (cellValue instanceof Number n) {
+            return n.intValue();
+        }
+        return null; // couvrir les autres types
+    }
+
+
+
+
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
         return ThermalCommonParameterEntity.builder()
                 .thermalClusterRef(findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb))
@@ -532,9 +647,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private static Double castDouble(Object o, String columnName) {
         if (o == null) return null;
-        if (o instanceof Number n) return n.doubleValue();
         try {
-            return Double.valueOf(String.valueOf(o));
+            java.math.BigDecimal bd;
+            if (o instanceof Number n) {
+                bd = java.math.BigDecimal.valueOf(n.doubleValue());
+            } else {
+                bd = new java.math.BigDecimal(String.valueOf(o));
+            }
+            bd = bd.setScale(2, java.math.RoundingMode.HALF_UP);
+            return bd.doubleValue();
         } catch (NumberFormatException e) {
             throw BusinessException.builder()
                     .message("The value '" + o + "' in column '" + columnName + "' is not numeric")

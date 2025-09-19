@@ -44,12 +44,24 @@ public class ThermalController {
     @Operation(summary = "import thermal common parameters trajectory to database ")
     @PostMapping("/thermal-common-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalParameterTrajectory(
-                                                         @RequestParam("trajectoryToUse") String trajectoryToUse,
-                                                         @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
-                                                         @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                         @RequestParam("studyId") Integer studyId) throws IOException {
+            @RequestParam("trajectoryToUse") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "example of horizon : 2020-2021") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
                 trajectoryService.processThermalCommonParameterTrajectory(trajectoryToUse, horizon, studyId)
+        ), HttpStatus.CREATED);
+    }
+
+
+    @Operation(summary = "import thermal specific parameters trajectory to database ")
+    @PostMapping("/thermal-specific-parameter")
+    public ResponseEntity<TrajectoryDTO> uploadThermalSpecificParameterTrajectory(
+            @RequestParam("trajectoryToUse") String trajectoryToUse,
+            @RequestParam("horizon") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+        return new ResponseEntity<>(toTrajectoryDTO(
+                trajectoryService.processThermalSpecificParameterTrajectory(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
     }
 }
