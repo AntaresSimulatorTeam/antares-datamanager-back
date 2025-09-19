@@ -38,4 +38,6 @@ public interface TrajectoryService {
     List<TrajectoryDataDTO> getTrajectoryDataByTypeAndId(TrajectoryType trajectoryType, Integer trajectoryId);
 
     Map<String, Integer> countWarningMessage(Integer studyId);
+
+    TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 }

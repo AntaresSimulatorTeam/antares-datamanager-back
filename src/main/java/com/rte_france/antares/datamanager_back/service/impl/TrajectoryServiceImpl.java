@@ -318,6 +318,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return thermalFileProcessorService.processThermalCommonParameterFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
 
+    @Transactional
+    @Override
+    public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryToUse,"");
+        var params = thermalFileProcessorService.buildThermalSpecificParameterValueList(trajectoryFilePath, horizon, studyId);
+        return null;
+    }
+
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
                 BusinessException.builder()
@@ -729,4 +737,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         Collectors.summingInt(trajectory -> trajectory.getWarningMessages() != null ? trajectory.getWarningMessages().size() : 0)
                 ));
     }
+
+
 }
