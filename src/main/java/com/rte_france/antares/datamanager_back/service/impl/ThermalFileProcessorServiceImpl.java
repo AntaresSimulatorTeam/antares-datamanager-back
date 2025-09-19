@@ -59,42 +59,59 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     @Override
     public List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) {
-        List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
-
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = findHorizonSheet(workbook, horizon);
-            if (sheet == null) {
-                throw TechnicalException.builder()
-                        .message("Missing suitable sheet for horizon '" + horizon + "'")
-                        .build();          
-            }
+
+            Sheet sheet = findHorizonSheetOrThrow(workbook, horizon, path);
             Row header = sheet.getRow(4);
             validateCommonParamHeaderColumns(header, path);
+
             Set<String> commonParamClusters = new HashSet<>();
             List<String> clustersWithoutParameters = new ArrayList<>();
-
-            for (Row row : sheet) {
-                if (row.getRowNum() <= 4) continue;
-
-                String clusterName = castString(getCellValue(row, 1));
-                if(clusterName == null || clusterName.isEmpty()) {
-                    continue; // Skip rows with empty cluster names
-                }
-                String clusterPemmdb = castString(getCellValue(row, 0));
-                commonParamClusters.add(clusterName);
-
-                ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, clusterName, clusterPemmdb, header);
-                thermalParameters.add(param);
-            }
+            List<ThermalCommonParameterEntity> thermalParameters = parseThermalCommonParameterRows(sheet, header, commonParamClusters);
 
             if (thermalParameters.isEmpty()) {
                 throw BusinessException.builder()
                         .message("No data found from line 6 in Common Param trajectory")
-                        .build();
-            }
+                        .build();            }
 
-            getInstalledPowerClustersByStudyId(studyId, horizon).stream()
+            checkMissingClusters(studyId, horizon, commonParamClusters, clustersWithoutParameters, path);
+
+            return thermalParameters;
+        } catch (IOException e) {
+            throwTechnicalException(e);
+            return Collections.emptyList(); // unreachable, mais pour le compilateur
+        }
+    }
+
+    private Sheet findHorizonSheetOrThrow(Workbook workbook, String horizon, Path path) {
+        Sheet sheet = findHorizonSheet(workbook, horizon);
+        if (sheet == null) {
+            throw TechnicalException.builder()
+                    .message("Missing suitable sheet for horizon '" + horizon + "'")
+                    .build();
+        }
+        return sheet;
+    }
+
+    private List<ThermalCommonParameterEntity> parseThermalCommonParameterRows(Sheet sheet, Row header, Set<String> commonParamClusters) {
+        List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
+        for (Row row : sheet) {
+            if (row.getRowNum() <= 4) continue;
+            String clusterName = castString(getCellValue(row, 1));
+            if (clusterName == null || clusterName.isEmpty()) continue;
+            String clusterPemmdb = castString(getCellValue(row, 0));
+            commonParamClusters.add(clusterName);
+            ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, clusterName, clusterPemmdb, header);
+            thermalParameters.add(param);
+        }
+        return thermalParameters;
+    }
+
+    private void checkMissingClusters(Integer studyId, String horizon, Set<String> commonParamClusters, List<String> clustersWithoutParameters, Path path) {
+        Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
+        if (!installedPowerClusters.isEmpty()) {
+            installedPowerClusters.stream()
                     .filter(cluster -> !commonParamClusters.contains(cluster))
                     .forEach(clustersWithoutParameters::add);
 
@@ -103,14 +120,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         .message("The following clusters are missing in the Common Parameters trajectory: " + String.join(", ", clustersWithoutParameters))
                         .build();
             }
-
-            return thermalParameters;
-        } catch (IOException e) {
-            throw TechnicalException.builder()
-                    .message("Error processing file: " + e.getMessage())
-                    .build();
         }
     }
+
+    private void throwTechnicalException(IOException e) {
+        throw TechnicalException.builder()
+                .message("Error processing file: " + e.getMessage())
+                .build();
+    }
+
 
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
         return ThermalCommonParameterEntity.builder()
@@ -149,12 +167,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     public Set<String> getInstalledPowerClustersByStudyId(Integer studyId, String horizon) {
         List<TrajectoryEntity> installedTrajectories = trajectoryRepository
                 .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name());
-
-        if (installedTrajectories == null || installedTrajectories.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("No Installed Power trajectory found for study " + studyId + " and horizon " + horizon)
-                    .build();
-        }
 
         return installedTrajectories.stream()
                 .map(TrajectoryEntity::getThermalClusterCapacities)
