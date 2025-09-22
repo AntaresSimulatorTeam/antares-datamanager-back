@@ -182,6 +182,17 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .collect(Collectors.toSet());
     }
 
+    public Set<String> getInstalledPowerClusterAreaByStudyId(Integer studyId, String horizon) {
+        List<TrajectoryEntity> installedTrajectories = trajectoryRepository
+                .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name());
+
+        return installedTrajectories.stream()
+                .map(TrajectoryEntity::getThermalClusterCapacities)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                .collect(Collectors.toSet());
+    }
 
     @Override
     public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws IOException {
@@ -246,7 +257,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     public TrajectoryEntity saveThermalCommonTrajectory(TrajectoryEntity trajectory, List<ThermalCommonParameterEntity> thermalCommonParameterEntityList, TrajectoryType type) {
         trajectory.setType(type.name());
         thermalCommonParameterEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
-        trajectory.setThermalClusterParameters(thermalCommonParameterEntityList);
+        trajectory.setThermalCommonParameters(thermalCommonParameterEntityList);
         return trajectoryRepository.save(trajectory);
     }
 
@@ -296,6 +307,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .message("could not build thermal_capacity cluster  list : " + e.getMessage())
                     .build();
         }
+        verifyClustersInCommonParamTrajectory(studyId, horizon, capacities);
+        verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities);
 
         String checksum = calculateChecksum(checksumBuilder.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(path, horizon, area, technology);
@@ -315,6 +328,65 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         return dto;
     }
+
+    public void verifyClustersInCommonParamTrajectory(Integer studyId, String horizon, List<ThermalClusterCapacityEntity> capacities) {
+
+        TrajectoryEntity thermalCommonParamTrajectory = trajectoryRepository
+                .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(), studyId).stream().findFirst().orElse(null);
+
+        if (thermalCommonParamTrajectory != null) {
+            Set<String> commonParamClusters = thermalCommonParamTrajectory.getThermalCommonParameters().stream()
+                    .map(e -> e.getThermalClusterRef().getName())
+                    .collect(Collectors.toSet());
+
+            Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
+            capacities.forEach(e -> installedPowerClusters.add(e.getThermalClusterRef().getName()));
+
+            List<String> missingClusters = installedPowerClusters.stream()
+                    .filter(cluster -> !commonParamClusters.contains(cluster))
+                    .toList();
+
+            if (!missingClusters.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Clusters " + String.join(", ", missingClusters) +
+                                " are not in Common trajectory " + thermalCommonParamTrajectory.getFileName())
+                        .build();
+            }
+        }
+    }
+
+    public void verifyClustersInSpecificParamTrajectory(Integer studyId, String horizon, List<ThermalClusterCapacityEntity> capacities) {
+        List<TrajectoryEntity> specificParamTrajectories = trajectoryRepository
+                .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId);
+
+        if (!specificParamTrajectories.isEmpty()) {
+            // Récupère tous les clusters/areas présents dans les trajectoires spécifiques
+            Set<String> specificParamAreaClusters = specificParamTrajectories.stream()
+                    .map(TrajectoryEntity::getThermalSpecificParameters)
+                    .filter(Objects::nonNull)
+                    .flatMap(List::stream)
+                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .collect(Collectors.toSet());
+
+            // Récupère tous les clusters/areas de Installed Power existants + en cours d'import
+            Set<String> installedPowerAreaClusters = getInstalledPowerClusterAreaByStudyId(studyId, horizon);
+            capacities.forEach(e -> installedPowerAreaClusters.add(
+                    e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : "")));
+
+            List<String> missingAreaClusters = installedPowerAreaClusters.stream()
+                    .filter(ac -> !specificParamAreaClusters.contains(ac))
+                    .toList();
+
+            if (!missingAreaClusters.isEmpty()) {
+                String trajectoryName = specificParamTrajectories.getFirst().getFileName();
+                throw BusinessException.builder()
+                        .message("Clusters " + String.join(", ", missingAreaClusters) +
+                                " are not in Specific trajectory " + trajectoryName)
+                        .build();
+            }
+        }
+    }
+
 
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(

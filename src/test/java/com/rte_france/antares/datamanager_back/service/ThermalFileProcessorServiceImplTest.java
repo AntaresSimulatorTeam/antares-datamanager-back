@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalSpecificFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -311,6 +310,155 @@ class ThermalFileProcessorServiceImplTest {
                     thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology,1));
         }
     }
+
+
+    @Test
+    void verifyClustersInCommonParamTrajectory_shouldThrowExceptionWhenClustersAreMissing() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+
+        TrajectoryEntity commonParamTrajectory = TrajectoryEntity.builder()
+                .thermalCommonParameters(List.of(
+                        ThermalCommonParameterEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .build()
+                ))
+                .fileName("CommonParamFile")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(commonParamTrajectory));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities)
+        );
+
+        assertTrue(exception.getMessage().contains("Clusters ClusterA are not in Common trajectory CommonParamFile"));
+    }
+
+    @Test
+    void verifyClustersInCommonParamTrajectory_shouldNotThrowExceptionWhenAllClustersArePresent() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+
+        TrajectoryEntity commonParamTrajectory = TrajectoryEntity.builder()
+                .thermalCommonParameters(List.of(
+                        ThermalCommonParameterEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .build()
+                ))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(commonParamTrajectory));
+
+        assertDoesNotThrow(() ->
+                thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities)
+        );
+    }
+
+    @Test
+    void verifyClustersInCommonParamTrajectory_shouldNotThrowExceptionWhenNoCommonParamTrajectoryExists() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() ->
+                thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities)
+        );
+    }
+
+
+    @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldThrowExceptionWhenClustersAreMissing() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder().area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .thermalSpecificParameters(List.of(
+                        ThermalSpecificParametersEntity.builder()
+                                .area("FR")
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .build()
+                ))
+                .fileName("SpecificParamFile")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
+        );
+
+        assertTrue(exception.getMessage().contains("Clusters ClusterA/FR are not in Specific trajectory SpecificParamFile"));
+    }
+
+    @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenAllClustersArePresent() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .thermalSpecificParameters(List.of(
+                        ThermalSpecificParametersEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .build()
+                ))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        assertDoesNotThrow(() ->
+                thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
+        );
+    }
+
+    @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenNoSpecificParamTrajectoryExists() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() ->
+                thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
+        );
+    }
+
     @Test
     void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {
         String monthYear = "2025_07";

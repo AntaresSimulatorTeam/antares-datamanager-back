@@ -72,6 +72,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String COMMON_PREFIX = "common_param_";
     private static final String CAPACITY_PREFIX = "thermal_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
+    private final ThermalFileProcessorServiceImpl thermalFileProcessorServiceImpl;
 
     @Transactional
     @Override
@@ -646,30 +647,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return savedStudyTrajectoryEntity.getTrajectory();
     }
 
-    public void checkTrajectoryCoherence(Integer
-                                                 studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws
-            IOException {
-        switch (trajectory.getType()) {
-            case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
-            case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
-            case "LOAD" -> {
-                if (OTHER_AREA.equals(trajectory.getArea())) {
-                    warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
-                            trajectory.getHorizon(), studyId, userNni, trajectory);
-                }
-            }
-            case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> {
-                var area = trajectory.getArea();
-                if (area != null && !area.isBlank()) {
-                    checkIfAreaIsLinkedToStudy(studyId, area);
-                }
-            }
-            default -> {
-            }
+    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
+        String type = trajectory.getType();
+        if (TrajectoryType.LINK.name().equals(type)) {
+            checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
+        } else if (TrajectoryType.AREA.name().equals(type)) {
+            checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+        } else if (TrajectoryType.LOAD.name().equals(type) && OTHER_AREA.equals(trajectory.getArea())) {
+            warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(trajectory.getHorizon(), studyId, userNni, trajectory);
+        } else if (TrajectoryType.THERMAL_CAPACITY.name().equals(type)) {
+            thermalFileProcessorServiceImpl.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+            thermalFileProcessorServiceImpl.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
     }
+
 
     public void checkLinkCoherence(Integer
                                            studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
