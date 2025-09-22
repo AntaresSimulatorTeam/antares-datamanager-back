@@ -22,5 +22,5 @@ public interface ThermalFileProcessorService {
 
      List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) throws IOException;
 
-     List<ThermalSpecificParametersEntity> buildThermalSpecificParameterValueList(Path trajectoryFilePath, String horizon, Integer studyId);
+
 }

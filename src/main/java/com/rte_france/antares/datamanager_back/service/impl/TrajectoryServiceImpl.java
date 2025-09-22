@@ -46,6 +46,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalFileProcessorService thermalFileProcessorService;
 
+    private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
+
     private final LoadFileProcessorService loadFileProcessorService;
 
     private final StudyRepository studyRepository;
@@ -320,9 +322,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Transactional
     @Override
-    public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryToUse,"");
-        var params = thermalFileProcessorService.buildThermalSpecificParameterValueList(trajectoryFilePath, horizon, studyId);
+    public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName,"");
+        checkIfHorizonExist(trajectoryFilePath,horizon, "THERMAL " + trajectoryName);
+        var params = thermalSpecificProcessorService.buildThermalSpecificParameterValueList(trajectoryName, trajectoryFilePath, horizon, area, studyId);
         return null;
     }
 
