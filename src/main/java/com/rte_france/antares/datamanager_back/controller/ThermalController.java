@@ -57,11 +57,12 @@ public class ThermalController {
     @Operation(summary = "import thermal specific parameters trajectory to database ")
     @PostMapping("/thermal-specific-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalSpecificParameterTrajectory(
+            @RequestParam("area") String area,
             @RequestParam("trajectoryToUse") String trajectoryToUse,
             @RequestParam("horizon") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
-                trajectoryService.processThermalSpecificParameterTrajectory(trajectoryToUse, horizon, studyId)
+                trajectoryService.processThermalSpecificParameterTrajectory(trajectoryToUse, horizon, area, studyId)
         ), HttpStatus.CREATED);
     }
 }
