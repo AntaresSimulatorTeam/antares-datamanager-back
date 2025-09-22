@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.lang.Double;
@@ -98,6 +99,10 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Column(name = "p10") private Double p10;
     @Column(name = "p11") private Double p11;
     @Column(name = "p12") private Double p12;
+
+    @Size(max = 50)
+    @Column(name = "area")
+    private String area;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "thermal_cluster_ref_id")

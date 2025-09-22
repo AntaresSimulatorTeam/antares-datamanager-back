@@ -38,3 +38,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V17-alter-type-length-trajectory.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V18-add-column-type-thermal-common-param.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V19-add-column-area-thermal-specific-param.sql

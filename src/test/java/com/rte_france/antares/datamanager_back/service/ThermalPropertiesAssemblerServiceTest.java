@@ -51,7 +51,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var paramTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
-                .thermalClusterParameters(List.of(
+                .thermalCommonParameters(List.of(
                         params(gasRef, 0.40, 3, 2, 41.5, 7.2) // minStablePower = 0.40 * 500
                 ))
                 .build();
@@ -90,7 +90,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var paramTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
-                .thermalClusterParameters(List.of(
+                .thermalCommonParameters(List.of(
                         params(gasRef, 0.30, 1, 1, 55.0, 1.0),
                         params(nucRef, 0.90, 10, 8, 33.0, 3.0)
                 ))
@@ -123,7 +123,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var paramTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
-                .thermalClusterParameters(List.of(
+                .thermalCommonParameters(List.of(
                         params(gasRef, 0.50, 2, 2, 60.0, 5.0)
                 ))
                 .build();

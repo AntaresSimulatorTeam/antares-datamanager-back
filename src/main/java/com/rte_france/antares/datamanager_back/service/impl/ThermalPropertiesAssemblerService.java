@@ -64,7 +64,7 @@ public class ThermalPropertiesAssemblerService {
 
   private static LinkedHashMap<ThermalClusterRef, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajs) {
     return parameterTrajs.stream()
-            .flatMap(t -> Optional.ofNullable(t.getThermalClusterParameters()).orElseGet(List::of).stream())
+            .flatMap(t -> Optional.ofNullable(t.getThermalCommonParameters()).orElseGet(List::of).stream())
             .collect(Collectors.groupingBy(
                     ThermalCommonParameterEntity::getThermalClusterRef,
                     LinkedHashMap::new,
