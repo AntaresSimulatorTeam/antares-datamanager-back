@@ -69,6 +69,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             }
             validateHeaderColumns(header, trajectoryName);
 
+
             for (Row row : sheet) {
                 if (row.getRowNum() <= 2) continue; // skip headers/metadata lines (data from line 4)
 
@@ -79,6 +80,8 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 }
                 String rowAreaUpper = rowArea.toUpperCase();
 
+                otherAreas.add(rowAreaUpper);
+
                 String clusterName = castString(getCellValue(row, 4));
                 // Validate cluster name: must be present and known
                 if (clusterName == null || clusterName.isBlank() || !thermalFileProcessorService.clusterExistsByName(clusterName)) {
@@ -88,7 +91,6 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                             .build();
                 }
 
-                otherAreas.add(rowAreaUpper);
                 checkNumericColumns(row, header, rowArea, clusterName, trajectoryName);
                 processThermalSpecificRow(row, header, specificParams);
 

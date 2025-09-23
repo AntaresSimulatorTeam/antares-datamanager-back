@@ -358,8 +358,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .map(p -> Optional.ofNullable(p.getNode()).orElse("").toUpperCase())
                 .collect(Collectors.toSet());
 
-        // RULE TO BE CONFIRMED The selected area must be present in the file's 'node' column
-        if (area != null && !area.isBlank() && !fileAreas.contains(area.toUpperCase())) {
+        // The selected area must be present in the file's 'node' column, except when area equals OTHERS
+        if (area != null && !area.isBlank() && !OTHERS_AREA.equals(area) && !fileAreas.contains(area.toUpperCase())) {
             throw BusinessException.builder()
                     .message("Selected area " + area + " is not present in the 'node' column of THERMAL Specific Param trajectory " + trajectoryName)
                     .httpStatus(HttpStatus.BAD_REQUEST)
