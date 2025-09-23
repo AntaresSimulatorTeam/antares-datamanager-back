@@ -361,7 +361,7 @@ class ThermalFileProcessorServiceImplTest {
         Path file = mockExcelFile(tempDir, "thermal_specific_parameters_test.xlsx", () -> generateSpecificParametersExcelFile(horizon));
 
         // Recreate service with proper dependency injection
-        thermalSpecificFileProcessorService = new ThermalSpecificFileProcessorServiceImpl(thermalFileProcessorService, areaRepository);
+        thermalSpecificFileProcessorService = new ThermalSpecificFileProcessorServiceImpl(thermalFileProcessorService, areaRepository, trajectoryRepository);
         // Seed cluster cache to simulate existing cluster
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(ThermalClusterRef.builder().name("ClusterA").build()));
         when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))

@@ -61,6 +61,10 @@ public class TrajectoryEntity {
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<ThermalSpecificParametersEntity> thermalSpecificParameters;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<ThermalCostEntity> thermalCostEntities;
 
     @ManyToMany
