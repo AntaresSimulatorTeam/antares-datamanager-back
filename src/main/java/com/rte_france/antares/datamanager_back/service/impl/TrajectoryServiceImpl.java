@@ -320,6 +320,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return thermalFileProcessorService.processThermalCommonParameterFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
 
+    /**
+     * Processes a thermal-specific parameter trajectory by validating the input data, filtering parameters,
+     * and building the corresponding trajectory entity.
+     *
+     * This method validates the horizon data for the provided trajectory file, filters out invalid or
+     * unassociated parameters based on the study areas, and generates a trajectory entity. If required, a
+     * warning message is also created to flag missing areas from the trajectory file.
+     *
+     * @param trajectoryName the name of the trajectory to be processed
+     * @param horizon the specific horizon for which this trajectory applies
+     * @param area the area identifier for which the trajectory pertains
+     * @param studyId the identifier of the study to which this trajectory is linked
+     * @return the created and saved trajectory entity
+     * @throws IOException if an issue occurs while accessing the trajectory file
+     */
     @Transactional
     @Override
     public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
@@ -333,8 +348,52 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return thermalSpecificProcessorService.processSpecificThermalFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+
+        // Filter out rows whose area is not present in the study AREA trajectory
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId)
+                .stream()
+                .map(a -> a.getName().toUpperCase())
+                .toList();
+        Set<String> fileAreas = params.stream()
+                .map(p -> Optional.ofNullable(p.getNode()).orElse("").toUpperCase())
+                .collect(Collectors.toSet());
+
+        List<ThermalSpecificParametersEntity> filteredParams = params.stream()
+                .filter(p -> p.getNode() != null && studyAreas.contains(p.getNode().toUpperCase()))
+                .toList();
+
+
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+        TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null);
+
+
+        List<String> missingAreas = studyAreas.stream()
+                .filter(sa -> !fileAreas.contains(sa))
+                .toList();
+        if (!missingAreas.isEmpty()) {
+            String message = "Area(s) " + String.join(", ", missingAreas)
+                    + " in AREA trajectory is not present in THERMAL Specific Param trajectory "
+                    + trajectoryFilePath.getFileName();
+            WarningMessageEntity warning = WarningMessageEntity.builder()
+                    .warningContent(message)
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
+                    .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_MISSING_AREAS)
+                    .study(studyRepository.findById(studyId)
+                            .orElseThrow(() -> BusinessException.builder()
+                                    .message("Study not found with id: " + studyId)
+                                    .httpStatus(HttpStatus.NOT_FOUND)
+                                    .build()))
+                    .creationDate(LocalDateTime.now())
+                    .createdBy(createdBy)
+                    .isAck(false)
+                    .trajectory(trajectory)
+                    .build();
+            trajectory.setWarningMessages(Set.of(warning));
+        }
+
+        return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
     }
+
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->

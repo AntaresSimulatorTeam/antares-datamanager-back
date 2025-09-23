@@ -48,6 +48,7 @@ public class Utils {
     private static final String LINKS_PREFIX = "links_";
     private static final String THERMAL_PREFIX = "thermal_";
     private static final String THERMAL_COMMON_PREFIX = "common_param_";
+    private static final String THERMAL_SPECIFIC_PREFIX = "specific_param_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -179,7 +180,10 @@ public class Utils {
             prefix = THERMAL_PREFIX;}
         else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.toString())) {
             prefix = THERMAL_COMMON_PREFIX;
-        } else {
+        } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.toString())) {
+            prefix = THERMAL_SPECIFIC_PREFIX;
+        }
+        else {
             prefix = "";
         }
         if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {

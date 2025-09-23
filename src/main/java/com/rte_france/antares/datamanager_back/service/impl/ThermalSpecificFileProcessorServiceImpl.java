@@ -3,6 +3,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.ThermalSpecificFileProcessorService;
@@ -31,6 +32,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private final ThermalFileProcessorServiceImpl thermalFileProcessorService;
     private final AreaRepository areaRepository;
+    private final TrajectoryRepository trajectoryRepository;
 
     @Override
     public List<ThermalSpecificParametersEntity> buildThermalSpecificParameterValueList(String trajectoryName, Path trajectoryFilePath, String horizon, String area, Integer studyId) {
@@ -111,7 +113,58 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     @Override
     public TrajectoryEntity processSpecificThermalFile(Path trajectoryFilePath, String horizon, List<ThermalSpecificParametersEntity> params, TrajectoryType trajectoryType) {
-        return null;
+        // Ensure we don't reprocess an already processed file: consider same file name and horizon sheet
+        String createdBy = "UNKNOWN__USER";
+        try {
+            // Look for an existing trajectory with the same file name, horizon and type
+            Optional<TrajectoryEntity> existingOpt = findExistingSpecificTrajectory(trajectoryFilePath, horizon);
+
+            TrajectoryEntity trajectory;
+            if (existingOpt.isPresent()) {
+                try {
+                    if (checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+                        // Same identifiers but different checksum -> increment version based on existing
+                        trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, trajectoryType, null, null);
+                    } else {
+                        // Not same file (by name) -> create new version 1
+                        trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, null, null);
+                    }
+                } catch (BusinessException sameContentEx) {
+                    // Same file and same content detected: return the existing trajectory without error (idempotent)
+                    return existingOpt.get();
+                }
+            } else {
+                // No existing -> new trajectory with version 1
+                trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, null, null);
+            }
+
+            // Attach parameters to the trajectory
+            if (params != null) {
+                params.forEach(p -> p.setTrajectory(trajectory));
+                trajectory.setThermalSpecificParameters(params);
+            }
+            // Persist and return
+            return saveThermalSpecificTrajectory(trajectory, params, trajectoryType);
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .message("Error building trajectory: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public TrajectoryEntity saveThermalSpecificTrajectory(TrajectoryEntity trajectory, List<ThermalSpecificParametersEntity> thermalSpecificParameters, TrajectoryType type) {
+        // Delegate persistence to ThermalFileProcessorServiceImpl to avoid injecting repositories here
+        return thermalFileProcessorService.saveThermalSpecificTrajectory(trajectory, thermalSpecificParameters, type);
+    }
+
+    // Local lookup for THERMAL specific parameter trajectories (moved from ThermalFileProcessorServiceImpl)
+    private Optional<TrajectoryEntity> findExistingSpecificTrajectory(Path path, String horizon) {
+        return trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name()),
+                horizon,
+                TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name()
+        );
     }
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
