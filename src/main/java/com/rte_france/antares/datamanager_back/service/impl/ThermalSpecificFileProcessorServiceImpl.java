@@ -121,17 +121,12 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
             TrajectoryEntity trajectory;
             if (existingOpt.isPresent()) {
-                try {
-                    if (checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
-                        // Same identifiers but different checksum -> increment version based on existing
-                        trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, trajectoryType, null, null);
-                    } else {
-                        // Not same file (by name) -> create new version 1
-                        trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, null, null);
-                    }
-                } catch (BusinessException sameContentEx) {
-                    // Same file and same content detected: return the existing trajectory without error (idempotent)
-                    return existingOpt.get();
+                if (checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+                    // Same identifiers but different content -> increment version based on existing
+                    trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, trajectoryType, null, null);
+                } else {
+                    // Not same file (by name) -> create new trajectory with version 1
+                    trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, null, null);
                 }
             } else {
                 // No existing -> new trajectory with version 1
