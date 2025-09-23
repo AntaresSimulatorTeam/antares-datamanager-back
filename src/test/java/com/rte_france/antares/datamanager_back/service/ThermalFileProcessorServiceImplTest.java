@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.ThermalSpecificFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
@@ -114,7 +116,8 @@ class ThermalFileProcessorServiceImplTest {
     private static byte[] generateCommonParametersExcelFile(String horizonSheetName) throws IOException {
         try (var outputStream = new ByteArrayOutputStream();
              var workbook = new XSSFWorkbook()) {
-            workbook.createSheet(horizonSheetName);
+            var sheet = workbook.createSheet(horizonSheetName);
+            createHeader(sheet);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
@@ -705,12 +708,8 @@ class ThermalFileProcessorServiceImplTest {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
                 // Crée le header (ligne 0) avec toutes les cellules nécessaires
-                var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
-                    header.createCell(i).setCellValue("Header" + i);
-                }
+                createHeader(sheet);
                 // Crée les 4 lignes ignorées
-                for (int i = 1; i <= 4; i++) sheet.createRow(i);
                 // Crée la ligne de données à parser
                 var row = sheet.createRow(5);
                 row.createCell(0).setCellValue("pemmdb_name");
@@ -762,6 +761,13 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(370.0, e.getCo2());
     }
 
+    private static void createHeader(XSSFSheet sheet) {
+        var header = sheet.createRow(4);
+        for (int i = 0; i < REQUIRED_COMMON_PARAM_HEADER_COLUMNS.size(); i++) {
+            header.createCell(i).setCellValue(REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i));
+        }
+    }
+
 
     @Test
     void buildThermalCommonParameterValuesList_shouldThrowTechnicalExceptionWhenHorizonSheetMissing(@TempDir Path tempDir) throws Exception {
@@ -787,7 +793,7 @@ class ThermalFileProcessorServiceImplTest {
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
-        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param file"));
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
     }
 
     @Test
@@ -795,10 +801,7 @@ class ThermalFileProcessorServiceImplTest {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
-                var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
-                    header.createCell(i).setCellValue("Header" + i);
-                }
+                createHeader(sheet);
                 var row = sheet.createRow(5);
                 row.createCell(0).setCellValue("pemmdb_name");
                 row.createCell(1).setCellValue("ClusterA");
@@ -819,7 +822,7 @@ class ThermalFileProcessorServiceImplTest {
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
-        assertTrue(exception.getMessage().contains("Missing clusters: ClusterB"));
+        assertTrue(exception.getMessage().contains("The following clusters are missing in the Common Parameters trajectory: ClusterB"));
     }
 
     @Test
@@ -827,10 +830,7 @@ class ThermalFileProcessorServiceImplTest {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
             try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
                 var sheet = wb.createSheet(HORIZON_SHEET);
-                var header = sheet.createRow(0);
-                for (int i = 0; i <= 28; i++) {
-                    header.createCell(i).setCellValue("Header" + i);
-                }
+                createHeader(sheet);
                 var row = sheet.createRow(5);
                 row.createCell(0).setCellValue("pemmdb_name");
                 row.createCell(1).setCellValue("ClusterA");
@@ -852,4 +852,85 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(1, result.size());
     }
 
+    @Test
+    void buildThermalCommonParameterValuesList_shouldThrowBusinessExceptionWhenNoDataFoundAndRowsExist(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                // Ajouter des lignes vides après l'en-tête
+                for (int i = 5; i < 10; i++) {
+                    sheet.createRow(i);
+                }
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldNotThrowExceptionWhenNoRowsExistAfterHeader(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldSkipRowsWithNullClusterName(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                var row = sheet.createRow(5);
+                row.createCell(1).setBlank(); // Null cluster name
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldSkipRowsWithEmptyClusterName(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var contentStream = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                var sheet = wb.createSheet(HORIZON_SHEET);
+                createHeader(sheet);
+                var row = sheet.createRow(5);
+                row.createCell(1).setCellValue(""); // Empty cluster name
+                wb.write(contentStream);
+                return contentStream.toByteArray();
+            }
+        });
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("No data found from line 6 in Common Param trajectory"));
+    }
 }

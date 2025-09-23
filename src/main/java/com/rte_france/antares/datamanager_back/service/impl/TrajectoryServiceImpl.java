@@ -391,7 +391,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             trajectory.setWarningMessages(Set.of(warning));
         }
 
-        return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+        return thermalSpecificProcessorService.processSpecificThermalFile(trajectoryFilePath, horizon,params,  TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
     }
 
 
