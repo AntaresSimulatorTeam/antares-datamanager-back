@@ -33,7 +33,23 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     private final ThermalFileProcessorServiceImpl thermalFileProcessorService;
     private final AreaRepository areaRepository;
     private final TrajectoryRepository trajectoryRepository;
+    private final UserService userService;
 
+    /**
+     * Builds a list of ThermalSpecificParametersEntity objects based on the provided trajectory file
+     * and associated parameters such as trajectory name, horizon, area, and study ID.
+     * This method processes the thermal specific parameter trajectory file, validates data,
+     * and checks for business logic constraints.
+     *
+     * @param trajectoryName the name of the thermal specific parameter trajectory
+     * @param trajectoryFilePath the file path of the thermal specific parameter trajectory
+     * @param horizon the horizon identifier to locate the specific sheet in the file
+     * @param area the selected area for which the data is being validated and processed
+     * @param studyId the identifier of the study, used for validating associated areas
+     * @return a list of ThermalSpecificParametersEntity objects based on the valid rows of the trajectory file
+     * @throws BusinessException if there are validation or business logic errors
+     * @throws TechnicalException if there are issues processing the file
+     */
     @Override
     public List<ThermalSpecificParametersEntity> buildThermalSpecificParameterValueList(String trajectoryName, Path trajectoryFilePath, String horizon, String area, Integer studyId) {
         List<ThermalSpecificParametersEntity> specificParams = new ArrayList<>();
@@ -64,20 +80,14 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 String rowAreaUpper = rowArea.toUpperCase();
 
                 String clusterName = castString(getCellValue(row, 4));
-                if (clusterName == null || clusterName.isBlank()) {
-                    // cluster missing implies invalid row; treat as not numeric row to enforce business blocking
+                // Validate cluster name: must be present and known
+                if (clusterName == null || clusterName.isBlank() || !thermalFileProcessorService.clusterExistsByName(clusterName)) {
+                    // Keep the original message format used by existing tests (cluster name may be blank)
                     throw BusinessException.builder()
-                            .message("Cluster  does not exist in THERMAL Specific Param trajectory " + trajectoryName)
+                            .message("Cluster " + (clusterName == null ? "" : clusterName) + " does not exist in THERMAL Specific Param trajectory " + trajectoryName)
                             .build();
                 }
 
-                if (!thermalFileProcessorService.clusterExistsByName(clusterName)) {
-                    throw BusinessException.builder()
-                            .message("Cluster " + clusterName + " does not exist in THERMAL Specific Param trajectory " + trajectoryName)
-                            .build();
-                }
-
-                // For THERMAL Specific Param, process all data rows regardless of requested area
                 otherAreas.add(rowAreaUpper);
                 checkNumericColumns(row, header, rowArea, clusterName, trajectoryName);
                 processThermalSpecificRow(row, header, specificParams);
@@ -111,25 +121,36 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         }
     }
 
+    /**
+     * Processes a specific thermal file and generates or updates a trajectory entity based on the given inputs.
+     *
+     * @param trajectoryFilePath the path of the thermal trajectory file to process
+     * @param horizon the horizon identifier to associate with the trajectory
+     * @param params the list of thermal-specific parameters to attach to the trajectory
+     * @param trajectoryType the type of trajectory to be processed
+     * @return the newly created or updated trajectory entity
+     * @throws TechnicalException if an error occurs while processing the thermal file
+     */
     @Override
     public TrajectoryEntity processSpecificThermalFile(Path trajectoryFilePath, String horizon, List<ThermalSpecificParametersEntity> params, TrajectoryType trajectoryType) {
-        // Ensure we don't reprocess an already processed file: consider same file name and horizon sheet
-        String createdBy = "UNKNOWN__USER";
+
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+
         try {
-            // Look for an existing trajectory with the same file name, horizon and type
+
             Optional<TrajectoryEntity> existingOpt = findExistingSpecificTrajectory(trajectoryFilePath, horizon);
 
             TrajectoryEntity trajectory;
             if (existingOpt.isPresent()) {
                 if (checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
-                    // Same identifiers but different content -> increment version based on existing
+
                     trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, trajectoryType, null, null);
                 } else {
-                    // Not same file (by name) -> create new trajectory with version 1
+
                     trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, null, null);
                 }
             } else {
-                // No existing -> new trajectory with version 1
+
                 trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, null, null);
             }
 
@@ -138,7 +159,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 params.forEach(p -> p.setTrajectory(trajectory));
                 trajectory.setThermalSpecificParameters(params);
             }
-            // Persist and return
+
             return saveThermalSpecificTrajectory(trajectory, params, trajectoryType);
         } catch (IOException e) {
             throw TechnicalException.builder()
