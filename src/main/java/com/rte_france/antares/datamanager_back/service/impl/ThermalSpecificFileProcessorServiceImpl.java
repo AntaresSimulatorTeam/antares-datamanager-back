@@ -1,8 +1,10 @@
 package com.rte_france.antares.datamanager_back.service.impl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.ThermalSpecificFileProcessorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -86,15 +88,16 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                         .build();
             }
 
-            if (area.equals(OTHERS_AREA)) {
-                List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
+            // Business rule: If none of the areas from the study's AREA trajectory are present in the file,
+            // raise a BusinessException for the THERMAL Specific Param trajectory, regardless of selected area.
+            List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
+            if (studyAreas != null && !studyAreas.isEmpty()) {
                 boolean anyPresent = otherAreas.stream().anyMatch(studyAreas::contains);
                 if (!anyPresent) {
                     throw BusinessException.builder()
                             .message("None of the areas of trajectory AREA are present in THERMAL Specific Param trajectory " + trajectoryName)
                             .build();
                 }
-
             }
 
 
@@ -106,10 +109,18 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         }
     }
 
+    @Override
+    public TrajectoryEntity processSpecificThermalFile(Path trajectoryFilePath, String horizon, List<ThermalSpecificParametersEntity> params, TrajectoryType trajectoryType) {
+        return null;
+    }
+
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
 
-        return areaRepository.findAllByStudyId(studyId)
-                .stream()
+        List<com.rte_france.antares.datamanager_back.repository.model.AreaEntity> areas = areaRepository.findAllByStudyId(studyId);
+        if (areas == null) {
+            return Collections.emptyList();
+        }
+        return areas.stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();
     }
