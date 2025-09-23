@@ -149,8 +149,15 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     @Override
     public TrajectoryEntity saveThermalSpecificTrajectory(TrajectoryEntity trajectory, List<ThermalSpecificParametersEntity> thermalSpecificParameters, TrajectoryType type) {
-        // Delegate persistence to ThermalFileProcessorServiceImpl to avoid injecting repositories here
-        return thermalFileProcessorService.saveThermalSpecificTrajectory(trajectory, thermalSpecificParameters, type);
+        trajectory.setType(type.name());
+        if (thermalSpecificParameters != null && !thermalSpecificParameters.isEmpty()) {
+            thermalSpecificParameters.forEach(p -> p.setTrajectory(trajectory));
+            trajectory.setThermalSpecificParameters(thermalSpecificParameters);
+        }
+        return trajectoryRepository.save(trajectory);
+
+
+
     }
 
     // Local lookup for THERMAL specific parameter trajectories (moved from ThermalFileProcessorServiceImpl)
