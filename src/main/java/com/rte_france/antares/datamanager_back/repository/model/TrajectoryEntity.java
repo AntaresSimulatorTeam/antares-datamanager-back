@@ -65,10 +65,6 @@ public class TrajectoryEntity {
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<ThermalSpecificParametersEntity> thermalSpecificParameters;
-
-    @BatchSize(size = 10000)
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<ThermalCostEntity> thermalCostEntities;
 
     @ManyToMany
@@ -77,21 +73,6 @@ public class TrajectoryEntity {
             inverseJoinColumns = @JoinColumn(name = "scenario_id"))
     @Builder.Default
     private Set<StudyEntity> scenarioEntities = new LinkedHashSet<>();
-
-    public void addScenarioEntity(StudyEntity studyEntity) {
-        Objects.requireNonNull(studyEntity);
-        if (scenarioEntities.add(studyEntity)) {
-            studyEntity.getTrajectories().add(this);
-        }
-    }
-
-    public void removeScenarioEntity(StudyEntity studyEntity) {
-        Objects.requireNonNull(studyEntity);
-        if (scenarioEntities.remove(studyEntity)) {
-            studyEntity.getTrajectories().remove(this);
-        }
-    }
-
 
     @ManyToMany(cascade = CascadeType.PERSIST) // prevents transient by also persistign the new loads
     @JoinTable(name = "trajectory_load",
@@ -107,12 +88,6 @@ public class TrajectoryEntity {
         }
     }
 
-    public void removeLoadEntity(LoadEntity load) {
-        Objects.requireNonNull(load);
-        if (loadEntities.remove(load)) {
-            load.getTrajectoryEntities().remove(this);
-        }
-    }
 
     @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;
