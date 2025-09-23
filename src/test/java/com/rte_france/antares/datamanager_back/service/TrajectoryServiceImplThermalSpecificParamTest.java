@@ -195,15 +195,39 @@ class TrajectoryServiceImplThermalSpecificParamTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         try (MockedStatic<Utils> mocked = mockStatic(Utils.class, CALLS_REAL_METHODS)) {
-            // Stub buildTrajectory to call real method (already via CALLS_REAL_METHODS)
-            // Force checkTrajectoryVersion to return true to simulate different content
+
             mocked.when(() -> Utils.checkTrajectoryVersion(any(Path.class), eq(existing))).thenReturn(true);
 
-            // Also allow computeChecksumByType to be called (real method)
             TrajectoryEntity res = spyService.processThermalSpecificParameterTrajectory("specific_param_FR_test", HORIZON, "FR", 2);
 
             assertNotNull(res);
             assertEquals(4, res.getVersion()); // incremented from 3 to 4
         }
+    }
+
+    @Test
+    void processThermalSpecificParameterTrajectory_throws_whenSelectedAreaNotInFile(@TempDir Path tmp) throws Exception {
+        // Given
+        Path workbook = createWorkbookWithHorizon(tmp);
+        TrajectoryServiceImpl spyService = spy(service);
+        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), anyString(), anyString());
+
+        // Study areas list (doesn't include AT to focus on file presence rule)
+        when(areaRepository.findAllByStudyId(7)).thenReturn(List.of(
+                AreaEntity.builder().name("FR").build(),
+                AreaEntity.builder().name("DE").build()
+        ));
+        // File contains only FR in node column
+        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
+                .thenReturn(List.of(param("FR")));
+
+        // No existing trajectory
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+                .thenReturn(Optional.empty());
+
+        // When / Then
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> spyService.processThermalSpecificParameterTrajectory("specific_param_FR_test", HORIZON, "AT", 7));
+        assertTrue(ex.getMessage().contains("Selected area AT is not present"));
     }
 }
