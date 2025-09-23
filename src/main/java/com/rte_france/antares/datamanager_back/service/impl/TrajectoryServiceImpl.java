@@ -326,7 +326,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName,"");
         checkIfHorizonExist(trajectoryFilePath,horizon, "THERMAL " + trajectoryName);
         var params = thermalSpecificProcessorService.buildThermalSpecificParameterValueList(trajectoryName, trajectoryFilePath, horizon, area, studyId);
-        return null;
+        if (CollectionUtils.isEmpty(params)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryName, horizon))
+                    .message("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return thermalSpecificProcessorService.processSpecificThermalFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
