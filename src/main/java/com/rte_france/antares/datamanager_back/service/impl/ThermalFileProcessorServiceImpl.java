@@ -307,15 +307,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .message("could not build thermal_capacity cluster  list : " + e.getMessage())
                     .build();
         }
-        verifyClustersInCommonParamTrajectory(studyId, horizon, capacities);
-        verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities);
-
         String checksum = calculateChecksum(checksumBuilder.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(path, horizon, area, technology);
 
         handleChecksumAndVersion(dto, existingTrajectory, checksum, path);
 
         checkPowerAndNumberWithSameToUse(capacities, path.getFileName().toString());
+
+        verifyClustersInCommonParamTrajectory(studyId, horizon, capacities);
+        verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities);
 
         if (area.equals(OTHERS_AREA)) {
             List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
