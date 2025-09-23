@@ -344,7 +344,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryName, horizon))
-                    .message("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .message("No valid thermal specific parameter found in the trajectory {0} for area: {1} and horizon: {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
