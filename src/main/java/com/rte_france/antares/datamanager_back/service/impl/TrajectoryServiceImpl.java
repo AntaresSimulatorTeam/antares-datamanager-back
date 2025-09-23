@@ -364,10 +364,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
-        // Build a base trajectory (version/checksum will be adjusted below if needed)
+
         TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null);
 
-        // If an existing trajectory with same identifiers (file_name/horizon/type/area) exists, handle versioning based on checksum
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
                 trajectory.getFileName(),
                 TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(),
@@ -376,7 +375,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 null
         );
         if (existingOpt.isPresent()) {
-            // If same file (name/type/horizon/area) but different content -> version +1; if same content -> BusinessException from Utils
             if (checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
                 trajectory.setVersion(existingOpt.get().getVersion() + 1);
             }
@@ -406,10 +404,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             trajectory.setWarningMessages(Set.of(warning));
         }
 
-        // Persist using the trajectory we already built (which contains the AREA and any warnings)
-        TrajectoryEntity saved = thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
-        // Link the trajectory to the study (scenario_trajectory)
-        return linkTrajectoryToStudy(saved.getId(), studyId, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+        return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+
     }
 
 

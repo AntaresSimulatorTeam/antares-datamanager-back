@@ -2,6 +2,11 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
@@ -21,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static com.rte_france.antares.datamanager_back.service.ThermalFileProcessorServiceImplTest.mockExcelFile;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -39,8 +45,17 @@ class ThermalSpecificFileProcessorServiceImplTest {
     @Mock
     private AreaRepository areaRepository;
 
+    @Mock
+    private TrajectoryRepository trajectoryRepository;
+
+    @Mock
+    private UserService userService;
+
     @InjectMocks
     private ThermalSpecificFileProcessorServiceImpl service;
+
+    @Mock
+    ThermalClusterRefRepository thermalClusterRefRepository;
 
     @BeforeEach
     void setup() {
@@ -160,6 +175,81 @@ class ThermalSpecificFileProcessorServiceImplTest {
         assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present"));
     }
 
+
+    @Test
+    void buildThermalSpecificParameterValueList_parsesRowCorrectly(@TempDir Path tempDir) throws Exception {
+        String horizon = "2025-2026";
+        Path file = tempDir.resolve("specific_param_test.xlsx");
+        Files.write(file, generateSpecificParametersExcelFile(horizon));
+
+        // clusters must exist and be resolvable
+        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
+        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+                .thenAnswer(inv -> ThermalClusterRef.builder()
+                        .name(inv.getArgument(1))
+                        .namePemmdb(inv.getArgument(2))
+                        .build());
+
+        List<ThermalSpecificParametersEntity> list = service.buildThermalSpecificParameterValueList("specific_param_BD", file, horizon, "FR", 1);
+        assertEquals(1, list.size());
+        ThermalSpecificParametersEntity e = list.get(0);
+
+        assertEquals("NODE-A", e.getNode());
+        assertEquals("ENTSOE-1", e.getNodeEntsoe());
+        assertEquals("A comment", e.getComment());
+        assertNotNull(e.getThermalClusterRef());
+        assertEquals("ClusterA", e.getThermalClusterRef().getName());
+        assertEquals("PEM-001", e.getThermalClusterRef().getNamePemmdb());
+
+        // Check a few numeric fields (rounded to 2 decimals by castDouble)
+        assertEquals(10.00, e.getMinStableGeneration());
+        assertEquals(1.50, e.getSpinning());
+        assertEquals(0.42, e.getEfficiency());
+        assertEquals(0.11, e.getF1());
+        assertEquals(210.00, e.getP12());
+    }
+
+    @Test
+    void buildThermalSpecificParameterValueList_missingSheet_throwsBusinessException(@TempDir Path tempDir) throws Exception {
+        String horizon = "2025-2026";
+        // Create workbook with a different sheet name
+        Path file = tempDir.resolve("thermal_specific_parameters_test.xlsx");
+        Files.write(file, generateSpecificParametersExcelFile("OTHER"));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                service.buildThermalSpecificParameterValueList("specific_param_", file, horizon, "FR", 1)
+        );
+        assertTrue(ex.getMessage().contains("Horizon " + horizon + " does not exist in the THERMAL Specific Param trajectory"));
+    }
+
+
+    @Test
+    void processSpecificThermalFile_createsAndSaves_withParams() throws Exception {
+        // Prepare a minimal workbook with the required horizon sheet
+        var wb = new XSSFWorkbook();
+        wb.createSheet(HORIZON);
+        Path file = writeWorkbookToTemp(wb);
+
+        List<ThermalSpecificParametersEntity> params = List.of(
+                ThermalSpecificParametersEntity.builder().node("FR").build()
+        );
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+                .thenReturn(java.util.Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity saved = service.processSpecificThermalFile(file, HORIZON, params, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+
+        assertNotNull(saved);
+        assertEquals(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), saved.getType());
+        assertNotNull(saved.getThermalSpecificParameters());
+        assertEquals(1, saved.getThermalSpecificParameters().size());
+        assertSame(saved, saved.getThermalSpecificParameters().get(0).getTrajectory());
+
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
     // ===================== Helpers =====================
 
     private static XSSFWorkbook createWorkbookWithNoMatchingSheet() {
@@ -244,6 +334,66 @@ class ThermalSpecificFileProcessorServiceImplTest {
             Path file = tempDir.resolve("thermal_specific_test.xlsx");
             Files.write(file, bytes);
             return file;
+        }
+    }
+    private static byte[] generateSpecificParametersExcelFile(String horizonSheetName) throws IOException {
+        try (var outputStream = new ByteArrayOutputStream();
+             var workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet(horizonSheetName);
+
+            // Header row at index 0 with labels for columns used by castDouble error messages
+            var header = sheet.createRow(0);
+            String[] headerLabels = new String[44];
+            headerLabels[0] = "Node";
+            headerLabels[1] = "Node ENTSOE";
+            headerLabels[2] = "Comment";
+            headerLabels[3] = "Cluster PEMMDB";
+            headerLabels[4] = "Cluster Name";
+            headerLabels[5] = "Min Stable Generation";
+            headerLabels[6] = "Spinning";
+            headerLabels[7] = "Efficiency";
+            headerLabels[8] = "FO Rate";
+            headerLabels[9] = "FO Duration";
+            headerLabels[10] = "PO Duration";
+            headerLabels[11] = "PO Winter";
+            headerLabels[12] = "Marginal Cost";
+            headerLabels[13] = "Market Bid";
+            headerLabels[14] = "MR Specific";
+            headerLabels[15] = "CM Specific";
+            headerLabels[16] = "NPO Max Winter";
+            headerLabels[17] = "NPO Max Summer";
+            headerLabels[18] = "Nb Unit";
+            headerLabels[19] = "PO Winter Rate";
+            for (int i = 20; i <= 31; i++) {
+                headerLabels[i] = "F" + (i - 19);
+            }
+            for (int i = 32; i <= 43; i++) {
+                headerLabels[i] = "P" + (i - 31);
+            }
+            for (int i = 0; i < headerLabels.length; i++) {
+                if (headerLabels[i] == null) headerLabels[i] = "Col" + i;
+                header.createCell(i).setCellValue(headerLabels[i]);
+            }
+
+            // Leave row 1 and 2 empty to mimic metadata rows; first data row is index 3
+            var row = sheet.createRow(3);
+            Object[] values = new Object[]{
+                    "NODE-A", "ENTSOE-1", "A comment", "PEM-001", "ClusterA",
+                    10.0, 1.5, 0.42, 0.05, 2.0, 3.0, 4.0, 50.0, 60.0,
+                    1.0, 0.0, 7.0, 8.0, 2.0, 0.1,
+                    0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22,
+                    100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0
+            };
+            for (int c = 0; c < values.length; c++) {
+                if (values[c] instanceof Number n) {
+                    row.createCell(c).setCellValue(n.doubleValue());
+                } else {
+                    row.createCell(c).setCellValue(values[c].toString());
+                }
+            }
+
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
         }
     }
 }

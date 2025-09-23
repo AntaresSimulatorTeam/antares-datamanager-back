@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -101,4 +101,23 @@ class ThermalControllerTest {
                 .andDo(MockMvcResultHandlers.print());
     }
 
+
+    @Test
+    void uploadThermalSpecificParameterTrajectory_shouldReturnCreatedStatusWhenValidRequest() throws Exception {
+        when(trajectoryService.processThermalSpecificParameterTrajectory(anyString(), anyString(), anyString(), anyInt()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        mockMvc.perform(post("/v1/trajectory/thermal-specific-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("area", "FR")
+                        .param("trajectoryToUse", "specific_param_test")
+                        .param("horizon", "2025")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print());
+    }
 }
+
+
+
