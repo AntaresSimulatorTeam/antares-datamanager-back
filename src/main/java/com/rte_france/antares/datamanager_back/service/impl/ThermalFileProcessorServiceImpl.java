@@ -250,15 +250,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return trajectoryRepository.save(trajectory);
     }
 
-    public TrajectoryEntity saveThermalSpecificTrajectory(TrajectoryEntity trajectory, List<ThermalSpecificParametersEntity> thermalSpecificParameters, TrajectoryType type) {
-        trajectory.setType(type.name());
-        if (thermalSpecificParameters != null && !thermalSpecificParameters.isEmpty()) {
-            thermalSpecificParameters.forEach(p -> p.setTrajectory(trajectory));
-            trajectory.setThermalSpecificParameters(thermalSpecificParameters);
-        }
-        return trajectoryRepository.save(trajectory);
-    }
-
     /**
      * Builds a list of area configurations from the given file.
      *
