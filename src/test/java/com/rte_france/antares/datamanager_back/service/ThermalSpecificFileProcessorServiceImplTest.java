@@ -54,9 +54,6 @@ class ThermalSpecificFileProcessorServiceImplTest {
     @InjectMocks
     private ThermalSpecificFileProcessorServiceImpl service;
 
-    @Mock
-    ThermalClusterRefRepository thermalClusterRefRepository;
-
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
@@ -85,7 +82,6 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldProcessValidRowsAndReturnEntities() throws IOException {
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
         when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
 
@@ -101,29 +97,9 @@ class ThermalSpecificFileProcessorServiceImplTest {
         assertEquals(39.0, result.get(0).getP12());
     }
 
-    @Test
-    void shouldThrowWhenClusterCellEmpty() throws IOException {
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
-        Path file = writeWorkbookToTemp(createValidWorkbook(1, true, false));
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, "FR", 1)
-        );
-        assertTrue(ex.getMessage().startsWith("Cluster  does not exist"));
-    }
-
-    @Test
-    void shouldThrowWhenClusterDoesNotExist() throws IOException {
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(false);
-        Path file = writeWorkbookToTemp(createValidWorkbook(1));
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, "FR", 1)
-        );
-        assertTrue(ex.getMessage().contains("Cluster Cluster1 does not exist"));
-    }
 
     @Test
     void shouldThrowForOthersAreaIfNoStudyAreaPresent() throws IOException {
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
         when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Study has ES and IT, but rows contain FR and DE -> none present
@@ -142,7 +118,8 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainText() throws IOException {
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
+        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+                .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a text in a numeric column (index 5)
         var wb = createValidWorkbook(1);
         var sheet = wb.getSheet(HORIZON);
@@ -158,7 +135,6 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowRegardlessOfSelectedAreaIfNoStudyAreaPresent() throws IOException {
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
         when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Study has ES and IT, but rows contain FR and DE -> none present

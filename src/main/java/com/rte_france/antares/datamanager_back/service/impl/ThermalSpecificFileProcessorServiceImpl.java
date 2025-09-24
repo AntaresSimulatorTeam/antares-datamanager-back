@@ -1,9 +1,11 @@
 package com.rte_france.antares.datamanager_back.service.impl;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.ThermalSpecificFileProcessorService;
@@ -41,13 +43,13 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
      * This method processes the thermal specific parameter trajectory file, validates data,
      * and checks for business logic constraints.
      *
-     * @param trajectoryName the name of the thermal specific parameter trajectory
+     * @param trajectoryName     the name of the thermal specific parameter trajectory
      * @param trajectoryFilePath the file path of the thermal specific parameter trajectory
-     * @param horizon the horizon identifier to locate the specific sheet in the file
-     * @param area the selected area for which the data is being validated and processed
-     * @param studyId the identifier of the study, used for validating associated areas
+     * @param horizon            the horizon identifier to locate the specific sheet in the file
+     * @param area               the selected area for which the data is being validated and processed
+     * @param studyId            the identifier of the study, used for validating associated areas
      * @return a list of ThermalSpecificParametersEntity objects based on the valid rows of the trajectory file
-     * @throws BusinessException if there are validation or business logic errors
+     * @throws BusinessException  if there are validation or business logic errors
      * @throws TechnicalException if there are issues processing the file
      */
     @Override
@@ -83,15 +85,10 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 otherAreas.add(rowAreaUpper);
 
                 String clusterName = castString(getCellValue(row, 4));
-                // Validate cluster name: must be present and known
-                if (clusterName == null || clusterName.isBlank() || !thermalFileProcessorService.clusterExistsByName(clusterName)) {
-                    // Keep the original message format used by existing tests (cluster name may be blank)
-                    throw BusinessException.builder()
-                            .message("Cluster " + (clusterName == null ? "" : clusterName) + " does not exist in THERMAL Specific Param trajectory " + trajectoryName)
-                            .build();
-                }
+                String clusterPemmdb = castString(getCellValue(row, 3));
 
-                checkNumericColumns(row, header, rowArea, clusterName, trajectoryName);
+                ThermalClusterRef thermalClusterRef = thermalFileProcessorService.findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb);
+                checkNumericColumns(row, header, rowArea, thermalClusterRef.getName(), trajectoryName);
                 processThermalSpecificRow(row, header, specificParams);
 
             }
@@ -127,9 +124,9 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
      * Processes a specific thermal file and generates or updates a trajectory entity based on the given inputs.
      *
      * @param trajectoryFilePath the path of the thermal trajectory file to process
-     * @param horizon the horizon identifier to associate with the trajectory
-     * @param params the list of thermal-specific parameters to attach to the trajectory
-     * @param trajectoryType the type of trajectory to be processed
+     * @param horizon            the horizon identifier to associate with the trajectory
+     * @param params             the list of thermal-specific parameters to attach to the trajectory
+     * @param trajectoryType     the type of trajectory to be processed
      * @return the newly created or updated trajectory entity
      * @throws TechnicalException if an error occurs while processing the thermal file
      */
@@ -178,7 +175,6 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             trajectory.setThermalSpecificParameters(thermalSpecificParameters);
         }
         return trajectoryRepository.save(trajectory);
-
 
 
     }
@@ -255,6 +251,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 .p10(castDouble(getCellValue(row, 41), getHeaderText(header, 41)))
                 .p11(castDouble(getCellValue(row, 42), getHeaderText(header, 42)))
                 .p12(castDouble(getCellValue(row, 43), getHeaderText(header, 43)))
+                .area(castString(getCellValue(row, 0)))
                 .build();
         result.add(entity);
     }
