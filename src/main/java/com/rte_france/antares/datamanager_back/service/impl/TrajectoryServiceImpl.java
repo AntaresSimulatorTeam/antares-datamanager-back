@@ -324,23 +324,23 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     /**
      * Processes a thermal-specific parameter trajectory by validating the input data, filtering parameters,
      * and building the corresponding trajectory entity.
-     *
+     * <p>
      * This method validates the horizon data for the provided trajectory file, filters out invalid or
      * unassociated parameters based on the study areas, and generates a trajectory entity. If required, a
      * warning message is also created to flag missing areas from the trajectory file.
      *
      * @param trajectoryName the name of the trajectory to be processed
-     * @param horizon the specific horizon for which this trajectory applies
-     * @param area the area identifier for which the trajectory pertains
-     * @param studyId the identifier of the study to which this trajectory is linked
+     * @param horizon        the specific horizon for which this trajectory applies
+     * @param area           the area identifier for which the trajectory pertains
+     * @param studyId        the identifier of the study to which this trajectory is linked
      * @return the created and saved trajectory entity
      * @throws IOException if an issue occurs while accessing the trajectory file
      */
     @Transactional
     @Override
     public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
-        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName,"");
-        checkIfHorizonExist(trajectoryFilePath,horizon, "THERMAL " + trajectoryName);
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName, "");
+        checkIfHorizonExist(trajectoryFilePath, horizon, "THERMAL " + trajectoryName);
         var params = thermalSpecificProcessorService.buildThermalSpecificParameterValueList(trajectoryName, trajectoryFilePath, horizon, area, studyId);
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
@@ -658,6 +658,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } else if (TrajectoryType.THERMAL_CAPACITY.name().equals(type)) {
             thermalFileProcessorServiceImpl.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
             thermalFileProcessorServiceImpl.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+        } else if (TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name().equals(type)) {
+            Set<String> listClustersInCommonParam = trajectory.getThermalCommonParameters().stream()
+                    .map(ThermalCommonParameterEntity::getThermalClusterRef)
+                    .map(ThermalClusterRef::getName).collect(Collectors.toSet());
+            thermalFileProcessorServiceImpl.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInCommonParam);
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
