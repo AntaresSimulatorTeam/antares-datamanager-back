@@ -21,7 +21,7 @@ public class CastCellUtil {
         return o == null ? null : String.valueOf(o);
     }
 
-   public static Double castDouble(Object o, String columnName) {
+   public static Double castDouble(Object o, String columnName,int rowNum) {
         if (o == null) return null;
         try {
             java.math.BigDecimal bd;
@@ -34,7 +34,7 @@ public class CastCellUtil {
             return bd.doubleValue();
         } catch (NumberFormatException e) {
             throw BusinessException.builder()
-                    .message("The value '" + o + "' in column '" + columnName + "' is not numeric")
+                    .message("The value '" + o + "' in column '" + columnName + "' at row " + (rowNum+1) + " is not numeric")
                     .build();
         }
     }
