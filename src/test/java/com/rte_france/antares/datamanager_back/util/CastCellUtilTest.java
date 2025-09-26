@@ -13,8 +13,8 @@ class CastCellUtilTest {
         String column = "min_stable_generation";
 
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> CastCellUtil.castDouble(nonNumeric, column));
+                () -> CastCellUtil.castDouble(nonNumeric, column, 1));
 
-        assertEquals("The value '" + nonNumeric + "' in column '" + column + "' is not numeric", ex.getMessage());
+        assertEquals("The value '" + nonNumeric + "' in column '" + column + "' at row 2 is not numeric", ex.getMessage());
     }
 }
