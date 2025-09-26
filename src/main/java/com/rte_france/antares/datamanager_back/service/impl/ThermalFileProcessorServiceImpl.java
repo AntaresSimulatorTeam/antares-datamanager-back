@@ -69,7 +69,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             validateCommonParamHeaderColumns(header, path);
 
             Set<String> commonParamClusters = new HashSet<>();
-            List<String> clustersWithoutParameters = new ArrayList<>();
             List<ThermalCommonParameterEntity> thermalParameters = parseThermalCommonParameterRows(sheet, header, commonParamClusters);
 
             if (thermalParameters.isEmpty()) {
@@ -77,7 +76,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         .message("No data found from line 6 in Common Param trajectory")
                         .build();            }
 
-            checkMissingClusters(studyId, horizon, commonParamClusters, clustersWithoutParameters, path);
+            checkMissingClusters(studyId, horizon, commonParamClusters);
 
             return thermalParameters;
         } catch (IOException e) {
@@ -110,12 +109,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalParameters;
     }
 
-    private void checkMissingClusters(Integer studyId, String horizon, Set<String> commonParamClusters, List<String> clustersWithoutParameters, Path path) {
+    public void checkMissingClusters(Integer studyId, String horizon, Set<String> commonParamClusters) {
+        Set<String> clustersWithoutParameters ;
         Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
         if (!installedPowerClusters.isEmpty()) {
-            installedPowerClusters.stream()
+            clustersWithoutParameters  = installedPowerClusters.stream()
                     .filter(cluster -> !commonParamClusters.contains(cluster))
-                    .forEach(clustersWithoutParameters::add);
+                    .collect(Collectors.toSet());
 
             if (!clustersWithoutParameters.isEmpty()) {
                 throw BusinessException.builder()
