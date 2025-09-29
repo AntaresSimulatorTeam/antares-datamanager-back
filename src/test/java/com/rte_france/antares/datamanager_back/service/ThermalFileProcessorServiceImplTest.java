@@ -671,7 +671,7 @@ class ThermalFileProcessorServiceImplTest {
 
             WarningMessageEntity result = thermalFileProcessorService.buildWarningMessage(path, area, studyId, isSpecificAreaFound, listOfOtherArea, studyAreas);
 
-            assertNull(result.getWarningContent());
+            assertNull(result);
             verifyNoInteractions(studyRepository);
         }
 

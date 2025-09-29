@@ -420,7 +420,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     public WarningMessageEntity buildWarningMessage(Path path, String area, Integer studyId, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas) {
         List<String> listMissingArea = checkForMissingArea(area, isSpecificAreaFound, listOfOtherArea, studyAreas, path);
         //save warning if missing areas
-        WarningMessageEntity warningMessage = new WarningMessageEntity();
+        WarningMessageEntity warningMessage = null;
 
         if (!listMissingArea.isEmpty()) {
             String message = "The following areas are missing in the THERMAL Installed Power trajectory " + path.getFileName() + " : " + String.join(", ", listMissingArea);
