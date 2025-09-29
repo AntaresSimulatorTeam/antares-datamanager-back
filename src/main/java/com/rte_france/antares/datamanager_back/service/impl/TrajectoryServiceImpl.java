@@ -389,28 +389,30 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
 
-        List<String> missingAreas = studyAreas.stream()
-                .filter(sa -> !fileAreas.contains(sa))
-                .toList();
-        if (!missingAreas.isEmpty()) {
-            String message = "Area(s) " + String.join(", ", missingAreas)
-                    + " in AREA trajectory is not present in THERMAL Specific Param trajectory "
-                    + trajectoryName;
-            WarningMessageEntity warning = WarningMessageEntity.builder()
-                    .warningContent(message)
-                    .warningLevel(WarningLevel.WARNING_LEVEL)
-                    .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_MISSING_AREAS)
-                    .study(studyRepository.findById(studyId)
-                            .orElseThrow(() -> BusinessException.builder()
-                                    .message("Study not found with id: " + studyId)
-                                    .httpStatus(HttpStatus.NOT_FOUND)
-                                    .build()))
-                    .creationDate(LocalDateTime.now())
-                    .createdBy(createdBy)
-                    .isAck(false)
-                    .trajectory(trajectory)
-                    .build();
-            trajectory.setWarningMessages(Set.of(warning));
+        if(area.equals(OTHER_AREA)) {
+            List<String> missingAreas = studyAreas.stream()
+                    .filter(sa -> !fileAreas.contains(sa))
+                    .toList();
+            if (!missingAreas.isEmpty()) {
+                String message = "Area(s) " + String.join(", ", missingAreas)
+                        + " in AREA trajectory is not present in THERMAL Specific Param trajectory "
+                        + trajectoryName;
+                WarningMessageEntity warning = WarningMessageEntity.builder()
+                        .warningContent(message)
+                        .warningLevel(WarningLevel.WARNING_LEVEL)
+                        .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_MISSING_AREAS)
+                        .study(studyRepository.findById(studyId)
+                                .orElseThrow(() -> BusinessException.builder()
+                                        .message("Study not found with id: " + studyId)
+                                        .httpStatus(HttpStatus.NOT_FOUND)
+                                        .build()))
+                        .creationDate(LocalDateTime.now())
+                        .createdBy(createdBy)
+                        .isAck(false)
+                        .trajectory(trajectory)
+                        .build();
+                trajectory.setWarningMessages(Set.of(warning));
+            }
         }
 
         return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
