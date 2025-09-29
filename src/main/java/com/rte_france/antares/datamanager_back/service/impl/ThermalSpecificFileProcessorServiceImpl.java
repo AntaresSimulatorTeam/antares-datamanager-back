@@ -85,10 +85,8 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 otherAreas.add(rowAreaUpper);
 
                 String clusterName = castString(getCellValue(row, 4));
-                String clusterPemmdb = castString(getCellValue(row, 3));
 
-                ThermalClusterRef thermalClusterRef = thermalFileProcessorService.findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb);
-                checkNumericColumns(row, header, rowArea, thermalClusterRef.getName(), trajectoryName);
+                checkNumericColumns(row, header, rowArea, clusterName, trajectoryName);
                 processThermalSpecificRow(row, header, specificParams);
 
             }
