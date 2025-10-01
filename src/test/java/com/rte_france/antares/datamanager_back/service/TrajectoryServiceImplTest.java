@@ -522,6 +522,71 @@ class TrajectoryServiceImplTest {
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningRepository, times(1)).saveAll(warningMessages);
     }
+    @Test
+    void verifyClustersInCommonAndSpecificParamTrajectory_shouldCallVerificationMethodsForThermalCapacity() throws IOException {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        List<ThermalClusterCapacityEntity> thermalClusterCapacities = List.of(new ThermalClusterCapacityEntity());
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .horizon(horizon)
+                .thermalClusterCapacities(thermalClusterCapacities)
+                .build();
+
+        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
+
+        verify(thermalFileProcessorService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
+        verify(thermalFileProcessorService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
+    }
+
+    @Test
+    void checkMissingClustersForCommonParam_shouldCallCheckMissingClusters() throws IOException {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        Set<String> clusterRefs = Set.of("Cluster1", "Cluster2");
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .horizon(horizon)
+                .thermalCommonParameters(List.of(
+                        ThermalCommonParameterEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
+                                .build(),
+                        ThermalCommonParameterEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("Cluster2").build())
+                                .build()
+                ))
+                .build();
+
+        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
+
+        verify(thermalFileProcessorService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+    }
+
+    @Test
+    void checkMissingClustersForSpecificParam_shouldCallCheckMissingClusters() throws IOException {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        Set<String> clusterRefs = Set.of("ClusterA", "ClusterB");
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
+                .horizon(horizon)
+                .thermalSpecificParameters(List.of(
+                        ThermalSpecificParametersEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .build(),
+                        ThermalSpecificParametersEntity.builder()
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .build()
+                ))
+                .build();
+
+        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
+
+        verify(thermalFileProcessorService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+    }
 
     @Test
     void checkTrajectory() throws IOException {
