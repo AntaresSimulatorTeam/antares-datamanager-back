@@ -76,7 +76,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         .message("No data found from line 6 in Common Param trajectory")
                         .build();            }
 
-            checkMissingClusters(studyId, horizon, commonParamClusters);
+            checkMissingClusters(studyId, horizon, commonParamClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
 
             return thermalParameters;
         } catch (IOException e) {
@@ -109,17 +109,18 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalParameters;
     }
 
-    public void checkMissingClusters(Integer studyId, String horizon, Set<String> commonParamClusters) {
+    public void checkMissingClusters(Integer studyId, String horizon, Set<String> paramClusters, TrajectoryType trajectoryType) {
         Set<String> clustersWithoutParameters ;
         Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
         if (!installedPowerClusters.isEmpty()) {
             clustersWithoutParameters  = installedPowerClusters.stream()
-                    .filter(cluster -> !commonParamClusters.contains(cluster))
+                    .filter(cluster -> !paramClusters.contains(cluster))
                     .collect(Collectors.toSet());
 
             if (!clustersWithoutParameters.isEmpty()) {
+                var paramType = trajectoryType.equals(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER) ? "Common" : "Specific";
                 throw BusinessException.builder()
-                        .message("The following clusters are missing in the Common Parameters trajectory: " + String.join(", ", clustersWithoutParameters))
+                        .message("The following clusters are missing in the " + paramType + " Parameters trajectory: " + String.join(", ", clustersWithoutParameters))
                         .build();
             }
         }

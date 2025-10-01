@@ -389,30 +389,28 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
 
-        if(area.equals(OTHER_AREA)) {
-            List<String> missingAreas = studyAreas.stream()
-                    .filter(sa -> !fileAreas.contains(sa))
-                    .toList();
-            if (!missingAreas.isEmpty()) {
-                String message = "Area(s) " + String.join(", ", missingAreas)
-                        + " in AREA trajectory is not present in THERMAL Specific Param trajectory "
-                        + trajectoryName;
-                WarningMessageEntity warning = WarningMessageEntity.builder()
-                        .warningContent(message)
-                        .warningLevel(WarningLevel.WARNING_LEVEL)
-                        .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_MISSING_AREAS)
-                        .study(studyRepository.findById(studyId)
-                                .orElseThrow(() -> BusinessException.builder()
-                                        .message("Study not found with id: " + studyId)
-                                        .httpStatus(HttpStatus.NOT_FOUND)
-                                        .build()))
-                        .creationDate(LocalDateTime.now())
-                        .createdBy(createdBy)
-                        .isAck(false)
-                        .trajectory(trajectory)
-                        .build();
-                trajectory.setWarningMessages(Set.of(warning));
-            }
+        List<String> missingAreas = studyAreas.stream()
+                .filter(sa -> !fileAreas.contains(sa))
+                .toList();
+        if (!missingAreas.isEmpty()) {
+            String message = "Area(s) " + String.join(", ", missingAreas)
+                    + " in AREA trajectory is not present in THERMAL Specific Param trajectory "
+                    + trajectoryName;
+            WarningMessageEntity warning = WarningMessageEntity.builder()
+                    .warningContent(message)
+                    .warningLevel(WarningLevel.WARNING_LEVEL)
+                    .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_MISSING_AREAS)
+                    .study(studyRepository.findById(studyId)
+                            .orElseThrow(() -> BusinessException.builder()
+                                    .message("Study not found with id: " + studyId)
+                                    .httpStatus(HttpStatus.NOT_FOUND)
+                                    .build()))
+                    .creationDate(LocalDateTime.now())
+                    .createdBy(createdBy)
+                    .isAck(false)
+                    .trajectory(trajectory)
+                    .build();
+            trajectory.setWarningMessages(Set.of(warning));
         }
 
         return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
@@ -664,7 +662,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             Set<String> listClustersInCommonParam = trajectory.getThermalCommonParameters().stream()
                     .map(ThermalCommonParameterEntity::getThermalClusterRef)
                     .map(ThermalClusterRef::getName).collect(Collectors.toSet());
-            thermalFileProcessorServiceImpl.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInCommonParam);
+            thermalFileProcessorServiceImpl.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInCommonParam, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+        } else if (TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name().equals(type)) {
+            Set<String> listClustersInSpecificParam = trajectory.getThermalSpecificParameters().stream()
+                    .map(ThermalSpecificParametersEntity::getThermalClusterRef)
+                    .map(ThermalClusterRef::getName).collect(Collectors.toSet());
+            thermalFileProcessorServiceImpl.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInSpecificParam, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);

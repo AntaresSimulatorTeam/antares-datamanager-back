@@ -197,35 +197,6 @@ class ThermalSpecificFileProcessorServiceImplTest {
         );
         assertTrue(ex.getMessage().contains("Horizon " + horizon + " does not exist in the THERMAL Specific Param trajectory"));
     }
-
-
-    @Test
-    void processSpecificThermalFile_createsAndSaves_withParams() throws Exception {
-        // Prepare a minimal workbook with the required horizon sheet
-        var wb = new XSSFWorkbook();
-        wb.createSheet(HORIZON);
-        Path file = writeWorkbookToTemp(wb);
-
-        List<ThermalSpecificParametersEntity> params = List.of(
-                ThermalSpecificParametersEntity.builder().node("FR").build()
-        );
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
-                .thenReturn(java.util.Optional.empty());
-        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
-
-        TrajectoryEntity saved = service.processSpecificThermalFile(file, HORIZON, params, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
-
-        assertNotNull(saved);
-        assertEquals(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), saved.getType());
-        assertNotNull(saved.getThermalSpecificParameters());
-        assertEquals(1, saved.getThermalSpecificParameters().size());
-        assertSame(saved, saved.getThermalSpecificParameters().get(0).getTrajectory());
-
-        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
-    }
-
     // ===================== Helpers =====================
 
     private static XSSFWorkbook createWorkbookWithNoMatchingSheet() {

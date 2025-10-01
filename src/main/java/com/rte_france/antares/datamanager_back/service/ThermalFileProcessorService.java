@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 public interface ThermalFileProcessorService {
 
@@ -22,5 +23,6 @@ public interface ThermalFileProcessorService {
 
      List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) throws IOException;
 
+      void checkMissingClusters(Integer studyId, String horizon, Set<String> paramClusters, TrajectoryType trajectoryType);
 
-}
+     }
