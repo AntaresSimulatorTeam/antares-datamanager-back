@@ -656,18 +656,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } else if (TrajectoryType.LOAD.name().equals(type) && OTHER_AREA.equals(trajectory.getArea())) {
             warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(trajectory.getHorizon(), studyId, userNni, trajectory);
         } else if (TrajectoryType.THERMAL_CAPACITY.name().equals(type)) {
-            thermalFileProcessorServiceImpl.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-            thermalFileProcessorServiceImpl.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+            thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+            thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
         } else if (TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name().equals(type)) {
             Set<String> listClustersInCommonParam = trajectory.getThermalCommonParameters().stream()
                     .map(ThermalCommonParameterEntity::getThermalClusterRef)
                     .map(ThermalClusterRef::getName).collect(Collectors.toSet());
-            thermalFileProcessorServiceImpl.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInCommonParam, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+            thermalFileProcessorService.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInCommonParam, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
         } else if (TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name().equals(type)) {
             Set<String> listClustersInSpecificParam = trajectory.getThermalSpecificParameters().stream()
                     .map(ThermalSpecificParametersEntity::getThermalClusterRef)
                     .map(ThermalClusterRef::getName).collect(Collectors.toSet());
-            thermalFileProcessorServiceImpl.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInSpecificParam, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+            thermalFileProcessorService.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInSpecificParam, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
