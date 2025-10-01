@@ -11,7 +11,6 @@ public interface ThermalSpecificFileProcessorService {
 
     List<ThermalSpecificParametersEntity> buildThermalSpecificParameterValueList(String trajectoryName, Path trajectoryFilePath, String horizon,String area, Integer studyId);
 
-    TrajectoryEntity processSpecificThermalFile(Path trajectoryFilePath, String horizon, List<ThermalSpecificParametersEntity> params, TrajectoryType trajectoryType);
 
     TrajectoryEntity saveThermalSpecificTrajectory(TrajectoryEntity trajectory, List<ThermalSpecificParametersEntity> thermalSpecificParameters, TrajectoryType type);
 
