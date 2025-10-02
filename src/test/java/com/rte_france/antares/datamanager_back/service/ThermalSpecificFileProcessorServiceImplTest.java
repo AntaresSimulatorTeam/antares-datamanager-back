@@ -134,6 +134,23 @@ class ThermalSpecificFileProcessorServiceImplTest {
     }
 
     @Test
+    void shouldThrowWhenNumericColumnsContainNegativeValue() throws IOException {
+        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+                .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
+        // Create wb with one row and inject a negative number in a numeric column (index 5 -> min_stable_generation)
+        var wb = createValidWorkbook(1);
+        var sheet = wb.getSheet(HORIZON);
+        var row = sheet.getRow(3); // first data row (0-based index)
+        row.getCell(5).setCellValue(-1.0);
+
+        Path file = writeWorkbookToTemp(wb);
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, "FR", 1)
+        );
+        assertTrue(ex.getMessage().contains("must be positive"));
+    }
+
+    @Test
     void shouldThrowRegardlessOfSelectedAreaIfNoStudyAreaPresent() throws IOException {
         when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());

@@ -300,6 +300,12 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                         .message("Values for node " + areaName + " / cluster " + clusterName + " are not numeric in THERMAL Specific Param trajectory " + trajectoryName)
                         .build();
             }
+            double d = ((Number) v).doubleValue();
+            if (d < 0) {
+                throw BusinessException.builder()
+                        .message("Values for node " + areaName + " / cluster " + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName)
+                        .build();
+            }
         }
     }
 
