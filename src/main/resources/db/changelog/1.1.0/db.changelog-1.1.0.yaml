@@ -45,4 +45,6 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V21-alter-columns-thermal-specific-parameters-to-numeric.sql
   - include:
+      file: classpath*:db/changelog/1.1.0/V21-alter-columns-thermal-specific-parameters-to-numeric.sql
+  - include:
       file: classpath*:db/changelog/1.1.0/V21-add-param-modulation-tables.sql
