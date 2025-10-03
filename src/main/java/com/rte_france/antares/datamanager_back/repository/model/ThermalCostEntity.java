@@ -28,10 +28,4 @@ public class ThermalCostEntity extends ThermalBaseEntity {
     @JoinColumn(name = "thermal_type_id")
     private ThermalCostTypeEntity thermalType;
 
-    public ThermalCostEntity(Double cost, Double year, ThermalCostTypeEntity thermalType) {
-        this.cost = cost;
-        this.year = year;
-        this.thermalType = thermalType;
-    }
-
 }

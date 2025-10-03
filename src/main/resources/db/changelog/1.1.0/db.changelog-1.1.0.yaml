@@ -42,3 +42,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V19-add-column-area-thermal-specific-param.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V20-alter-warning-message-content-lenght-column.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V21-add-param-modulation-tables.sql
