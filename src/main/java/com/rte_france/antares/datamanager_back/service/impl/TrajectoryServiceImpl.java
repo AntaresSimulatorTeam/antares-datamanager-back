@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.*;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -48,6 +48,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
+    private final ThermalParamModulationService thermalParamModulationService;
+
     private final LoadFileProcessorService loadFileProcessorService;
 
     private final StudyRepository studyRepository;
@@ -65,6 +67,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final UserService userService;
 
     private final LoadRepository loadRepository;
+
+    private final PathSecurityUtil pathSecurityUtil;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -113,7 +117,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .build());
 
         // Build and normalize the trajectory path
-        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
+        Path trajectoryPath = pathSecurityUtil.buildTrajectoryPath(trajectoryToUse, TrajectoryType.LOAD);
 
 
         // Try to find existing trajectory
@@ -176,25 +180,29 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return true;
     }
 
-    // Utility method to build trajectory path with checks
-    public Path buildTrajectoryPath(String trajectoryToUse) {
-        String nasDir = antaressDataManagerProperties.getNasDirectory();
-        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
-        String loadDir = antaressDataManagerProperties.getLoadDirectory();
-
-        if (nasDir == null || trajFilePath == null || loadDir == null) {
-            throw BusinessException.builder()
-                    .message("Antaress path configuration is incomplete")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        return Paths.get(nasDir)
-                .resolve(trajFilePath)
-                .resolve(loadDir)
-                .resolve(trajectoryToUse)
-                .normalize();
-    }
+//    // Utility method to build trajectory path with checks
+//    public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType trajectoryType) {
+//        String nasDir = antaressDataManagerProperties.getNasDirectory();
+//        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
+//        String directory = switch (trajectoryType) {
+//            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
+//            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalParamModulationDirectory();
+//            default -> throw new IllegalStateException("Unexpected value: " + trajectoryType);
+//        };
+//
+//        if (nasDir == null || trajFilePath == null || directory == null) {
+//            throw BusinessException.builder()
+//                    .message("Antaress path configuration is incomplete")
+//                    .httpStatus(HttpStatus.BAD_REQUEST)
+//                    .build();
+//        }
+//
+//        return Paths.get(nasDir)
+//                .resolve(trajFilePath)
+//                .resolve(directory)
+//                .resolve(trajectoryToUse)
+//                .normalize();
+//    }
 
 
     private TrajectoryEntity buildNewLoadTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
@@ -417,6 +425,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     }
 
+    @Transactional
+    @Override
+    public TrajectoryEntity processThermalParamModulationTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return thermalParamModulationService.saveParamModulationToDb(trajectoryToUse,horizon);
+    }
+
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -584,6 +598,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalParamModulationDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();

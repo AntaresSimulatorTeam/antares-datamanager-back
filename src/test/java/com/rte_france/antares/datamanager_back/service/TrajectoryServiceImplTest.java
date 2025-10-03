@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,9 @@ class TrajectoryServiceImplTest {
     private WarningRepository warningRepository;
     @Mock
     private UserService userService;
+    @Mock
+    private PathSecurityUtil pathSecurityUtil;
+
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
 
@@ -986,7 +990,7 @@ class TrajectoryServiceImplTest {
 
 
             var service = spy(trajectoryService);
-            doReturn(trajectoryPath).when(service).buildTrajectoryPath(any());
+            doReturn(trajectoryPath).when(pathSecurityUtil).buildTrajectoryPath(any(), any());
 
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
