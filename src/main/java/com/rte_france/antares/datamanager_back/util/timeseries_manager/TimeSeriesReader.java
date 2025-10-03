@@ -7,18 +7,13 @@
 package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowFileReader;
-import org.apache.arrow.vector.types.pojo.Field;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+
 import java.util.Objects;
 
 /**
