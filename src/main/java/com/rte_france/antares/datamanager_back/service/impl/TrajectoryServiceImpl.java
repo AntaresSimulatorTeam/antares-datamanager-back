@@ -340,7 +340,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName, "");
-        checkIfHorizonExist(trajectoryFilePath, horizon, "THERMAL " + trajectoryName);
         var params = thermalSpecificProcessorService.buildThermalSpecificParameterValueList(trajectoryName, trajectoryFilePath, horizon, area, studyId);
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
