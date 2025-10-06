@@ -76,4 +76,6 @@ public class ThermalController {
                 trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
     }
+
+
 }
