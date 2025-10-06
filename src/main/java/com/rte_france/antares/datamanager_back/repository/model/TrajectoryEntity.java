@@ -92,6 +92,20 @@ public class TrajectoryEntity {
         }
     }
 
+    @ManyToMany(cascade = CascadeType.PERSIST) // prevents transient by also persistign the new loads
+    @JoinTable(name = "trajectory_modulation_parameters",
+            joinColumns = @JoinColumn(name = "id_trajectory"),
+            inverseJoinColumns = @JoinColumn(name = "id_modulation_param"))
+    @Builder.Default
+    private Set<ThermalModulationParameterEntity> thermalModulationParams = new LinkedHashSet<>();
+
+    public void addThermalModulationParameterEntity(ThermalModulationParameterEntity paramModulation) {
+        Objects.requireNonNull(paramModulation);
+        if (thermalModulationParams.add(paramModulation)) {
+            paramModulation.getTrajectoryEntities().add(this);
+        }
+    }
+
 
     @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;

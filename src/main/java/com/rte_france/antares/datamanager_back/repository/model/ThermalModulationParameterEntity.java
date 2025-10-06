@@ -3,6 +3,10 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.LinkedHashSet;
+import java.util.Objects;
+import java.util.Set;
+
 @EqualsAndHashCode(callSuper = true)
 @Data
 @Builder(toBuilder = true)
@@ -21,5 +25,16 @@ public class ThermalModulationParameterEntity extends ThermalBaseEntity {
 
     @Column(name = "checksum")
     private String checksum;
+
+    @ManyToMany(mappedBy = "thermalModulationParams")
+    @Builder.Default
+    private Set<TrajectoryEntity> trajectoryEntities = new LinkedHashSet<>();
+
+    public void addTrajectoryEntity(TrajectoryEntity trajectory) {
+        Objects.requireNonNull(trajectory);
+        if (trajectoryEntities.add(trajectory)) {
+            trajectory.getThermalModulationParams().add(this);
+        }
+    }
 
 }

@@ -43,8 +43,9 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V20-alter-warning-message-content-lenght-column.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V21-alter-columns-thermal-specific-parameters-to-numeric.sql
-  - include:
-      file: classpath*:db/changelog/1.1.0/V21-alter-columns-thermal-specific-parameters-to-numeric.sql
-  - include:
       file: classpath*:db/changelog/1.1.0/V21-add-param-modulation-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V22-alter-columns-thermal-specific-parameters-to-numeric.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V23-create_table_trajectory_modulation_param.sql
+

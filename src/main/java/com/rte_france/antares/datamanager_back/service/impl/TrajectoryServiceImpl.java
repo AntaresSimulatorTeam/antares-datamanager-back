@@ -541,17 +541,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             throw new SecurityException("Tentative d'accès à un fichier en dehors du répertoire autorisé");
         }
 
-        try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
-            String header = reader.readLine();
-            if (header != null) {
-                String[] columns = header.split(";");
-                return Arrays.stream(columns)
-                        .skip(2) // Ignore DATE_HEURE et heure
-                        .toList();
-            }
-        }
-        return List.of();
-    }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -719,8 +708,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
-                    antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalParamModulationDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
