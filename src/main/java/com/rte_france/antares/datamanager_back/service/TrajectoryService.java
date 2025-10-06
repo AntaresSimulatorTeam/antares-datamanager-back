@@ -6,10 +6,13 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public interface TrajectoryService {
 
@@ -40,5 +43,6 @@ public interface TrajectoryService {
     Map<String, Integer> countWarningMessage(Integer studyId);
 
     TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryToUse, String horizon, String area, Integer studyId) throws IOException;
-    TrajectoryEntity processThermalParamModulationTrajectory (String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
+    TrajectoryEntity processThermalModulationParamTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 }

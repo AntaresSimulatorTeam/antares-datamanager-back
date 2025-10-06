@@ -117,6 +117,21 @@ class ThermalControllerTest {
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print());
     }
+
+    @Test
+    void uploadThermalModulationParamTrajectory_shouldReturnCreatedStatusWhenValidRequest() throws Exception {
+        when(trajectoryService.processThermalModulationParamTrajectory(anyString(), anyString(), anyInt()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        mockMvc.perform(post("/v1/trajectory/thermal-modulation-parameters")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "specific_param_test")
+                        .param("horizon", "2025")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print());
+    }
 }
 
 

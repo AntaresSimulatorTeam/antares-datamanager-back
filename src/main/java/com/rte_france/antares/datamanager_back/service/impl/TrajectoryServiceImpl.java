@@ -48,7 +48,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
-    private final ThermalParamModulationService thermalParamModulationService;
+    private final ThermalModulationParamService thermalModulationParamService;
 
     private final LoadFileProcessorService loadFileProcessorService;
 
@@ -180,31 +180,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return true;
     }
 
-//    // Utility method to build trajectory path with checks
-//    public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType trajectoryType) {
-//        String nasDir = antaressDataManagerProperties.getNasDirectory();
-//        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
-//        String directory = switch (trajectoryType) {
-//            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
-//            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalParamModulationDirectory();
-//            default -> throw new IllegalStateException("Unexpected value: " + trajectoryType);
-//        };
-//
-//        if (nasDir == null || trajFilePath == null || directory == null) {
-//            throw BusinessException.builder()
-//                    .message("Antaress path configuration is incomplete")
-//                    .httpStatus(HttpStatus.BAD_REQUEST)
-//                    .build();
-//        }
-//
-//        return Paths.get(nasDir)
-//                .resolve(trajFilePath)
-//                .resolve(directory)
-//                .resolve(trajectoryToUse)
-//                .normalize();
-//    }
-
-
     private TrajectoryEntity buildNewLoadTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
         //build new trajectory
         return TrajectoryEntity.builder()
@@ -221,6 +196,49 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
+        List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
+        if (area.equals(OTHER_AREA)) {
+            listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
+                    .stream()
+                    .map(TrajectoryEntity::getArea)
+                    .filter(loadArea -> !loadArea.equals(OTHER_AREA))
+                    .map(String::toLowerCase)
+                    .toList();
+        }
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
+
+        List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
+        if (loadsFile.isEmpty()) {
+
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(area, horizon))
+                    .message("No valid load files found in the trajectory path for area: {0} and horizon: {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        Set<LoadEntity> loadEntities = new HashSet<>();
+        for (String loadFileName : loadsFile) {
+            // Vérification d'existence par nom de fichier et nom de trajectoire
+            Optional<LoadEntity> existingLoad = loadRepository.findByFileNameAndTrajectoryFileName(loadFileName, loadTrajectory.getFileName());
+            LoadEntity loadEntity;
+            loadEntity = existingLoad.orElseGet(() -> {
+                String areaName = extractAreaFromFileName(loadFileName);
+                return LoadEntity.builder()
+                        .fileName(loadFileName)
+                        .area(areaName)
+                        .build();
+            });
+
+            loadEntity.addTrajectoryEntity(loadTrajectory);
+            loadEntities.add(loadEntity);
+        }
+        loadTrajectory.setLoadEntities(loadEntities);
+        loadTrajectory.setArea(area.toUpperCase());
+        loadTrajectory.setWarningMessages(warningMessageEntities);
+        return trajectoryRepository.save(loadTrajectory);
+    }
+
+    private TrajectoryEntity buildAndSaveModulationParamTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
         if (area.equals(OTHER_AREA)) {
             listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
@@ -427,8 +445,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Transactional
     @Override
-    public TrajectoryEntity processThermalParamModulationTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return thermalParamModulationService.saveParamModulationToDb(trajectoryToUse,horizon);
+    public TrajectoryEntity processThermalModulationParamTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return thermalModulationParamService.saveParamModulationToDb(trajectoryToUse,horizon, studyId);
     }
 
 

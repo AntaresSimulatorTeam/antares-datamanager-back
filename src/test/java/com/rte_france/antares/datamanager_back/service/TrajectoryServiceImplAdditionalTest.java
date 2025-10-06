@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +59,9 @@ class TrajectoryServiceImplAdditionalTest {
 
     @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
+
+    @Mock
+    private PathSecurityUtil pathSecurityUtil;
 
 
     @Captor
@@ -178,15 +182,11 @@ class TrajectoryServiceImplAdditionalTest {
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("testUser").build());
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
-
         when(loadFileProcessorServiceImpl.checkForMissingLoadFiles(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptySet());
 
         when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
+        when(pathSecurityUtil.buildTrajectoryPath(trajectoryToUse,TrajectoryType.LOAD)).thenReturn(tempDir.resolve(trajectoryToUse));
 
         try (var mockedStatic = mockStatic(Utils.class)) {
             mockedStatic.when(() -> Utils.getValidLoadFileNamesWithHorizon(
@@ -247,9 +247,8 @@ class TrajectoryServiceImplAdditionalTest {
         when(areaRepository.findAreaByNameAndStudyId(area, studyId))
                 .thenReturn(Optional.of(AreaEntity.builder().name(area).build()));
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+
+        when(pathSecurityUtil.buildTrajectoryPath(trajectoryToUse,TrajectoryType.LOAD)).thenReturn(Path.of("/tmp/testTrajectory"));
 
         var existingTrajectory = TrajectoryEntity.builder()
                 .fileName(trajectoryToUse)

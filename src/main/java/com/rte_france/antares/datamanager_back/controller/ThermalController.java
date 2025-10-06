@@ -67,13 +67,13 @@ public class ThermalController {
     }
 
     @Operation(summary = "import thermal modulation parameters trajectory to database ")
-    @PostMapping("/thermal-parameters-modulation")
+    @PostMapping("/thermal-modulation-parameters")
     public ResponseEntity<TrajectoryDTO> uploadThermalParamModulationTrajectory(
             @RequestParam("trajectoryToUse") String trajectoryToUse,
             @RequestParam("horizon") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
-                trajectoryService.processThermalParamModulationTrajectory(trajectoryToUse, horizon, studyId)
+                trajectoryService.processThermalModulationParamTrajectory(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
     }
 
