@@ -88,7 +88,7 @@ public class StudyController {
         return new ResponseEntity<>(duplicatedStudy, HttpStatus.CREATED);
     }
 
-    @Operation(summary = "Update a study that is not generated yet (project, horizon, keywords)")
+    @Operation(summary = "Update a study that is not generated yet (name, project name, keywords)")
     @PutMapping("/{id}")
     public ResponseEntity<StudyDTO> updateStudy(
             @PathVariable Integer id,
