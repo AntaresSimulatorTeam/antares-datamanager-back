@@ -17,7 +17,11 @@ public interface ThermalFileProcessorService {
 
      TrajectoryEntity saveThermalCommonTrajectory(TrajectoryEntity trajectory, List<ThermalCommonParameterEntity> thermalCommonParameterEntityList, TrajectoryType type);
 
+     TrajectoryEntity saveThermalParamModulationTrajectory(TrajectoryEntity trajectory, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type);
+
      TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> thermalCommonParameterEntities, TrajectoryType type) throws IOException;
+
+     TrajectoryEntity processThermalModulationParameterFile(Path path, String horizon, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException;
 
      ThermalClusterCapacityDto buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) throws IOException;
 

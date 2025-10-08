@@ -8,6 +8,7 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -81,7 +81,7 @@ public class Utils {
                 && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon()));
     }
 
-    public static boolean isSameLoadTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
                 && (trajectoryEntity.getLastModificationContentDate()
                 .truncatedTo(ChronoUnit.SECONDS)
@@ -166,6 +166,42 @@ public class Utils {
         return false;
     }
 
+    public static boolean checkParamModulationTrajectoryVersion(
+            List<ThermalModulationParameterEntity> thermalModulationParameterEntityList,
+            TrajectoryEntity trajectoryEntity) {
+
+        if (thermalModulationParameterEntityList == null || thermalModulationParameterEntityList.isEmpty() ||
+                trajectoryEntity.getThermalModulationParameters() == null || trajectoryEntity.getThermalModulationParameters().isEmpty()) {
+            return false;
+        }
+
+        String newCmChecksum = extractChecksum(thermalModulationParameterEntityList, "CM_");
+        String newMrChecksum = extractChecksum(thermalModulationParameterEntityList, "MR_");
+
+        String existingCmChecksum = extractChecksum(trajectoryEntity.getThermalModulationParameters(), "CM_");
+        String existingMrChecksum = extractChecksum(trajectoryEntity.getThermalModulationParameters(), "MR_");
+
+        boolean sameCm = Objects.equals(newCmChecksum, existingCmChecksum);
+        boolean sameMr = Objects.equals(newMrChecksum, existingMrChecksum);
+
+        if (sameCm && sameMr) {
+            throw BusinessException.builder()
+                    .message("File already processed with same content : {0}")
+                    .errorMessageArguments(List.of(trajectoryEntity.getFileName()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return true;
+    }
+
+    private static String extractChecksum(List<ThermalModulationParameterEntity> entities, String prefix) {
+        return entities.stream()
+                .filter(param -> param.getTsName().startsWith(prefix))
+                .map(ThermalModulationParameterEntity::getChecksum)
+                .findFirst()
+                .orElse(null);
+    }
+
     public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
@@ -194,21 +230,6 @@ public class Utils {
             return fileName;
         }
         return fileName.substring(0, lastDotIndex);
-    }
-
-    private static String isLinkTypePrefix(String trajectoryType) {
-        return Objects.equals(trajectoryType, TrajectoryType.LINK.toString()) ? LINKS_PREFIX : "";
-    }
-
-
-    public static boolean isSheetNameYearNumber(Sheet sheet) {
-        String sheetName = sheet.getSheetName();
-        try {
-            Integer.parseInt(sheetName);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
     }
 
     /**
@@ -348,8 +369,9 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY  -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> "NA";
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }

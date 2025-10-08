@@ -19,6 +19,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -47,6 +48,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final ThermalFileProcessorService thermalFileProcessorService;
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
+
+    private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
     private final LoadFileProcessorService loadFileProcessorService;
 
@@ -113,7 +116,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .build());
 
         // Build and normalize the trajectory path
-        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
+        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.LOAD);
 
 
         // Try to find existing trajectory
@@ -122,7 +125,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
-            if ((isSameLoadTrajectory(trajectoryPath, existingTrajectory) && !area.equals(OTHER_AREA))
+            if ((isSameTrajectory(trajectoryPath, existingTrajectory) && !area.equals(OTHER_AREA))
                     || (area.equals(OTHER_AREA)
                     && isSameVersionOfOtherLoadTrajectory(existingTrajectory, studyId, trajectoryPath, horizon)
             )
@@ -177,23 +180,41 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     // Utility method to build trajectory path with checks
-    public Path buildTrajectoryPath(String trajectoryToUse) {
+    public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType type) throws IOException {
         String nasDir = antaressDataManagerProperties.getNasDirectory();
         String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
-        String loadDir = antaressDataManagerProperties.getLoadDirectory();
+        String directoryByType = "";
+        if (TrajectoryType.LOAD.equals(type)) {
+            directoryByType = antaressDataManagerProperties.getLoadDirectory();
+        } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
+            directoryByType = antaressDataManagerProperties.getThermalModulationParameterDirectory();
+        }
 
-        if (nasDir == null || trajFilePath == null || loadDir == null) {
+        if (nasDir == null || trajFilePath == null || directoryByType == null) {
             throw BusinessException.builder()
                     .message("Antaress path configuration is incomplete")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
-        return Paths.get(nasDir)
+
+
+        Path baseDirectory = Path.of(nasDir)
                 .resolve(trajFilePath)
-                .resolve(loadDir)
-                .resolve(trajectoryToUse)
+                .resolve(directoryByType)
                 .normalize();
+
+        if (!baseDirectory.endsWith("/")) {
+            baseDirectory = baseDirectory.resolve("");
+        }
+
+        //download the file
+        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse).normalize();
+        if (!trajectoryFilePath.startsWith(baseDirectory)) {
+            throw new IOException("Path is outside of the target directory");
+        }
+
+        return trajectoryFilePath;
     }
 
 
@@ -416,6 +437,120 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     }
 
+    @Override
+    public TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Path trajectoryFilePath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+
+        String targetYear = horizon.contains("-") ? horizon.split("-")[0] : horizon;
+        String cmFileName = "CM_" + trajectoryToUse + "_" + targetYear + ".csv";
+        String mrFileName = "MR_" + trajectoryToUse + "_" + targetYear + ".csv";
+
+        Path cmFile = findFile(trajectoryFilePath, cmFileName).orElse(null);
+        Path mrFile = findFile(trajectoryFilePath, mrFileName).orElse(null);
+
+        if (cmFile == null && mrFile == null) {
+            throw BusinessException.builder()
+                    .message("Missing modulation files: " + cmFileName + ", " + mrFileName)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
+        if (cmFile != null) {
+            List<String> clustersInCmFile = extractClustersFromCsvHeader(trajectoryFilePath.resolve(cmFileName));
+            verifyExistingCmSpecificClusters(horizon, studyId, clustersInCmFile);
+            thermalModulationParameters.add(ThermalModulationParameterEntity.builder()
+                    .tsName(cmFileName)
+                    .checksum(getFileChecksum(cmFile.toString()))
+                    .build()
+            );
+        }
+
+        if (mrFile != null) {
+            List<String> clustersInMrFile = extractClustersFromCsvHeader(trajectoryFilePath.resolve(mrFileName));
+            verifyExistingMrSpecificClusters(horizon, studyId, clustersInMrFile);
+            thermalModulationParameters.add(ThermalModulationParameterEntity.builder().
+                    tsName(mrFileName)                     .checksum(getFileChecksum(mrFile.toString()))
+                    .build()
+            );
+        }
+
+        return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+    }
+
+    private Optional<Path> findFile(Path directory, String fileName) throws IOException {
+        Path baseDir = directory.toRealPath().normalize();
+
+        // Reject dangerous path input
+        Path target = baseDir.resolve(fileName).normalize();
+        if (!target.startsWith(baseDir)) {
+            throw new SecurityException("Invalid file path: path traversal attempt detected");
+        }
+
+        try (var files = Files.list(baseDir)) {
+            return files
+                    .filter(p -> p.getFileName().toString().equals(target.getFileName().toString()))
+                    .findFirst();
+        }
+    }
+
+
+    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile) {
+        Set<String> listClusterByAreaForMrSpecificParam = thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(studyId, horizon)
+                .stream()
+                .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
+                .collect(Collectors.toSet());
+
+        Set<String> missingClusters = listClusterByAreaForMrSpecificParam.stream()
+                .filter(cluster -> !clustersInFile.contains(cluster))
+                .collect(Collectors.toSet());
+
+        if (!missingClusters.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Les clusters suivants sont manquants dans le fichier MR : " + String.join(", ", missingClusters))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile) {
+        Set<String> listClusterByAreaForCmSpecificParam = thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(studyId, horizon).stream()
+                .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
+                .collect(Collectors.toSet());
+        Set<String> missingClusters = listClusterByAreaForCmSpecificParam.stream()
+                .filter(cluster -> !clustersInFile.contains(cluster))
+                .collect(Collectors.toSet());
+
+        if (!missingClusters.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Les clusters suivants sont manquants dans le fichier CM : " + String.join(", ", missingClusters))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+
+    public List<String> extractClustersFromCsvHeader(Path csvFilePath) throws IOException {
+
+        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
+                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                .normalize();
+
+        Path normalized = csvFilePath.toAbsolutePath().normalize();
+        if (!normalized.startsWith(allowedBaseDir)) {
+            throw new SecurityException("Tentative d'accès à un fichier en dehors du répertoire autorisé");
+        }
+
+        try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
+            String header = reader.readLine();
+            if (header != null) {
+                String[] columns = header.split(";");
+                return Arrays.stream(columns)
+                        .skip(2) // Ignore DATE_HEURE et heure
+                        .toList();
+            }
+        }
+        return List.of();
+    }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -583,6 +718,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
+                    antaressDataManagerProperties.getThermalModulationParameterDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
