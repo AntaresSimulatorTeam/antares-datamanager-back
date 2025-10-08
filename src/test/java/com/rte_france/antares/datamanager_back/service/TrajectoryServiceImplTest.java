@@ -52,7 +52,6 @@ class TrajectoryServiceImplTest {
     private AntaressDataManagerProperties antaressDataManagerProperties;
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
-
     @Mock
     private StudyRepository studyRepository;
     @Mock
@@ -63,11 +62,10 @@ class TrajectoryServiceImplTest {
     private UserService userService;
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
-
-
     @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorService;
-
+    @Mock
+    private ThermalSpecificParametersRepository thermalSpecificParametersRepository;
     @Mock
     private LoadRepository loadRepository;
 
@@ -173,18 +171,18 @@ class TrajectoryServiceImplTest {
     @Test
     void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEntitiesWhenExist() {
         List<TrajectoryEntity> expectedEntities = List.of(new TrajectoryEntity());
-        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "fileNameStartsWith", "FR","tech")).thenReturn(expectedEntities);
+        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "fileNameStartsWith", "FR", "tech")).thenReturn(expectedEntities);
 
-        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "fileNameStartsWith", "FR","tech");
+        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "fileNameStartsWith", "FR", "tech");
 
         assertEquals(expectedEntities, result);
     }
 
     @Test
     void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEmptyWhenDoNotExist() {
-        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "nonExistentFileNameStartsWith", "FR","tech")).thenReturn(List.of());
+        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(TrajectoryType.AREA.name(), "2023-2024", "nonExistentFileNameStartsWith", "FR", "tech")).thenReturn(List.of());
 
-        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "nonExistentFileNameStartsWith", "FR","tech");
+        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType.AREA, "2023-2024", "nonExistentFileNameStartsWith", "FR", "tech");
 
         assertEquals(List.of(), result);
     }
@@ -205,7 +203,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // Then
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,"test");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, "test");
 
         assertEquals(1, result.size());
         assertEquals("areas_testFile.xlsx", result.getFirst().getFileName());
@@ -256,7 +254,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area"); // <-- Ajouté
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, "area"));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, "area"));
     }
 
     @Test
@@ -522,6 +520,7 @@ class TrajectoryServiceImplTest {
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningRepository, times(1)).saveAll(warningMessages);
     }
+
     @Test
     void verifyClustersInCommonAndSpecificParamTrajectory_shouldCallVerificationMethodsForThermalCapacity() throws IOException {
         Integer studyId = 1;
@@ -626,7 +625,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, null);
 
         // Then
         assertEquals(1, result.size());
@@ -647,7 +646,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("link"); // <-- Ajouté
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK, null, "OTHER");
 
         // Then
         assertEquals(0, result.size());
@@ -975,7 +974,7 @@ class TrajectoryServiceImplTest {
 
         try (var mockedStatic = org.mockito.Mockito.mockStatic(
                 com.rte_france.antares.datamanager_back.util.Utils.class)) {
-            mockedStatic.when(() -> Utils.isSameLoadTrajectory(any(), any())).thenReturn(true);
+            mockedStatic.when(() -> Utils.isSameTrajectory(any(), any())).thenReturn(true);
             mockedStatic.when(() -> Utils.getValidLoadFileNamesWithHorizon(
                     any(Path.class),
                     eq("OTHERS"),
@@ -986,7 +985,7 @@ class TrajectoryServiceImplTest {
 
 
             var service = spy(trajectoryService);
-            doReturn(trajectoryPath).when(service).buildTrajectoryPath(any());
+            doReturn(trajectoryPath).when(service).buildTrajectoryPath(any(), any());
 
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1094,4 +1093,147 @@ class TrajectoryServiceImplTest {
         assertTrue(exception.getMessage().contains("No valid thermal common parameter found"));
         verify(thermalFileProcessorService, never()).processThermalCommonParameterFile(any(), any(), any(), any());
     }
+
+
+    @Test
+    void processThermalModulationParameterTrajectory_throwsExceptionWhenBothFilesAreMissing(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "modulation_trajectory";
+        String paramModulationDir = "thermal";
+        String horizon = "2025";
+        Integer studyId = 1;
+
+        Path trajectoryPath = tempDir.resolve(paramModulationDir).resolve(trajectoryToUse);
+        Files.createDirectories(trajectoryPath);
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId));
+
+        assertEquals("Missing modulation files: CM_modulation_trajectory_2025.csv, MR_modulation_trajectory_2025.csv", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void processThermalModulationParameterTrajectory_mustThrowException_missing_Mr_clusters(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "modulation_trajectory";
+        String paramModulationDir = "thermal";
+        String horizon = "2025";
+        Integer studyId = 1;
+
+        Path trajectoryPath = tempDir.resolve(paramModulationDir).resolve(trajectoryToUse);
+        Files.createDirectories(trajectoryPath);
+        Files.createFile(trajectoryPath.resolve("CM_modulation_trajectory_2025.csv"));
+        Files.createFile(trajectoryPath.resolve("MR_modulation_trajectory_2025.csv"));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(any(), any()))
+                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
+                        .id(1)
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
+                        .build()));
+        when(thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(any(), any()))
+                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
+                        .id(2)
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster2").build())
+                        .build()));
+
+        // Simule l'absence du cluster attendu dans le fichier CM
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        doReturn(List.of("other_cluster","FR_cluster1")).when(spyService).extractClustersFromCsvHeader(any());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                spyService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId)
+        );
+
+        assertEquals("Les clusters suivants sont manquants dans le fichier MR : FR_cluster2", exception.getMessage());
+    }
+
+    @Test
+    void processThermalModulationParameterTrajectory_mustThrowException_missing_clusters(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "modulation_trajectory";
+        String paramModulationDir = "thermal";
+        String horizon = "2025";
+        Integer studyId = 1;
+
+        Path trajectoryPath = tempDir.resolve(paramModulationDir).resolve(trajectoryToUse);
+        Files.createDirectories(trajectoryPath);
+        Files.createFile(trajectoryPath.resolve("CM_modulation_trajectory_2025.csv"));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(any(), any()))
+                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
+                        .id(1)
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
+                        .build()));
+
+        // Simule l'absence du cluster attendu dans le fichier CM
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        doReturn(List.of("other_cluster")).when(spyService).extractClustersFromCsvHeader(any());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                spyService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId)
+        );
+
+        assertEquals("Les clusters suivants sont manquants dans le fichier CM : FR_cluster1", exception.getMessage());
+    }
+
+    @Test
+    void processThermalModulationParameterTrajectory_must_CheckCmFilesAndCreateTrajectory(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "modulation_trajectory";
+        String paramModulationDir = "thermal";
+        String horizon = "2025";
+        Integer studyId = 1;
+
+        Path trajectoryPath = tempDir.resolve(paramModulationDir).resolve(trajectoryToUse);
+        Files.createDirectories(trajectoryPath);
+
+        Files.createFile(trajectoryPath.resolve("CM_modulation_trajectory_2025.csv"));
+        Path csvCmPath = trajectoryPath.resolve("CM_modulation_trajectory_2025.csv");
+
+        List<String> cMlines = Files.readAllLines(csvCmPath);
+        cMlines.add(0, "DATE_HEURE;HEURE;FR_cluster1;FR_cluster2");
+        Files.write(csvCmPath, cMlines);
+
+        Files.createFile(trajectoryPath.resolve("MR_modulation_trajectory_2025.csv"));
+        Path csvMrPath = trajectoryPath.resolve("MR_modulation_trajectory_2025.csv");
+        List<String> mRlines = Files.readAllLines(csvMrPath);
+        mRlines.add(0, "DATE_HEURE;HEURE;FR_cluster1;FR_cluster2");
+        Files.write(csvMrPath, mRlines);
+
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(any(), any()))
+                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
+                        .id(1)
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
+                        .build()));
+        when(thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(any(), any()))
+                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
+                        .id(2)
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster2").build())
+                        .build()));
+
+        trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId);
+
+        verify(thermalFileProcessorService, times(1)).processThermalModulationParameterFile(any(), any(), any(), any());
+    }
+
 }

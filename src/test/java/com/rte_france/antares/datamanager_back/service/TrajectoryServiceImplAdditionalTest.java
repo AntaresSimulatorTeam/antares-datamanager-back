@@ -260,7 +260,7 @@ class TrajectoryServiceImplAdditionalTest {
                 .thenReturn(Optional.of(existingTrajectory));
 
         try (var utilsMock = mockStatic(Utils.class)) {
-            utilsMock.when(() -> Utils.isSameLoadTrajectory(any(), eq(existingTrajectory))).thenReturn(true);
+            utilsMock.when(() -> Utils.isSameTrajectory(any(), eq(existingTrajectory))).thenReturn(true);
 
             var ex = assertThrows(BusinessException.class, () ->
                     trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId)

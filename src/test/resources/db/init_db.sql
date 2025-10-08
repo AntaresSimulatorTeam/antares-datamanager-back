@@ -41,17 +41,17 @@ values ('me00247', 1),
 insert into public.trajectory(id, file_name, file_size, checksum, type, version, created_by, creation_date,
                               last_modification_content_date, horizon, area, technology)
 values (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07',
-        '2023-2024','FR', 'technology1'),
+        '2023-2024', 'FR', 'technology1'),
        (2, 'testFile.txt', 100, '123', 'AREA', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
         '2025-2026', 'AT', 'technology2'),
        (3, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-07', '2024-06-22 19:12:25-07',
-        '2023-2024', 'FR','technology1'),
+        '2023-2024', 'FR', 'technology1'),
        (4, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026', 'AT'  ,'technology2'),
+        '2025-2026', 'AT', 'technology2'),
        (5, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026','CH', 'technology3'),
+        '2025-2026', 'CH', 'technology3'),
        (8, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026','ES', 'technology4');
+        '2025-2026', 'ES', 'technology4');
 
 insert into public.area_config(id, power_to_gas, short_term_storage, area_id, trajectory_id)
 values (1, 1, 1, 4, 1),
@@ -79,8 +79,12 @@ values (1, 1),
        (1, 8),
        (3, 2);
 
-INSERT INTO warning_message (id, warning_code, warning_content, warning_level, creation_date, created_by, trajectory_id,
-                             study_id)
+INSERT INTO public.warning_message (id, warning_code, warning_content, warning_level, creation_date, created_by,
+                                    trajectory_id,
+                                    study_id)
 VALUES (1, 'LINKS_AREA_NOT_PRESENT', 'Area A is not linked', 'WARNING_LEVEL', '2023-10-01 10:00:00', 'USER1', 1, 1),
        (2, 'LINKS_AREA_NOT_PRESENT', 'Area B is not linked', 'WARNING_LEVEL', '2023-10-01 11:00:00', 'USER2', 2, 1),
        (3, 'LINKS_AREA_NOT_PRESENT', 'Area C is not linked', 'WARNING_LEVEL', '2023-10-01 12:00:00', 'USER3', 1, 2);
+
+INSERT INTO public.thermal_specific_parameters (id,trajectory_id,mr_specific,cm_specific)
+VALUES (1,2,1,0) , (2,2,0,1);

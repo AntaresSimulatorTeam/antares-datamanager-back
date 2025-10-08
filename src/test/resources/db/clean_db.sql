@@ -1,3 +1,4 @@
+delete from public.thermal_specific_parameters;
 delete from public.warning_message;
 delete from public.scenario_tags;
 delete from public.pinned_project;
