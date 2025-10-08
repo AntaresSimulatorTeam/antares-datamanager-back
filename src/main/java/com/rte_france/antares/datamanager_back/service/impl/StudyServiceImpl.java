@@ -362,12 +362,6 @@ public class StudyServiceImpl implements StudyService {
         study.setProject(newProject);
     }
 
-    private void updateHorizonIfPresent(StudyEntity study, StudyDTO dto) {
-        validateHorizon(dto);
-        var horizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(dto.getHorizon()) - 1, dto.getHorizon());
-        study.setHorizon(horizonRange);
-    }
-
     private void updateTagsIfPresent(StudyEntity study, StudyDTO dto) {
         validateTags(dto);
         study.setTags(dto.getTags());
