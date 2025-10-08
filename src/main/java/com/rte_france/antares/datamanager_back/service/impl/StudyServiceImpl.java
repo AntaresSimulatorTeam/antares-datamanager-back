@@ -289,6 +289,15 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.existsByNameAndProjectName(studyName, projectName);
     }
 
+    private void validateStudy(StudyDTO studyDTO) {
+        if (studyExists(studyDTO.getName(), studyDTO.getProject())) {
+            throw BusinessException.builder()
+                    .message("A study with the same name already exists for the given project.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
+    }
+
     private static void validateHorizon(StudyDTO studyDTO) {
         try {
             int horizonYear = Integer.parseInt(studyDTO.getHorizon());
@@ -312,7 +321,7 @@ public class StudyServiceImpl implements StudyService {
         var study = loadStudyIfExists(id);
         ensureNotGenerated(study);
         if (studyDTO.getProject() != null) updateProjectIfPresent(study, studyDTO);
-        if (studyDTO.getHorizon() != null) updateHorizonIfPresent(study, studyDTO);
+        if (studyDTO.getName() != null) updateStudyNameIfPresent(study, studyDTO);
         if (studyDTO.getTags() != null) updateTagsIfPresent(study, studyDTO);
         var saved = studyRepository.save(study);
         return StudyMapper.toStudyDTO(saved);
@@ -362,5 +371,10 @@ public class StudyServiceImpl implements StudyService {
     private void updateTagsIfPresent(StudyEntity study, StudyDTO dto) {
         validateTags(dto);
         study.setTags(dto.getTags());
+    }
+    
+    private void updateStudyNameIfPresent(StudyEntity study, StudyDTO studyDTO) {
+        validateStudy(studyDTO);
+        study.setName(studyDTO.getName() + "_" + study.getHorizon());
     }
 }
