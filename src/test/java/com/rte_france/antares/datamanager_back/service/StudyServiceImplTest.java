@@ -454,20 +454,34 @@ class StudyServiceImplTest {
     }
 
     @Test
-    void updateStudy_throwsBadRequest_whenHorizonInvalid() {
-        var study = StudyEntity.builder()
+    void updateStudy_throwsConflict_whenStudyAlreadyExistForTheGivenProject() {
+        var currentProject = ProjectEntity.builder()
+                .id(7)
+                .name("New")
+                .build();
+
+        var existingStudy = StudyEntity.builder()
                 .id(1)
+                .name("Study test")
+                .project(currentProject)
                 .status(StudyStatus.IN_PROGRESS)
                 .build();
 
-        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
-
-        var dto = StudyDTO.builder().horizon("abc").build();
+        var dto = StudyDTO.builder()
+                .id(1)
+                .name("Study test")
+                .project("New")
+                .build();
+        
+        when(studyRepository.findById(1)).thenReturn(Optional.of(existingStudy));
+        when(projectRepository.findByName("New")).thenReturn(Optional.of(currentProject));
+        when(studyRepository.existsByNameAndProjectName("Study test", "New")).thenReturn(true);
+        
         var ex = assertThrows(BusinessException.class,
                 () -> studyServiceImpl.updateStudy(1, dto));
 
-        assertEquals("Horizon must be a valid year.", ex.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("A study with the same name already exists for the given project.", ex.getMessage());
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
     }
 }
 
