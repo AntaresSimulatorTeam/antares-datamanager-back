@@ -375,6 +375,6 @@ public class StudyServiceImpl implements StudyService {
     
     private void updateStudyNameIfPresent(StudyEntity study, StudyDTO studyDTO) {
         validateStudy(studyDTO);
-        study.setName(studyDTO.getName() + "_" + study.getHorizon());
+        study.setName(studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon())));
     }
 }
