@@ -28,6 +28,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -594,7 +595,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> isRelevantFile(path, trajectoryType))
+                    .filter(path -> trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
+                            || isRelevantFile(path, trajectoryType))
                     .filter(path -> switch (trajectoryType) {
                         case THERMAL_CAPACITY ->
                                 path.getFileName().toString().toLowerCase().startsWith(CAPACITY_PREFIX);
@@ -602,9 +604,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 path.getFileName().toString().toLowerCase().startsWith(SPECIFIC_PREFIX);
                         case THERMAL_TECHNICAL_COMMON_PARAMETER ->
                                 path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
+                        case THERMAL_TECHNICAL_MODULATION_PARAMETER->
+                               Files.isDirectory(path); //directories for modulation parameter
                         default -> true;
                     })
-                    .map(path -> createFsTrajectoryDTO(path, trajectoryType))
+                    .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
                             FsTrajectoryDTO::getFileName,
@@ -617,6 +621,23 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    private FsTrajectoryDTO getFsTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
+        if (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER) {
+            try {
+                return FsTrajectoryDTO.builder()
+                        .fileName(path.getFileName().toString())
+                        .type(trajectoryType.name())
+                        .lastModifiedDate(Files.getLastModifiedTime(path)
+                                .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                        .build();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return createFsTrajectoryDTO(path, trajectoryType);
         }
     }
 
