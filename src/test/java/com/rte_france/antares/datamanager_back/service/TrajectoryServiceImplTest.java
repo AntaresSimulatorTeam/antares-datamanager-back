@@ -668,6 +668,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
         when(antaressDataManagerProperties.getLoadDirectory())
                 .thenReturn(Paths.get("src/test/resources/load").toAbsolutePath().toString());
+
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
