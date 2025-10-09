@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.util;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
@@ -275,7 +276,7 @@ class UtilsTest {
     }
 
     @Test
-    void isSameLoadTrajectory_returnsTrue_whenFilenameAndMtimeMatch() throws Exception {
+    void isSameTrajectory_returnsTrue_whenFilenameAndMtimeMatch() throws Exception {
         Path file = tempDir.resolve("test.xlsx");
         Files.writeString(file, "test content");
 
@@ -290,11 +291,11 @@ class UtilsTest {
         te.setFileName("test");
         te.setLastModificationContentDate(fileMtime);
 
-        assertTrue(Utils.isSameLoadTrajectory(file, te));
+        assertTrue(Utils.isSameTrajectory(file, te));
     }
 
     @Test
-    void isSameLoadTrajectory_returnsFalse_whenMtimeOrFilenameDiffer() throws Exception {
+    void isSameTrajectory_returnsFalse_whenMtimeOrFilenameDiffer() throws Exception {
         Path file = tempDir.resolve("test.xlsx");
         Files.writeString(file, "test content");
 
@@ -308,13 +309,13 @@ class UtilsTest {
         teDifferentMtime.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
         teDifferentMtime.setFileName("test");
         teDifferentMtime.setLastModificationContentDate(fileMtime.minusSeconds(5));
-        assertFalse(Utils.isSameLoadTrajectory(file, teDifferentMtime));
+        assertFalse(Utils.isSameTrajectory(file, teDifferentMtime));
 
         var teDifferentName = new com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity();
         teDifferentName.setType(com.rte_france.antares.datamanager_back.dto.TrajectoryType.LOAD.name());
         teDifferentName.setFileName("othertest");
         teDifferentName.setLastModificationContentDate(fileMtime);
-        assertFalse(Utils.isSameLoadTrajectory(file, teDifferentName));
+        assertFalse(Utils.isSameTrajectory(file, teDifferentName));
     }
 
     @Test
@@ -384,5 +385,54 @@ class UtilsTest {
         assertEquals("ALF34", name);
     }
 
+    @Test
+    void checkParamModulationTrajectoryVersion_shouldReturnFalseWhenNewListIsEmpty() {
+        List<ThermalModulationParameterEntity> newList = List.of();
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .thermalModulationParameters(List.of(
+                        ThermalModulationParameterEntity.builder().tsName("CM_1").checksum("checksum1").build(),
+                        ThermalModulationParameterEntity.builder().tsName("MR_1").checksum("checksum2").build()
+                ))
+                .build();
+
+        boolean result = Utils.checkParamModulationTrajectoryVersion(newList, existingTrajectory);
+
+        assertFalse(result);
+    }
+
+    @Test
+    void checkParamModulationTrajectoryVersion_shouldReturnFalseWhenExistingListIsEmpty() {
+        List<ThermalModulationParameterEntity> newList = List.of(
+                ThermalModulationParameterEntity.builder().tsName("CM_1").checksum("checksum1").build(),
+                ThermalModulationParameterEntity.builder().tsName("MR_1").checksum("checksum2").build()
+        );
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .thermalModulationParameters(List.of())
+                .build();
+
+        boolean result = Utils.checkParamModulationTrajectoryVersion(newList, existingTrajectory);
+
+        assertFalse(result);
+    }
+
+    @Test
+    void checkParamModulationTrajectoryVersion_shouldThrowExceptionWhenChecksumsMatch() {
+        List<ThermalModulationParameterEntity> newList = List.of(
+                ThermalModulationParameterEntity.builder().tsName("CM_1").checksum("checksum1").build(),
+                ThermalModulationParameterEntity.builder().tsName("MR_1").checksum("checksum2").build()
+        );
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder().fileName("testFile")
+                .thermalModulationParameters(List.of(
+                        ThermalModulationParameterEntity.builder().tsName("CM_1").checksum("checksum1").build(),
+                        ThermalModulationParameterEntity.builder().tsName("MR_1").checksum("checksum2").build()
+                ))
+                .build();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                Utils.checkParamModulationTrajectoryVersion(newList, existingTrajectory)
+        );
+
+        assertTrue(exception.getMessage().contains("File already processed with same content"));
+    }
 
 }

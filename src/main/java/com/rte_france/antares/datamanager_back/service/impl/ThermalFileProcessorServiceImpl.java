@@ -74,7 +74,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             if (thermalParameters.isEmpty()) {
                 throw BusinessException.builder()
                         .message("No data found from line 6 in Common Param trajectory")
-                        .build();            }
+                        .build();
+            }
 
             checkMissingClusters(studyId, horizon, commonParamClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
 
@@ -110,10 +111,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     public void checkMissingClusters(Integer studyId, String horizon, Set<String> paramClusters, TrajectoryType trajectoryType) {
-        Set<String> clustersWithoutParameters ;
+        Set<String> clustersWithoutParameters;
         Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
         if (!installedPowerClusters.isEmpty()) {
-            clustersWithoutParameters  = installedPowerClusters.stream()
+            clustersWithoutParameters = installedPowerClusters.stream()
                     .filter(cluster -> !paramClusters.contains(cluster))
                     .collect(Collectors.toSet());
 
@@ -131,10 +132,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .message("Error processing file: " + e.getMessage())
                 .build();
     }
-
-
-
-
 
 
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
@@ -258,6 +255,31 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory.setType(type.name());
         thermalCommonParameterEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         trajectory.setThermalCommonParameters(thermalCommonParameterEntityList);
+        return trajectoryRepository.save(trajectory);
+    }
+
+
+    @Override
+    public TrajectoryEntity processThermalModulationParameterFile(Path path, String horizon, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
+        // Find existing trajectory for the same file name/horizon/type
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(path.getFileName().toString(), horizon, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.name());
+
+        TrajectoryEntity trajectory;
+
+        int version = existingOpt.isPresent() && checkParamModulationTrajectoryVersion(thermalModulationParameterEntities, existingOpt.get()) ? existingOpt.get().getVersion() : 0;
+
+        trajectory = buildTrajectory(path, version, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null);
+
+        return saveThermalParamModulationTrajectory(trajectory, thermalModulationParameterEntities, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+    }
+
+
+    @Override
+    public TrajectoryEntity saveThermalParamModulationTrajectory(TrajectoryEntity trajectory, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) {
+        trajectory.setType(type.name());
+        thermalModulationParameterEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
+        trajectory.setThermalModulationParameters(thermalModulationParameterEntities);
         return trajectoryRepository.save(trajectory);
     }
 
@@ -667,7 +689,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             return updatePemmdbIfNeeded(existingOpt.get(), namePemmdb);
         }
 
-        ThermalTechnology thermalTechnology =  technology != null ? findOrCreateTechnology(technology) : null;
+        ThermalTechnology thermalTechnology = technology != null ? findOrCreateTechnology(technology) : null;
         ThermalClusterRef newRef = buildClusterRef(name, thermalTechnology, namePemmdb);
         ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
         cachedClusterRefs.add(saved);

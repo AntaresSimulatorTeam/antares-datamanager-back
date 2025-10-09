@@ -40,4 +40,7 @@ public interface TrajectoryService {
     Map<String, Integer> countWarningMessage(Integer studyId);
 
     TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryToUse, String horizon, String area, Integer studyId) throws IOException;
+
+    TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
 }
