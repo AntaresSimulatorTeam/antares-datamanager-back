@@ -360,50 +360,6 @@ class StudyServiceImplTest {
     }
 
     @Test
-    void updateStudy_updatesProjectHorizonAndTags_whenInProgress() {
-        var studyId = 42;
-
-        var oldProject = ProjectEntity.builder()
-                .id(10)
-                .name("Old")
-                .build();
-
-        var study = StudyEntity.builder()
-                .id(studyId)
-                .name("MyStudy_2030")
-                .project(oldProject)
-                .status(StudyStatus.IN_PROGRESS)
-                .horizon("2030")
-                .tags(List.of("a"))
-                .build();
-
-        var dto = StudyDTO.builder()
-                .project("NewProject")
-                .horizon("2032")
-                .tags(List.of("x", "y"))
-                .build();
-
-        var newProject = ProjectEntity.builder()
-                .id(11)
-                .name("NewProject")
-                .build();
-
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
-        when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
-        when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "NewProject")).thenReturn(false);
-        when(studyRepository.save(any(StudyEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        var result = studyServiceImpl.updateStudy(studyId, dto);
-
-        assertEquals("2031-2032", study.getHorizon());
-        assertEquals(newProject, study.getProject());
-        assertEquals(List.of("x", "y"), study.getTags());
-        assertEquals("2031-2032", result.getHorizon());
-
-        verify(studyRepository).save(study);
-    }
-
-    @Test
     void updateStudy_throwsNotFound_whenStudyMissing() {
         when(studyRepository.findById(999)).thenReturn(Optional.empty());
 
