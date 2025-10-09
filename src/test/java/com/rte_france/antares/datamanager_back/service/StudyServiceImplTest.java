@@ -422,6 +422,7 @@ class StudyServiceImplTest {
         var existingStudy = StudyEntity.builder()
                 .id(1)
                 .name("Study test")
+                .horizon("2030")
                 .project(currentProject)
                 .status(StudyStatus.IN_PROGRESS)
                 .build();
@@ -429,12 +430,13 @@ class StudyServiceImplTest {
         var dto = StudyDTO.builder()
                 .id(1)
                 .name("Study test")
+                .horizon("2030")
                 .project("New")
                 .build();
         
         when(studyRepository.findById(1)).thenReturn(Optional.of(existingStudy));
         when(projectRepository.findByName("New")).thenReturn(Optional.of(currentProject));
-        when(studyRepository.existsByNameAndProjectName("Study test", "New")).thenReturn(true);
+        when(studyRepository.existsByNameAndProjectName("Study test_2030", "New")).thenReturn(true);
         
         var ex = assertThrows(BusinessException.class,
                 () -> studyServiceImpl.updateStudy(1, dto));
@@ -483,7 +485,7 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(projectRepository.findByName("Project")).thenReturn(Optional.of(project));
-        when(studyRepository.existsByNameAndProjectName("NewName", "Project")).thenReturn(false);
+        when(studyRepository.existsByNameAndProjectName("NewName_2030", "Project")).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
         var dto = StudyDTO.builder().name("NewName").horizon("2030").project("Project").build();
@@ -641,7 +643,7 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(projectRepository.findByName("Project")).thenReturn(Optional.of(project));
-        when(studyRepository.existsByNameAndProjectName("NewName", "Project")).thenReturn(false);
+        when(studyRepository.existsByNameAndProjectName("NewName_2056", "Project")).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
         var dto = StudyDTO.builder()

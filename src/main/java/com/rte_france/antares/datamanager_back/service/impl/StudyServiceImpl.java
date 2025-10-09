@@ -289,8 +289,8 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.existsByNameAndProjectName(studyName, projectName);
     }
 
-    private void validateStudy(StudyDTO studyDTO) {
-        if (studyExists(studyDTO.getName(), studyDTO.getProject())) {
+    private void validateStudy(String studyName, String projectName) {
+        if (studyExists(studyName, projectName)) {
             throw BusinessException.builder()
                     .message("A study with the same name already exists for the given project.")
                     .httpStatus(HttpStatus.CONFLICT)
@@ -368,7 +368,8 @@ public class StudyServiceImpl implements StudyService {
     }
     
     private void updateStudyNameIfPresent(StudyEntity study, StudyDTO studyDTO) {
-        validateStudy(studyDTO);
-        study.setName(studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon())));
+        var studyName = studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon()));
+        validateStudy(studyName, studyDTO.getProject());
+        study.setName(studyName);
     }
 }
