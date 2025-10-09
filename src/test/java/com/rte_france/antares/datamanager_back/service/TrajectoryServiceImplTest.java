@@ -664,9 +664,10 @@ class TrajectoryServiceImplTest {
                 .build();
 
         when(areaRepository.findAllByStudyId(any())).thenReturn(Collections.singletonList(AreaEntity.builder().name("FR").build()));
-
-
-        when(pathSecurityUtil.buildTrajectoryPath(trajectoryToUse,TrajectoryType.LOAD)).thenReturn(Path.of("src/test/resources/load/testTrajectory"));
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
+        when(antaressDataManagerProperties.getLoadDirectory())
+                .thenReturn(Paths.get("src/test/resources/load").toAbsolutePath().toString());
 
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));

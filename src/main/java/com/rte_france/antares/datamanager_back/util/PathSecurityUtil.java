@@ -48,7 +48,7 @@ public class PathSecurityUtil {
         String trajFilePath = properties.getTrajectoryFilePath();
         String directory = switch (trajectoryType) {
             case LOAD -> properties.getLoadDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> properties.getThermalParamModulationDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> properties.getThermalModulationParameterDirectory();
             default -> throw new IllegalStateException("Unexpected value: " + trajectoryType);
         };
 

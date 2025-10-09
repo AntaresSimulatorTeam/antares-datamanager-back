@@ -23,11 +23,13 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -137,7 +139,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
             }
 
-            // Update a version and save new trajectory
+            // Update a version and save the new trajectory
             TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
             return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, null);
@@ -186,7 +188,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String directoryByType = "";
         if (TrajectoryType.LOAD.equals(type)) {
             directoryByType = antaressDataManagerProperties.getLoadDirectory();
-        } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
+        } else if (THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
             directoryByType = antaressDataManagerProperties.getThermalModulationParameterDirectory();
         }
 
@@ -361,7 +363,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName, "");
-        checkIfHorizonExist(trajectoryFilePath, horizon, "THERMAL " + trajectoryName);
         var params = thermalSpecificProcessorService.buildThermalSpecificParameterValueList(trajectoryName, trajectoryFilePath, horizon, area, studyId);
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
@@ -440,7 +441,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Override
     public TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path trajectoryFilePath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+        Path trajectoryFilePath = buildTrajectoryPath(trajectoryToUse, THERMAL_TECHNICAL_MODULATION_PARAMETER);
 
         String targetYear = horizon.contains("-") ? horizon.split("-")[0] : horizon;
         String cmFileName = "CM_" + trajectoryToUse + "_" + targetYear + ".csv";
@@ -475,7 +476,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             );
         }
 
-        return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+        return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, THERMAL_TECHNICAL_MODULATION_PARAMETER);
     }
 
     private Optional<Path> findFile(Path directory, String fileName) throws IOException {
@@ -541,6 +542,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             throw new SecurityException("Tentative d'accès à un fichier en dehors du répertoire autorisé");
         }
 
+        try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
+            String header = reader.readLine();
+            if (header != null) {
+                String[] columns = header.split(";");
+                return Arrays.stream(columns)
+                        .skip(2) // Ignore DATE_HEURE et heure
+                        .toList();
+            }
+        }
+        return List.of();
+    }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -584,7 +596,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> isRelevantFile(path, trajectoryType))
+                    .filter(path -> trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
+                            || isRelevantFile(path, trajectoryType))
                     .filter(path -> switch (trajectoryType) {
                         case THERMAL_CAPACITY ->
                                 path.getFileName().toString().toLowerCase().startsWith(CAPACITY_PREFIX);
@@ -592,9 +605,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 path.getFileName().toString().toLowerCase().startsWith(SPECIFIC_PREFIX);
                         case THERMAL_TECHNICAL_COMMON_PARAMETER ->
                                 path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
+                        case THERMAL_TECHNICAL_MODULATION_PARAMETER->
+                               Files.isDirectory(path); //directories for modulation parameter
                         default -> true;
                     })
-                    .map(path -> createFsTrajectoryDTO(path, trajectoryType))
+                    .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
                             FsTrajectoryDTO::getFileName,
@@ -607,6 +622,23 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    private FsTrajectoryDTO getFsTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
+        if (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER) {
+            try {
+                return FsTrajectoryDTO.builder()
+                        .fileName(path.getFileName().toString())
+                        .type(trajectoryType.name())
+                        .lastModifiedDate(Files.getLastModifiedTime(path)
+                                .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                        .build();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return createFsTrajectoryDTO(path, trajectoryType);
         }
     }
 
@@ -708,7 +740,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalParamModulationDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
+                    antaressDataManagerProperties.getThermalModulationParameterDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();

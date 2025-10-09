@@ -28,7 +28,7 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.thermal.parameter.directory}")
     public String thermalParameterDirectory;
 
-    @Value("${antares.datamanager.thermal.parameter.modulation.directory}")
+    @Value("${antares.datamanager.thermal.modulation.directory}")
     public String thermalModulationParameterDirectory;
 
 
