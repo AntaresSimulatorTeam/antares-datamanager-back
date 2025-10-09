@@ -4,10 +4,10 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.impl.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,9 +21,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 
 import java.time.Year;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,6 +43,11 @@ class StudyServiceImplTest {
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;
 
+    @InjectMocks
+    private TrajectoryServiceImpl trajectoryServiceImpl;
+
+    @InjectMocks
+    private UserService userService;
 
     @Test
     void findStudiesByCriteria_returnsFilteredStudiesWhenSearchIsNotNull() {
@@ -438,6 +441,472 @@ class StudyServiceImplTest {
 
         assertEquals("A study with the same name already exists for the given project.", ex.getMessage());
         assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+    }
+
+    @Test
+    void updateStudy_updatesProjectSuccessfully_whenProjectIsProvided() {
+        var oldProject = ProjectEntity.builder().id(1).name("OldProject").build();
+        var newProject = ProjectEntity.builder().id(2).name("NewProject").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(oldProject)
+                .status(StudyStatus.IN_PROGRESS)
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
+        when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "NewProject")).thenReturn(false);
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().project("NewProject").build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+        verify(projectRepository).findByName("NewProject");
+    }
+
+    @Test
+    void updateStudy_updatesNameSuccessfully_whenNameIsProvided() {
+        var project = ProjectEntity.builder().id(1).name("Project").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("OldName_2030")
+                .project(project)
+                .status(StudyStatus.IN_PROGRESS)
+                .horizon("2030")
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("Project")).thenReturn(Optional.of(project));
+        when(studyRepository.existsByNameAndProjectName("NewName", "Project")).thenReturn(false);
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().name("NewName").horizon("2030").project("Project").build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+    }
+
+    @Test
+    void updateStudy_updatesTagsSuccessfully_whenTagsAreProvided() {
+        var project = ProjectEntity.builder().id(1).name("Project").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(project)
+                .status(StudyStatus.IN_PROGRESS)
+                .tags(List.of("tag1", "tag2"))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().tags(List.of("newTag1", "newTag2", "newTag3")).build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+    }
+
+    @Test
+    void updateStudy_updatesMultipleFieldsSuccessfully() {
+        var oldProject = ProjectEntity.builder().id(1).name("OldProject").build();
+        var newProject = ProjectEntity.builder().id(2).name("NewProject").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("OldName_2030")
+                .project(oldProject)
+                .status(StudyStatus.IN_PROGRESS)
+                .horizon("2030")
+                .tags(List.of("oldTag"))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
+        when(studyRepository.existsByNameAndProjectName(anyString(), eq("NewProject"))).thenReturn(false);
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder()
+                .id(1)
+                .project("NewProject")
+                .name("NewName")
+                .tags(List.of("newTag1", "newTag2"))
+                .horizon("2030")
+                .build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+        verify(projectRepository).findByName("NewProject");
+    }
+
+    @Test
+    void updateStudy_doesNotUpdateAnyField_whenAllFieldsAreNull() {
+        var project = ProjectEntity.builder().id(1).name("Project").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(project)
+                .status(StudyStatus.IN_PROGRESS)
+                .tags(List.of("tag1"))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+        verify(projectRepository, never()).findByName(anyString());
+    }
+
+    @Test
+    void updateStudy_updatesOnlyProject_whenOnlyProjectIsProvided() {
+        var oldProject = ProjectEntity.builder().id(1).name("OldProject").build();
+        var newProject = ProjectEntity.builder().id(2).name("NewProject").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(oldProject)
+                .status(StudyStatus.IN_PROGRESS)
+                .tags(List.of("tag1"))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
+        when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "NewProject")).thenReturn(false);
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().project("NewProject").build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+        verify(projectRepository).findByName("NewProject");
+    }
+
+    @Test
+    void updateStudy_updatesOnlyTags_whenOnlyTagsAreProvided() {
+        var project = ProjectEntity.builder().id(1).name("Project").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(project)
+                .status(StudyStatus.IN_PROGRESS)
+                .tags(List.of("oldTag"))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().tags(List.of("newTag1", "newTag2")).build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+        verify(projectRepository, never()).findByName(anyString());
+    }
+
+    @Test
+    void updateStudy_updatesNameAndTags_whenBothAreProvided() {
+        var project = ProjectEntity.builder().id(1).name("Project").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("OldName_2030")
+                .project(project)
+                .status(StudyStatus.IN_PROGRESS)
+                .horizon("2030")
+                .tags(List.of("oldTag"))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("Project")).thenReturn(Optional.of(project));
+        when(studyRepository.existsByNameAndProjectName("NewName", "Project")).thenReturn(false);
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder()
+                .name("NewName")
+                .project("Project")
+                .horizon("2056")
+                .tags(List.of("newTag1", "newTag2"))
+                .build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        verify(studyRepository).save(any(StudyEntity.class));
+    }
+
+    @Test
+    void findStudiesByCriteria_returnsAllStudiesWhenSearchAndIdProjectAreNull() {
+        Pageable pageable = PageRequest.of(0, 10);
+        List<StudyEntity> studies = List.of(new StudyEntity());
+        Page<StudyEntity> studyPage = new PageImpl<>(studies);
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(null, null, pageable);
+
+        assertEquals(studyPage, result);
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_returnsEmptyPageWhenNoResultsFound() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<StudyEntity> emptyPage = new PageImpl<>(Collections.emptyList());
+        String search = "nonexistent";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(emptyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertEquals(0, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_searchesByNameIgnoringCase() {
+        Pageable pageable = PageRequest.of(0, 10);
+        StudyEntity study = new StudyEntity();
+        study.setName("Test Study");
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "TEST";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_searchesByCreatedBy() {
+        Pageable pageable = PageRequest.of(0, 10);
+        StudyEntity study = new StudyEntity();
+        study.setCreatedBy("john.doe");
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "john";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_searchesByStatus() {
+        Pageable pageable = PageRequest.of(0, 10);
+        StudyEntity study = new StudyEntity();
+        study.setStatus(StudyStatus.IN_PROGRESS);
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "progress";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_searchesByHorizon() {
+        Pageable pageable = PageRequest.of(0, 10);
+        StudyEntity study = new StudyEntity();
+        study.setHorizon("2030");
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "2030";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_searchesByProjectName() {
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = new ProjectEntity();
+        project.setName("Project Alpha");
+        StudyEntity study = new StudyEntity();
+        study.setProject(project);
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "alpha";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_searchesByTags() {
+        Pageable pageable = PageRequest.of(0, 10);
+        StudyEntity study = new StudyEntity();
+        study.setTags(List.of("important", "urgent"));
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "important";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_filtersCorrectlyBySpecificProjectId() {
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project1 = new ProjectEntity();
+        project1.setId(1);
+        ProjectEntity project2 = new ProjectEntity();
+        project2.setId(2);
+
+        StudyEntity study1 = new StudyEntity();
+        study1.setProject(project1);
+
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study1));
+        Integer idProject = 1;
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(null, idProject, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_combinesSearchAndProjectFilter() {
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = new ProjectEntity();
+        project.setId(1);
+        project.setName("Project Alpha");
+
+        StudyEntity study = new StudyEntity();
+        study.setName("Test Study");
+        study.setProject(project);
+
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "test";
+        Integer idProject = 1;
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, idProject, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_handlesEmptyStringSearch() {
+        Pageable pageable = PageRequest.of(0, 10);
+        List<StudyEntity> studies = List.of(new StudyEntity());
+        Page<StudyEntity> studyPage = new PageImpl<>(studies);
+        String search = "   ";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertEquals(studyPage, result);
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_returnsDistinctResults() {
+        Pageable pageable = PageRequest.of(0, 10);
+        ProjectEntity project = new ProjectEntity();
+        project.setId(1);
+
+        StudyEntity study1 = new StudyEntity();
+        study1.setId(1);
+        study1.setProject(project);
+
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study1));
+        String search = "test";
+        Integer idProject = 1;
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, idProject, pageable);
+
+        // Vérifie que la specification est appelée (qui contient query.distinct(true))
+        assertEquals(1, result.getTotalElements());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_handlesPaginationCorrectly() {
+        Pageable pageable = PageRequest.of(1, 5);
+        List<StudyEntity> studies = List.of(
+                new StudyEntity(),
+                new StudyEntity(),
+                new StudyEntity()
+        );
+        Page<StudyEntity> studyPage = new PageImpl<>(studies, pageable, 15);
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria("test", null, pageable);
+
+        assertEquals(3, result.getNumberOfElements());
+        assertEquals(15, result.getTotalElements());
+        assertEquals(1, result.getNumber());
+        assertEquals(5, result.getSize());
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    void findStudiesByCriteria_handlesSpecialCharactersInSearch() {
+        Pageable pageable = PageRequest.of(0, 10);
+        StudyEntity study = new StudyEntity();
+        study.setName("Study-Test_2024");
+        Page<StudyEntity> studyPage = new PageImpl<>(List.of(study));
+        String search = "Study-Test";
+
+        when(studyRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(studyPage);
+
+        Page<StudyEntity> result = studyServiceImpl.findStudiesByCriteria(search, null, pageable);
+
+        assertNotNull(result);
+        verify(studyRepository).findAll(any(Specification.class), eq(pageable));
     }
 }
 
