@@ -413,6 +413,28 @@ class StudyServiceImplTest {
     }
 
     @Test
+    void updateStudy_throwsConflict_whenSameNameExistsInCurrentProject() {
+        var currentProject = ProjectEntity.builder().id(7).name("Project").build();
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(currentProject)
+                .horizon("2030")
+                .status(StudyStatus.IN_PROGRESS)
+                .build();
+        var dto = StudyDTO.builder().id(1).name("MyStudy2").horizon("2030").project("Project").projectId("7").build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(projectRepository.findByName("Project")).thenReturn(Optional.of(currentProject));
+        when(studyRepository.existsByNameAndProjectName("MyStudy2_2030", "Project")).thenReturn(true);
+
+        var ex = assertThrows(BusinessException.class,
+                () -> studyServiceImpl.updateStudy(1, dto));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+    }
+
+    @Test
     void updateStudy_updatesProjectSuccessfully_whenProjectIsProvided() {
         var oldProject = ProjectEntity.builder().id(1).name("OldProject").build();
         var newProject = ProjectEntity.builder().id(2).name("NewProject").build();
