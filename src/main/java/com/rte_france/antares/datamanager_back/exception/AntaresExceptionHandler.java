@@ -27,7 +27,11 @@ public class AntaresExceptionHandler extends ResponseEntityExceptionHandler {
             String formatMessageWithArguments = MessageFormat.format(ex.getMessage(), ex.getErrorMessageArguments().toArray());
             businessException = new BusinessException(ex.getAntaresErrorCode(), formatMessageWithArguments, ex.getErrorMessageArguments(), ex.getHttpStatus());
         }
-        log.debug(businessException.toString(), businessException);
+
+        log.error("BusinessException: code={}, message={}, args={}",
+                businessException.getAntaresErrorCode(),
+                businessException.getMessage(),
+                businessException.getErrorMessageArguments());
 
         return ResponseEntity
                 .status(businessException.getHttpStatus())
