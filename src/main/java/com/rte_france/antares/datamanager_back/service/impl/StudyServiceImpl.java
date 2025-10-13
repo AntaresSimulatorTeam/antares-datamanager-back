@@ -372,6 +372,12 @@ public class StudyServiceImpl implements StudyService {
 
     private void updateStudyNameIfPresent(StudyEntity study, StudyDTO studyDTO) {
         var studyName = studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon()));
+        if (!Objects.equals(study.getName(), studyDTO.getName()) && studyExists(studyDTO.getName(), studyDTO.getProject())) {
+            throw BusinessException.builder()
+                    .message("A study with the same name already exists for the target project.")
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
         study.setName(studyName);
     }
 }
