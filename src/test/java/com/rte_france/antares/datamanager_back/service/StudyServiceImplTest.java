@@ -413,37 +413,6 @@ class StudyServiceImplTest {
     }
 
     @Test
-    void updateStudy_throwsConflict_whenStudyAlreadyExistForTheGivenProject() {
-        var currentProject = ProjectEntity.builder()
-                .id(7)
-                .name("New")
-                .build();
-
-        var existingStudy = StudyEntity.builder()
-                .id(1)
-                .name("Study test")
-                .project(currentProject)
-                .status(StudyStatus.IN_PROGRESS)
-                .build();
-
-        var dto = StudyDTO.builder()
-                .id(1)
-                .name("Study test")
-                .project("New")
-                .build();
-        
-        when(studyRepository.findById(1)).thenReturn(Optional.of(existingStudy));
-        when(projectRepository.findByName("New")).thenReturn(Optional.of(currentProject));
-        when(studyRepository.existsByNameAndProjectName("Study test", "New")).thenReturn(true);
-        
-        var ex = assertThrows(BusinessException.class,
-                () -> studyServiceImpl.updateStudy(1, dto));
-
-        assertEquals("A study with the same name already exists for the given project.", ex.getMessage());
-        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
-    }
-
-    @Test
     void updateStudy_updatesProjectSuccessfully_whenProjectIsProvided() {
         var oldProject = ProjectEntity.builder().id(1).name("OldProject").build();
         var newProject = ProjectEntity.builder().id(2).name("NewProject").build();
@@ -483,7 +452,6 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(projectRepository.findByName("Project")).thenReturn(Optional.of(project));
-        when(studyRepository.existsByNameAndProjectName("NewName", "Project")).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
         var dto = StudyDTO.builder().name("NewName").horizon("2030").project("Project").build();
@@ -641,7 +609,6 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(projectRepository.findByName("Project")).thenReturn(Optional.of(project));
-        when(studyRepository.existsByNameAndProjectName("NewName", "Project")).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
         var dto = StudyDTO.builder()

@@ -134,14 +134,17 @@ public class StudyServiceImpl implements StudyService {
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
+        StudyEntity studyToDuplicate =studyRepository.findById(studyDTO.getId()).orElseThrow(()-> BusinessException.builder()
+                .message("Study {0} not found")
+                .errorMessageArguments(List.of(studyDTO.getName()))
+                .httpStatus(HttpStatus.NOT_FOUND)
+                .build());
+        Set<TrajectoryEntity> existingStudyTrajectories =studyToDuplicate.getTrajectories();
         String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
-        List<TrajectoryEntity> trajectories = trajectoryRepository
+        List<TrajectoryEntity> trajectoriesAvailable = trajectoryRepository
                 .findMostRecentTrajectoriesForDuplicationByStudyId(studyDTO.getId(), horizon);
 
-        List<TrajectoryEntity> trajectoriesAvailable = DuplicationTrajectoryUtils.getTrajectoriesForHorizon(trajectories, studyDTO.getHorizon());
-
-
-        DuplicationTrajectoryUtils.validateAreaTrajectory(trajectoriesAvailable, studyDTO.getHorizon());
+        DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable ,existingStudyTrajectories, studyDTO.getHorizon());
 
         studyDTO.setTrajectoryIds(new ArrayList<>());
         StudyDTO savedStudyDTO = createStudy(studyDTO);
@@ -289,8 +292,8 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.existsByNameAndProjectName(studyName, projectName);
     }
 
-    private void validateStudy(StudyDTO studyDTO) {
-        if (studyExists(studyDTO.getName(), studyDTO.getProject())) {
+    private void validateStudy(String studyName, String projectName) {
+        if (studyExists(studyName, projectName)) {
             throw BusinessException.builder()
                     .message("A study with the same name already exists for the given project.")
                     .httpStatus(HttpStatus.CONFLICT)
@@ -366,9 +369,9 @@ public class StudyServiceImpl implements StudyService {
         validateTags(dto);
         study.setTags(dto.getTags());
     }
-    
+
     private void updateStudyNameIfPresent(StudyEntity study, StudyDTO studyDTO) {
-        validateStudy(studyDTO);
-        study.setName(studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon())));
+        var studyName = studyDTO.getName() + "_" + (Integer.parseInt(studyDTO.getHorizon()));
+        study.setName(studyName);
     }
 }
