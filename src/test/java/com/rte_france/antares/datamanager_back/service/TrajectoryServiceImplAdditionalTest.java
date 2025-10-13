@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -9,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -341,5 +344,148 @@ class TrajectoryServiceImplAdditionalTest {
                 trajectoryService.unlinkBatchTrajectoriesFromStudy(studyId, null)
         );
         verifyNoInteractions(studyTrajectoryRepository);
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsEmptyList(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path linkDir = tempDir.resolve("link");
+        Files.createDirectories(linkDir);
+
+        Path testFile = linkDir.resolve("invalid_name.txt");
+        Files.createFile(testFile);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("link");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER");
+
+        // Then
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsFilesStartingByAreas_(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path areaDir = tempDir.resolve("area");
+        Files.createDirectories(areaDir);
+
+        Path testFile = areaDir.resolve("areas_test1.xlsx");
+        Files.createFile(testFile);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
+    }
+
+
+    @Test
+    void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, "area"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsSpecificFilesForThermalTechnicalCommonParameter(@TempDir Path tempDir) throws IOException {
+        Path thermalDir = tempDir.resolve("thermal");
+        Files.createDirectories(thermalDir);
+
+        Path specificFile = thermalDir.resolve("specific_param_test.xlsx");
+        Path commonFile = thermalDir.resolve("common_param_test.xlsx");
+        Files.createFile(specificFile);
+        Files.createFile(commonFile);
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
+
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().getFileName().startsWith("common_param_"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsSpecificFilesForThermalTechnicalSpecificParameter(@TempDir Path tempDir) throws IOException {
+        Path thermalDir = tempDir.resolve("thermal");
+        Files.createDirectories(thermalDir);
+
+        Path specificFile = thermalDir.resolve("specific_param_file.xlsx");
+        Path commonFile = thermalDir.resolve("common_param_file.xlsx");
+        Files.createFile(specificFile);
+        Files.createFile(commonFile);
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null);
+
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().getFileName().startsWith("specific_param_"));
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameStartWithFromFS_returnsFileNamesWhenDirectoryExists(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path areaDir = tempDir.resolve("area");
+        Files.createDirectories(areaDir);
+
+        // When
+        Path testFile = areaDir.resolve("areas_testFile.xlsx");
+        Files.createFile(testFile);
+
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+
+        // Then
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,"test");
+
+        assertEquals(1, result.size());
+        assertEquals("areas_testFile.xlsx", result.getFirst().getFileName());
+    }
+
+
+    @Test
+    void testFindTrajectoriesByType_ModulationDirectories(@TempDir Path tempDir) throws Exception {
+
+        Path dir1 = tempDir.resolve("ModulationFR");
+        Files.createDirectories(dir1);
+        Path dir2 = tempDir.resolve("ModulationPEMMDB");
+        Files.createDirectories(dir2);
+
+
+        Files.createFile(dir1.resolve("CM_test.txt"));
+        Files.createFile(dir2.resolve("MR_test.txt"));
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(""); // empty if not used
+        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(""); // important!
+
+        // Act
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(
+                TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER,
+                tempDir.toString(),
+                null
+        );
+
+        assertEquals(2, result.size(), "Should return 2 directories as DTOs");
+
+        assertTrue(result.stream().anyMatch(dto -> dto.getFileName().equals("ModulationFR")));
+        assertTrue(result.stream().anyMatch(dto -> dto.getFileName().equals("ModulationPEMMDB")));
+        assertTrue(result.stream().allMatch(dto -> dto.getLastModifiedDate() != null));
+        assertTrue(result.stream().allMatch(dto -> dto.getType().equals("THERMAL_TECHNICAL_MODULATION_PARAMETER")));
     }
 }
