@@ -32,22 +32,33 @@ public class DuplicationTrajectoryUtils {
 
 
     /**
-     * Validates  AREA trajectory from a list of trajectories.
-     *
-     * @param trajectories List of trajectories to check
-     * @param horizon      to include in an error message if AREA trajectory is not found
-     * @throws BusinessException if AREA trajectory does not exist for the given horizon
+     * Validates that an AREA trajectory is available for the specified horizon.
+     * @param trajectoriesAvailable area
+     * @param existingStudyTrajectories
+     * @param horizon
      */
-    public static void validateAreaTrajectory(List<TrajectoryEntity> trajectories, String horizon) {
-        trajectories.stream()
-                .filter(t -> TrajectoryType.AREA.name().equals(t.getType()))
-                .findFirst()
-                .orElseThrow(() -> BusinessException.builder()
-                        .message("Duplicated study : AREA trajectory does not exist for horizon {0}. No duplication done")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .errorMessageArguments(List.of(horizon))
-                        .build());
+    public static void validateAreaTrajectoryForDuplication(List<TrajectoryEntity> trajectoriesAvailable , Set<TrajectoryEntity> existingStudyTrajectories, String horizon) {
 
+        Set<String> availableAreaNames = trajectoriesAvailable.stream()
+                .filter(t -> TrajectoryType.AREA.name().equals(t.getType()))
+                .map(TrajectoryEntity::getFileName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Find the first AREA trajectory in existingStudyTrajectories that is NOT in availableAreaNames
+        TrajectoryEntity missing = existingStudyTrajectories.stream()
+                .filter(t -> TrajectoryType.AREA.name().equals(t.getType()))
+                .filter(t -> !availableAreaNames.contains(t.getFileName()))
+                .findFirst()
+                .orElse(null);
+
+        if (missing != null) {
+            throw BusinessException.builder()
+                    .message("AREA trajectory {0} does not exist for horizon {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .errorMessageArguments(List.of(missing.getFileName(), horizon))
+                    .build();
+        }
     }
 
 
@@ -76,27 +87,6 @@ public class DuplicationTrajectoryUtils {
                 String.join(",", missingTrajectoryTypes),
                 horizon
         );
-    }
-
-    /**
-     * Retrieves the list of trajectories for the specified horizon.
-     * Throws a BusinessException if the provided list of trajectories is empty.
-     *
-     * @param trajectories the list of TrajectoryEntity objects to be retrieved
-     * @param horizon      the time horizon used in the error message if no trajectories are found
-     * @return the provided list of TrajectoryEntity objects
-     * @throws BusinessException if no trajectories are available for the specified horizon
-     */
-    public static List<TrajectoryEntity> getTrajectoriesForHorizon(List<TrajectoryEntity> trajectories, String horizon) {
-
-        if (trajectories.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Duplicated study : No trajectory for horizon {0}. Cannot duplicate")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .errorMessageArguments(List.of(horizon))
-                    .build();
-        }
-        return trajectories;
     }
 
     public record TrajectoryProcessingResult(

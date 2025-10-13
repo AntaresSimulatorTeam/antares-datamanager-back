@@ -134,14 +134,17 @@ public class StudyServiceImpl implements StudyService {
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
+        StudyEntity studyToDuplicate =studyRepository.findById(studyDTO.getId()).orElseThrow(()-> BusinessException.builder()
+                .message("Study {0} not found")
+                .errorMessageArguments(List.of(studyDTO.getName()))
+                .httpStatus(HttpStatus.NOT_FOUND)
+                .build());
+        Set<TrajectoryEntity> existingStudyTrajectories =studyToDuplicate.getTrajectories();
         String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
-        List<TrajectoryEntity> trajectories = trajectoryRepository
+        List<TrajectoryEntity> trajectoriesAvailable = trajectoryRepository
                 .findMostRecentTrajectoriesForDuplicationByStudyId(studyDTO.getId(), horizon);
 
-        List<TrajectoryEntity> trajectoriesAvailable = DuplicationTrajectoryUtils.getTrajectoriesForHorizon(trajectories, studyDTO.getHorizon());
-
-
-        DuplicationTrajectoryUtils.validateAreaTrajectory(trajectoriesAvailable, studyDTO.getHorizon());
+        DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable ,existingStudyTrajectories, studyDTO.getHorizon());
 
         studyDTO.setTrajectoryIds(new ArrayList<>());
         StudyDTO savedStudyDTO = createStudy(studyDTO);
