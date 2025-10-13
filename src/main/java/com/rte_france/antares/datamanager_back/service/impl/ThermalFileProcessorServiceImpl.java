@@ -312,7 +312,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
-
+                if (rowArea.isEmpty()) continue;
                 if (!area.equals(OTHERS_AREA)) {
                     if (rowArea.equals(area.toUpperCase())) {
                         isSpecificAreaFound = true;
