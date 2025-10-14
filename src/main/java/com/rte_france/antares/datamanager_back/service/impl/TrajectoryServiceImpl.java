@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 
 
 @Slf4j
@@ -76,7 +77,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String COMMON_PREFIX = "common_param_";
     private static final String CAPACITY_PREFIX = "thermal_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
-    private final ThermalFileProcessorServiceImpl thermalFileProcessorServiceImpl;
 
     @Transactional
     @Override
@@ -451,31 +451,74 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (cmFile == null && mrFile == null) {
             throw BusinessException.builder()
-                    .message("Missing modulation files: " + cmFileName + ", " + mrFileName)
+                    .message("No CM and MR trajectories found in trajectory {0} for horizon {1}")
+                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        if (cmFile == null) {
+            throw BusinessException.builder()
+                    .message("Missing Cost Modulation file in trajectory {0} for horizon {1}")
+                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        if (mrFile == null) {
+            throw BusinessException.builder()
+                    .message("Missing Must Run file in trajectory {0} for horizon {1}")
+                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
-        if (cmFile != null) {
-            List<String> clustersInCmFile = extractClustersFromCsvHeader(trajectoryFilePath.resolve(cmFileName));
-            verifyExistingCmSpecificClusters(horizon, studyId, clustersInCmFile);
-            thermalModulationParameters.add(ThermalModulationParameterEntity.builder()
-                    .tsName(cmFileName)
-                    .checksum(getFileChecksum(cmFile.toString()))
-                    .build()
-            );
-        }
 
-        if (mrFile != null) {
-            List<String> clustersInMrFile = extractClustersFromCsvHeader(trajectoryFilePath.resolve(mrFileName));
-            verifyExistingMrSpecificClusters(horizon, studyId, clustersInMrFile);
-            thermalModulationParameters.add(ThermalModulationParameterEntity.builder().
-                    tsName(mrFileName)                     .checksum(getFileChecksum(mrFile.toString()))
-                    .build()
-            );
-        }
+        processThermalModulationSingleFile(trajectoryToUse, horizon,
+                studyId, trajectoryFilePath.resolve(cmFileName), cmFileName, thermalModulationParameters, cmFile, "CM");
+
+        processThermalModulationSingleFile(trajectoryToUse, horizon,
+                studyId, trajectoryFilePath.resolve(mrFileName), mrFileName,  thermalModulationParameters, mrFile, "MR");
+
 
         return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+    }
+
+    private void processThermalModulationSingleFile(
+            String trajectoryToUse,
+            String horizon,
+            Integer studyId,
+            Path trajectoryFilePath,
+            String fileName,
+            List<ThermalModulationParameterEntity> thermalModulationParameters,
+            Path file,
+            String fileType // "CM" or "MR"
+    ) throws IOException {
+        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
+                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                .normalize();
+        Path normalizedPath = trajectoryFilePath.normalize();
+
+        if (!normalizedPath.startsWith(allowedBaseDir)) {
+            throw new SecurityException("Trying to access a file outside the allowed base directory: " + allowedBaseDir);
+       }
+
+        List<String> clustersInFile = extractClustersFromCsvHeader(normalizedPath);
+
+        checkNumericDataCMorMR(normalizedPath, trajectoryToUse, fileType);
+
+        // Verify existing clusters depending on type
+        if ("CM".equalsIgnoreCase(fileType)) {
+            verifyExistingCmSpecificClusters(horizon, studyId, clustersInFile, trajectoryToUse);
+        } else if ("MR".equalsIgnoreCase(fileType)) {
+            verifyExistingMrSpecificClusters(horizon, studyId, clustersInFile, trajectoryToUse);
+        }
+
+        thermalModulationParameters.add(
+                ThermalModulationParameterEntity.builder()
+                        .tsName(fileName)
+                        .checksum(getFileChecksum(file.toString()))
+                        .build()
+        );
     }
 
     private Optional<Path> findFile(Path directory, String fileName) throws IOException {
@@ -495,7 +538,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile) {
+    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
         Set<String> listClusterByAreaForMrSpecificParam = thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(studyId, horizon)
                 .stream()
                 .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
@@ -507,13 +550,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (!missingClusters.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Les clusters suivants sont manquants dans le fichier MR : " + String.join(", ", missingClusters))
+                    .message("Missing Areas/Cluster {0} in Must Run file for trajectory {1} in horizon {2}")
+                    .errorMessageArguments(List.of(String.join(", ", missingClusters),trajectoryName,horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
 
-    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile) {
+    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
         Set<String> listClusterByAreaForCmSpecificParam = thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(studyId, horizon).stream()
                 .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
                 .collect(Collectors.toSet());
@@ -523,24 +567,15 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (!missingClusters.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Les clusters suivants sont manquants dans le fichier CM : " + String.join(", ", missingClusters))
+                    .message("Missing Areas/Cluster {0} in Cost Modulation file for trajectory {1} in horizon {2}")
+                    .errorMessageArguments(List.of(String.join(", ", missingClusters),trajectoryName,horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
 
 
-    public List<String> extractClustersFromCsvHeader(Path csvFilePath) throws IOException {
-
-        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .normalize();
-
-        Path normalized = csvFilePath.toAbsolutePath().normalize();
-        if (!normalized.startsWith(allowedBaseDir)) {
-            throw new SecurityException("Tentative d'accès à un fichier en dehors du répertoire autorisé");
-        }
-
+    public List<String> extractClustersFromCsvHeader(Path normalized) throws IOException {
         try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
             String header = reader.readLine();
             if (header != null) {

@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -385,9 +386,6 @@ public class ExcelCommonValidator {
         return String.join("-", parts);
     }
 
-    /**
-     * Method to display cell values as integer if numeric
-     */
     static String getCellValue(Cell cell) {
         if (cell == null) {
             return "NULL";
@@ -408,4 +406,61 @@ public class ExcelCommonValidator {
             default -> "NULL";
         };
     }
+
+    public static void checkNumericDataCMorMR(Path file, String trajectoryName, String fileType) {
+        String trajectoryLabel = switch (fileType.toUpperCase()) {
+            case "CM" -> "THERMAL Cost Modulation trajectory ";
+            case "MR" -> "THERMAL Must Run trajectory ";
+            default -> throw BusinessException.builder()
+                    .message("Unknown file type: " + fileType)
+                    .build();
+        };
+
+        try (var reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) {
+                throw BusinessException.builder()
+                        .message("Missing header row in " + trajectoryLabel + trajectoryName)
+                        .build();
+            }
+
+            //CSV with comma delimiter
+            String delimiter = ",";
+            String[] headers = headerLine.split(delimiter, -1);
+            int lastColumn = headers.length;
+
+            String line;
+            int rowIndex = 1;
+
+            while ((line = reader.readLine()) != null && rowIndex <= 8760) {
+                String[] values = line.split(delimiter, -1);
+
+                for (int colIndex = 2; colIndex < lastColumn && colIndex < values.length; colIndex++) {
+                    String valueStr = values[colIndex].trim();
+                    if (valueStr.isEmpty()) continue; // blanks allowed
+
+                    try {
+                        //replace comma with dot for decimal parsing
+                        Double.parseDouble(valueStr.replace(',', '.'));
+                    } catch (NumberFormatException e) {
+                        String clusterName = headers[colIndex].trim();
+                        throw BusinessException.builder()
+                                .message("Values for cluster " + clusterName
+                                        + " are not numeric in " + trajectoryLabel + trajectoryName)
+                                .build();
+                    }
+                }
+
+                rowIndex++;
+            }
+
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message("Unable to read file for " + trajectoryLabel + trajectoryName)
+                    .build();
+        }
+    }
+
+
+
 }
