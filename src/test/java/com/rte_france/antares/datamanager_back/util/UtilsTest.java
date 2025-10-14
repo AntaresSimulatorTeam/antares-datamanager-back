@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UtilsTest {
@@ -433,6 +435,60 @@ class UtilsTest {
         );
 
         assertTrue(exception.getMessage().contains("File already processed with same content"));
+    }
+
+    @Test
+    void shouldPassForNumericValuesWithCommaDecimal() throws IOException {
+        Path file = tempDir.resolve("CM_valid_2050.csv");
+        String content = """
+                DATE_HEURE,heure,ClusterA,ClusterB
+                01/01/2028 00:00,1,0,0,320,5
+                01/01/2028 01:00,2,0,0,5,1,5
+                01/01/2028 02:00,3,0,320684683,0,320750352
+                """.replace(",", "."); // optional, if using . decimals instead
+
+        Files.writeString(file, content, StandardCharsets.UTF_8);
+
+        assertDoesNotThrow(() ->
+                checkNumericDataCMorMR(file, "T1", "CM")
+        );
+    }
+
+    @Test
+    void shouldThrowWhenNonNumericValueFound() throws IOException {
+        Path file = tempDir.resolve("MR_invalid_2050.csv");
+        String content = """
+                DATE_HEURE,heure,ClusterX,ClusterY
+                01/01/2028 00:00,1,abc,123
+                01/01/2028 01:00,2,3,4
+                """;
+
+        Files.writeString(file, content, StandardCharsets.UTF_8);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> checkNumericDataCMorMR(file, "T2", "MR")
+        );
+
+        assertTrue(ex.getMessage().contains("Values for cluster ClusterX are not numeric"));
+        assertTrue(ex.getMessage().contains("THERMAL Must Run trajectory T2"));
+    }
+
+    @Test
+    void shouldIgnoreBlanks() throws IOException {
+        Path file = tempDir.resolve("CM_empty_2050.csv");
+        String content = """
+                DATE_HEURE,heure,ClusterA,ClusterB
+                01/01/2028 00:00,1,,123
+                01/01/2028 01:00,2,0,0
+                """;
+
+        Files.writeString(file, content, StandardCharsets.UTF_8);
+
+        assertDoesNotThrow(() ->
+
+                checkNumericDataCMorMR(file, "T3", "CM")
+        );
     }
 
 }
