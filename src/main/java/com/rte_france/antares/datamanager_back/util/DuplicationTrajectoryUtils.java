@@ -255,18 +255,15 @@ private static void processRemainingTrajectoryTypes(
 
                     if (!hasValidArea) {
                         missingTrajectoryTypes.add(type.name());
-                        return;
+
                     }
                 } else {
-
                     if (!availableAreas.contains(trajectory.getArea().toUpperCase())) {
                         missingTrajectoryTypes.add(type.name());
-                        return;
                     }
                 }
             }
-
-            trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, type);
+            trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, type, true);
 
             if (type == TrajectoryType.LINK) {
                 trajectoryService.checkLinkCoherence(studyId, warningMessages, trajectory, createdBy);

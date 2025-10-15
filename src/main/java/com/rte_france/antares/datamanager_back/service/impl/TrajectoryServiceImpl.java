@@ -791,8 +791,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the linked TrajectoryEntity
      */
     @Transactional
-    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws
-            IOException {
+    @Override
+    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException {
+
+        return linkTrajectoryToStudy(trajectoryId, studyId, type, false);
+
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type, boolean duplication) throws IOException {
+
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
         StudyEntity study = studyRepository.findById(studyId)
@@ -819,9 +828,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-
-        checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
-
+        if(!duplication) {
+            checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni, duplication);
+        }
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
 
@@ -839,7 +848,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return savedStudyTrajectoryEntity.getTrajectory();
     }
 
-    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
+
+
+    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni, boolean duplication) throws IOException {
         String type = trajectory.getType();
         if (TrajectoryType.LINK.name().equals(type)) {
             checkLinkCoherence(studyId, warningMessages, trajectory, userNni);

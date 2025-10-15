@@ -29,6 +29,8 @@ public interface TrajectoryService {
 
     TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException;
 
+    TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type, boolean duplication) throws IOException;
+
     void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId);
 
     void unlinkBatchTrajectoriesFromStudy(Integer studyId, List<Integer> trajectoryIds);
