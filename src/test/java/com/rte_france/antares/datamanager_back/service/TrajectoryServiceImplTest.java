@@ -445,7 +445,7 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListArea(studyId)).thenReturn(List.of("FR", "CH", "IT"));
 
-        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni, false);
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningRepository, times(1)).saveAll(warningMessages);
@@ -463,7 +463,7 @@ class TrajectoryServiceImplTest {
                 .thermalClusterCapacities(thermalClusterCapacities)
                 .build();
 
-        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user", false);
+        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
         verify(thermalFileProcessorService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
         verify(thermalFileProcessorService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
@@ -488,7 +488,7 @@ class TrajectoryServiceImplTest {
                 ))
                 .build();
 
-        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user", false);
+        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
         verify(thermalFileProcessorService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
@@ -512,7 +512,7 @@ class TrajectoryServiceImplTest {
                 ))
                 .build();
 
-        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user", false);
+        trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
         verify(thermalFileProcessorService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
     }
@@ -532,7 +532,7 @@ class TrajectoryServiceImplTest {
 
         when(linkFileProcessorService.findListLink(studyId)).thenReturn(List.of(LinkEntity.builder().name("FR-CH").build(), LinkEntity.builder().name("FR-IT").build()));
 
-        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni, false);
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
 
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-CH", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));

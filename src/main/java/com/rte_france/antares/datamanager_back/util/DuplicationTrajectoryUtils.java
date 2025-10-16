@@ -263,7 +263,7 @@ private static void processRemainingTrajectoryTypes(
                     }
                 }
             }
-            trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, type, true);
+            trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, type);
 
             if (type == TrajectoryType.LINK) {
                 trajectoryService.checkLinkCoherence(studyId, warningMessages, trajectory, createdBy);

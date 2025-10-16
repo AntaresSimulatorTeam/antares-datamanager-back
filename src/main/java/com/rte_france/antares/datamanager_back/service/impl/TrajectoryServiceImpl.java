@@ -442,9 +442,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
 
-        String targetYear = horizon.contains("-") ? horizon.split("-")[0] : horizon;
-        String cmFileName = "CM_" + trajectoryToUse + "_" + targetYear + ".csv";
-        String mrFileName = "MR_" + trajectoryToUse + "_" + targetYear + ".csv";
+        String cmFileName = "CM_" + trajectoryToUse + "_" + horizon + ".csv";
+        String mrFileName = "MR_" + trajectoryToUse + "_" + horizon + ".csv";
 
         Path cmFile = findFile(trajectoryFilePath, cmFileName).orElse(null);
         Path mrFile = findFile(trajectoryFilePath, mrFileName).orElse(null);
@@ -794,14 +793,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException {
 
-        return linkTrajectoryToStudy(trajectoryId, studyId, type, false);
-
-    }
-
-    @Transactional
-    @Override
-    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type, boolean duplication) throws IOException {
-
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
         StudyEntity study = studyRepository.findById(studyId)
@@ -828,9 +819,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-        if(!duplication) {
-            checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni, duplication);
-        }
+
+        checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
+
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
 
@@ -850,7 +841,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
 
-    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni, boolean duplication) throws IOException {
+    public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
         String type = trajectory.getType();
         if (TrajectoryType.LINK.name().equals(type)) {
             checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
