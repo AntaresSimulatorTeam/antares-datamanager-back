@@ -442,9 +442,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
 
-        String targetYear = horizon.contains("-") ? horizon.split("-")[0] : horizon;
-        String cmFileName = "CM_" + trajectoryToUse + "_" + targetYear + ".csv";
-        String mrFileName = "MR_" + trajectoryToUse + "_" + targetYear + ".csv";
+        String cmFileName = "CM_" + trajectoryToUse + "_" + horizon + ".csv";
+        String mrFileName = "MR_" + trajectoryToUse + "_" + horizon + ".csv";
 
         Path cmFile = findFile(trajectoryFilePath, cmFileName).orElse(null);
         Path mrFile = findFile(trajectoryFilePath, mrFileName).orElse(null);
