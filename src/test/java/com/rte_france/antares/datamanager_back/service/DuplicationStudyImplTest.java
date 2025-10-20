@@ -95,10 +95,8 @@ public class DuplicationStudyImplTest {
         areaTrajectory.setId(1);
         areaTrajectory.setFileName("BP1");
 
-        List<TrajectoryEntity> trajectories = Collections.singletonList(areaTrajectory);
-
-        when(trajectoryRepository.findMostRecentTrajectoriesForDuplicationByStudyId(15,"2030-2031"))
-                .thenReturn(trajectories);
+        Set<TrajectoryEntity> trajectories = Set.of(areaTrajectory);
+        studyEntity.setTrajectories(trajectories);
 
         when(trajectoryService.linkTrajectoryToStudy(
                 eq(1),
@@ -115,7 +113,6 @@ public class DuplicationStudyImplTest {
         // Assert
         assertNotNull(result);
         assertEquals("2030-2031", result.getHorizon());
-        verify(trajectoryRepository).findMostRecentTrajectoriesForDuplicationByStudyId(15,"2030-2031");
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
         verify(trajectoryService).linkTrajectoryToStudy(eq(1), eq(1), eq(TrajectoryType.AREA));
@@ -128,7 +125,7 @@ public class DuplicationStudyImplTest {
 
         StudyDTO studyDTO = StudyDTO.builder()
                 .name("test_duplication")
-                .horizon("2031")
+                .horizon("2036")
                 .createdBy("user1")
                 .project("project1")
                 .id(1)
@@ -136,6 +133,7 @@ public class DuplicationStudyImplTest {
         TrajectoryEntity areaTrajectory = new TrajectoryEntity();
         areaTrajectory.setType("AREA");
         areaTrajectory.setId(1);
+        areaTrajectory.setHorizon("2026-2027");
         areaTrajectory.setFileName("BP1");
 
         studyEntity.setTrajectories(Set.of(areaTrajectory));
@@ -144,10 +142,8 @@ public class DuplicationStudyImplTest {
         linkTrajectory.setType(TrajectoryType.LINK.name());
         linkTrajectory.setId(1);
 
-        List<TrajectoryEntity> trajectories = Collections.singletonList(linkTrajectory);
         when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
-        when(trajectoryRepository.findMostRecentTrajectoriesForDuplicationByStudyId(1,"2030-2031"))
-                .thenReturn(trajectories);
+
 
 
         BusinessException exception = assertThrows(BusinessException.class,
@@ -157,7 +153,6 @@ public class DuplicationStudyImplTest {
         assertEquals("AREA trajectory {0} does not exist for horizon {1}",
                 exception.getMessage());
 
-        verify(trajectoryRepository).findMostRecentTrajectoriesForDuplicationByStudyId(1,"2030-2031");
         verifyNoMoreInteractions(
                 projectRepository,
                 studyRepository,
@@ -181,10 +176,9 @@ public class DuplicationStudyImplTest {
         areaTrajectory.setType(TrajectoryType.AREA.name());
         areaTrajectory.setId(1);
 
-        List<TrajectoryEntity> trajectories = Collections.singletonList(areaTrajectory);
+        studyEntity.setTrajectories(Set.of(areaTrajectory));
         when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
-        when(trajectoryRepository.findMostRecentTrajectoriesForDuplicationByStudyId(1,"2030-2031"))
-                .thenReturn(trajectories);
+
 
 
         when(projectRepository.findByName("project1"))
@@ -207,7 +201,6 @@ public class DuplicationStudyImplTest {
 
 
         assertNotNull(result);
-        verify(trajectoryRepository).findMostRecentTrajectoriesForDuplicationByStudyId(1,"2030-2031");
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
         verify(trajectoryService).linkTrajectoryToStudy(eq(1), eq(1), eq(TrajectoryType.AREA));

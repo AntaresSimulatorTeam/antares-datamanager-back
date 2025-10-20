@@ -33,32 +33,31 @@ public class DuplicationTrajectoryUtils {
 
     /**
      * Validates that an AREA trajectory is available for the specified horizon.
-     * @param trajectoriesAvailable area
+     *
+     * @param trajectoriesAvailable     area
      * @param existingStudyTrajectories
      * @param horizon
      */
-    public static void validateAreaTrajectoryForDuplication(List<TrajectoryEntity> trajectoriesAvailable , Set<TrajectoryEntity> existingStudyTrajectories, String horizon) {
+    public TrajectoryEntity validateAreaTrajectoryForDuplication(List<TrajectoryEntity> trajectoriesAvailable, Set<TrajectoryEntity> existingStudyTrajectories, String horizon) {
 
-        Set<String> availableAreaNames = trajectoriesAvailable.stream()
+        TrajectoryEntity availableAreaTrajectory = trajectoriesAvailable.stream()
                 .filter(t -> TrajectoryType.AREA.name().equals(t.getType()))
-                .map(TrajectoryEntity::getFileName)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+                .findFirst().orElse(null);
 
         // Find the first AREA trajectory in existingStudyTrajectories that is NOT in availableAreaNames
-        TrajectoryEntity missing = existingStudyTrajectories.stream()
+        TrajectoryEntity existingAreaTrajectory = existingStudyTrajectories.stream()
                 .filter(t -> TrajectoryType.AREA.name().equals(t.getType()))
-                .filter(t -> !availableAreaNames.contains(t.getFileName()))
                 .findFirst()
                 .orElse(null);
 
-        if (missing != null) {
+        if (availableAreaTrajectory == null) {
             throw BusinessException.builder()
                     .message("AREA trajectory {0} does not exist for horizon {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
-                    .errorMessageArguments(List.of(missing.getFileName(), horizon))
+                    .errorMessageArguments(List.of(existingAreaTrajectory !=null ? existingAreaTrajectory.getFileName() : "", horizon))
                     .build();
         }
+        return availableAreaTrajectory;
     }
 
 
@@ -93,7 +92,8 @@ public class DuplicationTrajectoryUtils {
             List<String> missingTrajectoryTypes,
             TrajectoryEntity areaTrajectory,
             Set<WarningMessageEntity> warningMessages
-    ) {}
+    ) {
+    }
 
 
     /**
@@ -130,7 +130,7 @@ public class DuplicationTrajectoryUtils {
                 studyDTO.getId(),
                 trajectoryService,
                 warningMessages,
-                 loadFileProcessorService,
+                loadFileProcessorService,
                 missingTrajectoryTypes,
                 createdBy);
 
@@ -156,63 +156,63 @@ public class DuplicationTrajectoryUtils {
         return areaTrajectory;
     }
 
-private static void processRemainingTrajectoryTypes(
-        List<TrajectoryEntity> trajectories,
-        Integer studyId,
-        TrajectoryServiceImpl trajectoryService,
-        Set<WarningMessageEntity> warningMessages,
-        LoadFileProcessorServiceImpl loadFileProcessorService,
-        List<String> missingTrajectoryTypes,
-        String createdBy) {
+    private static void processRemainingTrajectoryTypes(
+            List<TrajectoryEntity> trajectories,
+            Integer studyId,
+            TrajectoryServiceImpl trajectoryService,
+            Set<WarningMessageEntity> warningMessages,
+            LoadFileProcessorServiceImpl loadFileProcessorService,
+            List<String> missingTrajectoryTypes,
+            String createdBy) {
 
-    for (TrajectoryType type : SUPPORTED_TRAJECTORY_TYPES) {
-        if (type == TrajectoryType.AREA) continue;
+        for (TrajectoryType type : SUPPORTED_TRAJECTORY_TYPES) {
+            if (type == TrajectoryType.AREA) continue;
 
-        List<TrajectoryEntity> typeTrajectories = trajectories.stream()
-                .filter(t -> type.name().equals(t.getType()))
-                .toList();
+            List<TrajectoryEntity> typeTrajectories = trajectories.stream()
+                    .filter(t -> type.name().equals(t.getType()))
+                    .toList();
 
-        if (typeTrajectories.isEmpty()) {
-            missingTrajectoryTypes.add(type.name());
+            if (typeTrajectories.isEmpty()) {
+                missingTrajectoryTypes.add(type.name());
 
-        } else {
-            if (type == TrajectoryType.LOAD) {
-                // LOAD we can have several trajectories for one study
-                // Track if any LOAD trajectory was successfully linked
-                List<String> tempMissingTypes = new ArrayList<>();
-
-                typeTrajectories.forEach(trajectory ->
-                        trajectoryToBeAttached(
-                                trajectory,
-                                type,
-                                studyId,
-                                trajectoryService,
-                                loadFileProcessorService,
-                                warningMessages,
-                                tempMissingTypes,
-                                createdBy
-                        )
-                );
-
-                // Only add LOAD to missing types if all trajectories failed (count equals total)
-                if (tempMissingTypes.size() == typeTrajectories.size()) {
-                    missingTrajectoryTypes.add(type.name());
-                }
             } else {
-                trajectoryToBeAttached(
-                        typeTrajectories.getFirst(),
-                        type,
-                        studyId,
-                        trajectoryService,
-                        loadFileProcessorService,
-                        warningMessages,
-                        missingTrajectoryTypes,
-                        createdBy
-                );
+                if (type == TrajectoryType.LOAD) {
+                    // LOAD we can have several trajectories for one study
+                    // Track if any LOAD trajectory was successfully linked
+                    List<String> tempMissingTypes = new ArrayList<>();
+
+                    typeTrajectories.forEach(trajectory ->
+                            trajectoryToBeAttached(
+                                    trajectory,
+                                    type,
+                                    studyId,
+                                    trajectoryService,
+                                    loadFileProcessorService,
+                                    warningMessages,
+                                    tempMissingTypes,
+                                    createdBy
+                            )
+                    );
+
+                    // Only add LOAD to missing types if all trajectories failed (count equals total)
+                    if (tempMissingTypes.size() == typeTrajectories.size()) {
+                        missingTrajectoryTypes.add(type.name());
+                    }
+                } else {
+                    trajectoryToBeAttached(
+                            typeTrajectories.getFirst(),
+                            type,
+                            studyId,
+                            trajectoryService,
+                            loadFileProcessorService,
+                            warningMessages,
+                            missingTrajectoryTypes,
+                            createdBy
+                    );
+                }
             }
         }
     }
-}
 
     /**
      * Handles attached or processing a trajectory based on the specified type and study ID.
@@ -220,14 +220,14 @@ private static void processRemainingTrajectoryTypes(
      * for specific trajectory types. If the operation fails or an inconsistency is detected,
      * adds the type to the list of missing trajectory types.
      *
-     * @param trajectory The trajectory entity to be processed or attached.
-     * @param type The type of trajectory to process, such as LOAD or LINK.
-     * @param studyId The identifier of the study to which the trajectory is attached.
-     * @param trajectoryService The service responsible for trajectory-related operations.
+     * @param trajectory               The trajectory entity to be processed or attached.
+     * @param type                     The type of trajectory to process, such as LOAD or LINK.
+     * @param studyId                  The identifier of the study to which the trajectory is attached.
+     * @param trajectoryService        The service responsible for trajectory-related operations.
      * @param loadFileProcessorService The service used to process load areas for trajectories.
-     * @param warningMessages A set of warning messages that may be generated during processing.
-     * @param missingTrajectoryTypes A list to store missing trajectory types if inconsistencies are found.
-     * @param createdBy The identifier of the user or system that initiated this operation.
+     * @param warningMessages          A set of warning messages that may be generated during processing.
+     * @param missingTrajectoryTypes   A list to store missing trajectory types if inconsistencies are found.
+     * @param createdBy                The identifier of the user or system that initiated this operation.
      */
     private static void trajectoryToBeAttached(
             TrajectoryEntity trajectory,
@@ -241,7 +241,7 @@ private static void processRemainingTrajectoryTypes(
 
         try {
             if (type == TrajectoryType.LOAD && trajectory.getArea() != null) {
-                List<String> availableAreas = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
+                List<String> areasLoadWithoutTrajectorySelected = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
 
                 if (OTHER_AREA.equals(trajectory.getArea())) {
 
@@ -250,7 +250,7 @@ private static void processRemainingTrajectoryTypes(
                             .map(String::toUpperCase)
                             .collect(Collectors.toSet());
 
-                    boolean hasValidArea = availableAreas.stream()
+                    boolean hasValidArea = areasLoadWithoutTrajectorySelected.stream()
                             .anyMatch(loadAreas::contains);
 
                     if (!hasValidArea) {
@@ -259,7 +259,7 @@ private static void processRemainingTrajectoryTypes(
                     }
                 } else {
 
-                    if (!availableAreas.contains(trajectory.getArea().toUpperCase())) {
+                    if (!areasLoadWithoutTrajectorySelected.contains(trajectory.getArea().toUpperCase())) {
                         missingTrajectoryTypes.add(type.name());
                         return;
                     }
