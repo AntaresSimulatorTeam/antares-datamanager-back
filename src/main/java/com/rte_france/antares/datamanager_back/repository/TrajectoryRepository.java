@@ -72,27 +72,13 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);
 
 
-    @Query("""
-                SELECT t FROM Trajectory t
-                WHERE t.fileName IN (
-                    SELECT DISTINCT t2.fileName
-                    FROM Trajectory t2
-                    JOIN t2.scenarioEntities s
-                    WHERE s.id = :studyId
-                )
-                AND t.horizon = :targetHorizon
-                AND t.version = (
-                    SELECT MAX(t3.version)
-                    FROM Trajectory t3
-                    WHERE t3.fileName = t.fileName
-                    AND t3.horizon = t.horizon
-                )
-                ORDER BY t.creationDate DESC
-            """)
-    List<TrajectoryEntity> findMostRecentTrajectoriesForDuplicationByStudyId(
-            @Param("studyId") Integer studyId,
-            @Param("targetHorizon") String targetHorizon
-    );
+    @Query("SELECT t FROM Trajectory t WHERE t.horizon = :horizon AND t.fileName IN :names " +
+            "AND t.id IN (" +
+            "  SELECT MAX(t2.id) FROM Trajectory t2 WHERE t2.horizon = :horizon AND t2.fileName IN :names GROUP BY t2.fileName" +
+            ")")
+    List<TrajectoryEntity> findLatestTrajectoriesByNamesAndHorizon(@Param("names") Set<String> names,
+                                                                   @Param("horizon") String horizon);
+
 
 }
 

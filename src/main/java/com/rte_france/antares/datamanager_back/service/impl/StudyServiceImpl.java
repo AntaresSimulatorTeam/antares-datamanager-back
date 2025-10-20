@@ -32,6 +32,7 @@ import org.springframework.util.CollectionUtils;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
 
@@ -130,23 +131,48 @@ public class StudyServiceImpl implements StudyService {
         studyGeneratorService.callGenerateStudyService(studyId);
         updateStudyStatusAsGenerated(studyId);
     }
+
     @Override
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
-        StudyEntity studyToDuplicate =studyRepository.findById(studyDTO.getId()).orElseThrow(()-> BusinessException.builder()
+        StudyEntity studyToDuplicate = studyRepository.findById(studyDTO.getId()).orElseThrow(() -> BusinessException.builder()
                 .message("Study {0} not found")
                 .errorMessageArguments(List.of(studyDTO.getName()))
                 .httpStatus(HttpStatus.NOT_FOUND)
                 .build());
-        Set<TrajectoryEntity> existingStudyTrajectories =studyToDuplicate.getTrajectories();
-        String horizon = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
-        List<TrajectoryEntity> trajectoriesAvailable = trajectoryRepository
-                .findMostRecentTrajectoriesForDuplicationByStudyId(studyDTO.getId(), horizon);
 
-        DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable ,existingStudyTrajectories, studyDTO.getHorizon());
+        Set<TrajectoryEntity> existingStudyTrajectories = studyToDuplicate.getTrajectories();
 
-        studyDTO.setTrajectoryIds(new ArrayList<>());
+        // Extraire l'année de l'horizon original (format "prev-current")
+        String originalHorizon = studyToDuplicate.getHorizon();
+
+        String originalHorizonYear = originalHorizon != null && originalHorizon.contains("-")
+                ? originalHorizon.split("-")[1] // yyyy
+                : originalHorizon; // yyyy-yyyy+1
+
+        List<TrajectoryEntity> trajectoriesAvailable;
+        if (Objects.equals(originalHorizonYear, studyDTO.getHorizon())) {
+            // Cas 1 : même horizon -> on réutilise les trajectoires déjà liées
+            trajectoriesAvailable = new ArrayList<>(existingStudyTrajectories);
+        } else {
+            // Cas 2 : horizon changé -> chercher pour le nouveau horizon les trajectoires ayant le même nom
+            String newHorizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
+
+            // Récupérer la liste des noms des trajectoires existantes
+            Set<String> trajectoryNames = existingStudyTrajectories.stream()
+                    .map(TrajectoryEntity::getFileName)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            // Cette méthode doit renvoyer la dernière version pour chaque nom présent et pour le horizon donné.
+            // Si elle n'existe pas encore, ajoutez-la dans TrajectoryRepository.
+            trajectoriesAvailable = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(trajectoryNames, newHorizonRange);
+        }
+
+      TrajectoryEntity areaTrajectory =  DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable, existingStudyTrajectories, studyDTO.getHorizon());
+
+        studyDTO.setTrajectoryIds(List.of(areaTrajectory.getId()));
         StudyDTO savedStudyDTO = createStudy(studyDTO);
 
         DuplicationTrajectoryUtils.TrajectoryProcessingResult result = DuplicationTrajectoryUtils.processAndLinkTrajectories(
@@ -172,6 +198,7 @@ public class StudyServiceImpl implements StudyService {
 
         return savedStudyDTO;
     }
+
 
 
     @Override

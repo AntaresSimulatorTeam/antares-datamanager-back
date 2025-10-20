@@ -99,52 +99,6 @@ class TrajectoryRepositoryTest {
     }
 
     @Test
-    void findMostRecentTrajectoriesForDuplicationByStudyId_shouldReturnCorrectTrajectories() {
-
-        Integer studyId = 1;
-        String targetHorizon = "2025-2026";
-
-
-        List<TrajectoryEntity> result = trajectoryRepository
-                .findMostRecentTrajectoriesForDuplicationByStudyId(studyId, targetHorizon);
-
-
-        assertThat(result).isNotEmpty();
-
-
-        result.forEach(trajectory ->
-                assertThat(trajectory.getHorizon()).isEqualTo(targetHorizon)
-        );
-
-
-        for (TrajectoryEntity trajectory : result) {
-            long maxVersion = trajectoryRepository.findAll().stream()
-                    .filter(t -> t.getFileName().equals(trajectory.getFileName())
-                            && t.getHorizon().equals(targetHorizon))
-                    .mapToInt(TrajectoryEntity::getVersion)
-                    .max()
-                    .orElse(0);
-
-            assertThat(trajectory.getVersion()).isEqualTo(maxVersion);
-        }
-
-
-        List<String> sourceStudyFileNames = trajectoryRepository.findByTypeAndStudyId(null, studyId)
-                .stream()
-                .map(TrajectoryEntity::getFileName)
-                .toList();
-
-        result.forEach(trajectory ->
-                assertThat(sourceStudyFileNames).contains(trajectory.getFileName())
-        );
-
-
-        assertThat(result).isSortedAccordingTo(
-                Comparator.comparing(TrajectoryEntity::getCreationDate).reversed()
-        );
-    }
-
-    @Test
     void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc_returnsTrajectoryEntity() {
         Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
                 "testFile.txt", "AREA", "2023-2024", "FR", "technology1");
