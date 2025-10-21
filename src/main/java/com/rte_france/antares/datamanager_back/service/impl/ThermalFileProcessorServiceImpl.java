@@ -313,14 +313,16 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 if (row.getRowNum() == 0) continue;
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
                 if (rowArea.isEmpty()) continue;
+                String trajectoryName = path.getFileName().toString();
+
                 if (!area.equals(OTHERS_AREA)) {
                     if (rowArea.equals(area.toUpperCase())) {
                         isSpecificAreaFound = true;
-                        processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder);
+                        processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder, trajectoryName);
                     }
                 } else {
                     otherAreas.add(rowArea);
-                    processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder);
+                    processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder, trajectoryName);
                 }
             }
         } catch (IOException e) {
@@ -476,7 +478,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void processThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology,
-                                   String rowArea, List<ThermalClusterCapacityEntity> result, StringBuilder checksum) {
+                                   String rowArea, List<ThermalClusterCapacityEntity> result, StringBuilder checksum, String trajectoryName) {
         String techName = row.getCell(2).getStringCellValue();
         String clusterName = row.getCell(3).getStringCellValue();
         String categoryStr = row.getCell(4).getStringCellValue().toLowerCase();
@@ -491,7 +493,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
-            double value = capacityValue(row, i, horizon);
+            double value = capacityValue(row, i, horizon,  trajectoryName);
             boolean toUse = row.getCell(0).getNumericCellValue() == 0;
 
             // Ajout des valeurs au checksum
@@ -538,28 +540,23 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return missingAreas;
     }
 
-    private static double capacityValue(Row row, int i, String horizon) {
+    private static double capacityValue(Row row, int i, String horizon, String trajectoryFileName) {
         Cell cell = row.getCell(i);
-        if (cell == null) {
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
             throw BusinessException.builder()
-                    .message("La cellule de capacité est vide à la colonne " + i)
+                    .message("Null value not allowed for column " + i + " in THERMAL Installed Power trajectory " + trajectoryFileName)
                     .build();
-        }
-        if (cell.getCellType() == CellType.NUMERIC) {
+        } else if (cell.getCellType() == CellType.NUMERIC) {
             return cell.getNumericCellValue();
-        } else if (cell.getCellType() == CellType.STRING) {
+        } else {
             try {
                 return Double.parseDouble(cell.getStringCellValue());
             } catch (NumberFormatException e) {
                 throw BusinessException.builder()
-                        .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory must be numeric")
-                        .errorMessageArguments(List.of(horizon, cell.getStringCellValue()))
+                        .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory  {1} must be numeric")
+                        .errorMessageArguments(List.of(horizon, trajectoryFileName))
                         .build();
             }
-        } else {
-            throw BusinessException.builder()
-                    .message("Type de cellule non supporté pour la capacité à la colonne " + i + " : " + cell.getCellType())
-                    .build();
         }
     }
 
