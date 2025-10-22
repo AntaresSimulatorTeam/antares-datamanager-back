@@ -866,7 +866,7 @@ class ThermalFileProcessorServiceImplTest {
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
-        assertTrue(exception.getMessage().contains("The following clusters are missing in the Common Parameters trajectory: ClusterB"));
+        assertTrue(exception.getMessage().equals("Clusters : ClusterB are not in Common trajectory"));
     }
 
     @Test

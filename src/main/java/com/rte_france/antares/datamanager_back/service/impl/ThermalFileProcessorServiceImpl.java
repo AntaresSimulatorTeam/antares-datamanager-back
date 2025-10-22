@@ -121,7 +121,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             if (!clustersWithoutParameters.isEmpty()) {
                 var paramType = trajectoryType.equals(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER) ? "Common" : "Specific";
                 throw BusinessException.builder()
-                        .message("The following clusters are missing in the " + paramType + " Parameters trajectory: " + String.join(", ", clustersWithoutParameters))
+                        .message("Clusters : " + String.join(", ", clustersWithoutParameters) + " are not in "+ paramType + " trajectory")
                         .build();
             }
         }
