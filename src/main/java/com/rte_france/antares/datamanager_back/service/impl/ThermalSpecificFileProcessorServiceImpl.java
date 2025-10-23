@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.ThermalSpecificFileProcessorService;
@@ -99,9 +98,10 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                         .build();
             }
             Set<String> specificClusters = specificParams.stream()
-                    .map(ThermalSpecificParametersEntity::getThermalClusterRef)
-                    .map(ThermalClusterRef::getName)
+                    .filter(Objects::nonNull)
+                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
                     .collect(Collectors.toSet());
+
             thermalFileProcessorService.checkMissingClusters(studyId, horizon, specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
 
 

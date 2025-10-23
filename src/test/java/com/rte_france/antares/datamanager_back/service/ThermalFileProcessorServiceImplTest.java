@@ -1001,4 +1001,58 @@ class ThermalFileProcessorServiceImplTest {
         verify(trajectoryRepository).save(any());
     }
 
+    @Test
+    void checkMissingClusters_shouldNotThrowExceptionWhenAllClustersArePresent() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        Set<String> paramClusters = Set.of("ClusterA", "ClusterB");
+        Set<String> installedPowerClusters = Set.of("ClusterA", "ClusterB");
+
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of(
+                        TrajectoryEntity.builder()
+                                .thermalClusterCapacities(installedPowerClusters.stream()
+                                        .map(cluster -> ThermalClusterCapacityEntity.builder().thermalClusterRef(ThermalClusterRef.builder().name(cluster).build()).build())
+                                        .toList())
+                                .build()
+                ));
+
+        assertDoesNotThrow(() -> thermalFileProcessorService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER));
+    }
+
+    @Test
+    void checkMissingClusters_shouldThrowExceptionWhenClustersAreMissing() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        Set<String> paramClusters = Set.of("ClusterA/FR");
+        Set<String> installedPowerClusters = Set.of("ClusterA", "ClusterB");
+
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of(
+                        TrajectoryEntity.builder()
+                                .thermalClusterCapacities(installedPowerClusters.stream()
+                                        .map(cluster -> ThermalClusterCapacityEntity.builder().area("FR").thermalClusterRef(ThermalClusterRef.builder().name(cluster).build()).build())
+                                        .toList())
+                                .build()
+                ));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER));
+
+        assertTrue(exception.getMessage().contains("Clusters : ClusterB/FR are not in Specific trajectory"));
+    }
+
+    @Test
+    void checkMissingClusters_shouldNotThrowExceptionWhenNoInstalledPowerClustersExist() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        Set<String> paramClusters = Set.of("ClusterA", "ClusterB");
+
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() -> thermalFileProcessorService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER));
+    }
+
+
 }

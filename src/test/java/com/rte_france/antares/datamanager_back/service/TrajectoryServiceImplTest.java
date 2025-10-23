@@ -497,7 +497,7 @@ class TrajectoryServiceImplTest {
     void checkMissingClustersForSpecificParam_shouldCallCheckMissingClusters() throws IOException {
         Integer studyId = 1;
         String horizon = "2023-2024";
-        Set<String> clusterRefs = Set.of("ClusterA", "ClusterB");
+        Set<String> clusterRefs = Set.of("ClusterA/", "ClusterB/");
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())

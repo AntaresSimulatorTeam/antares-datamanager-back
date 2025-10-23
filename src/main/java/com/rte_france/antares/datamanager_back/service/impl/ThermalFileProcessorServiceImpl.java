@@ -112,7 +112,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     public void checkMissingClusters(Integer studyId, String horizon, Set<String> paramClusters, TrajectoryType trajectoryType) {
         Set<String> clustersWithoutParameters;
-        Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
+
+        Set<String> installedPowerClusters = TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.equals(trajectoryType) ?
+                getInstalledPowerClustersByStudyId(studyId, horizon) : getInstalledPowerClusterAreaByStudyId(studyId, horizon);
+
         if (!installedPowerClusters.isEmpty()) {
             clustersWithoutParameters = installedPowerClusters.stream()
                     .filter(cluster -> !paramClusters.contains(cluster))
@@ -121,7 +124,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             if (!clustersWithoutParameters.isEmpty()) {
                 var paramType = trajectoryType.equals(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER) ? "Common" : "Specific";
                 throw BusinessException.builder()
-                        .message("Clusters : " + String.join(", ", clustersWithoutParameters) + " are not in "+ paramType + " trajectory")
+                        .message("Clusters : " + String.join(", ", clustersWithoutParameters) + " are not in " + paramType + " trajectory")
                         .build();
             }
         }
@@ -493,7 +496,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
-            double value = capacityValue(row, i, horizon,  trajectoryName);
+            double value = capacityValue(row, i, horizon, trajectoryName);
             boolean toUse = row.getCell(0).getNumericCellValue() == 0;
 
             // Ajout des valeurs au checksum
