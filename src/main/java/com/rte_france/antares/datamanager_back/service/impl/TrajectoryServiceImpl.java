@@ -856,8 +856,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             thermalFileProcessorService.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInCommonParam, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
         } else if (TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name().equals(type)) {
             Set<String> listClustersInSpecificParam = trajectory.getThermalSpecificParameters().stream()
-                    .map(ThermalSpecificParametersEntity::getThermalClusterRef)
-                    .map(ThermalClusterRef::getName).collect(Collectors.toSet());
+                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .collect(Collectors.toSet());
             thermalFileProcessorService.checkMissingClusters(studyId, trajectory.getHorizon(), listClustersInSpecificParam, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
         }
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
