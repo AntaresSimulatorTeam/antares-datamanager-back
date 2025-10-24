@@ -8,7 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.StudyTrajectoryReposit
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.impl.WarningServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.impl.WarningServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;

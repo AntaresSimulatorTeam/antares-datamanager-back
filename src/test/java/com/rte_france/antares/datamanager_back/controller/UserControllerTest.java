@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
 import com.rte_france.antares.datamanager_back.mapper.LdapMapper;
-import com.rte_france.antares.datamanager_back.service.impl.LdapClientEmployeeService;
+import com.rte_france.antares.datamanager_back.service.user.LdapClientEmployeeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

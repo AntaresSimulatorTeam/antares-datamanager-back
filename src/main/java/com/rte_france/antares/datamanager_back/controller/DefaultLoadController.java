@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
-import com.rte_france.antares.datamanager_back.service.DefaultLoadService;
+import com.rte_france.antares.datamanager_back.service.common.DefaultLoadService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

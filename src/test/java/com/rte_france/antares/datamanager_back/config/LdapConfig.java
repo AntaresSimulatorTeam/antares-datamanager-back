@@ -1,8 +1,6 @@
 package com.rte_france.antares.datamanager_back.config;
 
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.unboundid.ldap.listener.InMemoryDirectoryServer;
-import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

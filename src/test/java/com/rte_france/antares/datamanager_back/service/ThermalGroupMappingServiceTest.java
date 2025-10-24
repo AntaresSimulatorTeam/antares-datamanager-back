@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.repository.ThermalGroupMappingRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalGroupMappingEntity;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalGroupMappingService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalGroupMappingService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

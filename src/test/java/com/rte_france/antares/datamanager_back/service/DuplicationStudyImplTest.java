@@ -9,8 +9,9 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.impl.StudyServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.WarningService;
+import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.study.impl.StudyServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +23,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,7 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class DuplicationStudyImplTest {
+class DuplicationStudyImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -98,14 +102,9 @@ public class DuplicationStudyImplTest {
         Set<TrajectoryEntity> trajectories = Set.of(areaTrajectory);
         studyEntity.setTrajectories(trajectories);
 
-        when(trajectoryService.linkTrajectoryToStudy(
-                eq(1),
-                eq(1),
-                eq(TrajectoryType.AREA)
-        )).thenReturn(areaTrajectory);
+        when(trajectoryService.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(areaTrajectory);
 
         when(studyRepository.findById(15)).thenReturn(Optional.of(studyEntity));
-
 
 
         StudyDTO result = studyService.duplicateStudy(studyDTO);
@@ -115,7 +114,7 @@ public class DuplicationStudyImplTest {
         assertEquals("2030-2031", result.getHorizon());
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
-        verify(trajectoryService).linkTrajectoryToStudy(eq(1), eq(1), eq(TrajectoryType.AREA));
+        verify(trajectoryService).linkTrajectoryToStudy(1,1, TrajectoryType.AREA);
 
 
     }
@@ -145,7 +144,6 @@ public class DuplicationStudyImplTest {
         when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
 
 
-
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> studyService.duplicateStudy(studyDTO));
 
@@ -161,6 +159,7 @@ public class DuplicationStudyImplTest {
                 trajectoryService
         );
     }
+
     @Test
     void duplicateStudy_withMissingTrajectories_shouldCreateWarnings() throws IOException {
 
@@ -180,18 +179,13 @@ public class DuplicationStudyImplTest {
         when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
 
 
-
         when(projectRepository.findByName("project1"))
                 .thenReturn(Optional.of(projectEntity));
 
         when(studyRepository.save(any(StudyEntity.class)))
                 .thenReturn(studyEntity);
 
-        when(trajectoryService.linkTrajectoryToStudy(
-                eq(1),
-                eq(1),
-                eq(TrajectoryType.AREA)
-        )).thenReturn(areaTrajectory);
+        when(trajectoryService.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(areaTrajectory);
 
         when(warningRepository.saveAll(any()))
                 .thenReturn(Collections.emptyList());
@@ -203,7 +197,7 @@ public class DuplicationStudyImplTest {
         assertNotNull(result);
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
-        verify(trajectoryService).linkTrajectoryToStudy(eq(1), eq(1), eq(TrajectoryType.AREA));
+        verify(trajectoryService).linkTrajectoryToStudy(1, 1, TrajectoryType.AREA);
         verify(warningService).addWarning(
                 anySet(),
                 listCaptor.capture(),

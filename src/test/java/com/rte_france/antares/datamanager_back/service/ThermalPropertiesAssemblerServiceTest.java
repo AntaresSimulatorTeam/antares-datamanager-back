@@ -2,8 +2,8 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalGroupMappingService;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalGroupMappingService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

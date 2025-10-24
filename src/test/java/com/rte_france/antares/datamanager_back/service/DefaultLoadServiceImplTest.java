@@ -4,7 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
 
 import com.rte_france.antares.datamanager_back.repository.DefaultLoadRepository;
 import com.rte_france.antares.datamanager_back.repository.model.DefaultLoadEntity;
-import com.rte_france.antares.datamanager_back.service.impl.DefaultLoadServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.impl.DefaultLoadServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

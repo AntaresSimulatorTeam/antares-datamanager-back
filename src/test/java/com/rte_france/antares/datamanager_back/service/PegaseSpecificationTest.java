@@ -1,7 +1,8 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.service.impl.PegaseSpecification;
-import com.rte_france.antares.datamanager_back.service.impl.SearchCriteria;
+
+import com.rte_france.antares.datamanager_back.service.common.impl.PegaseSpecification;
+import com.rte_france.antares.datamanager_back.service.common.impl.SearchCriteria;
 import jakarta.persistence.criteria.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
