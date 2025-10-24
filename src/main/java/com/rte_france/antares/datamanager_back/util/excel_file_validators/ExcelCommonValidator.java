@@ -333,7 +333,7 @@ public class ExcelCommonValidator {
                         .build());
     }
 
-    public static void checkForDuplicateValues(Sheet sheet, String columnName, Path path, String horizon, boolean checkSymmetric, String trajectoryType) {
+    public static void checkForDuplicateValues(Sheet sheet, String columnName, String horizon, boolean checkSymmetric, String trajectoryType) {
         int columnIndex = findColumnIndex(sheet, columnName, horizon, trajectoryType);
         Map<String, String> seenValues = new HashMap<>();
         Set<String> identicalDuplicates = new TreeSet<>();

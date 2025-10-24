@@ -5,7 +5,7 @@ import com.rte_france.antares.datamanager_back.dto.ProjectDto;
 import com.rte_france.antares.datamanager_back.dto.ProjectInputDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
-import com.rte_france.antares.datamanager_back.service.ProjectService;
+import com.rte_france.antares.datamanager_back.service.project.ProjectService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

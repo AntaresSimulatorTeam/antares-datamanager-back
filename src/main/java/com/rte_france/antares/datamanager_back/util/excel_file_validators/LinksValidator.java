@@ -34,7 +34,7 @@ public class LinksValidator {
 
             Sheet sheet = workbook.getSheet(horizon);
             if (fileType == ExcelFileType.LINKS) {
-                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), path, horizon, true, TrajectoryType.LINK.name());
+                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), horizon, true, TrajectoryType.LINK.name());
                 checkColumnsRules(sheet, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
             }
         } catch (IOException e) {

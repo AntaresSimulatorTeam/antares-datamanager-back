@@ -10,8 +10,8 @@ import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEnt
 import com.rte_france.antares.datamanager_back.repository.model.PinnedProjectEntityId;
 import com.rte_france.antares.datamanager_back.repository.model.ProjectEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.service.impl.ProjectServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.service.project.impl.ProjectServiceImpl;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

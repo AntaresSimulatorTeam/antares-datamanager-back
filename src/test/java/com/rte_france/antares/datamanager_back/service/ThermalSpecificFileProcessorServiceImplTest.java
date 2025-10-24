@@ -2,16 +2,15 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalSpecificFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalSpecificFileProcessorServiceImpl;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static com.rte_france.antares.datamanager_back.service.ThermalFileProcessorServiceImplTest.mockExcelFile;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -50,6 +48,13 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private ThermalControlesService thermalControlesService;
+
+    @Mock
+    private ThermalClusterRefServiceImpl thermalClusterRefServiceImpl;
+
 
     @InjectMocks
     private ThermalSpecificFileProcessorServiceImpl service;
@@ -82,7 +87,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldProcessValidRowsAndReturnEntities() throws IOException {
-        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
 
         Path file = writeWorkbookToTemp(createValidWorkbook(2));
@@ -100,7 +105,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowForOthersAreaIfNoStudyAreaPresent() throws IOException {
-        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Study has ES and IT, but rows contain FR and DE -> none present
         when(areaRepository.findAllByStudyId(anyInt())).thenReturn(List.of(
@@ -118,7 +123,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainText() throws IOException {
-        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a text in a numeric column (index 5)
         var wb = createValidWorkbook(1);
@@ -135,7 +140,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainNegativeValue() throws IOException {
-        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a negative number in a numeric column (index 5 -> min_stable_generation)
         var wb = createValidWorkbook(1);
@@ -152,7 +157,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowRegardlessOfSelectedAreaIfNoStudyAreaPresent() throws IOException {
-        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Study has ES and IT, but rows contain FR and DE -> none present
         when(areaRepository.findAllByStudyId(anyInt())).thenReturn(List.of(
@@ -176,8 +181,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
         Files.write(file, generateSpecificParametersExcelFile(horizon));
 
         // clusters must exist and be resolvable
-        when(thermalFileProcessorService.clusterExistsByName(anyString())).thenReturn(true);
-        when(thermalFileProcessorService.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenAnswer(inv -> ThermalClusterRef.builder()
                         .name(inv.getArgument(1))
                         .namePemmdb(inv.getArgument(2))

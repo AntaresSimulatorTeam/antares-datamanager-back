@@ -8,8 +8,11 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalControlsServiceImpl;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.rte_france.antares.datamanager_back.service.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
@@ -55,6 +58,11 @@ class ThermalFileProcessorServiceImplTest {
     @InjectMocks
     private ThermalFileProcessorServiceImpl thermalFileProcessorService;
 
+    @Mock
+    private ThermalControlsServiceImpl thermalControlesService;
+
+    @Mock
+    private ThermalClusterRefService thermalClusterRefService;
 
     @Mock
     private AreaRepository areaRepository;
@@ -159,9 +167,9 @@ class ThermalFileProcessorServiceImplTest {
         TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
-        when(thermalTechnologyRepository.findThermalTechnologyByName(any())).thenReturn(Optional.of(ThermalTechnology.builder().name("CCGT").build()));
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build()));
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any()))
+                .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
         when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         var horizon = "2025-2026";
@@ -188,114 +196,6 @@ class ThermalFileProcessorServiceImplTest {
         verify(trajectoryRepository).save(any(TrajectoryEntity.class));
     }
 
-
-    @Test
-    void findOrCreateThermalClusterRef_shouldCreateAndSaveNewClusterRef() {
-        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT"))
-                .thenReturn(Optional.of(technology));
-        when(thermalClusterRefRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        ThermalClusterRef result = thermalFileProcessorService.findOrCreateThermalClusterRef("CCGT", "Cluster2");
-
-        assertNotNull(result);
-        assertEquals("Cluster2", result.getName());
-        assertEquals("CCGT", result.getThermalTechnology().getName());
-        verify(thermalClusterRefRepository, times(1)).save(any());
-    }
-
-    @Test
-    void findOrCreateThermalClusterRef_shouldCreateTechnologyWhenNotFound() {
-        // Given
-        String technology = "NewTech";
-        String name = "ClusterA";
-        when(thermalTechnologyRepository.findThermalTechnologyByName(technology)).thenReturn(Optional.empty());
-        ThermalTechnology newTech = ThermalTechnology.builder().name(technology).build();
-        when(thermalTechnologyRepository.save(any())).thenReturn(newTech);
-
-        ThermalClusterRef expectedRef = ThermalClusterRef.builder()
-                .name(name)
-                .namePemmdb("NA")
-                .thermalTechnology(newTech)
-                .build();
-        when(thermalClusterRefRepository.save(any())).thenReturn(expectedRef);
-
-        // When
-        ThermalClusterRef result = thermalFileProcessorService.findOrCreateThermalClusterRef(technology, name);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(technology, result.getThermalTechnology().getName());
-        verify(thermalTechnologyRepository).save(any(ThermalTechnology.class));
-    }
-
-    @Test
-    void findOrCreateThermalClusterRef_whenExistingAndPemmdbIsNA_updatesAndSaves() {
-        // Given existing ref in cache with NA PEMMDB
-        ThermalTechnology tech = ThermalTechnology.builder().name("oil").build();
-        ThermalClusterRef existing = ThermalClusterRef.builder()
-                .name("ClusterOil")
-                .thermalTechnology(tech)
-                .namePemmdb("NA")
-                .build();
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
-
-        // When
-        ThermalClusterRef result = thermalFileProcessorService.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
-
-        // Then
-        assertSame(existing, result);
-        assertEquals("Oil-123", result.getNamePemmdb());
-        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
-        verifyNoInteractions(thermalTechnologyRepository);
-    }
-
-    @Test
-    void findOrCreateThermalClusterRef_whenExistingAndPemmdbAlreadySet_doesNotOverwriteOrSave() {
-        // Given existing ref with non-NA PEMMDB
-        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
-        ThermalClusterRef existing = ThermalClusterRef.builder()
-                .name("ClusterY")
-                .thermalTechnology(tech)
-                .namePemmdb("EXISTING-VAL")
-                .build();
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
-
-        // When
-        ThermalClusterRef result = thermalFileProcessorService.findOrCreateThermalClusterRef("CCGT", "ClusterY", "NEW-VAL");
-
-        // Then
-        assertSame(existing, result);
-        assertEquals("EXISTING-VAL", result.getNamePemmdb());
-        verify(thermalClusterRefRepository, never()).save(any());
-    }
-
-    @Test
-    void findOrCreateThermalClusterRef_whenCreating_setsProvidedPemmdbOrDefaultNA() {
-        // First call: empty cache, no existing entries
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
-        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT"))
-                .thenReturn(Optional.of(tech));
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
-
-        // With provided pemmdb
-        ThermalClusterRef createdWithPemmdb = thermalFileProcessorService.findOrCreateThermalClusterRef("CCGT", "C1", "PEM1");
-        assertEquals("C1", createdWithPemmdb.getName());
-        assertEquals("PEM1", createdWithPemmdb.getNamePemmdb());
-        assertEquals("CCGT", createdWithPemmdb.getThermalTechnology().getName());
-
-        // With null pemmdb should default to NA (use a different name so it creates a new one)
-        ThermalClusterRef createdWithDefault = thermalFileProcessorService.findOrCreateThermalClusterRef("CCGT", "C2", null);
-        assertEquals("C2", createdWithDefault.getName());
-        assertEquals("NA", createdWithDefault.getNamePemmdb());
-
-        verify(thermalClusterRefRepository, atLeast(2)).save(any(ThermalClusterRef.class));
-    }
-
     @Test
     void buildThermalClusterCapacityValuesList_shouldThrowTechnicalExceptionWhenIOExceptionOccurs(){
         Path mockPath = mock(Path.class);
@@ -311,153 +211,6 @@ class ThermalFileProcessorServiceImplTest {
         }
     }
 
-
-    @Test
-    void verifyClustersInCommonParamTrajectory_shouldThrowExceptionWhenClustersAreMissing() {
-        Integer studyId = 1;
-        String horizon = "2025-2026";
-        List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
-                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                        .build()
-        );
-
-        TrajectoryEntity commonParamTrajectory = TrajectoryEntity.builder()
-                .thermalCommonParameters(List.of(
-                        ThermalCommonParameterEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
-                                .build()
-                ))
-                .fileName("CommonParamFile")
-                .build();
-
-        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
-                .thenReturn(List.of(commonParamTrajectory));
-
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities)
-        );
-
-        assertTrue(exception.getMessage().contains("Clusters ClusterA are not in Common trajectory CommonParamFile"));
-    }
-
-    @Test
-    void verifyClustersInCommonParamTrajectory_shouldNotThrowExceptionWhenAllClustersArePresent() {
-        Integer studyId = 1;
-        String horizon = "2025-2026";
-        List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
-                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                        .build()
-        );
-
-        TrajectoryEntity commonParamTrajectory = TrajectoryEntity.builder()
-                .thermalCommonParameters(List.of(
-                        ThermalCommonParameterEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                                .build()
-                ))
-                .build();
-
-        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
-                .thenReturn(List.of(commonParamTrajectory));
-
-        assertDoesNotThrow(() ->
-                thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities)
-        );
-    }
-
-    @Test
-    void verifyClustersInCommonParamTrajectory_shouldNotThrowExceptionWhenNoCommonParamTrajectoryExists() {
-        Integer studyId = 1;
-        String horizon = "2025-2026";
-        List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
-                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                        .build()
-        );
-        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
-                .thenReturn(List.of());
-
-        assertDoesNotThrow(() ->
-                thermalFileProcessorService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities)
-        );
-    }
-
-
-    @org.junit.jupiter.api.Test
-    void verifyClustersInSpecificParamTrajectory_shouldThrowExceptionWhenClustersAreMissing() {
-        Integer studyId = 1;
-        String horizon = "2025-2026";
-        List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder().area("FR")
-                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                        .build()
-        );
-
-        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
-                .thermalSpecificParameters(List.of(
-                        ThermalSpecificParametersEntity.builder()
-                                .area("FR")
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
-                                .build()
-                ))
-                .fileName("SpecificParamFile")
-                .build();
-
-        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
-                .thenReturn(List.of(specificParamTrajectory));
-
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
-        );
-
-        assertTrue(exception.getMessage().contains("Clusters ClusterA/FR are not in Specific trajectory SpecificParamFile"));
-    }
-
-    @org.junit.jupiter.api.Test
-    void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenAllClustersArePresent() {
-        Integer studyId = 1;
-        String horizon = "2025-2026";
-        List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
-                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                        .build()
-        );
-
-        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
-                .thermalSpecificParameters(List.of(
-                        ThermalSpecificParametersEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                                .build()
-                ))
-                .build();
-
-        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
-                .thenReturn(List.of(specificParamTrajectory));
-
-        assertDoesNotThrow(() ->
-                thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
-        );
-    }
-
-    @org.junit.jupiter.api.Test
-    void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenNoSpecificParamTrajectoryExists() {
-        Integer studyId = 1;
-        String horizon = "2025-2026";
-        List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
-                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
-                        .build()
-        );
-
-        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
-                .thenReturn(List.of());
-
-        assertDoesNotThrow(() ->
-                thermalFileProcessorService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
-        );
-    }
 
     @Test
     void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {
@@ -792,9 +545,8 @@ class ThermalFileProcessorServiceImplTest {
 
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
-        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT")).thenReturn(Optional.of(tech));
-        when(thermalClusterRefRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
+                .thenReturn(ThermalClusterRef.builder().name("ClusterA").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
 
         var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, studyId);
         assertEquals(1, list.size());
@@ -862,12 +614,20 @@ class ThermalFileProcessorServiceImplTest {
                                 .build()
                 )).build()));
 
+        // 👉 Mock du service pour qu’il jette la bonne exception
+        doThrow(BusinessException.builder()
+                .message("Clusters : ClusterB are not in Common trajectory")
+                .build())
+                .when(thermalControlesService)
+                .checkMissingClusters(any(), any(), any(), eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER), isNull());
+
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1)
         );
 
-        assertTrue(exception.getMessage().equals("Clusters : ClusterB are not in Common trajectory"));
+        assertEquals("Clusters : ClusterB are not in Common trajectory", exception.getMessage());
     }
+
 
     @Test
     void buildThermalCommonParameterValuesList_shouldReturnThermalParametersWhenAllClustersArePresent(@TempDir Path tempDir) throws Exception {
@@ -1001,58 +761,6 @@ class ThermalFileProcessorServiceImplTest {
         verify(trajectoryRepository).save(any());
     }
 
-    @Test
-    void checkMissingClusters_shouldNotThrowExceptionWhenAllClustersArePresent() {
-        Integer studyId = 1;
-        String horizon = "2023-2024";
-        Set<String> paramClusters = Set.of("ClusterA", "ClusterB");
-        Set<String> installedPowerClusters = Set.of("ClusterA", "ClusterB");
-
-        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
-                .thenReturn(List.of(
-                        TrajectoryEntity.builder()
-                                .thermalClusterCapacities(installedPowerClusters.stream()
-                                        .map(cluster -> ThermalClusterCapacityEntity.builder().thermalClusterRef(ThermalClusterRef.builder().name(cluster).build()).build())
-                                        .toList())
-                                .build()
-                ));
-
-        assertDoesNotThrow(() -> thermalFileProcessorService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER));
-    }
-
-    @Test
-    void checkMissingClusters_shouldThrowExceptionWhenClustersAreMissing() {
-        Integer studyId = 1;
-        String horizon = "2023-2024";
-        Set<String> paramClusters = Set.of("ClusterA/FR");
-        Set<String> installedPowerClusters = Set.of("ClusterA", "ClusterB");
-
-        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
-                .thenReturn(List.of(
-                        TrajectoryEntity.builder()
-                                .thermalClusterCapacities(installedPowerClusters.stream()
-                                        .map(cluster -> ThermalClusterCapacityEntity.builder().area("FR").thermalClusterRef(ThermalClusterRef.builder().name(cluster).build()).build())
-                                        .toList())
-                                .build()
-                ));
-
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalFileProcessorService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER));
-
-        assertTrue(exception.getMessage().contains("Clusters : ClusterB/FR are not in Specific trajectory"));
-    }
-
-    @Test
-    void checkMissingClusters_shouldNotThrowExceptionWhenNoInstalledPowerClustersExist() {
-        Integer studyId = 1;
-        String horizon = "2023-2024";
-        Set<String> paramClusters = Set.of("ClusterA", "ClusterB");
-
-        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
-                .thenReturn(List.of());
-
-        assertDoesNotThrow(() -> thermalFileProcessorService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER));
-    }
 
 
 }

@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.gaia.Employee;
-import com.rte_france.antares.datamanager_back.service.impl.LdapClientEmployeeService;
+import com.rte_france.antares.datamanager_back.service.user.LdapClientEmployeeService;
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

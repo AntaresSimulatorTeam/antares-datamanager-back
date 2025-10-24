@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.service.StudyService;
+import com.rte_france.antares.datamanager_back.service.study.StudyService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyPage;
 

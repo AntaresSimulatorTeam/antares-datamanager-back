@@ -6,9 +6,13 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.impl.UserService;
+import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -52,6 +57,8 @@ class TrajectoryServiceImplTest {
     private AntaressDataManagerProperties antaressDataManagerProperties;
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
+    @Mock
+    private ThermalControlesService thermalControlesService;
     @Mock
     private StudyRepository studyRepository;
     @Mock
@@ -465,8 +472,8 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalFileProcessorService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
-        verify(thermalFileProcessorService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
+        verify(thermalControlesService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
+        verify(thermalControlesService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
     }
 
     @Test
@@ -490,7 +497,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalFileProcessorService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+        verify(thermalControlesService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
     }
 
     @Test
@@ -500,6 +507,7 @@ class TrajectoryServiceImplTest {
         Set<String> clusterRefs = Set.of("ClusterA/", "ClusterB/");
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .area(OTHERS_AREA)
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
                 .horizon(horizon)
                 .thermalSpecificParameters(List.of(
@@ -514,7 +522,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalFileProcessorService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+        verify(thermalControlesService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA);
     }
 
     @Test
@@ -671,7 +679,7 @@ class TrajectoryServiceImplTest {
                 .checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
 
         verify(loadFileProcessorService, times(1))
-                .checkForMissingLoadFiles(eq(trajectoryPath), eq(horizon), eq(studyId), eq(userNni), eq(newTrajectory));
+                .checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
         assertNotNull(warningMessageEntities);
     }
 

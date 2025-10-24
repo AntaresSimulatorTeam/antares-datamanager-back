@@ -1,10 +1,8 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.TrajectoryService;
-import com.rte_france.antares.datamanager_back.service.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;

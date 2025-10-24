@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.service.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
