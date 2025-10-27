@@ -369,7 +369,7 @@ class StudyGeneratorServiceImplTest {
                 .hasMessageContaining("Error while call Generate study from generator");
     }
 
-    @Disabled   // TODO: remove when thermal gen is enabled
+
     @Test
     void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
         // Given
