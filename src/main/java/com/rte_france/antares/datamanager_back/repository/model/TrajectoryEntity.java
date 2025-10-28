@@ -71,6 +71,22 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<ThermalModulationParameterEntity> thermalModulationParameters;
 
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<ThermalCostEntity> thermalCosts;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<ThermalCostsRateEntity> thermalCostsRates;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<ThermalEconomicCo2Entity> thermalEconomicCo2s;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<ThermalEconomicEnerContentEntity> thermalEconomicEnerContents;
+
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",
             joinColumns = @JoinColumn(name = "trajectory_id"),
@@ -91,7 +107,6 @@ public class TrajectoryEntity {
             load.getTrajectoryEntities().add(this);
         }
     }
-
 
     @OneToMany(mappedBy = "trajectory", cascade = {CascadeType.MERGE, CascadeType.PERSIST}, orphanRemoval = true)
     private Set<WarningMessageEntity> warningMessages;

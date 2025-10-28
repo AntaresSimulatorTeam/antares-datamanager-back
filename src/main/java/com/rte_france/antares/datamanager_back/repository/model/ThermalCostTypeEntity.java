@@ -28,9 +28,6 @@ public class ThermalCostTypeEntity {
     @Column(name = "fuel")
     private String fuel;
 
-    @Column(name = "scenario")
-    private String scenario;
-
     @Column(name = "comment")
     private String comment;
 
