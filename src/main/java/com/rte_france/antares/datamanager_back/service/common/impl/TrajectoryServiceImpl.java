@@ -95,7 +95,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-
     @Override
     @Transactional
     public void unlinkBatchTrajectoriesFromStudy(Integer studyId, List<Integer> trajectoryIds) {
@@ -164,7 +163,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         Collectors.summingInt(trajectory -> trajectory.getWarningMessages() != null ? trajectory.getWarningMessages().size() : 0)
                 ));
     }
-
 
 
     /**
@@ -366,7 +364,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 studyId, trajectoryFilePath.resolve(cmFileName), cmFileName, thermalModulationParameters, cmFile, "CM");
 
         processThermalModulationSingleFile(trajectoryToUse, horizon,
-                studyId, trajectoryFilePath.resolve(mrFileName), mrFileName,  thermalModulationParameters, mrFile, "MR");
+                studyId, trajectoryFilePath.resolve(mrFileName), mrFileName, thermalModulationParameters, mrFile, "MR");
 
 
         return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
@@ -395,7 +393,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 path.getFileName().toString().toLowerCase().startsWith(SPECIFIC_PREFIX);
                         case THERMAL_TECHNICAL_COMMON_PARAMETER ->
                                 path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
-                        case THERMAL_TECHNICAL_MODULATION_PARAMETER->
+                        case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
                                 Files.isDirectory(path); //directories for modulation parameter
                         default -> true;
                     })
@@ -440,8 +438,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     @Transactional
-    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws
-            IOException {
+    public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 
         StudyEntity study = studyRepository.findById(studyId)
@@ -451,30 +448,36 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build());
 
         TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId)
-                .orElseThrow(() ->
-                        BusinessException.builder()
-                                .message("Trajectory not found")
-                                .httpStatus(HttpStatus.BAD_REQUEST)
-                                .build());
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Trajectory not found")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+
+        Set<TrajectoryType> singleLinkTypes = Set.of(
+                TrajectoryType.AREA,
+                TrajectoryType.LINK,
+                THERMAL_TECHNICAL_MODULATION_PARAMETER,
+                TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,
+                TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
+                TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER
+        );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
-        if ((TrajectoryType.AREA.equals(type) || TrajectoryType.LINK.equals(type)) && study.getStudyTrajectoryEntities() != null) {
+        if (singleLinkTypes.contains(type) && study.getStudyTrajectoryEntities() != null) {
             existingLink = study.getStudyTrajectoryEntities().stream()
-                    .filter(studyTrajectory -> studyTrajectory.getTrajectory() != null
-                            && studyTrajectory.getTrajectory().getType() != null
-                            && studyTrajectory.getTrajectory().getType().equals(trajectory.getType()))
+                    .filter(st -> st.getTrajectory() != null
+                            && st.getTrajectory().getType() != null
+                            && st.getTrajectory().getType().equals(trajectory.getType()))
                     .findFirst();
         }
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-
         checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
 
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
-
-        StudyTrajectoryEntity newStudyTrajectoryEntity = StudyTrajectoryEntity.builder()
+        StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
                 .id(StudyTrajectoryKey.builder()
                         .trajectoryId(trajectoryId)
                         .scenarioId(studyId)
@@ -483,10 +486,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .trajectory(trajectory)
                 .build();
 
-        StudyTrajectoryEntity savedStudyTrajectoryEntity = studyTrajectoryRepository.save(newStudyTrajectoryEntity);
-
-        return savedStudyTrajectoryEntity.getTrajectory();
+        StudyTrajectoryEntity saved = studyTrajectoryRepository.save(newLink);
+        return saved.getTrajectory();
     }
+
 
 
     @Override
@@ -634,7 +637,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
 
-
         Path baseDirectory = Path.of(nasDir)
                 .resolve(trajFilePath)
                 .resolve(directoryByType)
@@ -730,7 +732,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (!normalizedPath.startsWith(allowedBaseDir)) {
             throw new SecurityException("Trying to access a file outside the allowed base directory: " + allowedBaseDir);
-       }
+        }
 
         List<String> clustersInFile = extractClustersFromCsvHeader(normalizedPath);
 
@@ -781,7 +783,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (!missingClusters.isEmpty()) {
             throw BusinessException.builder()
                     .message("Missing Areas/Cluster {0} in Must Run file for trajectory {1} in horizon {2}")
-                    .errorMessageArguments(List.of(String.join(", ", missingClusters),trajectoryName,horizon))
+                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -798,7 +800,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (!missingClusters.isEmpty()) {
             throw BusinessException.builder()
                     .message("Missing Areas/Cluster {0} in Cost Modulation file for trajectory {1} in horizon {2}")
-                    .errorMessageArguments(List.of(String.join(", ", missingClusters),trajectoryName,horizon))
+                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -919,8 +921,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-
-
     public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area) {
         return switch (trajectoryType) {
             case AREA -> antaressDataManagerProperties.getAreaDirectory();
@@ -981,7 +981,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
     }
-
 
 
     public void checkLinkCoherence(Integer
@@ -1056,7 +1055,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
     }
-
 
 
 }
