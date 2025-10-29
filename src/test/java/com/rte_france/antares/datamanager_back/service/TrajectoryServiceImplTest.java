@@ -569,6 +569,26 @@ class TrajectoryServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
     }
+    @Test
+    void findTrajectoriesByType_returnsFilesStartingByCosts_(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("thermal/economic_parameter/costs");
+        Files.createDirectories(thermalDir);
+
+        Path testFile = thermalDir.resolve("costs_test1.xlsx");
+        Files.createFile(testFile);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("thermal/economic_parameter/costs");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("costs_test1.xlsx", result.getFirst().getFileName());
+    }
 
     @Test
     void processLoadTrajectory_savesTrajectoryAndProcessesLoadFiles() throws IOException {

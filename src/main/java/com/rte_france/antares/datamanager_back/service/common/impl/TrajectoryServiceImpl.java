@@ -86,6 +86,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String SPECIFIC_PREFIX = "specific_param_";
     private static final String COMMON_PREFIX = "common_param_";
     private static final String CAPACITY_PREFIX = "thermal_";
+    private static final String ECONOMIC_COST_PREFIX = "costs_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -395,6 +396,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
                         case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
                                 Files.isDirectory(path); //directories for modulation parameter
+                        case THERMAL_ECONOMIC_COST_PARAMETER->
+                                path.getFileName().toString().toLowerCase().startsWith(ECONOMIC_COST_PREFIX);
                         default -> true;
                     })
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
