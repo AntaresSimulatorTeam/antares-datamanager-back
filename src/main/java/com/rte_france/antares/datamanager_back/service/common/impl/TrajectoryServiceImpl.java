@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorSer
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -63,6 +64,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final ThermalControlesService thermalControlesService;
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
+
+    private final ThermalEconomicCostService thermalEconomicCostService;
 
     private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
@@ -375,6 +378,20 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
+    public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
+        var params = thermalEconomicCostService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, horizon, studyId);
+        if (CollectionUtils.isEmpty(params)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
+                    .message("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return thermalFileProcessorService.processThermalEconomicCostsFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+    }
+
+    @Override
     public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, trajectoryToUse, "");
         var economicsCo2Param = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(trajectoryFilePath, horizon, studyId);
@@ -459,8 +476,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return warningMessages.stream()
                 .filter(warning -> warning.getStudy().getId().equals(studyId) && isStudyTrajectoryExistById(studyId, warning))
                 .sorted(Comparator
-                        .comparing(WarningMessageEntity::getIsAck) // ack = true d'abord
-                        .thenComparing(WarningMessageEntity::getCreationDate, Comparator.reverseOrder()) // tri décroissant par date
+                        .comparing(WarningMessageEntity::getIsAck) // ack = true
+                        .thenComparing(WarningMessageEntity::getCreationDate, Comparator.reverseOrder()) // decreasing order by date
                 )
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
@@ -587,7 +604,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.LOAD);
 
 
-        // Try to find existing trajectory
+        // Try to find an existing trajectory
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(trajectoryToUse, horizon, area);
 
@@ -605,7 +622,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
             }
 
-            // Update a version and save new trajectory
+            // Update a version and save a new trajectory
             TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
             return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, null);
@@ -647,7 +664,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return true;
     }
 
-    // Utility method to build trajectory path with checks
+    // Utility method to build a trajectory path with checks
     public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType type) throws IOException {
         String nasDir = antaressDataManagerProperties.getNasDirectory();
         String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
@@ -660,7 +677,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {
             throw BusinessException.builder()
-                    .message("Antaress path configuration is incomplete")
+                    .message("Antares path configuration is incomplete")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -686,7 +703,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     private TrajectoryEntity buildNewLoadTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
-        //build new trajectory
+        //build a new trajectory
         return TrajectoryEntity.builder()
                 .fileName(trajectoryToUse)
                 .fileSize(Files.size(trajectoryPath))
