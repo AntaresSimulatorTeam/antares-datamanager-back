@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final StudyRepository studyRepository;
 
     private final ThermalControlesService thermalControlesService;
+
+    private final ThermalEconomicCostService thermalEconomicCostService;
 
     private final ThermalClusterRefService thermalClusterRefService;
 
@@ -133,6 +136,27 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         trajectory = buildTrajectory(path, version, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null);
 
         return saveThermalParamModulationTrajectory(trajectory, thermalModulationParameterEntities, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+    }
+
+    @Override
+    public TrajectoryEntity processThermalEconomicCostsFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, TrajectoryType type) throws IOException {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()),
+                horizon,
+                TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()
+        );
+
+        TrajectoryEntity trajectory;
+        if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
+            // Same identifiers but different checksum -> version +1
+            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+        } else {
+            // No existing or different file -> new trajectory with version 1
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+       }
+        return thermalEconomicCostService.saveThermalEconomicCostTrajectory(trajectory, thermalEconomicCosts, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
     /**
@@ -302,21 +326,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             throwTechnicalException(e);
             return Collections.emptyList(); // unreachable, mais pour le compilateur
         }
-    }
-
-    // --- Private  utilitaire  methods -----------------------------------------------------------------------------
-    // --------------------------------------------------------------------------------------------------------------
-    // --------------------------------------------------------------------------------------------------------------
-    // --------------------------------------------------------------------------------------------------------------
-
-    private Sheet findHorizonSheetOrThrow(Workbook workbook, String horizon) {
-        Sheet sheet = findHorizonSheet(workbook, horizon);
-        if (sheet == null) {
-            throw TechnicalException.builder()
-                    .message("Missing suitable sheet for horizon '" + horizon + "'")
-                    .build();
-        }
-        return sheet;
     }
 
     private List<ThermalCommonParameterEntity> parseThermalCommonParameterRows(Sheet sheet, Row header, Set<String> commonParamClusters) {

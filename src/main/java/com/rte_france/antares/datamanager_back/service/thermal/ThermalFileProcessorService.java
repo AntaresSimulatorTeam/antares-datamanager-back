@@ -22,6 +22,8 @@ public interface ThermalFileProcessorService {
 
      TrajectoryEntity processThermalModulationParameterFile(Path path, String horizon, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException;
 
+     TrajectoryEntity processThermalEconomicCostsFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException;
+
      ThermalClusterCapacityDto buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) throws IOException;
 
      List<ThermalCommonParameterEntity> buildThermalCommonParameterValuesList(Path path, String horizon, Integer studyId) throws IOException;
