@@ -1152,14 +1152,14 @@ class TrajectoryServiceImplTest {
                         .build()));
 
         TrajectoryServiceImpl spyService = spy(trajectoryService);
-        doReturn(List.of("other_cluster","FR_cluster1")).when(spyService).extractClustersFromCsvHeader(any());
+        doReturn(List.of("other_cluster","fr_cluster1")).when(spyService).extractClustersFromCsvHeader(any());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 spyService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId)
         );
 
         assertEquals("Missing Areas/Cluster {0} in Must Run file for trajectory {1} in horizon {2}", exception.getMessage());
-        assertEquals(List.of("FR_cluster2",trajectoryToUse, horizon), exception.getErrorMessageArguments());
+        assertEquals(List.of("fr_cluster2",trajectoryToUse, horizon), exception.getErrorMessageArguments());
     }
 
     @Test
@@ -1205,7 +1205,7 @@ class TrajectoryServiceImplTest {
         );
 
         assertEquals("Missing Areas/Cluster {0} in Cost Modulation file for trajectory {1} in horizon {2}", exception.getMessage());
-        assertEquals(List.of("FR_cluster1",trajectoryToUse, horizon), exception.getErrorMessageArguments());
+        assertEquals(List.of("fr_cluster1",trajectoryToUse, horizon), exception.getErrorMessageArguments());
     }
 
     @Test

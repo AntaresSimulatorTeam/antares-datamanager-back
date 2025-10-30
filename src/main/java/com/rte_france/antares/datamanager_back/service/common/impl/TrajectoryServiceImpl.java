@@ -777,6 +777,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Set<String> listClusterByAreaForMrSpecificParam = thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(studyId, horizon)
                 .stream()
                 .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
+                .map(String::toLowerCase)
                 .collect(Collectors.toSet());
 
         Set<String> missingClusters = listClusterByAreaForMrSpecificParam.stream()
@@ -795,6 +796,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
         Set<String> listClusterByAreaForCmSpecificParam = thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(studyId, horizon).stream()
                 .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
+                .map(String::toLowerCase)
                 .collect(Collectors.toSet());
         Set<String> missingClusters = listClusterByAreaForCmSpecificParam.stream()
                 .filter(cluster -> !clustersInFile.contains(cluster))
@@ -816,7 +818,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             if (header != null) {
                 String[] columns = header.split(";");
                 return Arrays.stream(columns)
-                        .skip(2) // Ignore DATE_HEURE et heure
+                        .skip(2)
+                        .map(String::toLowerCase)// Ignore DATE_HEURE et heure
                         .toList();
             }
         }
