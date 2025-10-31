@@ -12,15 +12,16 @@ values (1, 'etude1', 'mouad', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030
        (7, 'etude7', 'ghita', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 3),
        (8, 'etude8', 'ghita', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030-2031', 3);
 
-insert into public.thermal_cost_type(id, country, fuel, scenario, comment, unit, modulation, ratio_ncv_hcv)
-values (1, 'Morocco', 'GAS', 'etude1', 'comment1', 'MWh', 'modulation1', 1.1),
-       (2, 'Morocco', 'OIL', 'etude2', 'comment2', 'MWh', 'modulation2', 1.2),
-       (3, 'Morocco', 'OIL', 'etude3', 'comment3', 'MWh', 'modulation3', 1.3),
-       (4, 'europe', 'OIL', 'etude4', 'comment4', 'MWh', 'modulation4', 1.4),
-       (5, 'europe', 'GAS', 'etude5', 'comment5', 'MWh', 'modulation5', 1.5),
-       (6, 'FRANCE', 'GAS', 'etude6', 'comment6', 'MWh', 'modulation6', 1.6),
-       (7, 'FRANCE', 'GAS', 'etude7', 'comment7', 'MWh', 'modulation7', 1.7),
-       (8, 'SPAIN', 'GAS', 'etude8', 'comment8', 'MWh', 'modulation8', 1.8);
+insert into public.thermal_cost_type(id, country, fuel,  comment, unit, modulation, ratio_ncv_hcv)
+values (1, 'Morocco', 'GAS','comment1', 'MWh', 'modulation1', 1.1),
+       (2, 'Morocco', 'OIL','comment2', 'MWh', 'modulation2', 1.2),
+       (3, 'Morocco', 'OIL','comment3', 'MWh', 'modulation3', 1.3),
+       (4, 'europe', 'OIL', 'comment4', 'MWh', 'modulation4', 1.4),
+       (5, 'europe', 'GAS', 'comment5', 'MWh', 'modulation5', 1.5),
+       (6, 'FRANCE', 'GAS', 'comment6', 'MWh', 'modulation6', 1.6),
+       (7, 'FRANCE', 'GAS','comment7', 'MWh', 'modulation7', 1.7),
+       (8, 'SPAIN', 'GAS', 'comment8', 'MWh', 'modulation8', 1.8);
+
 
 insert into public.area(id, name, x, y, r, g, b)
 values (4, 'area4', 1, 2, 3, 4, 5),

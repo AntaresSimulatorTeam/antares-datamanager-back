@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
@@ -65,7 +66,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
-    private final ThermalEconomicCostService thermalEconomicCostService;
+    private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
@@ -380,15 +381,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
-        var params = thermalEconomicCostService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, horizon, studyId);
-        if (CollectionUtils.isEmpty(params)) {
+        var thermalCostTypeEntities = thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, horizon, studyId);
+        var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse,trajectoryFilePath, studyId);
+        if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
                     .message("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return thermalFileProcessorService.processThermalEconomicCostsFile(trajectoryFilePath, horizon, params, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+        return thermalFileProcessorService.processThermalEconomicCostsAndRatesFile(trajectoryFilePath, horizon, thermalCostTypeEntities,thermalRateEntities, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
     @Override
@@ -816,7 +818,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
+    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
         Set<String> listClusterByAreaForMrSpecificParam = thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(studyId, horizon)
                 .stream()
                 .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
@@ -836,7 +838,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
+    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
         Set<String> listClusterByAreaForCmSpecificParam = thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(studyId, horizon).stream()
                 .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
                 .map(String::toLowerCase)

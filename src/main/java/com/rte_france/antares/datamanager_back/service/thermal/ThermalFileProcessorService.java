@@ -22,7 +22,7 @@ public interface ThermalFileProcessorService {
 
      TrajectoryEntity processThermalModulationParameterFile(Path path, String horizon, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException;
 
-     TrajectoryEntity processThermalEconomicCostsFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException;
+     TrajectoryEntity processThermalEconomicCostsAndRatesFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalCostsEntities, List<ThermalCostsRateEntity> thermalRateEntities, TrajectoryType type) throws IOException;
 
      ThermalClusterCapacityDto buildThermalClusterCapacityValuesList(Path path, String horizon, boolean isCivilYear, String area, String technology, Integer studyId) throws IOException;
 

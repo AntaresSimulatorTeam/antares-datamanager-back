@@ -6,16 +6,19 @@ import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeReposit
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -27,7 +30,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostService {
+public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCostAndRateService {
 
     private final TrajectoryRepository trajectoryRepository;
     private final ThermalCostTypeRepository thermalCostTypeRepository;
@@ -51,13 +54,6 @@ public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostServic
             }
 
             Integer horizonCol = findHorizonColumnIndex(header, horizon);
-            if (horizonCol == null) {
-                throw BusinessException.builder()
-                        .message("Horizon does not exist in THERMAL Costs trajectory {0} in costs tab ")
-                        .errorMessageArguments(List.of(trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
 
             List<ThermalCostTypeEntity> result = new ArrayList<>();
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
@@ -69,7 +65,7 @@ public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostServic
                 ThermalCostTypeEntity type = buildThermalEconomicCostType(row, header);
 
                 Double costValue = castDouble(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
-                Double yearValue = parseYear(horizon);
+                Integer yearValue = parseYear(horizon);
                 if (costValue != null) {
                     ThermalCostEntity cost = ThermalCostEntity.builder()
                             .cost(costValue)
@@ -93,7 +89,69 @@ public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostServic
     }
 
     @Override
-    public TrajectoryEntity saveThermalEconomicCostTrajectory(TrajectoryEntity trajectory, List<ThermalCostTypeEntity> thermalCostTypeEntities, TrajectoryType type) {
+    public List<ThermalCostsRateEntity> buildThermalEconomicRateValueList(String trajectoryName, Path trajectoryFilePath, Integer studyId){
+        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
+        Workbook workbook = WorkbookFactory.create(inputStream)){
+            Sheet rateSheet = workbook.getSheet(MANDATORY_SHEET_RATE);
+            Row header = rateSheet.getRow(0);
+
+            List<ThermalCostsRateEntity> result = new ArrayList<>();
+
+            for (int r = 1; r <= rateSheet.getLastRowNum(); r++) {
+                Row row = rateSheet.getRow(r);
+                if (row == null) continue;
+
+                String rateType = castString(getCellValue(row, 0));
+                if (rateType == null || rateType.isBlank()) continue;
+
+                for (int c = 1; c < header.getLastCellNum(); c++) {
+                    Object headerValue = getCellValue(header, c);
+                    if (headerValue == null) continue;
+
+                    String yearStr;
+
+                    if (headerValue instanceof Number number) {
+                        yearStr = String.valueOf(number.intValue());
+                    } else {
+                        yearStr = headerValue.toString().trim();
+                    }
+
+                    if (yearStr.isBlank()) continue;
+
+                    Integer year = parseYear(yearStr);
+
+                    Object rawValue = getCellValue(row, c);
+                    if (rawValue == null) continue;
+
+                    Double rateValue = castDouble(rawValue, String.valueOf(year), c);
+                    if (rateValue == null) continue;
+
+                    ThermalCostsRateEntity entity = ThermalCostsRateEntity.builder()
+                            .rateType(rateType)
+                            .year(year)
+                            .value(BigDecimal.valueOf(rateValue))
+                            .build();
+
+                    result.add(entity);
+                }
+            }
+
+            return result;
+
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message("Could not read thermal economic rate file: {0}")
+                    .errorMessageArguments(List.of(trajectoryFilePath.toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+    }
+
+
+    @Override
+    @Transactional
+    public TrajectoryEntity saveThermalEconomicCostAndRateTrajectory(TrajectoryEntity trajectory, List<ThermalCostTypeEntity> thermalCostTypeEntities, List<ThermalCostsRateEntity> thermalRateEntities,TrajectoryType type) {
         trajectory.setType(type.name());
 
         List<ThermalCostEntity> toPersistCosts = new ArrayList<>();
@@ -129,6 +187,21 @@ public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostServic
         if (!toPersistCosts.isEmpty()) {
             trajectory.setThermalCosts(toPersistCosts);
         }
+
+        List<ThermalCostsRateEntity> toPersistRates = new ArrayList<>();
+
+        if (thermalRateEntities != null) {
+            for (ThermalCostsRateEntity rate : thermalRateEntities) {
+                if (rate == null) continue;
+                rate.setTrajectory(trajectory);
+                toPersistRates.add(rate);
+            }
+        }
+
+        if (!toPersistRates.isEmpty()) {
+            trajectory.setThermalCostsRates(toPersistRates);
+        }
+
         return trajectoryRepository.save(trajectory);
     }
 
@@ -143,14 +216,13 @@ public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostServic
                 .build();
     }
 
-    private static Double parseYear(String horizon) {
+    private static Integer parseYear(String horizon) {
         try {
-            return horizon == null ? null : Double.valueOf(horizon.trim());
+            return horizon == null ? null : Integer.valueOf(horizon.trim());
         } catch (NumberFormatException e) {
             return null;
         }
     }
-
     /**
      * Finds the column index whose header matches the horizon string exactly.
      */
@@ -172,7 +244,6 @@ public class ThermalEconomicCostServiceImpl implements ThermalEconomicCostServic
         if (cell == null) {
             return null;
         }
-
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
             case NUMERIC -> {
