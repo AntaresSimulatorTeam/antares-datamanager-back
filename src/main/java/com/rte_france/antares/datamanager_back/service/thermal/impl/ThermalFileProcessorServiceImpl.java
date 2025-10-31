@@ -8,7 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +49,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private final ThermalControlesService thermalControlesService;
 
-    private final ThermalEconomicCostService thermalEconomicCostService;
+    private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final ThermalClusterRefService thermalClusterRefService;
 
@@ -139,7 +139,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     @Override
-    public TrajectoryEntity processThermalEconomicCostsFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, TrajectoryType type) throws IOException {
+    public TrajectoryEntity processThermalEconomicCostsAndRatesFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, List<ThermalCostsRateEntity> thermalEconomicRates, TrajectoryType type) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
@@ -156,7 +156,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             // No existing or different file -> new trajectory with version 1
             trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
        }
-        return thermalEconomicCostService.saveThermalEconomicCostTrajectory(trajectory, thermalEconomicCosts, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+        return thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(trajectory, thermalEconomicCosts, thermalEconomicRates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
     /**

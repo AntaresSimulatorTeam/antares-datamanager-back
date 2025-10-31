@@ -9,10 +9,12 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalControlsServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -63,6 +67,9 @@ class ThermalFileProcessorServiceImplTest {
 
     @Mock
     private ThermalClusterRefService thermalClusterRefService;
+
+    @Mock
+    private ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     @Mock
     private AreaRepository areaRepository;
@@ -759,6 +766,99 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals("THERMAL_TECHNICAL_MODULATION_PARAMETER", result.getType());
         assertEquals(1, result.getVersion());
         verify(trajectoryRepository).save(any());
+    }
+
+    @Test
+    void processThermalEconomicCostsAndRatesFile_shouldCreateNewTrajectoryWhenNoExisting() throws IOException {
+        // Arrange
+        Path path = Paths.get("thermal_costs_rates_test.xlsx");
+        String horizon = "2025";
+        List<ThermalCostTypeEntity> costs = Collections.emptyList();
+        List<ThermalCostsRateEntity> rates = Collections.emptyList();
+
+        // No existing trajectory
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
+                .thenReturn(Optional.empty());
+
+        // User info
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("NNI_USER").build());
+
+        TrajectoryEntity builtTrajectory = TrajectoryEntity.builder().fileName("thermal_costs_rates_test").version(1).horizon(horizon).createdBy("NNI_USER").build();
+        TrajectoryEntity savedTrajectory = builtTrajectory.toBuilder().type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()).build();
+
+        // Mock static Utils.buildTrajectory
+        try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+                    .thenAnswer(inv -> {
+                        String fileName = inv.getArgument(0);
+                        // simulate Utils: return name without extension
+                        int dot = fileName.lastIndexOf('.');
+                        return dot > 0 ? fileName.substring(0, dot) : fileName;
+                    });
+
+            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull()))
+                    .thenReturn(builtTrajectory);
+
+            // Delegate save method returns final trajectory
+            when(thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(eq(builtTrajectory), eq(costs), eq(rates), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER)))
+                    .thenReturn(savedTrajectory);
+
+            // Act
+            TrajectoryEntity result = thermalFileProcessorService.processThermalEconomicCostsAndRatesFile(path, horizon, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+
+            // Assert
+            assertSame(savedTrajectory, result);
+            utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull()), times(1));
+            verify(thermalEconomicCostAndRateService, times(1)).saveThermalEconomicCostAndRateTrajectory(builtTrajectory, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+        }
+    }
+
+    @Test
+    void processThermalEconomicCostsAndRatesFile_shouldIncrementVersionWhenExistingWithDifferentContent() throws IOException {
+        // Arrange
+        Path path = Paths.get("thermal_costs_rates_existing.xlsx");
+        String horizon = "2030";
+
+        TrajectoryEntity existing = TrajectoryEntity.builder().fileName("thermal_costs_rates_existing").version(3).build();
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
+                .thenReturn(Optional.of(existing));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("NNI2").build());
+
+        TrajectoryEntity builtTrajectory = TrajectoryEntity.builder().fileName("thermal_costs_rates_existing").version(4).horizon(horizon).createdBy("NNI2").build();
+        TrajectoryEntity savedTrajectory = builtTrajectory.toBuilder().type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()).build();
+
+        List<ThermalCostTypeEntity> costs = Collections.emptyList();
+        List<ThermalCostsRateEntity> rates = Collections.emptyList();
+
+        try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
+            // Static name helper not strictly needed in this branch, but keep consistent
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+                    .thenAnswer(inv -> {
+                        String fileName = inv.getArgument(0);
+                        int dot = fileName.lastIndexOf('.');
+                        return dot > 0 ? fileName.substring(0, dot) : fileName;
+                    });
+
+            // Simulate Utils.checkTrajectoryVersion => true (same identifiers but different content)
+            utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(path), eq(existing))).thenReturn(true);
+
+            // Since existingOpt.present && checkTrajectoryVersion true => buildTrajectory called with existing version
+            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull()))
+                    .thenReturn(builtTrajectory);
+
+            when(thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(eq(builtTrajectory), eq(costs), eq(rates), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER)))
+                    .thenReturn(savedTrajectory);
+
+            // Act
+            TrajectoryEntity result = thermalFileProcessorService.processThermalEconomicCostsAndRatesFile(path, horizon, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+
+            // Assert
+            assertSame(savedTrajectory, result);
+            utilsMock.verify(() -> Utils.checkTrajectoryVersion(eq(path), eq(existing)), times(1));
+            utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull()), times(1));
+            verify(thermalEconomicCostAndRateService, times(1)).saveThermalEconomicCostAndRateTrajectory(builtTrajectory, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+        }
     }
 
 

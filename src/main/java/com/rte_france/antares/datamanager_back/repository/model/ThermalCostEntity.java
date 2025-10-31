@@ -22,7 +22,7 @@ public class ThermalCostEntity extends ThermalBaseEntity {
     private Double cost;
 
     @Column(name = "cost_year")
-    private Double year;
+    private Integer year;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "thermal_type_id")
