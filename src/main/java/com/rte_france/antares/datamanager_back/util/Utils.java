@@ -369,7 +369,7 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY  -> getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY, THERMAL_ECONOMIC_PARAMETER  -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> "NA";
             default -> computeSheetChecksum(path.toString(), horizon);
