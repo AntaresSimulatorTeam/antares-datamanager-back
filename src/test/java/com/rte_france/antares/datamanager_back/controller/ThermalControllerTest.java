@@ -165,6 +165,55 @@ class ThermalControllerTest {
                 .andDo(MockMvcResultHandlers.print());
     }
 
+    @Test
+    void uploadThermalEconomicParamTrajectory_shouldReturnCreatedStatusWhenValidRequest() throws Exception {
+        when(trajectoryService.processThermalEconomicParameterTrajectory(any(), any(), anyInt()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        mockMvc.perform(post("/v1/trajectory/thermal-economic-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "economic_test")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void uploadThermalEconomicParamTrajectory_shouldReturnBadRequestWhenHorizonIsMissing() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/thermal-economic-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "economic_test")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void uploadThermalEconomicParamTrajectory_shouldReturnBadRequestWhenStudyIdIsInvalid() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/thermal-economic-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "economic_test")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "invalid")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void uploadThermalEconomicParamTrajectory_shouldReturnBadRequestWhenTrajectoryToUseIsMissing() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/thermal-economic-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
 }
 
 

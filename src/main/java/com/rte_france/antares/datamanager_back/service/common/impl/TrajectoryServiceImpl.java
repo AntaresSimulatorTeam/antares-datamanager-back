@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -56,6 +57,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final TrajectoryRepository trajectoryRepository;
 
     private final ThermalFileProcessorService thermalFileProcessorService;
+
+    private final ThermalEconomicService thermalEconomicService;
 
     private final ThermalControlesService thermalControlesService;
 
@@ -369,6 +372,29 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
         return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+    }
+
+    @Override
+    public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, trajectoryToUse, "");
+        var economicsCo2Param = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(trajectoryFilePath, horizon, studyId);
+        if (CollectionUtils.isEmpty(economicsCo2Param)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
+                    .message("Thermal Economic Co2 Parameter not found in trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        var economicsEnerContentParam = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(trajectoryFilePath, horizon, studyId);
+
+        if (CollectionUtils.isEmpty(economicsEnerContentParam)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
+                    .message("Thermal Economic Ener Content Parameter not found in trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return thermalEconomicService.processThermalEconomicParameterFile(trajectoryFilePath, horizon, economicsCo2Param, economicsEnerContentParam, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains, String area, String technology) {
@@ -937,11 +963,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .resolve(area)
                             .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
-            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
-                    antaressDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
-                    antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            case THERMAL_ECONOMIC_PARAMETER -> antaressDataManagerProperties.getThermalEconomicDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalModulationParameterDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();

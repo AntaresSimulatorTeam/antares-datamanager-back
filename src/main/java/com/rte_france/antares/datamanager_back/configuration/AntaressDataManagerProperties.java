@@ -22,6 +22,9 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.thermal.cost.directory}")
     public String thermalCostDirectory;
 
+    @Value("${antares.datamanager.thermal.economic.directory}")
+    public String thermalEconomicDirectory;
+
     @Value("${antares.datamanager.thermal.capacity.directory}")
     public String thermalCapacityDirectory;
 

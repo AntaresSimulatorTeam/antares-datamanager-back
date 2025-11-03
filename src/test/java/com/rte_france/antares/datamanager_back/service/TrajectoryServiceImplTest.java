@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.Utils;
@@ -48,7 +49,6 @@ class TrajectoryServiceImplTest {
     private AreaConfigRepository areaConfigRepository;
     @Mock
     private LinkRepository linkRepository;
-
     @Mock
     private AreaFileProcessorService areaFileProcessorService;
     @Mock
@@ -75,6 +75,8 @@ class TrajectoryServiceImplTest {
     private ThermalSpecificParametersRepository thermalSpecificParametersRepository;
     @Mock
     private LoadRepository loadRepository;
+    @Mock
+    private ThermalEconomicService thermalEconomicService;
 
     @BeforeEach
     void setUp() {
@@ -1256,6 +1258,66 @@ class TrajectoryServiceImplTest {
         trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId);
 
         verify(thermalFileProcessorService, times(1)).processThermalModulationParameterFile(any(), any(), any(), any());
+    }
+
+    @Test
+    void processThermalEconomicParameterTrajectory_shouldThrowExceptionWhenCo2ParametersAreEmpty(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "economic_trajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
+        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(tempDir, horizon, studyId))
+                .thenReturn(Collections.emptyList());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId));
+
+        assertTrue(exception.getMessage().contains("Thermal Economic Co2 Parameter not found"));
+    }
+
+    @Test
+    void processThermalEconomicParameterTrajectory_shouldThrowExceptionWhenEnerContentParametersAreEmpty(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "economic_trajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
+
+        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any()))
+                .thenReturn(List.of(ThermalEconomicCo2Entity.builder().id(1).build()));
+        when(thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId));
+
+        assertTrue(exception.getMessage().contains("Thermal Economic Ener Content Parameter not found"));
+    }
+
+    @Test
+    void processThermalEconomicParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters(@TempDir Path tempDir) throws IOException {
+        String trajectoryToUse = "economic_trajectory";
+        String horizon = "2023-2024";
+        Integer studyId = 1;
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
+        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any()))
+                .thenReturn(List.of(new ThermalEconomicCo2Entity()));
+        when(thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(any(), any(), any()))
+                .thenReturn(List.of(new ThermalEconomicEnerContentEntity()));
+        when(thermalEconomicService.processThermalEconomicParameterFile(any(), any(), anyList(), anyList(), any()))
+                .thenReturn(new TrajectoryEntity());
+
+        TrajectoryEntity result = trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId);
+
+        assertNotNull(result);
     }
 
 }
