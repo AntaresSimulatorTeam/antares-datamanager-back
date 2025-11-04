@@ -24,30 +24,22 @@ class ThermalSpecificParametersRepositoryTest {
 
     @Test
     void findWithMrModulationByStudyIdAndHorizon_returnsMrSpecificEntities() {
-        List<ThermalSpecificParametersEntity> result = repository.findWithMrModulationByStudyIdAndHorizon(1, "2025-2026");
+        List<ThermalSpecificParametersEntity> result = repository.findPreferredEntitiesByStudyIdAndHorizon(1, "2025-2026");
 
         assertThat(result).isNotEmpty();
-        assertThat(result).allMatch(entity -> entity.getMrSpecific() == 1);
-    }
-
-    @Test
-    void findWithCmModulationByStudyIdAndHorizon_returnsCmSpecificEntities() {
-        List<ThermalSpecificParametersEntity> result = repository.findWithCmModulationByStudyIdAndHorizon(1, "2025-2026");
-
-        assertThat(result).isNotEmpty();
-        assertThat(result).allMatch(entity -> entity.getCmSpecific() == 1);
+        assertThat(result).anyMatch(entity -> entity.getMrSpecific() == 1);
     }
 
     @Test
     void findWithMrModulationByStudyIdAndHorizon_returnsEmptyForNonMatchingHorizon() {
-        List<ThermalSpecificParametersEntity> result = repository.findWithMrModulationByStudyIdAndHorizon(1, "2030-2031");
+        List<ThermalSpecificParametersEntity> result = repository.findPreferredEntitiesByStudyIdAndHorizon(1, "2030-2031");
 
         assertThat(result).isEmpty();
     }
 
     @Test
     void findWithCmModulationByStudyIdAndHorizon_returnsEmptyForNonMatchingStudyId() {
-        List<ThermalSpecificParametersEntity> result = repository.findWithCmModulationByStudyIdAndHorizon(4, "2025-2026");
+        List<ThermalSpecificParametersEntity> result = repository.findPreferredEntitiesByStudyIdAndHorizon(4, "2025-2026");
 
         assertThat(result).isEmpty();
     }
