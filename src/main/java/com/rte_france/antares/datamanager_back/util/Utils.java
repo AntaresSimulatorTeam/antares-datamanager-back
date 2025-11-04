@@ -505,4 +505,43 @@ public class Utils {
         }
         return sheet;
     }
+
+    /**
+     * Finds the column index whose header matches the horizon string exactly.
+     */
+    public static Integer findHorizonColumnIndex(Row header, String horizon) {
+        for (int i = 0; i < header.getLastCellNum(); i++) {
+            Cell cell = header.getCell(i);
+            if (cell != null) {
+                String headerValue = getHeaderValue(cell);
+                if (headerValue != null && headerValue.equals(horizon)) {
+                    return i;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    private String getHeaderValue(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> {
+                double numValue = cell.getNumericCellValue();
+
+                if (numValue == Math.floor(numValue)) {
+                    yield String.valueOf((int) numValue);
+                } else {
+                    yield String.valueOf(numValue);
+                }
+            }
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> null;
+        };
+    }
+
+
 }

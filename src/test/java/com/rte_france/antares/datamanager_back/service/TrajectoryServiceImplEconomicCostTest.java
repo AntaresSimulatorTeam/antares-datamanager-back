@@ -10,7 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRate
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -38,7 +38,7 @@ class TrajectoryServiceImplEconomicCostTest {
     @Mock private AreaConfigRepository areaConfigRepository;
     @Mock private LinkRepository linkRepository;
     @Mock private ThermalFileProcessorService thermalFileProcessorService;
-    @Mock private ThermalControlesService thermalControlesService;
+    @Mock private ThermalControlService thermalControlService;
     @Mock private StudyRepository studyRepository;
     @Mock private StudyTrajectoryRepository studyTrajectoryRepository;
     @Mock private WarningRepository warningRepository;

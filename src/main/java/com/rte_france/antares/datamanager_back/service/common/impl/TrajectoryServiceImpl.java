@@ -58,7 +58,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalEconomicService thermalEconomicService;
 
-    private final ThermalControlesService thermalControlesService;
+    private final ThermalControlService thermalControlService;
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
@@ -377,6 +377,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
+
         var thermalCostTypeEntities = thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, horizon, studyId);
         var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, trajectoryFilePath, studyId);
         if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {
@@ -1011,16 +1012,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 }
             }
             case "THERMAL_CAPACITY" -> {
-                thermalControlesService.verifyClustersInCommonParamTrajectory(
+                thermalControlService.verifyClustersInCommonParamTrajectory(
                         studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-                thermalControlesService.verifyClustersInSpecificParamTrajectory(
+                thermalControlService.verifyClustersInSpecificParamTrajectory(
                         studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
             }
             case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> {
                 Set<String> commonClusters = trajectory.getThermalCommonParameters().stream()
                         .map(param -> param.getThermalClusterRef().getName())
                         .collect(Collectors.toSet());
-                thermalControlesService.checkMissingClusters(
+                thermalControlService.checkMissingClusters(
                         studyId, trajectory.getHorizon(), commonClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
             }
             case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> {
@@ -1028,7 +1029,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .map(param -> param.getThermalClusterRef().getName() + "/" +
                                 Optional.ofNullable(param.getArea()).orElse(""))
                         .collect(Collectors.toSet());
-                thermalControlesService.checkMissingClusters(
+                thermalControlService.checkMissingClusters(
                         studyId, trajectory.getHorizon(), specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectory.getArea());
             }
         }

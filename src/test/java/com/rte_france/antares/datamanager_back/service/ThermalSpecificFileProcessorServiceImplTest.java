@@ -3,7 +3,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
@@ -50,7 +50,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
     private UserService userService;
 
     @Mock
-    private ThermalControlesService thermalControlesService;
+    private ThermalControlService thermalControlService;
 
     @Mock
     private ThermalClusterRefServiceImpl thermalClusterRefServiceImpl;

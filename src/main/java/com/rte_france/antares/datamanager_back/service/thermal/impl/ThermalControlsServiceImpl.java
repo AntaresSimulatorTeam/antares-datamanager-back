@@ -4,11 +4,20 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -18,11 +27,13 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ThermalControlsServiceImpl implements ThermalControlesService {
+public class ThermalControlsServiceImpl implements ThermalControlService {
 
     private final TrajectoryRepository trajectoryRepository;
-    
-    
+    public static final String SHEET_COSTS = "costs";
+    public static final String SHEET_RATE = "rate";
+
+
     /**
      * Checks for missing clusters in the provided parameter clusters.
      *
@@ -130,6 +141,79 @@ public class ThermalControlsServiceImpl implements ThermalControlesService {
         }
     }
 
+    @Override
+    public void verifyCostsTrajectory(String horizon, Path trajectoryFilePath, String trajectoryName) throws IOException {
+
+            try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
+                 Workbook workbook = WorkbookFactory.create(inputStream)) {
+
+                Sheet costsSheet = workbook.getSheet(SHEET_COSTS);
+                Sheet rateSheet = workbook.getSheet(SHEET_RATE);
+
+                if (costsSheet == null && rateSheet == null) {
+                    throw BusinessException.builder()
+                            .message("Missing costs/rate data in trajectory {0}")
+                            .errorMessageArguments(List.of(trajectoryName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+
+                } else if (costsSheet==null) {
+                    throw BusinessException.builder()
+                            .message("Missing costs data in trajectory {0}")
+                            .errorMessageArguments(List.of(trajectoryName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                else if (rateSheet==null) {
+                    throw BusinessException.builder()
+                            .message("Missing rate data in trajectory {0}")
+                            .errorMessageArguments(List.of(trajectoryName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                if (costsSheet.getLastRowNum() < 1) {
+                    throw BusinessException.builder()
+                            .message("No data in THERMAL Costs trajectory {0} in costs tab").
+                            errorMessageArguments(List.of(trajectoryName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+
+                }
+                Row header = costsSheet.getRow(0);
+                if (header == null || findHorizonColumnIndex(header, horizon) == null) {
+                    throw BusinessException.builder()
+                            .message("Horizon does not exist in THERMAL Costs trajectory {0} in costs tab")
+                            .errorMessageArguments(List.of(trajectoryName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                validateDataCells(costsSheet, trajectoryName, SHEET_COSTS);
+
+                if (rateSheet.getLastRowNum() < 1) {
+                    throw BusinessException.builder()
+                            .message("No data in THERMAL Costs trajectory {0} in rate tab")
+                            .errorMessageArguments(List.of(trajectoryName))
+                            .build();
+                }
+                Row rateHeader = rateSheet.getRow(0);
+                if (rateHeader == null || rateHeader.getLastCellNum() < 2) {
+                    throw BusinessException.builder()
+                            .message("Horizon does not exist in THERMAL Costs trajectory {0} in rate tab")
+                            .errorMessageArguments(List.of(trajectoryName))
+                            .build();
+                }
+                validateDataCells(rateSheet, trajectoryName, SHEET_RATE);
+
+            } catch (IOException e) {
+                throw BusinessException.builder()
+                        .message("Cannot open trajectory file {0}")
+                        .errorMessageArguments(List.of(trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+
+        }
 
     // --- Private  utilitaire  methods -----------------------------------------------------------------------------
     // --------------------------------------------------------------------------------------------------------------
@@ -204,6 +288,47 @@ public class ThermalControlsServiceImpl implements ThermalControlesService {
                             e.getThermalClusterRef().getName(),
                             Optional.ofNullable(e.getArea()).orElse("")))
                     .collect(Collectors.toSet());
+        }
+    }
+
+    /**
+     * Controls for Cost trajectory
+     * @param sheet costs data
+     * @param trajectoryName
+     * @param tabName costs
+     */
+    private void validateDataCells(Sheet sheet, String trajectoryName, String tabName) {
+        Row header = sheet.getRow(0);
+        if (header == null) return;
+
+        int firstDataRow = 1;
+        int firstDataCol = 5; // F = index 5
+
+        for (int r = firstDataRow; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+
+            for (int c = firstDataCol; c < header.getLastCellNum(); c++) {
+                Object value = getCellValue(row, c);
+
+                if (value == null) {
+                    throw BusinessException.builder()
+                            .message("Null value not allowed for column {0} in THERMAL Costs trajectory {1} in {2} tab")
+                            .errorMessageArguments(List.of(header.getCell(c).getStringCellValue(), trajectoryName, tabName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+
+                }
+
+                if (!(value instanceof Number)) {
+                    throw BusinessException.builder()
+                            .message("The value of power or number of horizon {0} in THERMAL Costs trajectory {1} in {2} tab must be numeric")
+                            .errorMessageArguments(List.of(header.getCell(c).getStringCellValue(), trajectoryName, tabName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+
+                }
+            }
         }
     }
 
