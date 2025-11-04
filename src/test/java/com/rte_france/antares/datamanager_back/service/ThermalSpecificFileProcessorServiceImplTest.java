@@ -92,7 +92,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
         Path file = writeWorkbookToTemp(createValidWorkbook(2));
 
-        List<ThermalSpecificParametersEntity> result = service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, "FR", 1);
+        List<ThermalSpecificParametersEntity> result = service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, OTHERS_AREA, 1);
 
         assertEquals(2, result.size());
         // Basic field checks
@@ -187,7 +187,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
                         .namePemmdb(inv.getArgument(2))
                         .build());
 
-        List<ThermalSpecificParametersEntity> list = service.buildThermalSpecificParameterValueList("specific_param_BD", file, horizon, "FR", 1);
+        List<ThermalSpecificParametersEntity> list = service.buildThermalSpecificParameterValueList("specific_param_BD", file, horizon, OTHERS_AREA, 1);
         assertEquals(1, list.size());
         ThermalSpecificParametersEntity e = list.get(0);
 

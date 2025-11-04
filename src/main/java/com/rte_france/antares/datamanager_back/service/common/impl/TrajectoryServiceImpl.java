@@ -33,6 +33,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -436,7 +437,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
                         case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
                                 Files.isDirectory(path); //directories for modulation parameter
-                        case THERMAL_ECONOMIC_COST_PARAMETER->
+                        case THERMAL_ECONOMIC_COST_PARAMETER ->
                                 path.getFileName().toString().toLowerCase().startsWith(ECONOMIC_COST_PREFIX);
                         default -> true;
                     })
@@ -532,7 +533,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         StudyTrajectoryEntity saved = studyTrajectoryRepository.save(newLink);
         return saved.getTrajectory();
     }
-
 
 
     @Override
@@ -814,10 +814,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
-        Set<String> listClusterByAreaForMrSpecificParam = thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(studyId, horizon)
-                .stream()
-                .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
-                .map(String::toLowerCase)
+
+        List<ThermalSpecificParametersEntity> params = thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon);
+
+        Set<String> listClusterByAreaForMrSpecificParam = params.stream()
+                .filter(p -> Objects.equals(p.getMrSpecific(), 1))
+                .map(p -> (p.getArea() + "_" + p.getThermalClusterRef().getName()).toLowerCase())
                 .collect(Collectors.toSet());
 
         Set<String> missingClusters = listClusterByAreaForMrSpecificParam.stream()
@@ -833,11 +835,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
-        Set<String> listClusterByAreaForCmSpecificParam = thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(studyId, horizon).stream()
-                .map(thermalSpecificParameter -> thermalSpecificParameter.getArea() + "_" + thermalSpecificParameter.getThermalClusterRef().getName())
-                .map(String::toLowerCase)
+
+    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
+
+        List<ThermalSpecificParametersEntity> params = thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon);
+
+        Set<String> listClusterByAreaForCmSpecificParam = params.stream()
+                .filter(p -> Objects.equals(p.getCmSpecific(), 1))
+                .map(p -> (p.getArea() + "_" + p.getThermalClusterRef().getName()).toLowerCase())
                 .collect(Collectors.toSet());
+
         Set<String> missingClusters = listClusterByAreaForCmSpecificParam.stream()
                 .filter(cluster -> !clustersInFile.contains(cluster))
                 .collect(Collectors.toSet());
@@ -977,10 +984,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                             .resolve(area)
                             .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
-            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER -> antaressDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
+                    antaressDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
             case THERMAL_ECONOMIC_PARAMETER -> antaressDataManagerProperties.getThermalEconomicDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
+                    antaressDataManagerProperties.getThermalModulationParameterDirectory();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();

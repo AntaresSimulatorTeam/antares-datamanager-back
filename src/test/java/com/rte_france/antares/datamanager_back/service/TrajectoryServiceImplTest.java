@@ -1137,7 +1137,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
-        when(thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(any(), any()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
                 .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
                         .id(1)
                         .area("FR")
@@ -1145,7 +1145,7 @@ class TrajectoryServiceImplTest {
                         .cmSpecific(0)
                         .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
                         .build()));
-        when(thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(any(), any()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
                 .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
                         .id(2)
                         .area("FR")
@@ -1189,7 +1189,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
-        when(thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(any(), any()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
                 .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
                         .id(1)
                         .area("FR")
@@ -1238,7 +1238,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
-        when(thermalSpecificParametersRepository.findWithCmModulationByStudyIdAndHorizon(any(), any()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
                 .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
                         .id(1)
                         .area("FR")
@@ -1246,7 +1246,7 @@ class TrajectoryServiceImplTest {
                         .cmSpecific(1)
                         .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
                         .build()));
-        when(thermalSpecificParametersRepository.findWithMrModulationByStudyIdAndHorizon(any(), any()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
                 .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
                         .id(2)
                         .area("FR")
