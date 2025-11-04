@@ -84,9 +84,9 @@ public class ThermalController {
             @RequestParam("horizon") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
-                trajectoryService.processThermalEconomicCostTrajectory(trajectoryToUse, horizon, studyId)
-        ), HttpStatus.CREATED);
+                trajectoryService.processThermalEconomicCostTrajectory(trajectoryToUse, horizon, studyId)),HttpStatus.CREATED);
     }
+
 
     @Operation(summary = "import thermal economic parameters trajectory to database ")
     @PostMapping("/thermal-economic-parameter")
