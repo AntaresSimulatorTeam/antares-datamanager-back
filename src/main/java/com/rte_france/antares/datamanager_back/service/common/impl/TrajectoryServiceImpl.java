@@ -14,12 +14,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,9 +61,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
-    private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
-
     private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
+
+    private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final LoadFileProcessorService loadFileProcessorService;
 
@@ -382,7 +377,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
         var thermalCostTypeEntities = thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, horizon, studyId);
-        var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse,trajectoryFilePath, studyId);
+        var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, trajectoryFilePath, studyId);
         if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
@@ -390,7 +385,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return thermalFileProcessorService.processThermalEconomicCostsAndRatesFile(trajectoryFilePath, horizon, thermalCostTypeEntities,thermalRateEntities, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+        return thermalFileProcessorService.processThermalEconomicCostsAndRatesFile(trajectoryFilePath, horizon, thermalCostTypeEntities, thermalRateEntities, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
     @Override

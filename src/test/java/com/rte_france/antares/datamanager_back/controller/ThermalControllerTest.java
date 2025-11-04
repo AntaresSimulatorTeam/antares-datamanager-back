@@ -171,18 +171,30 @@ class ThermalControllerTest {
         mockMvc.perform(post("/v1/trajectory/thermal-economic-costs")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryToUse", "test")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+
+    }
+
+    @Test
+    void uploadThermalCostTrajectory_shouldReturnCreatedStatusWhenValidRequest()throws Exception {
+        when(trajectoryService.processThermalEconomicCostTrajectory(any(), any(), anyInt())).thenReturn(TrajectoryEntity.builder().build());
+        mockMvc.perform(post("/v1/trajectory/thermal-economic-costs")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "test")
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print());
         verify(trajectoryService, times(1)).processThermalEconomicCostTrajectory(any(), any(), anyInt());
+
     }
 
     @Test
     void uploadThermalEconomicParamTrajectory_shouldReturnCreatedStatusWhenValidRequest() throws Exception {
-        when(trajectoryService.processThermalEconomicParameterTrajectory(any(), any(), anyInt()))
-                .thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryService.processThermalEconomicParameterTrajectory(any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
 
         mockMvc.perform(post("/v1/trajectory/thermal-economic-parameter")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -192,6 +204,7 @@ class ThermalControllerTest {
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print());
+        verify(trajectoryService, times(1)).processThermalEconomicParameterTrajectory(any(), any(), anyInt());
     }
 
     @Test
