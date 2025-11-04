@@ -7,7 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     private final ThermalFileProcessorServiceImpl thermalFileProcessorService;
     private final AreaRepository areaRepository;
     private final TrajectoryRepository trajectoryRepository;
-    private final ThermalControlesService thermalControlesService;
+    private final ThermalControlService thermalControlService;
     private final ThermalClusterRefServiceImpl thermalClusterRef;
 
     /**
@@ -103,7 +103,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                     .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
                     .collect(Collectors.toSet());
 
-            thermalControlesService.checkMissingClusters(studyId, horizon, specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area);
+            thermalControlService.checkMissingClusters(studyId, horizon, specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area);
 
 
             // Business rule: If none of the areas from the study's AREA trajectory are present in the file,

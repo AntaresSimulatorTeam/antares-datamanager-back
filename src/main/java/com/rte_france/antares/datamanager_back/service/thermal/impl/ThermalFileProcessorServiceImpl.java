@@ -7,7 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
@@ -47,7 +47,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private final StudyRepository studyRepository;
 
-    private final ThermalControlesService thermalControlesService;
+    private final ThermalControlService thermalControlService;
 
     private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
@@ -278,8 +278,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         checkPowerAndNumberWithSameToUse(capacities, path.getFileName().toString());
 
-        thermalControlesService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities);
-        thermalControlesService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities);
+        thermalControlService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities);
+        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities);
 
         if (area.equals(OTHERS_AREA)) {
             List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
@@ -319,7 +319,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         .build();
             }
 
-            thermalControlesService.checkMissingClusters(studyId, horizon, commonParamClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
+            thermalControlService.checkMissingClusters(studyId, horizon, commonParamClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
 
             return thermalParameters;
         } catch (IOException e) {

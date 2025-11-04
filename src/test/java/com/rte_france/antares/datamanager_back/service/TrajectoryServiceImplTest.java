@@ -10,7 +10,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcess
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlesService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
@@ -58,7 +58,7 @@ class TrajectoryServiceImplTest {
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
     @Mock
-    private ThermalControlesService thermalControlesService;
+    private ThermalControlService thermalControlService;
     @Mock
     private StudyRepository studyRepository;
     @Mock
@@ -474,8 +474,8 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalControlesService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
-        verify(thermalControlesService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
+        verify(thermalControlService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
+        verify(thermalControlService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
     }
 
     @Test
@@ -499,7 +499,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalControlesService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
+        verify(thermalControlService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
     }
 
     @Test
@@ -524,7 +524,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalControlesService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA);
+        verify(thermalControlService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA);
     }
 
     @Test

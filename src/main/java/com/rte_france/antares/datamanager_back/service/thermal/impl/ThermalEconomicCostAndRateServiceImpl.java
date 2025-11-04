@@ -25,6 +25,7 @@ import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
+import static com.rte_france.antares.datamanager_back.util.Utils.findHorizonColumnIndex;
 import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 
 @Slf4j
@@ -35,15 +36,15 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
     private final TrajectoryRepository trajectoryRepository;
     private final ThermalCostTypeRepository thermalCostTypeRepository;
 
-    public static final String MANDATORY_SHEET_COSTS = "costs";
-    public static final String MANDATORY_SHEET_RATE = "rate";
+    public static final String SHEET_COSTS = "costs";
+    public static final String SHEET_RATE = "rate";
 
     @Override
     public List<ThermalCostTypeEntity> buildThermalEconomicCostValueList(String trajectoryName, Path trajectoryFilePath, String horizon, Integer studyId) {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheet(MANDATORY_SHEET_COSTS);
+            Sheet sheet = workbook.getSheet(SHEET_COSTS);
             Row header = sheet.getRow(0);
             if (header == null) {
                 throw BusinessException.builder()
@@ -92,7 +93,7 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
     public List<ThermalCostsRateEntity> buildThermalEconomicRateValueList(String trajectoryName, Path trajectoryFilePath, Integer studyId){
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
         Workbook workbook = WorkbookFactory.create(inputStream)){
-            Sheet rateSheet = workbook.getSheet(MANDATORY_SHEET_RATE);
+            Sheet rateSheet = workbook.getSheet(SHEET_RATE);
             Row header = rateSheet.getRow(0);
 
             List<ThermalCostsRateEntity> result = new ArrayList<>();
@@ -222,42 +223,6 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-    /**
-     * Finds the column index whose header matches the horizon string exactly.
-     */
-    private Integer findHorizonColumnIndex(Row header, String horizon) {
-        for (int i = 0; i < header.getLastCellNum(); i++) {
-            Cell cell = header.getCell(i);
-            if (cell != null) {
-                String headerValue = getHeaderValue(cell);
-                if (headerValue != null && headerValue.equals(horizon)) {
-                    return i;
-                }
-            }
-        }
-        return null;
-    }
-
-
-    private String getHeaderValue(Cell cell) {
-        if (cell == null) {
-            return null;
-        }
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
-                double numValue = cell.getNumericCellValue();
-
-                if (numValue == Math.floor(numValue)) {
-                    yield String.valueOf((int) numValue);
-                } else {
-                    yield String.valueOf(numValue);
-                }
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            default -> null;
-        };
     }
 
 
