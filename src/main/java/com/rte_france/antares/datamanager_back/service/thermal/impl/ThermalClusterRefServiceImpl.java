@@ -52,8 +52,11 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
         ensureClusterRefsLoaded();
 
+        // supprimer uniquement les espaces en fin de chaîne
+        String trimmedName = name != null ? name.trim() : null;
+
         // Check if the cluster already exists in the cache
-        Optional<ThermalClusterRef> existingOpt = findCachedClusterRef(technology, name);
+        Optional<ThermalClusterRef> existingOpt = findCachedClusterRef(technology, trimmedName);
 
         if (existingOpt.isPresent()) {
             // Update the PEMMDB name if necessary and return the existing entity
@@ -62,11 +65,12 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
 
         // Create a new ThermalClusterRef entity if it does not exist
         ThermalTechnology thermalTechnology = technology != null ? findOrCreateTechnology(technology) : null;
-        ThermalClusterRef newRef = buildClusterRef(name, thermalTechnology, namePemmdb);
+        ThermalClusterRef newRef = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
         ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
         cachedClusterRefs.add(saved); // Add the new entity to the cache
         return saved;
     }
+
 
 
     private void ensureClusterRefsLoaded() {

@@ -25,8 +25,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.*;
-import static com.rte_france.antares.datamanager_back.util.Utils.findHorizonSheet;
-import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
+import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
 @Slf4j
@@ -80,7 +79,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
                 String rowArea = castString(getCellValue(row, 0));
                 rowArea = rowArea == null ? null : rowArea.trim();
-                if (rowArea == null || rowArea.isBlank()) {
+                if (rowArea == null || rowArea.isBlank() || (!area.equals(OTHERS_AREA) && !rowArea.equals(area)) ) {
                     continue; // ignore empty lines
                 }
                 String rowAreaUpper = rowArea.toUpperCase();
