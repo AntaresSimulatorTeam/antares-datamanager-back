@@ -613,7 +613,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             )
             ) {
                 throw BusinessException.builder()
-                        .message("Trajectory already uploaded")
+                        .message("File already processed with same content {0}")
+                        .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
 
