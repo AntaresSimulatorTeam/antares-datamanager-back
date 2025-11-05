@@ -7,10 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -171,32 +168,65 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
-                if (costsSheet.getLastRowNum() < 1) {
+                boolean hasDataRows = false;
+                Row headerCosts = costsSheet.getRow(0);
+                for (int r = 1; r <= costsSheet.getLastRowNum(); r++) {
+                    Row row = costsSheet.getRow(r);
+                    if (row != null) {
+                        for (int c = 0; c < headerCosts.getLastCellNum(); c++) {
+                            Object value = getCellValue(row, c);
+                            if (value != null) {
+                                hasDataRows = true;
+                                break;
+                            }
+                        }
+                        if (hasDataRows) break;
+                    }
+                }
+                if (!hasDataRows) {
                     throw BusinessException.builder()
-                            .message("No data in THERMAL Costs trajectory {0} in costs tab").
-                            errorMessageArguments(List.of(trajectoryName))
+                            .message("No data in THERMAL Costs trajectory {0} in costs tab")
+                            .errorMessageArguments(List.of(trajectoryName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
-
                 }
-                Row header = costsSheet.getRow(0);
-                if (header == null || findHorizonColumnIndex(header, horizon) == null) {
+
+                Integer horizonCost = findHorizonColumnIndex(headerCosts, horizon);
+                if (horizonCost == null) {
                     throw BusinessException.builder()
                             .message("Horizon does not exist in THERMAL Costs trajectory {0} in costs tab")
                             .errorMessageArguments(List.of(trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
+
                 validateDataCells(costsSheet, trajectoryName, SHEET_COSTS);
 
-                if (rateSheet.getLastRowNum() < 1) {
+                boolean hasDataRate = false;
+                Row headerRate = rateSheet.getRow(0);
+                for (int r = 1; r <= rateSheet.getLastRowNum(); r++) {
+                    Row row = rateSheet.getRow(r);
+                    if (row != null) {
+                        for (int c = 0; c < headerRate.getLastCellNum(); c++) {
+                            Object value = getCellValue(row, c);
+                            if (value != null) {
+                                hasDataRate= true;
+                                break;
+                            }
+                        }
+                        if (hasDataRate) break;
+                    }
+                }
+                if (!hasDataRate) {
                     throw BusinessException.builder()
                             .message("No data in THERMAL Costs trajectory {0} in rate tab")
                             .errorMessageArguments(List.of(trajectoryName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
-                Row rateHeader = rateSheet.getRow(0);
-                if (rateHeader == null || rateHeader.getLastCellNum() < 2) {
+
+
+                Integer horizonRate = findHorizonColumnIndex(headerRate, horizon);
+                if (horizonRate == null) {
                     throw BusinessException.builder()
                             .message("Horizon does not exist in THERMAL Costs trajectory {0} in rate tab")
                             .errorMessageArguments(List.of(trajectoryName))
@@ -308,13 +338,24 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             Row row = sheet.getRow(r);
             if (row == null) continue;
 
+            boolean hasData = false;
+            for (int c = 0; c < header.getLastCellNum(); c++) {
+                if (getCellValue(row, c) != null) {
+                    hasData = true;
+                    break;
+                }
+            }
+
+            if (!hasData) continue;
+
             for (int c = firstDataCol; c < header.getLastCellNum(); c++) {
                 Object value = getCellValue(row, c);
 
                 if (value == null) {
+                    String columnName = getColumnName(header.getCell(c));
                     throw BusinessException.builder()
                             .message("Null value not allowed for column {0} in THERMAL Costs trajectory {1} in {2} tab")
-                            .errorMessageArguments(List.of(header.getCell(c).getStringCellValue(), trajectoryName, tabName))
+                            .errorMessageArguments(List.of(columnName, trajectoryName, tabName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
 
@@ -330,6 +371,20 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                 }
             }
         }
+    }
+
+    /**
+     * Converts a cell value to String (handles STRING and NUMERIC types)
+     */
+    private String getColumnName(Cell cell) {
+        if (cell == null) {
+            return "UNKNOWN";
+        }
+
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return String.valueOf((int) cell.getNumericCellValue());
+        }
+        return cell.getStringCellValue();
     }
 
 
