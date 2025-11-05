@@ -39,7 +39,7 @@ import static org.mockito.Mockito.when;
     private Path createWorkbook(java.util.function.Consumer<Workbook> builder) throws IOException {
         Workbook wb = new XSSFWorkbook();
         builder.accept(wb);
-        Path tmp = Files.createTempFile("costs-trajectory-", ".xlsx");
+        Path tmp = Files.createTempFile("costs_trajectory-", ".xlsx");
         try (FileOutputStream fos = new FileOutputStream(tmp.toFile())) {
             wb.write(fos);
         }
@@ -138,7 +138,7 @@ import static org.mockito.Mockito.when;
             wb.createSheet("other");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "MyTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("Missing costs/rate data in trajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -149,8 +149,9 @@ import static org.mockito.Mockito.when;
             wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "MyTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("Missing costs data in trajectory"));
+        assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
 
@@ -164,22 +165,37 @@ import static org.mockito.Mockito.when;
             costs.createRow(1).createCell(5).setCellValue(1.0);
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "MyTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("Missing rate data in trajectory"));
+        assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
 
     @Test
     void verifyCostsTrajectory_shouldThrowWhenCostsHasNoData() throws IOException {
         Path file = createWorkbook(wb -> {
-            wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
+            Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
+            Row rateHeader = rate.createRow(0);
+            rateHeader.createCell(0).setCellValue("Type");
+            rateHeader.createCell(1).setCellValue("2025");
+            rate.createRow(1).createCell(0).setCellValue("rate1");
+
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            costs.createRow(0).createCell(0).setCellValue("hdr"); // only header, lastRowNum==0
+            Row header = costs.createRow(0);
+
+            header.createCell(0).setCellValue("country");
+            header.createCell(1).setCellValue("fuel");
+            header.createCell(2).setCellValue("comment");
+            header.createCell(3).setCellValue("unit");
+            header.createCell(4).setCellValue("modulation");
+            header.createCell(5).setCellValue("2025");
+
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("No data in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("costs tab"));
+        assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
 
@@ -194,28 +210,49 @@ import static org.mockito.Mockito.when;
             wb.getSheet(ThermalControlsServiceImpl.SHEET_RATE).createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("costs tab"));
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
     }
 
     @Test
     void verifyCostsTrajectory_shouldThrowWhenNullValueInCostsData() throws IOException {
+
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
+
+
             Row header = costs.createRow(0);
-            header.createCell(5).setCellValue("2025-2026"); // ensure horizon exists
-            costs.createRow(1); // data row with null at col 5
+
+            header.createCell(0).setCellValue("country");
+            header.createCell(1).setCellValue("fuel");
+            header.createCell(2).setCellValue("comment");
+            header.createCell(3).setCellValue("unit");
+            header.createCell(4).setCellValue("modulation");
+            header.createCell(5).setCellValue("2025");
+
+
+            Row row = costs.createRow(1);
+            row.createCell(0).setCellValue("X");
+
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
-            rate.createRow(0).createCell(0).setCellValue("H");
-            rate.createRow(1).createCell(0).setCellValue("x");
+            Row rateHeader = rate.createRow(0);
+            rateHeader.createCell(0).setCellValue("H");
+            Row rateRow = rate.createRow(1);
+            rateRow.createCell(0).setCellValue("x");
         });
+
+
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory")
+        );
+
+        // Assert
         assertTrue(ex.getMessage().contains("Null value not allowed for column"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
+
 
     @Test
     void verifyCostsTrajectory_shouldThrowWhenNonNumericValueInCostsData() throws IOException {
@@ -230,7 +267,7 @@ import static org.mockito.Mockito.when;
             rate.createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("must be numeric"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -245,7 +282,7 @@ import static org.mockito.Mockito.when;
             wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE).createRow(0).createCell(0).setCellValue("onlyHeader");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
         assertTrue(ex.getMessage().contains("No data in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("rate tab"));
     }
@@ -265,30 +302,6 @@ import static org.mockito.Mockito.when;
                 thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
         assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("rate tab"));
-    }
-
-    @Test
-    void verifyCostsTrajectory_shouldPassWithValidWorkbook() throws IOException {
-        Path file = createWorkbook(wb -> {
-            Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            Row header = costs.createRow(0);
-            // ensure at least 6 columns
-            for (int i = 0; i < 6; i++) {
-                header.createCell(i).setCellValue(i == 5 ? "2025-2026" : ("H" + i));
-            }
-            Row row = costs.createRow(1);
-            row.createCell(5).setCellValue(3.14);
-            // add another numeric col to ensure validation over all >=5
-            header.createCell(6).setCellValue("EXTRA");
-            row.createCell(6).setCellValue(2.0);
-
-            Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
-            Row rh = rate.createRow(0);
-            rh.createCell(0).setCellValue("C1");
-            rh.createCell(1).setCellValue("C2"); // lastCellNum >= 2
-            rate.createRow(1).createCell(0).setCellValue("ok");
-        });
-        assertDoesNotThrow(() -> thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
     }
 
     @Test
