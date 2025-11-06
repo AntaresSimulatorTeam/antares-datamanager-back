@@ -168,6 +168,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
+
+
                 boolean hasDataRows = false;
                 Row headerCosts = costsSheet.getRow(0);
                 for (int r = 1; r <= costsSheet.getLastRowNum(); r++) {
@@ -233,6 +235,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                             .build();
                 }
                 validateDataCells(rateSheet, trajectoryName, SHEET_RATE);
+
 
             } catch (IOException e) {
                 throw BusinessException.builder()
@@ -320,58 +323,95 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                     .collect(Collectors.toSet());
         }
     }
-
-    /**
-     * Controls for Cost trajectory
-     * @param sheet costs data
-     * @param trajectoryName
-     * @param tabName costs
-     */
-    private void validateDataCells(Sheet sheet, String trajectoryName, String tabName) {
+    public void validateDataCells(Sheet sheet, String trajectoryName, String tabName) {
         Row header = sheet.getRow(0);
         if (header == null) return;
 
         int firstDataRow = 1;
-        int firstDataCol = 5; // F = index 5
+        int firstDataCol = SHEET_RATE.equals(tabName) ? 1 : 5; // B=1 for rate, F=5 for costs
 
+        // Determine last data column dynamically
+        int lastDataCol = firstDataCol;
+        for (int c = firstDataCol; c < header.getLastCellNum(); c++) {
+            if (!isCellBlank(header.getCell(c))) {
+                lastDataCol = c;
+            }
+        }
+
+        // Validate headers (firstDataCol → lastDataCol)
+        for (int c = firstDataCol; c <= lastDataCol; c++) {
+            if (isCellBlank(header.getCell(c))) {
+                String colLetter = org.apache.poi.ss.util.CellReference.convertNumToColString(c);
+                throw BusinessException.builder()
+                        .message("Null or empty header not allowed at column {0} in THERMAL Costs trajectory {1} in {2} tab")
+                        .errorMessageArguments(List.of(colLetter, trajectoryName, tabName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        }
+
+        // Iterate rows
         for (int r = firstDataRow; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) continue;
 
-            boolean hasData = false;
-            for (int c = 0; c < header.getLastCellNum(); c++) {
-                if (getCellValue(row, c) != null) {
-                    hasData = true;
+            // Skip row if completely empty in the column range
+            boolean rowHasData = false;
+            for (int c = firstDataCol; c <= lastDataCol; c++) {
+                if (!isCellBlank(row.getCell(c))) {
+                    rowHasData = true;
                     break;
                 }
             }
+            if (!rowHasData) continue;
 
-            if (!hasData) continue;
-
-            for (int c = firstDataCol; c < header.getLastCellNum(); c++) {
+            // Validate cells
+            for (int c = firstDataCol; c <= lastDataCol; c++) {
                 Object value = getCellValue(row, c);
+                String columnName = getColumnName(header.getCell(c));
 
-                if (value == null) {
-                    String columnName = getColumnName(header.getCell(c));
+                if (value == null || (value instanceof String && ((String) value).trim().isEmpty())) {
                     throw BusinessException.builder()
                             .message("Null value not allowed for column {0} in THERMAL Costs trajectory {1} in {2} tab")
                             .errorMessageArguments(List.of(columnName, trajectoryName, tabName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
-
                 }
 
-                if (!(value instanceof Number)) {
+                if (!isNumeric(value)) {
                     throw BusinessException.builder()
                             .message("The value of power or number of horizon {0} in THERMAL Costs trajectory {1} in {2} tab must be numeric")
-                            .errorMessageArguments(List.of(header.getCell(c).getStringCellValue(), trajectoryName, tabName))
+                            .errorMessageArguments(List.of(columnName, trajectoryName, tabName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
-
                 }
             }
         }
     }
+
+
+
+    // Utility to check if a cell is null or blank
+    private boolean isCellBlank(Cell cell) {
+        if (cell == null || cell.getCellType() == CellType.BLANK) return true;
+        Object value = getCellValue(cell.getRow(), cell.getColumnIndex());
+        return value instanceof String && ((String) value).trim().isEmpty();
+    }
+
+    // Utility to check if a value is numeric (Number or numeric string)
+    private boolean isNumeric(Object value) {
+        if (value instanceof Number) return true;
+        if (value instanceof String) {
+            try {
+                Double.parseDouble(((String) value).trim());
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
 
     /**
      * Converts a cell value to String (handles STRING and NUMERIC types)
