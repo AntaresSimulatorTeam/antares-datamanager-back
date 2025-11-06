@@ -151,35 +151,41 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
 
     @Override
     @Transactional
-    public TrajectoryEntity saveThermalEconomicCostAndRateTrajectory(TrajectoryEntity trajectory, List<ThermalCostTypeEntity> thermalCostTypeEntities, List<ThermalCostsRateEntity> thermalRateEntities,TrajectoryType type) {
+    public TrajectoryEntity saveThermalEconomicCostAndRateTrajectory(
+            TrajectoryEntity trajectory,
+            List<ThermalCostTypeEntity> thermalCostTypeEntities,
+            List<ThermalCostsRateEntity> thermalRateEntities,
+            TrajectoryType type) {
+
         trajectory.setType(type.name());
 
         List<ThermalCostEntity> toPersistCosts = new ArrayList<>();
-        for (ThermalCostTypeEntity inputType : thermalCostTypeEntities) {
-            if (inputType == null) continue;
-            String fuel = inputType.getFuel();
-            String country = inputType.getCountry();
 
-            ThermalCostTypeEntity typeEntity = thermalCostTypeRepository
-                    .findThermalCostTypeEntityByFuelAndCountry(fuel, country)
-                    .orElseGet(() -> thermalCostTypeRepository.save(
-                            ThermalCostTypeEntity.builder()
-                                    .fuel(fuel)
-                                    .country(country)
-                                    .comment(inputType.getComment())
-                                    .unit(inputType.getUnit())
-                                    .modulation(inputType.getModulation())
-                                    .ratioNcvHcv(inputType.getRatioNcvHcv())
-                                    .build()
-                    ));
+        if (thermalCostTypeEntities != null) {
+            for (ThermalCostTypeEntity inputType : thermalCostTypeEntities) {
+                if (inputType == null) continue;
 
-            List<ThermalCostEntity> costs = inputType.getThermalCostEntities();
-            if (costs != null) {
-                for (ThermalCostEntity c : costs) {
-                    if (c == null) continue;
-                    c.setThermalType(typeEntity);
-                    c.setTrajectory(trajectory);
-                    toPersistCosts.add(c);
+
+                ThermalCostTypeEntity typeEntity = thermalCostTypeRepository.save(
+                        ThermalCostTypeEntity.builder()
+                                .fuel(inputType.getFuel())
+                                .country(inputType.getCountry())
+                                .comment(inputType.getComment())
+                                .unit(inputType.getUnit())
+                                .modulation(inputType.getModulation())
+                                .ratioNcvHcv(inputType.getRatioNcvHcv())
+                                .build()
+                );
+
+
+                List<ThermalCostEntity> costs = inputType.getThermalCostEntities();
+                if (costs != null) {
+                    for (ThermalCostEntity c : costs) {
+                        if (c == null) continue;
+                        c.setThermalType(typeEntity);
+                        c.setTrajectory(trajectory);
+                        toPersistCosts.add(c);
+                    }
                 }
             }
         }
@@ -188,22 +194,19 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
             trajectory.setThermalCosts(toPersistCosts);
         }
 
-        List<ThermalCostsRateEntity> toPersistRates = new ArrayList<>();
-
-        if (thermalRateEntities != null) {
+        if (thermalRateEntities != null && !thermalRateEntities.isEmpty()) {
             for (ThermalCostsRateEntity rate : thermalRateEntities) {
                 if (rate == null) continue;
                 rate.setTrajectory(trajectory);
-                toPersistRates.add(rate);
             }
+            trajectory.setThermalCostsRates(thermalRateEntities);
         }
 
-        if (!toPersistRates.isEmpty()) {
-            trajectory.setThermalCostsRates(toPersistRates);
-        }
 
         return trajectoryRepository.save(trajectory);
     }
+
+
 
     private ThermalCostTypeEntity buildThermalEconomicCostType(Row row, Row header) {
         return ThermalCostTypeEntity.builder()
