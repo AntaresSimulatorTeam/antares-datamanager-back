@@ -109,7 +109,7 @@ class ThermalControllerTest {
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("area", "FR")
                         .param("trajectoryToUse", "specific_param_test")
-                        .param("horizon", "2025")
+                        .param("horizon", "2025-2026")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated())

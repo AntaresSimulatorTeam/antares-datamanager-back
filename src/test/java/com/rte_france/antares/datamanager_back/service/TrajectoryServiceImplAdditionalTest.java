@@ -268,7 +268,7 @@ class TrajectoryServiceImplAdditionalTest {
                     trajectoryService.saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId)
             );
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-            assertTrue(ex.getMessage().contains("already uploaded"));
+            assertTrue(ex.getMessage().contains("File already processed"));
         }
     }
 

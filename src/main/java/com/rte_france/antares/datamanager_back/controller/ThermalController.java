@@ -92,7 +92,8 @@ public class ThermalController {
     @PostMapping("/thermal-economic-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalEconomicParamTrajectory(
             @RequestParam("trajectoryToUse") String trajectoryToUse,
-            @RequestParam("horizon") String horizon,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "example of horizon : 2020-2021") String horizon,
             @RequestParam("studyId") Integer studyId) throws Exception {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
