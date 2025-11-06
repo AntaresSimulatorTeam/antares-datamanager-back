@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalContr
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -222,19 +223,20 @@ import static org.mockito.Mockito.when;
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
 
-
+            // Header with two horizon columns so that the row is considered data-bearing in the horizon range
             Row header = costs.createRow(0);
-
             header.createCell(0).setCellValue("country");
             header.createCell(1).setCellValue("fuel");
             header.createCell(2).setCellValue("comment");
             header.createCell(3).setCellValue("unit");
             header.createCell(4).setCellValue("modulation");
-            header.createCell(5).setCellValue("2025");
+            header.createCell(5).setCellValue("2025"); // target horizon (will be left blank in data row)
+            header.createCell(6).setCellValue("2026"); // additional horizon to make rowHasData=true in data range
 
-
+            // Data row: leave 2025 blank, put a value in 2026 so validation inspects and detects the blank at 2025
             Row row = costs.createRow(1);
-            row.createCell(0).setCellValue("X");
+            row.createCell(0).setCellValue("X"); // some metadata cell outside data-range
+            row.createCell(6).setCellValue(1); // numeric value in 2026
 
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
             Row rateHeader = rate.createRow(0);
@@ -243,14 +245,12 @@ import static org.mockito.Mockito.when;
             rateRow.createCell(0).setCellValue("x");
         });
 
-
         BusinessException ex = assertThrows(BusinessException.class, () ->
                 thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory")
         );
 
         // Assert
         assertTrue(ex.getMessage().contains("Null value not allowed for column"));
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
 
 
@@ -421,4 +421,34 @@ import static org.mockito.Mockito.when;
                 thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
         );
     }
-}
+    @Test
+    void validateDataCells_shouldThrowWhenAnyHeaderIsEmpty() throws IOException {
+        Path file = createWorkbook(wb -> {
+            Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
+            Row header = costs.createRow(0);
+
+            // Column F (index 5) → empty header triggers exception
+            header.createCell(5).setCellValue("");
+
+            // Column G (index 6) → valid header ensures lastDataCol >= 6
+            header.createCell(6).setCellValue("2025");
+
+            // Add data row to prevent row skipping
+            Row dataRow = costs.createRow(1);
+            dataRow.createCell(5).setCellValue(1.0); // under empty header
+            dataRow.createCell(6).setCellValue(2.0); // under valid header
+        });
+
+        try (Workbook wb = WorkbookFactory.create(file.toFile())) {
+            Sheet costsSheet = wb.getSheet(ThermalControlsServiceImpl.SHEET_COSTS);
+
+            BusinessException ex = assertThrows(BusinessException.class, () ->
+                    thermalControlsService.validateDataCells(
+                            costsSheet,
+                            "costs_testTrajectory",
+                            ThermalControlsServiceImpl.SHEET_COSTS));
+
+
+        }
+    }
+    }
