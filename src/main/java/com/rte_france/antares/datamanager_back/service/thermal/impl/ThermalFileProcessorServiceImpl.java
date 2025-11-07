@@ -459,14 +459,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         for (int i = 5; i < header.getLastCellNum(); i++) {
             String monthYear = header.getCell(i).getStringCellValue();
-            if (!isCellInHorizon(monthYear, horizon, isCivilYear)) continue;
+            boolean toUse = row.getCell(0).getNumericCellValue() == 1;
+            if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
 
             ThermalCategoryEnum category = categoryStr.equals(ThermalCategoryEnum.POWER.name().toLowerCase())
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
             double value = capacityValue(row, i, horizon, trajectoryName);
-            boolean toUse = row.getCell(0).getNumericCellValue() == 0;
 
             // Ajout des valeurs au checksum
             checksum.append(rowArea).append("|")
