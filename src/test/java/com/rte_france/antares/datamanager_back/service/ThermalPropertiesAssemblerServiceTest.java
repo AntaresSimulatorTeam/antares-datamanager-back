@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -114,7 +115,7 @@ class ThermalPropertiesAssemblerServiceTest {
     @Test
     void assembleAreaRefMap_missingCategories_fallsBackToNull() {
         // given: no POWER category => nominalCapacity stays null => minStablePower stays null too
-        var capTraj = TrajectoryEntity.builder()
+        var capTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
                         cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, null).toBuilder().area("FR").build()
@@ -131,14 +132,71 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
+        var out = service.assembleForTrajectories(Set.of(capTrajectory, paramTraj));
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
         assertThat(dto.getNominalCapacity()).isNull();
         assertThat(dto.getMinStablePower()).isNull();
-        assertThat(dto.getEnabled()).isNull();
+
     }
+
+    @Test
+    void assembleForTrajectory_buildsOneCluster_withEnabledLogicApplied() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        // NUMBER capacities → max = 3
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(),
+
+                        // POWER capacities
+                        cap(gasRef, ThermalCategoryEnum.POWER, 0.0, true).toBuilder().area("FR").build(),  // zero value (ignored for nominal)
+                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, true).toBuilder().area("FR").build(), // valid nominal (toUse = true)
+                        cap(gasRef, ThermalCategoryEnum.POWER, 600.0, false).toBuilder().area("FR").build() // higher but disabled
+                ))
+                .build();
+
+        var paramTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(
+                        params(gasRef, 0.40, 3, 2, 41.5, 7.2)
+                ))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
+
+        // then
+        assertThat(out)
+                .hasSize(1)
+                .containsKey(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+
+        // --- Check computed values ---
+        assertThat(dto.getNominalCapacity()).isEqualTo(600.0); // max POWER capacity value overall
+        assertThat(dto.getUnitCount()).isEqualTo(3);           // max NUMBER capacity value
+        assertThat(dto.getGroup()).isEqualTo("GAS");
+
+        // --- Enabled logic ---
+        // nominalCapacity present (600.0 != 0)
+        // at least one capacity has toUse = true → should be enabled
+        assertThat(dto.getEnabled()).isTrue();
+
+        // --- Derived parameters ---
+        assertThat(dto.getMinStablePower()).isEqualTo(0.40 * 600.0); // 0.40 * nominalCapacity
+        assertThat(dto.getMinUpTime()).isEqualTo(3);
+        assertThat(dto.getMinDownTime()).isEqualTo(2);
+        assertThat(dto.getEfficiency()).isEqualTo(41.5);
+        assertThat(dto.getVariableOMCost()).isEqualTo(7.2);
+    }
+
+
+
 
 
     private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, ThermalCategoryEnum cat, double value, Boolean toUse) {
