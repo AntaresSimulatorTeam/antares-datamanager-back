@@ -205,7 +205,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     }
 
     private  Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
-        if (Double.compare(value, 0.0) < 0) {
+        if (value != null &&  Double.compare(value, 0.0) < 0) {
             throw BusinessException.builder()
                     .message("Values for node " + areaName
                             + " / cluster " + clusterName
