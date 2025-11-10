@@ -65,7 +65,7 @@ class TrajectoryServiceImplEconomicCostTest {
     void processThermalEconomicCostTrajectory_shouldReturnSavedTrajectory_whenCostsPresent() throws IOException {
         // Arrange
         String trajectoryToUse = "economic_costs_test";
-        String horizon = "2025";
+        String horizon = "2024-2025";
         Integer studyId = 1;
         Path fakePath = Paths.get("/tmp/mnt/nas/trajectories/thermal_cost/" + trajectoryToUse + ".xlsx");
 
@@ -82,7 +82,7 @@ class TrajectoryServiceImplEconomicCostTest {
                 ThermalCostsRateEntity.builder().rateType("euro/dollar").year(2025).build()
         );
 
-        when(thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, fakePath, horizon, studyId))
+        when(thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, fakePath, "2025", studyId))
                 .thenReturn(costs);
         when(thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, fakePath, studyId))
                 .thenReturn(rates);
@@ -96,7 +96,7 @@ class TrajectoryServiceImplEconomicCostTest {
 
         // Assert
         assertSame(saved, result);
-        verify(thermalEconomicCostAndRateService, times(1)).buildThermalEconomicCostValueList(trajectoryToUse, fakePath, horizon, studyId);
+        verify(thermalEconomicCostAndRateService, times(1)).buildThermalEconomicCostValueList(trajectoryToUse, fakePath, "2025", studyId);
         verify(thermalEconomicCostAndRateService, times(1)).buildThermalEconomicRateValueList(trajectoryToUse, fakePath, studyId);
         verify(thermalFileProcessorService, times(1)).processThermalEconomicCostsAndRatesFile(fakePath, horizon, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
@@ -105,7 +105,7 @@ class TrajectoryServiceImplEconomicCostTest {
     void processThermalEconomicCostTrajectory_shouldThrowBusinessException_whenCostsEmpty() throws IOException {
         // Arrange
         String trajectoryToUse = "economic_costs_empty";
-        String horizon = "2030";
+        String horizon = "2030-20301";
         Integer studyId = 2;
         Path fakePath = Paths.get("/tmp/mnt/nas/trajectories/thermal_cost/" + trajectoryToUse + ".xlsx");
 
