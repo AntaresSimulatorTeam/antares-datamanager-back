@@ -91,7 +91,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             Row row = sheet.getRow(r);
             if (row == null) continue;
             Integer year = parseInteger(getCellString(row, 2));
-            Integer horizonYear = parseInteger(horizon.split("-")[0]);
+            Integer horizonYear = parseInteger(horizon.split("-")[1]);
             if( year !=null && !year.equals(horizonYear)) continue;
             String fuel = getCellString(row, 0);
             String country = getCellString(row, 1);

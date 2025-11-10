@@ -97,13 +97,13 @@ class ThermalEconomicServiceImplTest {
                 new String[]{"Oil", "FR", "2023", "200.0", "kg", "comment2"}));
 
         try {
-            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1);
+            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2022-2023", 1);
             assertFalse(result.isEmpty());
             assertEquals(2, result.size());
-            assertEquals("Gas", result.get(0).getFuel());
-            assertEquals("FR", result.get(0).getCountry());
-            assertEquals(2023, result.get(0).getYear());
-            assertEquals(new java.math.BigDecimal("100.5"), result.get(0).getCo2EmissionFuel());
+            assertEquals("Gas", result.getFirst().getFuel());
+            assertEquals("FR", result.getFirst().getCountry());
+            assertEquals(2023, result.getFirst().getYear());
+            assertEquals(new java.math.BigDecimal("100.5"), result.getFirst().getCo2EmissionFuel());
         } finally {
             Files.deleteIfExists(temp);
         }
@@ -116,7 +116,7 @@ class ThermalEconomicServiceImplTest {
                 new String[]{"Oil", "FR", "2025", "200.0", "kg", "comment2"}
         ));
         try {
-            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1);
+            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2022-2023", 1);
             assertTrue(result.isEmpty());
         } finally {
             Files.deleteIfExists(temp);
