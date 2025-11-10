@@ -45,7 +45,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thermalClusterCapacities(List.of(
                         cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
                         cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(), // max NUMBER = 3
-                        cap(gasRef, ThermalCategoryEnum.POWER, 450.0, null).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 0.415, null).toBuilder().area("FR").build(),
                         cap(gasRef, ThermalCategoryEnum.POWER, 500.0, null).toBuilder().area("FR").build()  // max POWER = 500
                 ))
                 .build();
@@ -53,7 +53,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var paramTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalCommonParameters(List.of(
-                        params(gasRef, 0.40, 3, 2, 41.5, 7.2) // minStablePower = 0.40 * 500
+                        params(gasRef, 0.40, 3, 2, 0.415, 7.2) // minStablePower = 0.40 * 500
                 ))
                 .build();
 
