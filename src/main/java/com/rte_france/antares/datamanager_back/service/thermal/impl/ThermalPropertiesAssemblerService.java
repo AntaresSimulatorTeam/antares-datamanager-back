@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,7 +33,7 @@ public class ThermalPropertiesAssemblerService {
   public Map<AreaRefKey, ThermalClusterPropertiesDto> assembleForTrajectories(Collection<TrajectoryEntity> trajectories) {
     Objects.requireNonNull(trajectories);
 
-    var capacityTrajs = trajectories.stream()
+    var capacityTrajectories = trajectories.stream()
             .filter(Objects::nonNull)
             .filter(t -> THERMAL_CAPACITY.equals(TrajectoryType.valueOf(t.getType())))
             .toList();
@@ -42,7 +43,7 @@ public class ThermalPropertiesAssemblerService {
             .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
             .toList();
 
-    var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajs);
+    var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories);
     var commonsByRef = extractCommonParamsByClusterRef(parameterTrajs);
 
     var out = new LinkedHashMap<AreaRefKey, ThermalClusterPropertiesDto>();
@@ -72,9 +73,10 @@ public class ThermalPropertiesAssemblerService {
             ));
   }
 
-  private static LinkedHashMap<AreaRefKey, List<ThermalClusterCapacityEntity>> extractThermalCapacitiesByAreaClusterRef(List<TrajectoryEntity> capacityTrajs) {
+  public static LinkedHashMap<AreaRefKey, List<ThermalClusterCapacityEntity>> extractThermalCapacitiesByAreaClusterRef(List<TrajectoryEntity> capacityTrajs) {
     return capacityTrajs.stream()
-            .flatMap(t -> Optional.ofNullable(t.getThermalClusterCapacities()).orElseGet(List::of).stream()
+            .flatMap(t -> Optional.ofNullable(t.getThermalClusterCapacities())
+                    .orElseGet(List::of).stream()
                     .map(cap -> Map.entry(
                             new AreaRefKey(cap.getArea(), cap.getThermalClusterRef()),
                             cap
@@ -99,26 +101,39 @@ public class ThermalPropertiesAssemblerService {
   }
 
   private void buildFromClusterCapacity(List<ThermalClusterCapacityEntity> thermalClusterCapacities, ThermalClusterPropertiesDto.ThermalClusterPropertiesDtoBuilder builder) {
-    // enabled
-    thermalClusterCapacities.stream()
-            .map(ThermalClusterCapacityEntity::getToUse)
-            .filter(Objects::nonNull)
-            .findFirst()
-            .ifPresent(builder::enabled);
 
-    // unit_count
-    thermalClusterCapacities.stream()
-            .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
-            .mapToDouble(ThermalClusterCapacityEntity::getValue)
-            .max()
-            .ifPresent(unitCount -> builder.unitCount((int) unitCount));
+      // max POWER capacity
+      OptionalDouble maxPowerOpt = thermalClusterCapacities.stream()
+              .filter(cap -> cap.getCategory() == ThermalCategoryEnum.POWER)
+              .mapToDouble(ThermalClusterCapacityEntity::getValue)
+              .max();
+      //max unit count
+      OptionalDouble unitCountOpt = thermalClusterCapacities.stream()
+              .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
+              .mapToDouble(ThermalClusterCapacityEntity::getValue)
+              .max();
+      // nominal capacity (max POWER / unitCount) ---
+      if (maxPowerOpt.isPresent()) {
+          double maxPower = maxPowerOpt.getAsDouble();
+          double nominalCapacity = maxPower;
 
-    // nominal_capacity
-    thermalClusterCapacities.stream()
-            .filter(cap -> cap.getCategory() == ThermalCategoryEnum.POWER)
-            .mapToDouble(ThermalClusterCapacityEntity::getValue)
-            .max()
-            .ifPresent(builder::nominalCapacity);
+          if (unitCountOpt.isPresent() && unitCountOpt.getAsDouble() != 0.0) {
+              nominalCapacity = maxPower / unitCountOpt.getAsDouble();
+          }
+
+          builder.nominalCapacity(nominalCapacity);
+      }
+      // enabled
+      boolean enabled = maxPowerOpt.isPresent()
+              && maxPowerOpt.getAsDouble() != 0.0
+              && thermalClusterCapacities.stream()
+              .anyMatch(cap -> Boolean.TRUE.equals(cap.getToUse()));
+
+      builder.enabled(enabled);
+
+      // unit_count
+      unitCountOpt.ifPresent(unitCount -> builder.unitCount((int) unitCount));
+
 
     // group
     thermalClusterCapacities.stream()
