@@ -68,10 +68,10 @@ class ThermalPropertiesAssemblerServiceTest {
 
         assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getUnitCount()).isEqualTo(3);
-        assertThat(dto.getNominalCapacity()).isEqualTo(500.0);
+        assertThat(dto.getNominalCapacity()).isEqualTo(500.0/3);
         assertThat(dto.getGroup()).isEqualTo("GAS");
 
-        assertThat(dto.getMinStablePower()).isEqualTo(200.0); // 0.40 * 500
+        assertThat(dto.getMinStablePower()).isEqualTo(0.4*500/3); // 0.40 * 500/3
         assertThat(dto.getMinUpTime()).isEqualTo(3);
         assertThat(dto.getMinDownTime()).isEqualTo(2);
         assertThat(dto.getEfficiency()).isEqualTo(41.5);
@@ -177,27 +177,61 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
 
-        // --- Check computed values ---
-        assertThat(dto.getNominalCapacity()).isEqualTo(600.0); // max POWER capacity value overall
-        assertThat(dto.getUnitCount()).isEqualTo(3);           // max NUMBER capacity value
+        assertThat(dto.getNominalCapacity()).isEqualTo(600.0/3);
+        assertThat(dto.getUnitCount()).isEqualTo(3);
         assertThat(dto.getGroup()).isEqualTo("GAS");
 
-        // --- Enabled logic ---
-        // nominalCapacity present (600.0 != 0)
-        // at least one capacity has toUse = true → should be enabled
         assertThat(dto.getEnabled()).isTrue();
 
-        // --- Derived parameters ---
-        assertThat(dto.getMinStablePower()).isEqualTo(0.40 * 600.0); // 0.40 * nominalCapacity
+        assertThat(dto.getMinStablePower()).isEqualTo(0.40 * 600.0/3); // 0.40 * nominalCapacity
         assertThat(dto.getMinUpTime()).isEqualTo(3);
         assertThat(dto.getMinDownTime()).isEqualTo(2);
         assertThat(dto.getEfficiency()).isEqualTo(41.5);
         assertThat(dto.getVariableOMCost()).isEqualTo(7.2);
     }
+    @Test
+    void assembleForTrajectory_dividesNominalCapacityByUnitCount() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(), // unit count = 2
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(), // unit count = 3 (max)
+                        cap(gasRef, ThermalCategoryEnum.POWER, 900.0, true).toBuilder().area("FR").build(), // max POWER
+                        cap(gasRef, ThermalCategoryEnum.POWER, 800.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
 
+        var paramTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(
+                        params(gasRef, 0.4, 3, 2, 41.5, 7.2)
+                ))
+                .build();
 
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
+        // when
+        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
 
+        // then
+        assertThat(out).hasSize(1);
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+
+        // nominal capacity = max POWER / max NUMBER = 900 / 3 = 300.0
+        assertThat(dto.getNominalCapacity()).isEqualTo(300.0);
+
+        assertThat(dto.getUnitCount()).isEqualTo(3);
+        assertThat(dto.getEnabled()).isTrue();
+        assertThat(dto.getGroup()).isEqualTo("GAS");
+
+        // derived values from parameters
+        assertThat(dto.getMinStablePower()).isEqualTo(0.4 * 300.0);
+        assertThat(dto.getMinUpTime()).isEqualTo(3);
+        assertThat(dto.getMinDownTime()).isEqualTo(2);
+        assertThat(dto.getEfficiency()).isEqualTo(41.5);
+        assertThat(dto.getVariableOMCost()).isEqualTo(7.2);
+    }
 
     private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, ThermalCategoryEnum cat, double value, Boolean toUse) {
         return ThermalClusterCapacityEntity.builder()

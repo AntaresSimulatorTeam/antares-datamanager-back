@@ -102,26 +102,37 @@ public class ThermalPropertiesAssemblerService {
 
   private void buildFromClusterCapacity(List<ThermalClusterCapacityEntity> thermalClusterCapacities, ThermalClusterPropertiesDto.ThermalClusterPropertiesDtoBuilder builder) {
 
-      // nominal_capacity
-      OptionalDouble nominalCapacityOpt = thermalClusterCapacities.stream()
+      // max POWER capacity
+      OptionalDouble maxPowerOpt = thermalClusterCapacities.stream()
               .filter(cap -> cap.getCategory() == ThermalCategoryEnum.POWER)
               .mapToDouble(ThermalClusterCapacityEntity::getValue)
               .max();
-      nominalCapacityOpt.ifPresent(builder::nominalCapacity);
+      //max unit count
+      OptionalDouble unitCountOpt = thermalClusterCapacities.stream()
+              .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
+              .mapToDouble(ThermalClusterCapacityEntity::getValue)
+              .max();
+      // nominal capacity (max POWER / unitCount) ---
+      if (maxPowerOpt.isPresent()) {
+          double maxPower = maxPowerOpt.getAsDouble();
+          double nominalCapacity = maxPower;
 
+          if (unitCountOpt.isPresent() && unitCountOpt.getAsDouble() != 0.0) {
+              nominalCapacity = maxPower / unitCountOpt.getAsDouble();
+          }
+
+          builder.nominalCapacity(nominalCapacity);
+      }
       // enabled
-      boolean enabled = nominalCapacityOpt.isPresent()
-              && nominalCapacityOpt.getAsDouble() != 0.0
+      boolean enabled = maxPowerOpt.isPresent()
+              && maxPowerOpt.getAsDouble() != 0.0
               && thermalClusterCapacities.stream()
               .anyMatch(cap -> Boolean.TRUE.equals(cap.getToUse()));
 
       builder.enabled(enabled);
-    // unit_count
-    thermalClusterCapacities.stream()
-            .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
-            .mapToDouble(ThermalClusterCapacityEntity::getValue)
-            .max()
-            .ifPresent(unitCount -> builder.unitCount((int) unitCount));
+
+      // unit_count
+      unitCountOpt.ifPresent(unitCount -> builder.unitCount((int) unitCount));
 
 
     // group
