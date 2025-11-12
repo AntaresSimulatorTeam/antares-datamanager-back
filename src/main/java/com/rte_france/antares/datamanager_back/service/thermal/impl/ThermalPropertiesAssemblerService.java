@@ -168,7 +168,7 @@ public class ThermalPropertiesAssemblerService {
 
     // efficiency
     thermalCommonParameters.stream()
-            .mapToDouble(thermalCommonParam -> thermalCommonParam.getEfficiencyDefault() * 100)
+            .mapToDouble(thermalCommonParam -> thermalCommonParam.getEfficiencyDefault() * 100) // convert to percentage
             .findFirst()
             .ifPresent(builder::efficiency);
 
