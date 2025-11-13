@@ -622,6 +622,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         List<String> missingCategoryGroups = new ArrayList<>();
         List<String> invalidToUseGroups = new ArrayList<>();
+        List<String> invalidTypes = new ArrayList<>();
 
         for (Map.Entry<String, List<ThermalClusterCapacityEntity>> entry : grouped.entrySet()) {
             Optional<ThermalClusterCapacityEntity> power = entry.getValue().stream()
@@ -635,6 +636,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 missingCategoryGroups.add(entry.getKey());
             } else if (!Objects.equals(power.get().getToUse(), number.get().getToUse())) {
                 invalidToUseGroups.add(entry.getKey());
+            } else if (!Objects.equals(power.get().getThermalClusterRef().getThermalTechnology(), number.get().getThermalClusterRef().getThermalTechnology())) {
+                invalidTypes.add(entry.getKey());
             }
         }
 
@@ -649,6 +652,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             throw BusinessException.builder()
                     .message("Area/Cluster {0} must have same to_use value for power AND number category in THERMAL Installed Power trajectory {1}")
                     .errorMessageArguments(List.of(String.join(", ", invalidToUseGroups), fileName))
+                    .build();
+        }
+
+        if (!invalidTypes.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Area/Cluster {0} must have same type value for power AND number category in THERMAL Installed Power trajectory {1}")
+                    .errorMessageArguments(List.of(String.join(", ", invalidTypes), fileName))
                     .build();
         }
     }

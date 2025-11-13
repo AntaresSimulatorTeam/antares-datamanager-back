@@ -287,6 +287,33 @@ class ThermalFileProcessorServiceImplTest {
         assertTrue(exception.getMessage().contains("must have same to_use value for power AND number category in THERMAL Installed Power"));
     }
 
+
+    @Test
+    void checkPowerAndNumberWithSameToUse_shouldThrowExceptionWhenInvalidClusterType() {
+        ThermalTechnology thermalTechnologyPower = ThermalTechnology.builder().name("Nuclear").build();
+        ThermalTechnology thermalTechnologyNumber = ThermalTechnology.builder().name("Coal").build();
+        List<ThermalClusterCapacityEntity> entities = List.of(
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .category(ThermalCategoryEnum.POWER)
+                        .toUse(true)
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster2").thermalTechnology(thermalTechnologyPower).build())
+                        .build(),
+                ThermalClusterCapacityEntity.builder()
+                        .area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("Cluster2").thermalTechnology(thermalTechnologyNumber).build())
+                        .category(ThermalCategoryEnum.NUMBER)
+                        .toUse(true)
+                        .build()
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ThermalFileProcessorServiceImpl.checkPowerAndNumberWithSameToUse(entities, TRAJECTORY_NAME)
+        );
+
+        assertTrue(exception.getMessage().contains("must have same type value for power AND number category in THERMAL Installed Power"));
+    }
+
     @Test
     void checkPowerAndNumberWithSameToUse_shouldNotThrowExceptionWhenAllGroupsAreValid() {
         List<ThermalClusterCapacityEntity> entities = List.of(
