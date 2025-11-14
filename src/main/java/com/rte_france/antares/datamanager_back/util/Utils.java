@@ -49,6 +49,8 @@ public class Utils {
     private static final String THERMAL_PREFIX = "thermal_";
     private static final String THERMAL_COMMON_PREFIX = "common_param_";
     private static final String THERMAL_SPECIFIC_PREFIX = "specific_param_";
+    private static final String THERMAL_ECONOMIC_PREFIX = "economic_param_";
+    private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -213,13 +215,16 @@ public class Utils {
         } else if (Objects.equals(trajectoryType, TrajectoryType.LINK.toString())) {
             prefix = LINKS_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_CAPACITY.toString())) {
-            prefix = THERMAL_PREFIX;}
-        else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.toString())) {
+            prefix = THERMAL_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.toString())) {
             prefix = THERMAL_COMMON_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.toString())) {
             prefix = THERMAL_SPECIFIC_PREFIX;
-        }
-        else {
+        } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_ECONOMIC_PARAMETER.toString())) {
+            prefix = THERMAL_ECONOMIC_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.toString())) {
+            prefix = THERMAL_ECONOMIC_COST_PREFIX;
+        } else {
             prefix = "";
         }
         if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {
@@ -237,7 +242,7 @@ public class Utils {
      * The search attempts an exact match with the horizon name if it is not null or blank.
      *
      * @param workbook the workbook to search in; must not be null
-     * @param horizon the name of the horizon to locate; can be null or blank
+     * @param horizon  the name of the horizon to locate; can be null or blank
      * @return the sheet matching the horizon name, or null if no match is found
      */
     public static Sheet findHorizonSheet(Workbook workbook, String horizon) {
@@ -369,7 +374,8 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY, THERMAL_ECONOMIC_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER  -> getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY, THERMAL_ECONOMIC_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER ->
+                    getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> "NA";
             default -> computeSheetChecksum(path.toString(), horizon);
