@@ -352,10 +352,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
 
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
+        String technology = castString(getCellValue(row, 3));
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb))
+                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
-                .fuel(castString(getCellValue(row, 3)))
+                .fuel(technology)
                 .type(castString(getCellValue(row, 4)))
                 .efficiencyRange(castString(getCellValue(row, 5)))
                 .efficiencyDefault(castDouble(getCellValue(row, 6), header.getCell(6).getStringCellValue(), row.getRowNum()))
