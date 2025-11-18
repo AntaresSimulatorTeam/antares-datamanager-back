@@ -12,7 +12,6 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 
