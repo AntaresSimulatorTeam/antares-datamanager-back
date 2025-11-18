@@ -380,7 +380,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String oneYearHorizon = horizon.split("-")[1];
         thermalControlService.verifyCostsTrajectory(oneYearHorizon,trajectoryFilePath, trajectoryToUse);
         var thermalCostTypeEntities = thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, oneYearHorizon, studyId);
-        var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, trajectoryFilePath, studyId);
+        var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, trajectoryFilePath, oneYearHorizon, studyId);
         if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))

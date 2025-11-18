@@ -8,11 +8,11 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 
@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 /**
@@ -132,13 +133,14 @@ public class Utils {
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
             createdBy, TrajectoryType trajectoryType, String area, String technology) throws IOException {
+        String checksum = computeChecksumByType(path, trajectoryType, horizon);
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
-                .checksum(computeChecksumByType(path, trajectoryType, horizon))
+                .checksum(checksum)
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .area(area)
@@ -374,10 +376,9 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY, THERMAL_ECONOMIC_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER ->
-                    getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> "NA";
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
@@ -549,5 +550,49 @@ public class Utils {
         };
     }
 
+    public String calculateThermalCostTrajectoryChecksum(List<ThermalCostTypeEntity> thermalCostsType, List<ThermalCostsRateEntity> thermalRates) {
+
+        String thermalCostsPart =
+                thermalCostsType == null ? "" :
+                        thermalCostsType.stream()
+                                .filter(Objects::nonNull)
+                                .flatMap(costType -> costType.getThermalCostEntities().stream()
+                                        .filter(Objects::nonNull)
+                                        .map(cost -> new StringBuilder()
+                                                .append(cost.getCost())
+                                                .append(cost.getYear())
+                                                .append(nullSafe(costType.getCountry()))
+                                                .append(nullSafe(costType.getFuel()))
+                                                .append(nullSafe(costType.getComment()))
+                                                .append(nullSafe(costType.getUnit()))
+                                                .append(nullSafe(costType.getModulation()))
+                                                .append(nullSafe(costType.getRatioNcvHcv()))
+                                                .append(";")
+                                                .toString()
+                                        )
+                                )
+                                .collect(Collectors.joining());
+
+        String thermalRatesPart =
+                thermalRates == null ? "" :
+                        thermalRates.stream()
+                                .filter(Objects::nonNull)
+                                .map(rate -> new StringBuilder()
+                                        .append(rate.getRateType())
+                                        .append(rate.getValue())
+                                        .append(rate.getYear())
+                                        .append("|")
+                                        .toString()
+                                )
+                                .collect(Collectors.joining());
+
+        String finalString = thermalCostsPart + thermalRatesPart;
+
+        return Integer.toHexString(finalString.hashCode());
+    }
+
+    private static String nullSafe(Object o) {
+        return o == null ? "" : o.toString();
+    }
 
 }

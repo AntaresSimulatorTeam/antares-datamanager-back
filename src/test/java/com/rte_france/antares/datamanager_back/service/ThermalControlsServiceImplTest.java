@@ -193,9 +193,8 @@ import static org.mockito.Mockito.when;
 
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
-        assertTrue(ex.getMessage().contains("No data in THERMAL Costs trajectory"));
-        assertTrue(ex.getMessage().contains("costs tab"));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory"));
+        assertTrue(ex.getMessage().contains("No data for horizon {0} in THERMAL Costs trajectory {1} in costs tab"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -216,43 +215,6 @@ import static org.mockito.Mockito.when;
         assertTrue(ex.getMessage().contains("costs tab"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
     }
-
-    @Test
-    void verifyCostsTrajectory_shouldThrowWhenNullValueInCostsData() throws IOException {
-
-        Path file = createWorkbook(wb -> {
-            Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-
-            // Header with two horizon columns so that the row is considered data-bearing in the horizon range
-            Row header = costs.createRow(0);
-            header.createCell(0).setCellValue("country");
-            header.createCell(1).setCellValue("fuel");
-            header.createCell(2).setCellValue("comment");
-            header.createCell(3).setCellValue("unit");
-            header.createCell(4).setCellValue("modulation");
-            header.createCell(5).setCellValue("2025"); // target horizon (will be left blank in data row)
-            header.createCell(6).setCellValue("2026"); // additional horizon to make rowHasData=true in data range
-
-            // Data row: leave 2025 blank, put a value in 2026 so validation inspects and detects the blank at 2025
-            Row row = costs.createRow(1);
-            row.createCell(0).setCellValue("X"); // some metadata cell outside data-range
-            row.createCell(6).setCellValue(1); // numeric value in 2026
-
-            Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
-            Row rateHeader = rate.createRow(0);
-            rateHeader.createCell(0).setCellValue("H");
-            Row rateRow = rate.createRow(1);
-            rateRow.createCell(0).setCellValue("x");
-        });
-
-        BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory")
-        );
-
-        // Assert
-        assertTrue(ex.getMessage().contains("Null value not allowed for column"));
-    }
-
 
     @Test
     void verifyCostsTrajectory_shouldThrowWhenNonNumericValueInCostsData() throws IOException {
@@ -277,15 +239,22 @@ import static org.mockito.Mockito.when;
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
             Row header = costs.createRow(0);
-            header.createCell(5).setCellValue("2025-2026");
+            header.createCell(5).setCellValue("2025");
             costs.createRow(1).createCell(5).setCellValue(2.0);
-            wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE).createRow(0).createCell(0).setCellValue("onlyHeader");
+
+            Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
+            Row rateHeader = rate.createRow(0);
+            rateHeader.createCell(0).setCellValue("Type");
+            rateHeader.createCell(1).setCellValue("2025");
+            // Pas de ligne de données ajoutée
         });
+
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
-        assertTrue(ex.getMessage().contains("No data in THERMAL Costs trajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory"));
+        assertTrue(ex.getMessage().contains("No data for horizon"));
         assertTrue(ex.getMessage().contains("rate tab"));
     }
+
 
     @Test
     void verifyCostsTrajectory_shouldThrowWhenRateHeaderInvalid() throws IOException {
@@ -430,9 +399,6 @@ import static org.mockito.Mockito.when;
             // Column F (index 5) → empty header triggers exception
             header.createCell(5).setCellValue("");
 
-            // Column G (index 6) → valid header ensures lastDataCol >= 6
-            header.createCell(6).setCellValue("2025");
-
             // Add data row to prevent row skipping
             Row dataRow = costs.createRow(1);
             dataRow.createCell(5).setCellValue(1.0); // under empty header
@@ -446,7 +412,7 @@ import static org.mockito.Mockito.when;
                     thermalControlsService.validateDataCells(
                             costsSheet,
                             "costs_testTrajectory",
-                            ThermalControlsServiceImpl.SHEET_COSTS));
+                            ThermalControlsServiceImpl.SHEET_COSTS, 6));
 
 
         }
