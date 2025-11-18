@@ -100,7 +100,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             }
             Set<String> specificClusters = specificParams.stream()
                     .filter(Objects::nonNull)
-                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea().toUpperCase() : ""))
                     .collect(Collectors.toSet());
 
             thermalControlService.checkMissingClusters(studyId, horizon, specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area);
