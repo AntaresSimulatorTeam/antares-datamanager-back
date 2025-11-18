@@ -3,7 +3,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -13,7 +13,6 @@ import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorSer
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -369,8 +368,6 @@ class StudyGeneratorServiceImplTest {
                 .isInstanceOf(TechnicalException.class)
                 .hasMessageContaining("Error while call Generate study from generator");
     }
-
-
     @Test
     void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
         // Given
@@ -390,7 +387,7 @@ class StudyGeneratorServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
 
-        var dto = ThermalClusterPropertiesDto.builder()
+        var dto = ThermalClusterGenerationDto.builder()
                 .efficiency(100.0)
                 .build();
         var ref = ThermalClusterRef.builder().name("Gas1").build();
@@ -425,5 +422,108 @@ class StudyGeneratorServiceImplTest {
                 () -> assertThat(properties).doesNotContainKey("nominal_capacity")
         );
     }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeThermalsDataCorrectly() throws Exception {
+        // Given
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).build();
+        var areaTrajectory = TrajectoryEntity.builder()
+                .type("AREA")
+                .areaConfigEntities(List.of(areaConfig))
+                .area("FR")
+                .build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("studyTest")
+                .trajectories(Set.of(areaTrajectory))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        var dto = ThermalClusterGenerationDto.builder()
+                // PROPERTIES view fields
+                .enabled(true)
+                .unitCount(5)
+                .nominalCapacity(150.0)
+
+                // DATA view fields
+                .foDuration(0.15)
+                .poDuration(0.20)
+                .npoMaxWinter(0.30)
+                .npoMaxSummer(0.25)
+                .nbUnit(3)
+                .foMonthlyRate(List.of(1.0, 2.0, 3.0))
+                .poMonthlyRate(List.of(4.0, 5.0, 6.0))
+                .build();
+
+        var ref = ThermalClusterRef.builder().name("Gas1").build();
+
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study.getTrajectories()))
+                .thenReturn(Map.of(
+                        new ThermalPropertiesAssemblerService.AreaRefKey("FR", ref),
+                        dto
+                ));
+
+        // When
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then
+        var jsonString = captureGeneratedJson(1);
+        var mapper = new ObjectMapper();
+
+        Map<String, Object> root = mapper.readValue(jsonString, new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        Map<String, Object> fr = mapper.convertValue(areas.get("FR"), new TypeReference<>() {});
+
+        assertThat(fr).containsKey("thermals");
+
+        Map<String, Object> thermals = mapper.convertValue(fr.get("thermals"), new TypeReference<>() {});
+        assertThat(thermals).containsKey("FR_Gas1");
+
+        Map<String, Object> cluster = mapper.convertValue(thermals.get("FR_Gas1"), new TypeReference<>() {});
+
+        // Structural keys must exist
+        assertThat(cluster)
+                .containsKeys("series", "fuel_cost", "co2_cost", "modulation", "properties", "data");
+
+        // --- PROPERTIES VIEW ---
+        Map<String, Object> properties = mapper.convertValue(cluster.get("properties"), new TypeReference<>() {});
+
+        assertThat(properties)
+                .containsKeys("enabled", "unit_count", "nominal_capacity")
+                .doesNotContainKeys(
+                        "fo_duration", "po_duration", "po_monthly_rate", "fo_monthly_rate", "npo_max_winter", "npo_max_summer",
+                        "po_rate_default", "nb_unit", "forced_outage_monthly", "planned_outage_monthly"
+                );
+
+        // --- DATA VIEW ---
+        Map<String, Object> data = mapper.convertValue(cluster.get("data"), new TypeReference<>() {});
+
+        assertThat(data)
+                .containsKeys(
+                        "fo_duration",
+                        "po_duration",
+                        "npo_max_winter",
+                        "npo_max_summer",
+                        "nb_unit",
+                        "fo_monthly_rate",
+                        "po_monthly_rate"
+                )
+                .doesNotContainKeys(
+                        "enabled",
+                        "unit_count",
+                        "nominal_capacity"
+                );
+
+        // Check example values
+        assertThat(data.get("fo_duration")).isEqualTo(0.15);
+        assertThat(data.get("nb_unit")).isEqualTo(3);
+    }
+
+
+
 
 }

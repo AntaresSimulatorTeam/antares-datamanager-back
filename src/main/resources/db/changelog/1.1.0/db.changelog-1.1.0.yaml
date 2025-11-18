@@ -50,3 +50,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V22-add_econimics_thermal_tables.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V23-drop_scenario_thermal_cost_type_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V24-rename_npo_max_winter_column_thermal_specific_table.sql
