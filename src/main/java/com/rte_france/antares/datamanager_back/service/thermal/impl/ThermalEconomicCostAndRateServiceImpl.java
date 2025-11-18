@@ -11,7 +11,10 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +24,9 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
@@ -90,51 +95,30 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
     }
 
     @Override
-    public List<ThermalCostsRateEntity> buildThermalEconomicRateValueList(String trajectoryName, Path trajectoryFilePath, Integer studyId){
+    public List<ThermalCostsRateEntity> buildThermalEconomicRateValueList(String trajectoryName, Path trajectoryFilePath, String horizon, Integer studyId) {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
-        Workbook workbook = WorkbookFactory.create(inputStream)){
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet rateSheet = workbook.getSheet(SHEET_RATE);
             Row header = rateSheet.getRow(0);
 
-            List<ThermalCostsRateEntity> result = new ArrayList<>();
+            Integer horizonCol = findHorizonColumnIndex(header, horizon);
 
+            List<ThermalCostsRateEntity> result = new ArrayList<>();
             for (int r = 1; r <= rateSheet.getLastRowNum(); r++) {
                 Row row = rateSheet.getRow(r);
                 if (row == null) continue;
-
                 String rateType = castString(getCellValue(row, 0));
                 if (rateType == null || rateType.isBlank()) continue;
 
-                for (int c = 1; c < header.getLastCellNum(); c++) {
-                    Object headerValue = getCellValue(header, c);
-                    if (headerValue == null) continue;
 
-                    String yearStr;
+                Double rateValue = castDouble(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
+                ThermalCostsRateEntity rate = ThermalCostsRateEntity.builder()
+                        .rateType(rateType)
+                        .value(BigDecimal.valueOf(rateValue))
+                        .year(parseYear(horizon))
+                        .build();
 
-                    if (headerValue instanceof Number number) {
-                        yearStr = String.valueOf(number.intValue());
-                    } else {
-                        yearStr = headerValue.toString().trim();
-                    }
-
-                    if (yearStr.isBlank()) continue;
-
-                    Integer year = parseYear(yearStr);
-
-                    Object rawValue = getCellValue(row, c);
-                    if (rawValue == null) continue;
-
-                    Double rateValue = castDouble(rawValue, String.valueOf(year), c);
-                    if (rateValue == null) continue;
-
-                    ThermalCostsRateEntity entity = ThermalCostsRateEntity.builder()
-                            .rateType(rateType)
-                            .year(year)
-                            .value(BigDecimal.valueOf(rateValue))
-                            .build();
-
-                    result.add(entity);
-                }
+                result.add(rate);
             }
 
             return result;
@@ -152,14 +136,11 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
 
     @Override
     @Transactional
-    public TrajectoryEntity saveThermalEconomicCostAndRateTrajectory(
-            TrajectoryEntity trajectory,
-            List<ThermalCostTypeEntity> thermalCostTypeEntities,
-            List<ThermalCostsRateEntity> thermalRateEntities,
-            TrajectoryType type) {
-
+    public TrajectoryEntity saveThermalEconomicCostAndRateTrajectory(TrajectoryEntity trajectory,
+                                                                     List<ThermalCostTypeEntity> thermalCostTypeEntities,
+                                                                     List<ThermalCostsRateEntity> thermalRateEntities,
+                                                                     TrajectoryType type) {
         trajectory.setType(type.name());
-
         List<ThermalCostEntity> toPersistCosts = new ArrayList<>();
 
         if (thermalCostTypeEntities != null) {
@@ -203,10 +184,8 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
             trajectory.setThermalCostsRates(thermalRateEntities);
         }
 
-
         return trajectoryRepository.save(trajectory);
     }
-
 
 
     private ThermalCostTypeEntity buildThermalEconomicCostType(Row row, Row header) {
@@ -227,8 +206,6 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
             return null;
         }
     }
-
-
 }
 
 

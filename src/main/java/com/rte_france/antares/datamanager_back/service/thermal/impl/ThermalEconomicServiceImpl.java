@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.throwAlreadyProcessedFileException;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
 
 @Slf4j
 @Service
@@ -42,7 +42,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
-          return  parseCo2Sheet(sheet, horizon);
+            return parseCo2Sheet(sheet, horizon);
         }
     }
 
@@ -51,30 +51,33 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, SHEET_ENR);
-            return  parseEnerSheet(sheet);
+            return parseEnerSheet(sheet);
         }
     }
 
     @Override
     public TrajectoryEntity processThermalEconomicParameterFile(Path trajectoryFilePath, String horizon, List<ThermalEconomicCo2Entity> thermalEconomicCo2Entities, List<ThermalEconomicEnerContentEntity> thermalEconomicEnerContentEntities, TrajectoryType trajectoryType) throws IOException {
-
+        String trajectoryTypeName = trajectoryType != null ? trajectoryType.name() : TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name();
+        String trajectoryFileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), trajectoryTypeName);
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         // Find existing trajectory for same file name/horizon/type
-        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name()),
-                horizon,
-                TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name()
-        );
+        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryFileName, horizon, trajectoryTypeName);
 
         TrajectoryEntity trajectory;
-        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+        String checksum = calculateThermalEconomicChecksum(thermalEconomicCo2Entities, thermalEconomicEnerContentEntities);
+
+        if (existingTrajectoryOpt.isPresent() && existingTrajectoryOpt.get().getChecksum() != null) {
+            if (existingTrajectoryOpt.get().getChecksum().equals(checksum)) {
+                throwAlreadyProcessedFileException(trajectoryFilePath);
+            }
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null);
+            trajectory = buildTrajectory(trajectoryFilePath, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null);
         } else {
-            // No existing or not same file -> new trajectory with version 1
+            // No existing or different file -> new trajectory with version 1
             trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null);
         }
-        trajectory.setType(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name());
+        trajectory.setChecksum(checksum);
+        trajectory.setType(trajectoryTypeName);
         thermalEconomicCo2Entities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         thermalEconomicEnerContentEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
         trajectory.setThermalEconomicCo2s(thermalEconomicCo2Entities);
@@ -92,7 +95,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             if (row == null) continue;
             Integer year = parseInteger(getCellString(row, 2));
             Integer horizonYear = parseInteger(horizon.split("-")[1]);
-            if( year !=null && !year.equals(horizonYear)) continue;
+            if (year != null && !year.equals(horizonYear)) continue;
             String fuel = getCellString(row, 0);
             String country = getCellString(row, 1);
             BigDecimal co2 = parseBigDecimal(getCellString(row, 3));
@@ -168,4 +171,34 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         }
     }
 
+    private String calculateThermalEconomicChecksum(List<ThermalEconomicCo2Entity> thermalEconomicCo2Entities, List<ThermalEconomicEnerContentEntity> thermalEconomicEnerContentEntities) {
+        StringBuilder sb = new StringBuilder();
+
+        if (thermalEconomicCo2Entities != null) {
+            for (ThermalEconomicCo2Entity entity : thermalEconomicCo2Entities) {
+                if (entity != null) {
+                    sb.append(entity.getFuel())
+                            .append(entity.getCountry())
+                            .append(entity.getYear())
+                            .append(entity.getCo2EmissionFuel())
+                            .append(entity.getUnitCo2())
+                            .append(entity.getComment())
+                            .append("|");
+                }
+            }
+        }
+
+        if (thermalEconomicEnerContentEntities != null) {
+            for (ThermalEconomicEnerContentEntity entity : thermalEconomicEnerContentEntities) {
+                if (entity != null) {
+                    sb.append(entity.getValue())
+                            .append(entity.getUnit())
+                            .append(entity.getComment())
+                            .append("|");
+                }
+            }
+        }
+
+        return Integer.toHexString(sb.toString().hashCode());
+    }
 }

@@ -4,13 +4,15 @@ import com.rte_france.antares.datamanager_back.dto.ThermalClusterCapacityDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
-import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -67,10 +69,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Processes a thermal common parameter file and saves the corresponding trajectory.
      *
-     * @param path The path to the thermal common parameter file.
+     * @param path    The path to the thermal common parameter file.
      * @param horizon The horizon for the trajectory.
-     * @param list The list of thermal common parameter entities.
-     * @param type The type of trajectory.
+     * @param list    The list of thermal common parameter entities.
+     * @param type    The type of trajectory.
      * @return The saved trajectory entity.
      * @throws IOException If an error occurs while processing the file.
      */
@@ -98,12 +100,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Processes a thermal capacity file and saves the corresponding trajectory.
      *
-     * @param path The path to the thermal capacity file.
-     * @param horizon The horizon for the trajectory.
+     * @param path                      The path to the thermal capacity file.
+     * @param horizon                   The horizon for the trajectory.
      * @param thermalClusterCapacityDto The DTO containing thermal cluster capacity data.
-     * @param type The type of trajectory.
-     * @param area The area associated with the trajectory.
-     * @param technology The technology associated with the trajectory.
+     * @param type                      The type of trajectory.
+     * @param area                      The area associated with the trajectory.
+     * @param technology                The technology associated with the trajectory.
      * @return The saved trajectory entity.
      * @throws IOException If an error occurs while processing the file.
      */
@@ -116,10 +118,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Processes a thermal modulation parameter file and saves the corresponding trajectory.
      *
-     * @param path The path to the thermal modulation parameter file.
-     * @param horizon The horizon for the trajectory.
+     * @param path                               The path to the thermal modulation parameter file.
+     * @param horizon                            The horizon for the trajectory.
      * @param thermalModulationParameterEntities The list of thermal modulation parameter entities.
-     * @param type The type of trajectory.
+     * @param type                               The type of trajectory.
      * @return The saved trajectory entity.
      * @throws IOException If an error occurs while processing the file.
      */
@@ -142,29 +144,33 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     public TrajectoryEntity processThermalEconomicCostsAndRatesFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, List<ThermalCostsRateEntity> thermalEconomicRates, TrajectoryType type) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
-        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()),
-                horizon,
-                TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()
-        );
+        String trajectoryTypeName = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name();
+        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryTypeName);
+        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, trajectoryTypeName);
 
         TrajectoryEntity trajectory;
-        if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
+        String checksum = calculateThermalCostTrajectoryChecksum(thermalEconomicCosts, thermalEconomicRates);
+
+        if (existingTrajectoryOpt.isPresent() && existingTrajectoryOpt.get().getChecksum() != null) {
+            if (existingTrajectoryOpt.get().getChecksum().equals(checksum)) {
+                throwAlreadyProcessedFileException(path);
+            }
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+            trajectory = buildTrajectory(path, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
         } else {
             // No existing or different file -> new trajectory with version 1
             trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
-       }
+        }
+        trajectory.setChecksum(checksum);
         return thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(trajectory, thermalEconomicCosts, thermalEconomicRates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
     /**
      * Saves a thermal modulation parameter trajectory.
      *
-     * @param trajectory The trajectory entity to save.
+     * @param trajectory                         The trajectory entity to save.
      * @param thermalModulationParameterEntities The list of thermal modulation parameter entities.
-     * @param type The type of trajectory.
+     * @param type                               The type of trajectory.
      * @return The saved trajectory entity.
      */
     @Override
@@ -178,9 +184,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Saves a thermal capacities trajectory.
      *
-     * @param trajectory The trajectory entity to save.
+     * @param trajectory                The trajectory entity to save.
      * @param thermalClusterCapacityDto The DTO containing thermal cluster capacity data.
-     * @param type The type of trajectory.
+     * @param type                      The type of trajectory.
      * @return The saved trajectory entity.
      */
     @Override
@@ -205,9 +211,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Saves a thermal common parameter trajectory.
      *
-     * @param trajectory The trajectory entity to save.
+     * @param trajectory                       The trajectory entity to save.
      * @param thermalCommonParameterEntityList The list of thermal common parameter entities.
-     * @param type The type of trajectory.
+     * @param type                             The type of trajectory.
      * @return The saved trajectory entity.
      */
     @Override
@@ -221,12 +227,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Builds a ThermalClusterCapacityDto object by processing a thermal installed power file.
      *
-     * @param path The path to the thermal installed power file.
-     * @param horizon The horizon for the trajectory.
+     * @param path        The path to the thermal installed power file.
+     * @param horizon     The horizon for the trajectory.
      * @param isCivilYear Indicates if the horizon is a civil year.
-     * @param area The area associated with the trajectory.
-     * @param technology The technology associated with the trajectory.
-     * @param studyId The ID of the study.
+     * @param area        The area associated with the trajectory.
+     * @param technology  The technology associated with the trajectory.
+     * @param studyId     The ID of the study.
      * @return A ThermalClusterCapacityDto object containing the processed data.
      */
     @Override
@@ -296,7 +302,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     /**
      * Builds a list of ThermalCommonParameterEntity objects by processing a thermal common parameter file.
      *
-     * @param path The path to the thermal common parameter file.
+     * @param path    The path to the thermal common parameter file.
      * @param horizon The horizon for the trajectory.
      * @param studyId The ID of the study.
      * @return A list of ThermalCommonParameterEntity objects.
@@ -341,7 +347,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
         return thermalParameters;
     }
-
 
 
     private void throwTechnicalException(IOException e) {
@@ -398,12 +403,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     public void handleChecksumAndVersion(ThermalClusterCapacityDto dto, Optional<TrajectoryEntity> existingTrajectory, String checksum, Path path) {
         if (existingTrajectory.isPresent() && existingTrajectory.get().getChecksum() != null) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
-                log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
-                throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
-                        .errorMessageArguments(List.of(path.getFileName().toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+                throwAlreadyProcessedFileException(path);
             } else {
                 dto.setChecksum(checksum);
                 dto.setVersion(existingTrajectory.get().getVersion() + 1);
@@ -412,6 +412,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             dto.setChecksum(checksum);
             dto.setVersion(1);
         }
+    }
+
+    public static void throwAlreadyProcessedFileException(Path path) {
+        log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
+        throw BusinessException.builder()
+                .message("File already processed with same content {0}")
+                .errorMessageArguments(List.of(path.getFileName().toString()))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
 
@@ -614,7 +623,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             return false;
         }
     }
-
 
 
     public static void checkPowerAndNumberWithSameToUse(List<ThermalClusterCapacityEntity> thermalClusterCapacities, String fileName) {

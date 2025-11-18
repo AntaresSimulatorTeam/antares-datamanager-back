@@ -44,67 +44,7 @@ public class ThermalEconomicCostAndRateServiceImplTest {
         MockitoAnnotations.openMocks(this);
     }
 
-    @Test
-    void testBuildThermalEconomicRateValueList_shouldParseRateSheetCorrectly() throws Exception {
-
-        Workbook workbook = mock(Workbook.class);
-        Sheet sheet = mock(Sheet.class);
-        Row header = mock(Row.class);
-        Row row = mock(Row.class);
-
-        Path fakePath = mock(Path.class);
-        InputStream fakeInput = mock(InputStream.class);
-
-
-        try (MockedStatic<WorkbookFactory> workbookFactoryMock = mockStatic(WorkbookFactory.class);
-             MockedStatic<Files> filesMock = mockStatic(Files.class)) {
-
-            filesMock.when(() -> Files.newInputStream(fakePath)).thenReturn(fakeInput);
-            workbookFactoryMock.when(() -> WorkbookFactory.create(fakeInput)).thenReturn(workbook);
-
-            when(workbook.getSheet("rate")).thenReturn(sheet);
-            when(sheet.getRow(0)).thenReturn(header);
-            when(sheet.getRow(1)).thenReturn(row);
-            when(sheet.getLastRowNum()).thenReturn(1);
-
-            Cell h0 = mock(Cell.class);
-            Cell h1 = mock(Cell.class);
-            Cell h2 = mock(Cell.class);
-            //to mock 3 cells only
-            when(header.getLastCellNum()).thenReturn((short) 3);
-            when(header.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(h0);
-            when(header.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(h1);
-            when(header.getCell(2, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(h2);
-            when(h1.getCellType()).thenReturn(CellType.NUMERIC);
-            when(h1.getNumericCellValue()).thenReturn(2021d);
-            when(h2.getCellType()).thenReturn(CellType.NUMERIC);
-            when(h2.getNumericCellValue()).thenReturn(2022d);
-
-            Cell r0 = mock(Cell.class);
-            Cell r1 = mock(Cell.class);
-            Cell r2 = mock(Cell.class);
-            when(row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(r0);
-            when(row.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(r1);
-            when(row.getCell(2, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(r2);
-            when(r0.getCellType()).thenReturn(CellType.STRING);
-            when(r0.getStringCellValue()).thenReturn("euro/dollar");
-            when(r1.getCellType()).thenReturn(CellType.NUMERIC);
-            when(r1.getNumericCellValue()).thenReturn(0.85);
-            when(r2.getCellType()).thenReturn(CellType.NUMERIC);
-            when(r2.getNumericCellValue()).thenReturn(0.95);
-
-
-            List<ThermalCostsRateEntity> rates =
-                    service.buildThermalEconomicRateValueList("costs_trajectoryTest", fakePath, 1);
-
-            assertEquals(2, rates.size());
-            assertEquals("euro/dollar", rates.get(0).getRateType());
-            assertEquals(2021, rates.get(0).getYear());
-            assertEquals(BigDecimal.valueOf(0.85), rates.get(0).getValue());
-            assertEquals(2022, rates.get(1).getYear());
-            assertEquals(BigDecimal.valueOf(0.95), rates.get(1).getValue());
-        }
-    }
+    ;
 
     @Test
     void testBuildThermalEconomicCostsValueList_shouldParseCostsSheetCorrectly() throws Exception {
@@ -356,7 +296,7 @@ public class ThermalEconomicCostAndRateServiceImplTest {
 
             BusinessException ex = assertThrows(
                     BusinessException.class,
-                    () -> service.buildThermalEconomicRateValueList("costs_trajectoryTest", fakePath, 1)
+                    () -> service.buildThermalEconomicRateValueList("costs_trajectoryTest", fakePath, "2022",1)
             );
 
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
@@ -382,4 +322,127 @@ public class ThermalEconomicCostAndRateServiceImplTest {
             assertTrue(ex.getMessage().contains("Could not read thermal economic costs file"));
         }
     }
+    @Test
+    void buildThermalEconomicRateValueList_shouldParseRateSheetWithValidData() throws Exception {
+        Workbook workbook = mock(Workbook.class);
+        Sheet sheet = mock(Sheet.class);
+        Row header = mock(Row.class);
+        Row row = mock(Row.class);
+
+        Path fakePath = mock(Path.class);
+        InputStream fakeInput = mock(InputStream.class);
+
+        try (MockedStatic<WorkbookFactory> workbookFactoryMock = mockStatic(WorkbookFactory.class);
+             MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+
+            filesMock.when(() -> Files.newInputStream(fakePath)).thenReturn(fakeInput);
+            workbookFactoryMock.when(() -> WorkbookFactory.create(fakeInput)).thenReturn(workbook);
+
+            when(workbook.getSheet("rate")).thenReturn(sheet);
+            when(sheet.getRow(0)).thenReturn(header);
+            when(sheet.getRow(1)).thenReturn(row);
+            when(sheet.getLastRowNum()).thenReturn(1);
+
+            when(header.getLastCellNum()).thenReturn((short) 2);
+
+            Cell h0 = mock(Cell.class);
+            Cell h1 = mock(Cell.class);
+            when(header.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(h0);
+            when(header.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(h1);
+            when(header.getCell(0)).thenReturn(h0);
+            when(header.getCell(1)).thenReturn(h1);
+            when(h0.getCellType()).thenReturn(CellType.STRING);
+            when(h0.getStringCellValue()).thenReturn("Rate Type");
+            when(h1.getCellType()).thenReturn(CellType.NUMERIC);
+            when(h1.getNumericCellValue()).thenReturn(2022d);
+
+            Cell r0 = mock(Cell.class);
+            Cell r1 = mock(Cell.class);
+            when(row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(r0);
+            when(row.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(r1);
+            when(row.getCell(0)).thenReturn(r0);
+            when(row.getCell(1)).thenReturn(r1);
+
+            when(r0.getCellType()).thenReturn(CellType.STRING);
+            when(r0.getStringCellValue()).thenReturn("Exchange Rate");
+            when(r1.getCellType()).thenReturn(CellType.NUMERIC);
+            when(r1.getNumericCellValue()).thenReturn(1.15);
+
+            List<ThermalCostsRateEntity> rates = service.buildThermalEconomicRateValueList("testTrajectory", fakePath, "2022", 1);
+
+            assertEquals(1, rates.size());
+            ThermalCostsRateEntity rate = rates.get(0);
+            assertEquals("Exchange Rate", rate.getRateType());
+            assertEquals(BigDecimal.valueOf(1.15), rate.getValue());
+            assertEquals(2022, rate.getYear());
+        }
+    }
+
+
+    @Test
+    void buildThermalEconomicRateValueList_shouldHandleEmptySheetGracefully() throws Exception {
+        Workbook workbook = mock(Workbook.class);
+        Sheet sheet = mock(Sheet.class);
+        Row header = mock(Row.class);
+
+        Path fakePath = mock(Path.class);
+        InputStream fakeInput = mock(InputStream.class);
+
+        try (MockedStatic<WorkbookFactory> workbookFactoryMock = mockStatic(WorkbookFactory.class);
+             MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+
+            filesMock.when(() -> Files.newInputStream(fakePath)).thenReturn(fakeInput);
+            workbookFactoryMock.when(() -> WorkbookFactory.create(fakeInput)).thenReturn(workbook);
+
+            when(workbook.getSheet("rate")).thenReturn(sheet);
+            // return an empty header row (no cells) instead of null to avoid NPE in Utils
+            when(sheet.getRow(0)).thenReturn(header);
+            when(header.getLastCellNum()).thenReturn((short) 0);
+
+            List<ThermalCostsRateEntity> rates = service.buildThermalEconomicRateValueList("testTrajectory", fakePath, "2022", 1);
+
+            assertTrue(rates.isEmpty());
+        }
+    }
+
+    @Test
+    void buildThermalEconomicRateValueList_shouldSkipRowsWithBlankRateType() throws Exception {
+        Workbook workbook = mock(Workbook.class);
+        Sheet sheet = mock(Sheet.class);
+        Row header = mock(Row.class);
+        Row row = mock(Row.class);
+
+        Path fakePath = mock(Path.class);
+        InputStream fakeInput = mock(InputStream.class);
+
+        try (MockedStatic<WorkbookFactory> workbookFactoryMock = mockStatic(WorkbookFactory.class);
+             MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+
+            filesMock.when(() -> Files.newInputStream(fakePath)).thenReturn(fakeInput);
+            workbookFactoryMock.when(() -> WorkbookFactory.create(fakeInput)).thenReturn(workbook);
+
+            when(workbook.getSheet("rate")).thenReturn(sheet);
+            when(sheet.getRow(0)).thenReturn(header);
+            when(sheet.getRow(1)).thenReturn(row);
+            when(sheet.getLastRowNum()).thenReturn(1);
+
+            when(header.getLastCellNum()).thenReturn((short) 1);
+
+            Cell h0 = mock(Cell.class);
+            when(header.getCell(0)).thenReturn(h0);
+            when(h0.getCellType()).thenReturn(CellType.STRING);
+            when(h0.getStringCellValue()).thenReturn("Rate Type");
+
+            Cell r0 = mock(Cell.class);
+            when(row.getCell(0)).thenReturn(r0);
+            when(r0.getCellType()).thenReturn(CellType.STRING);
+            when(r0.getStringCellValue()).thenReturn("");
+
+            List<ThermalCostsRateEntity> rates = service.buildThermalEconomicRateValueList("testTrajectory", fakePath, "2022", 1);
+
+            assertTrue(rates.isEmpty());
+        }
+    }
+
+
 }

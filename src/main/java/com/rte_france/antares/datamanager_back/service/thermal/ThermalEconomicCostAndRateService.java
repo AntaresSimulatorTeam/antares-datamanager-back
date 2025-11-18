@@ -12,7 +12,7 @@ public interface ThermalEconomicCostAndRateService {
 
     List<ThermalCostTypeEntity> buildThermalEconomicCostValueList(String trajectoryName, Path trajectoryFilePath, String horizon, Integer studyId);
 
-    List<ThermalCostsRateEntity> buildThermalEconomicRateValueList(String trajectoryName, Path trajectoryFilePath, Integer studyId);
+    List<ThermalCostsRateEntity> buildThermalEconomicRateValueList(String trajectoryName, Path trajectoryFilePath,String horizon, Integer studyId);
 
     TrajectoryEntity saveThermalEconomicCostAndRateTrajectory(TrajectoryEntity trajectory, List<ThermalCostTypeEntity> thermalCostTypeEntities,  List<ThermalCostsRateEntity> thermalCostsRateEntities, TrajectoryType trajectoryType);
 }

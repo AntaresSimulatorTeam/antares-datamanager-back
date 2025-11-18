@@ -846,7 +846,7 @@ class ThermalFileProcessorServiceImplTest {
         Path path = Paths.get("thermal_costs_rates_existing.xlsx");
         String horizon = "2030";
 
-        TrajectoryEntity existing = TrajectoryEntity.builder().fileName("thermal_costs_rates_existing").version(3).build();
+        TrajectoryEntity existing = TrajectoryEntity.builder().fileName("thermal_costs_rates_existing").version(3).checksum("111").build();
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
                 .thenReturn(Optional.of(existing));
 
@@ -882,7 +882,6 @@ class ThermalFileProcessorServiceImplTest {
 
             // Assert
             assertSame(savedTrajectory, result);
-            utilsMock.verify(() -> Utils.checkTrajectoryVersion(eq(path), eq(existing)), times(1));
             utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull()), times(1));
             verify(thermalEconomicCostAndRateService, times(1)).saveThermalEconomicCostAndRateTrajectory(builtTrajectory, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
         }

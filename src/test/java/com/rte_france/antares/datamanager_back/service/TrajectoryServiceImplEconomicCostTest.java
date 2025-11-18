@@ -14,11 +14,16 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlSer
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import org.apache.poi.ss.usermodel.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -84,7 +89,7 @@ class TrajectoryServiceImplEconomicCostTest {
 
         when(thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, fakePath, "2025", studyId))
                 .thenReturn(costs);
-        when(thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, fakePath, studyId))
+        when(thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, fakePath,"2025", studyId))
                 .thenReturn(rates);
 
         TrajectoryEntity saved = TrajectoryEntity.builder().id(10).fileName("economic_costs_test").build();
@@ -97,7 +102,7 @@ class TrajectoryServiceImplEconomicCostTest {
         // Assert
         assertSame(saved, result);
         verify(thermalEconomicCostAndRateService, times(1)).buildThermalEconomicCostValueList(trajectoryToUse, fakePath, "2025", studyId);
-        verify(thermalEconomicCostAndRateService, times(1)).buildThermalEconomicRateValueList(trajectoryToUse, fakePath, studyId);
+        verify(thermalEconomicCostAndRateService, times(1)).buildThermalEconomicRateValueList(trajectoryToUse, fakePath,"2025", studyId);
         verify(thermalFileProcessorService, times(1)).processThermalEconomicCostsAndRatesFile(fakePath, horizon, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
@@ -115,7 +120,7 @@ class TrajectoryServiceImplEconomicCostTest {
         when(thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, fakePath, horizon, studyId))
                 .thenReturn(new ArrayList<>());
         // Rate list shouldn't matter, but stub to avoid NPE if called (it shouldn't be used further)
-        when(thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, fakePath, studyId))
+        when(thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, fakePath,horizon, studyId))
                 .thenReturn(new ArrayList<>());
 
         // Act + Assert

@@ -3,8 +3,7 @@ package com.rte_france.antares.datamanager_back.util;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -12,6 +11,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -238,7 +238,10 @@ class UtilsTest {
 
     @Test
     void computeLinkChecksum_changesWhenParametersSheetChanges() throws IOException {
+
         var horizon = "2030-2031";
+        TrajectoryEntity trajectoryEntity = TrajectoryEntity.builder().horizon(horizon).type(TrajectoryType.LINK.name()).build();
+
         var f1 = tempDir.resolve("links_v1.xlsx");
         var f2 = tempDir.resolve("links_v2.xlsx");
 
@@ -489,6 +492,75 @@ class UtilsTest {
 
                 checkNumericDataCMorMR(file, "T3", "CM")
         );
+    }
+
+    @Test
+    void calculateThermalCostTrajectoryChecksum_shouldReturnCorrectChecksumForValidInputs() {
+        List<ThermalCostTypeEntity> thermalCostsType = List.of(
+                ThermalCostTypeEntity.builder()
+                        .country("FR")
+                        .fuel("Gas")
+                        .comment("Comment")
+                        .unit("MWh")
+                        .modulation("Modulation")
+                        .ratioNcvHcv(100d)
+                        .thermalCostEntities(List.of(
+                                ThermalCostEntity.builder().cost(100d).year(2022).build(),
+                                ThermalCostEntity.builder().cost(200d).year(2023).build()
+                        ))
+                        .build()
+        );
+
+        List<ThermalCostsRateEntity> thermalRates = List.of(
+                ThermalCostsRateEntity.builder().rateType("Rate1").value(BigDecimal.valueOf(1.5)).year(2022).build(),
+                ThermalCostsRateEntity.builder().rateType("Rate2").value(BigDecimal.valueOf(2.5)).year(2023).build()
+        );
+
+        String checksum = Utils.calculateThermalCostTrajectoryChecksum(thermalCostsType, thermalRates);
+
+        assertNotNull(checksum);
+        assertFalse(checksum.isEmpty());
+    }
+
+    @Test
+    void calculateThermalCostTrajectoryChecksum_shouldReturnEmptyChecksumForNullInputs() {
+        String checksum = Utils.calculateThermalCostTrajectoryChecksum(null, null);
+
+        assertNotNull(checksum);
+        assertEquals(Integer.toHexString("".hashCode()), checksum);
+    }
+
+    @Test
+    void calculateThermalCostTrajectoryChecksum_shouldHandleEmptyListsGracefully() {
+        List<ThermalCostTypeEntity> thermalCostsType = List.of();
+        List<ThermalCostsRateEntity> thermalRates = List.of();
+
+        String checksum = Utils.calculateThermalCostTrajectoryChecksum(thermalCostsType, thermalRates);
+
+        assertNotNull(checksum);
+        assertEquals(Integer.toHexString("".hashCode()), checksum);
+    }
+
+    @Test
+    void calculateThermalCostTrajectoryChecksum_shouldReturnSameChecksumForIdenticalInputs() {
+        List<ThermalCostTypeEntity> thermalCostsType = List.of(
+                ThermalCostTypeEntity.builder()
+                        .country("FR")
+                        .fuel("Gas")
+                        .thermalCostEntities(List.of(
+                                ThermalCostEntity.builder().cost(100d).year(2022).build()
+                        ))
+                        .build()
+        );
+
+        List<ThermalCostsRateEntity> thermalRates = List.of(
+                ThermalCostsRateEntity.builder().rateType("Rate1").value(BigDecimal.valueOf(1.5)).year(2022).build()
+        );
+
+        String checksum1 = Utils.calculateThermalCostTrajectoryChecksum(thermalCostsType, thermalRates);
+        String checksum2 = Utils.calculateThermalCostTrajectoryChecksum(thermalCostsType, thermalRates);
+
+        assertEquals(checksum1, checksum2);
     }
 
 }
