@@ -62,8 +62,8 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Column(name = "cm_specific")
     private Integer cmSpecific;
 
-    @Column(name = "npo_max_winther")
-    private Integer npoMaxWinther;
+    @Column(name = "npo_max_winter")
+    private Integer npoMaxWinter;
 
     @Column(name = "npo_max_summer")
     private Integer npoMaxSummer;

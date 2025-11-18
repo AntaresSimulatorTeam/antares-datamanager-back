@@ -1,9 +1,10 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
-import com.rte_france.antares.datamanager_back.dto.ThermalClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
@@ -49,6 +50,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
+    private static final String DATA = "data";
 
     private static final String MATRIX_HASH = "matrix hash";
 
@@ -90,7 +92,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     case LINK -> buildLinksDataMap(trajectory, linksMap);
                     case LOAD ->
                             log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
-                    case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER ,THERMAL_ECONOMIC_COST_PARAMETER ->
+                    case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER ,THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
                             log.warn("Thermal trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                     default ->
                             throw TechnicalException.builder().message("Unhandled type: " + trajectoryType).build();
@@ -196,8 +198,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
 
-       var areaRefProps = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity.getTrajectories()); // TODO: uncomment this and remove next line for thermal gen
-      //  var areaRefProps = new HashMap<ThermalPropertiesAssemblerService.AreaRefKey, ThermalClusterPropertiesDto>(); // TODO: remove and uncomment line before for thermal gen
+       var areaRefProps = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity.getTrajectories());
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
@@ -212,7 +213,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     }
 
-    private static Map<String, ThermalClusterPropertiesDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaRefKey, ThermalClusterPropertiesDto> areaRefProps, String areaName) {
+    private static Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
         return areaRefProps.entrySet().stream()
                 .filter(e -> e.getKey().area().equalsIgnoreCase(areaName))
                 .collect(Collectors.toMap(
@@ -251,7 +252,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, Map<String, ThermalClusterPropertiesDto> clusterProps) {
+    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps) {
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
@@ -271,8 +272,16 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return areaMap;
     }
 
+    private static final ObjectMapper PROPERTIES_MAPPER = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig()
+                    .withView(ThermalClusterGenerationDto.ThermalClusterViews.Properties.class));
+
+    private static final ObjectMapper DATA_MAPPER = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig()
+                    .withView(ThermalClusterGenerationDto.ThermalClusterViews.Data.class));
+
     private static Map<String, Object> thermalsMapGenerator(
-            Map<String, ThermalClusterPropertiesDto> clusterProps
+            Map<String, ThermalClusterGenerationDto> clusterProps
     ) {
         if (clusterProps == null || clusterProps.isEmpty()) {
             return Collections.emptyMap();
@@ -281,12 +290,21 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> clusterMap = new LinkedHashMap<>();
 
         clusterProps.forEach((clusterName, dto) -> {
-            Map<String, Object> clusterData = new HashMap<>();
-            clusterData.put(PROPERTIES, dto);
+
+            Map<String, Object> propertiesMap = PROPERTIES_MAPPER.convertValue(
+                    dto, new TypeReference<>() {
+                    });
+
+            Map<String, Object> dataMap = DATA_MAPPER.convertValue(
+                    dto, new TypeReference<>() {
+                    });
+
+            Map<String, Object> clusterData = new LinkedHashMap<>();
+            clusterData.put(PROPERTIES, propertiesMap);
             clusterData.put("series", MATRIX_HASH);
             clusterData.put("fuel_cost", MATRIX_HASH);
             clusterData.put("co2_cost", MATRIX_HASH);
-            clusterData.put("data", MATRIX_HASH);
+            clusterData.put(DATA, dataMap);
             clusterData.put("modulation", MATRIX_HASH);
 
             clusterMap.put(clusterName, clusterData);
@@ -294,6 +312,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         return clusterMap;
     }
+
 
 
     private static Map<String, Object> linksMapGenerator() {

@@ -171,7 +171,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 .marketBid(specificParamValueMustBePositive(areaName, clusterName, trajectoryName,castDouble(getCellValue(row, 13), getHeaderText(header, 13), row.getRowNum())))
                 .mrSpecific(castInt(getCellValue(row, 14)))
                 .cmSpecific(castInt(getCellValue(row, 15)))
-                .npoMaxWinther(castInt(getCellValue(row, 16)))
+                .npoMaxWinter(castInt(getCellValue(row, 16)))
                 .npoMaxSummer(castInt(getCellValue(row, 17)))
                 .nbUnit(castInt(getCellValue(row, 18)))
                 .poWinterRate(specificParamValueMustBePositive(areaName, clusterName, trajectoryName,castDouble(getCellValue(row, 19), getHeaderText(header, 19), row.getRowNum())))

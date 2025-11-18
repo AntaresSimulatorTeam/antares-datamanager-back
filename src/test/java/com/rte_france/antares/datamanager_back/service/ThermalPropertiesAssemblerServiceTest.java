@@ -11,7 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -35,6 +34,82 @@ class ThermalPropertiesAssemblerServiceTest {
     void init() {
         gasRef = ThermalClusterRef.builder().name("Gas1").build();
         nucRef = ThermalClusterRef.builder().name("NuclearA").build();
+    }
+
+    @Test
+    void assembleForTrajectory_buildsOneCluster_withSpecificParametersApplied() {
+        // given
+        var capacityTrajectory = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        // unit count = 3 (max), power = 600 (max) => nominal = 600/3 = 200
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Common params present but will be overridden by specific ones where applicable
+        var commonTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(
+                        params(gasRef, 0.30, 1, 1, 0.33, 1.0)
+                ))
+                .build();
+
+        // Specific parameters
+        var foMonthly = List.of(0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12);
+        var poMonthly = List.of(0.12, 0.11, 0.10, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01);
+
+        var specificTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
+                .thermalSpecificParameters(List.of(
+                        specificParams(
+                                gasRef,
+                                0.50, // minStableGeneration (ratio of nominal)
+                                1.23, // spinning
+                                0.37, // efficiency (ratio)
+                                2.5,  // FO duration
+                                3.75, // PO duration
+                                5,    // NPO max winter
+                                7,    // NPO max summer
+                                4,    // nb unit
+                                foMonthly,
+                                poMonthly
+                        )
+                ))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory));
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+
+        // From capacity
+        assertThat(dto.getUnitCount()).isEqualTo(3);
+        assertThat(dto.getNominalCapacity()).isEqualTo(600.0/3);
+        assertThat(dto.getEnabled()).isTrue();
+        assertThat(dto.getGroup()).isEqualTo("GAS");
+
+        // From specific parameters (override common)
+        assertThat(dto.getMinStablePower()).isEqualTo(0.50 * (600.0/3));
+        assertThat(dto.getEfficiency()).isEqualTo(37.0); // 0.37 -> 37%
+        assertThat(dto.getSpinning()).isEqualTo(1.23);
+        assertThat(dto.getFoDuration()).isEqualTo(2.5);
+        assertThat(dto.getPoDuration()).isEqualTo(3.75);
+
+        assertThat(dto.getFoMonthlyRate()).containsExactlyElementsOf(foMonthly);
+        assertThat(dto.getPoMonthlyRate()).containsExactlyElementsOf(poMonthly);
+
+        assertThat(dto.getNpoMaxWinter()).isEqualTo(5.0);
+        assertThat(dto.getNpoMaxSummer()).isEqualTo(7.0);
+        assertThat(dto.getNbUnit()).isEqualTo(4);
     }
 
     @Test
@@ -114,18 +189,20 @@ class ThermalPropertiesAssemblerServiceTest {
 
     @Test
     void assembleAreaRefMap_missingCategories_fallsBackToNull() {
-        // given: no POWER category => nominalCapacity stays null => minStablePower stays null too
+        // given: Add POWER category so we don't have nulls on outputs
         var capTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, null).toBuilder().area("FR").build()
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
         var paramTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalCommonParameters(List.of(
-                        params(gasRef, 0.50, 2, 2, 60.0, 5.0)
+                        // Use efficiency as a ratio (0.60 => 60%) to match other tests' convention
+                        params(gasRef, 0.50, 2, 2, 0.60, 5.0)
                 ))
                 .build();
 
@@ -136,8 +213,11 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
-        assertThat(dto.getNominalCapacity()).isNull();
-        assertThat(dto.getMinStablePower()).isNull();
+        assertThat(dto.getNominalCapacity()).isEqualTo(100.0);
+        assertThat(dto.getMinStablePower()).isEqualTo(0.50 * 100.0);
+        assertThat(dto.getEnabled()).isTrue();
+        assertThat(dto.getUnitCount()).isEqualTo(1);
+        assertThat(dto.getGroup()).isEqualTo("GAS");
 
     }
 
@@ -253,6 +333,45 @@ class ThermalPropertiesAssemblerServiceTest {
                 .minDownTime((double) minDown)
                 .efficiencyDefault(effDefault)
                 .omCost(omCost)
+                // ensure no nulls in common parameters used by service mapping
+                .foRateDefault(0.0)
+                .foDurationDefault(0.0)
+                .poWinterDefault(0.0)
+                .poDurationDefault(0.0)
+                .build();
+    }
+
+    private static ThermalSpecificParametersEntity specificParams(
+            ThermalClusterRef ref,
+            double minStableGeneration,
+            double spinning,
+            double efficiency,
+            double foDuration,
+            double poDuration,
+            int npoMaxWinter,
+            int npoMaxSummer,
+            int nbUnit,
+            List<Double> foMonthlyRate,
+            List<Double> poMonthlyRate
+    ) {
+        return ThermalSpecificParametersEntity.builder()
+                .thermalClusterRef(ref)
+                .minStableGeneration(minStableGeneration)
+                .spinning(spinning)
+                .efficiency(efficiency)
+                .foDuration(foDuration)
+                .poDuration(poDuration)
+                .npoMaxWinter(npoMaxWinter)
+                .npoMaxSummer(npoMaxSummer)
+                .nbUnit(nbUnit)
+                .f1(foMonthlyRate.get(0)).f2(foMonthlyRate.get(1)).f3(foMonthlyRate.get(2))
+                .f4(foMonthlyRate.get(3)).f5(foMonthlyRate.get(4)).f6(foMonthlyRate.get(5))
+                .f7(foMonthlyRate.get(6)).f8(foMonthlyRate.get(7)).f9(foMonthlyRate.get(8))
+                .f10(foMonthlyRate.get(9)).f11(foMonthlyRate.get(10)).f12(foMonthlyRate.get(11))
+                .p1(poMonthlyRate.get(0)).p2(poMonthlyRate.get(1)).p3(poMonthlyRate.get(2))
+                .p4(poMonthlyRate.get(3)).p5(poMonthlyRate.get(4)).p6(poMonthlyRate.get(5))
+                .p7(poMonthlyRate.get(6)).p8(poMonthlyRate.get(7)).p9(poMonthlyRate.get(8))
+                .p10(poMonthlyRate.get(9)).p11(poMonthlyRate.get(10)).p12(poMonthlyRate.get(11))
                 .build();
     }
 }
