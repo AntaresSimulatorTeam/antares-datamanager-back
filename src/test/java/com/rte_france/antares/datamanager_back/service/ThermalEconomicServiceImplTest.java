@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicCo2Entity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicEnerContentEntity;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -110,26 +112,14 @@ class ThermalEconomicServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicCo2ParameterValuesList_shouldSkipRowsNotMatchingHorizonFromGeneratedExcel() throws Exception {
-        Path temp = generateExcelFileWithCo2Rows(java.util.List.of(
-                new String[]{"Gas", "FR", "2024", "100.5", "kg", "comment"},
-                new String[]{"Oil", "FR", "2025", "200.0", "kg", "comment2"}
-        ));
-        try {
-            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2022-2023", 1);
-            assertTrue(result.isEmpty());
-        } finally {
-            Files.deleteIfExists(temp);
-        }
-    }
-
-
-    @Test
     void buildThermalEconomicCo2ParameterValuesList_shouldReturnEmptyListWhenSheetMissingInGeneratedExcel() throws Exception {
         Path temp = generateExcelFileWithDifferentSheet();
         try {
-            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1);
-            assertTrue(result.isEmpty());
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
+            );
+            assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_Emission tab"));
         } finally {
             Files.deleteIfExists(temp);
         }
