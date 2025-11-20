@@ -277,23 +277,28 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .message("could not build thermal_capacity cluster  list : " + e.getMessage())
                     .build();
         }
+
+        List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
+        List<ThermalClusterCapacityEntity> filteredCapacities = capacities.stream()
+                .filter(capacity -> !studyAreas.contains(capacity.getArea()))
+                .toList();
+
         String checksum = calculateChecksum(checksumBuilder.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(path, horizon, area, technology);
 
         handleChecksumAndVersion(dto, existingTrajectory, checksum, path);
 
-        checkPowerAndNumberWithSameToUse(capacities, path.getFileName().toString());
+        checkPowerAndNumberWithSameToUse(filteredCapacities, path.getFileName().toString());
 
-        thermalControlService.verifyClustersInCommonParamTrajectory(studyId, horizon, capacities);
-        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities);
+        thermalControlService.verifyClustersInCommonParamTrajectory(studyId, horizon, filteredCapacities);
+        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, horizon, filteredCapacities);
 
         if (area.equals(OTHERS_AREA)) {
-            List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
             log.info("Areas liés à l'étude récupérées : {}", studyAreas);
             warningMessage = buildWarningMessage(path, area, studyId, isSpecificAreaFound, otherAreas, studyAreas);
         }
-        log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), capacities.size());
-        dto.setThermalClusterCapacities(capacities);
+        log.info("Fin du traitement du fichier THERMAL Installed Power : {} ({} clusters trouvés)", path.getFileName(), filteredCapacities.size());
+        dto.setThermalClusterCapacities(filteredCapacities);
         dto.setWarningMessage(warningMessage);
 
         return dto;

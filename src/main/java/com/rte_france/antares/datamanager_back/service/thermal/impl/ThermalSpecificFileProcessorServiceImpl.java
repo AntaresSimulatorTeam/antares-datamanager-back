@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
@@ -73,13 +74,14 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             }
             validateHeaderColumns(header, trajectoryName);
 
+            List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
 
             for (Row row : sheet) {
                 if (row.getRowNum() <= 2) continue; // skip headers/metadata lines (data from line 4)
 
                 String rowArea = castString(getCellValue(row, 0));
                 rowArea = rowArea == null ? null : rowArea.trim();
-                if (rowArea == null || rowArea.isBlank() || (!area.equals(OTHERS_AREA) && !rowArea.equals(area)) ) {
+                if (rowArea == null || rowArea.isBlank() || (!area.equals(OTHERS_AREA) && !rowArea.equals(area))  || !studyAreas.contains(rowArea.toUpperCase())) {
                     continue; // ignore empty lines
                 }
                 String rowAreaUpper = rowArea.toUpperCase();
@@ -95,7 +97,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
             if (specificParams.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("No area found in THERMAL Specific Param trajectory " + trajectoryName)
+                        .message("None of the areas of trajectory AREA are present in THERMAL Specific Param trajectory " + trajectoryName)
                         .build();
             }
             Set<String> specificClusters = specificParams.stream()
@@ -104,20 +106,6 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                     .collect(Collectors.toSet());
 
             thermalControlService.checkMissingClusters(studyId, horizon, specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area);
-
-
-            // Business rule: If none of the areas from the study's AREA trajectory are present in the file,
-            // raise a BusinessException for the THERMAL Specific Param trajectory, regardless of selected area.
-            List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
-            if (studyAreas != null && !studyAreas.isEmpty()) {
-                boolean anyPresent = otherAreas.stream().anyMatch(studyAreas::contains);
-                if (!anyPresent) {
-                    throw BusinessException.builder()
-                            .message("None of the areas of trajectory AREA are present in THERMAL Specific Param trajectory " + trajectoryName)
-                            .build();
-                }
-            }
-
 
             return specificParams;
         } catch (IOException e) {
@@ -141,7 +129,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
 
-        List<com.rte_france.antares.datamanager_back.repository.model.AreaEntity> areas = areaRepository.findAllByStudyId(studyId);
+        List<AreaEntity> areas = areaRepository.findAllByStudyId(studyId);
         if (areas == null) {
             return Collections.emptyList();
         }

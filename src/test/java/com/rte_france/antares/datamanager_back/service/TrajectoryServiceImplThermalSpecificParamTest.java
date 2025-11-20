@@ -108,7 +108,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         ArgumentCaptor<List<ThermalSpecificParametersEntity>> listCaptor = ArgumentCaptor.forClass(List.class);
         verify(thermalSpecificProcessorService).saveThermalSpecificTrajectory(any(TrajectoryEntity.class), listCaptor.capture(), eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER));
         List<ThermalSpecificParametersEntity> savedParams = listCaptor.getValue();
-        assertEquals(1, savedParams.size());
+        assertEquals(2, savedParams.size());
         assertEquals("FR", savedParams.get(0).getNode());
     }
 

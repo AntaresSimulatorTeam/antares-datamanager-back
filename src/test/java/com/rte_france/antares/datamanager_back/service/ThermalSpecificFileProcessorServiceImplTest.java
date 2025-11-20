@@ -87,6 +87,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldProcessValidRowsAndReturnEntities() throws IOException {
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build(),AreaEntity.builder().id(1).name("DE").build()));
         when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
 
@@ -123,6 +124,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainText() throws IOException {
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
         when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a text in a numeric column (index 5)
@@ -140,6 +142,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainNegativeValue() throws IOException {
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
         when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a negative number in a numeric column (index 5 -> min_stable_generation)
@@ -179,6 +182,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
         String horizon = "2025-2026";
         Path file = tempDir.resolve("specific_param_test.xlsx");
         Files.write(file, generateSpecificParametersExcelFile(horizon));
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("NODE-A").build()));
 
         // clusters must exist and be resolvable
         when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
