@@ -280,11 +280,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
 
-        List<ThermalSpecificParametersEntity> filteredParams = params.stream()
-                .filter(p -> p.getNode() != null && studyAreas.contains(p.getNode().toUpperCase()))
-                .toList();
-
-
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
 
         TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null);
@@ -326,7 +321,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             trajectory.setWarningMessages(Set.of(warning));
         }
 
-        return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, filteredParams, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
+        return thermalSpecificProcessorService.saveThermalSpecificTrajectory(trajectory, params, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
 
     }
 
