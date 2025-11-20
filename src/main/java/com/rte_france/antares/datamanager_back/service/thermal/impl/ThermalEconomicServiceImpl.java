@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicCo2Entity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicEnerContentEntity;
@@ -42,7 +43,14 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
-            return parseCo2Sheet(sheet, horizon);
+            List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon);
+            if(thermalEconomicCo2EntityList.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_Emission tab")
+                        .errorMessageArguments(List.of(horizon))
+                        .build();
+            }
+            return thermalEconomicCo2EntityList;
         }
     }
 
