@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
-import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -228,8 +227,6 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
             String areaKey = areaCluster.toLowerCase();
             // n'autoriser la création que si la colonne est dans la liste des clusters spécifiques
             if (!listSpecificParamClusters.contains(areaKey)) continue;
-
-           // String safeName = areaCluster.replaceAll("[^A-Za-z0-9_\\-]", "_");
             Path out = targetDir.resolve(baseName + "_" + areaCluster + ".csv");
 
             BufferedWriter bw = Files.newBufferedWriter(out,
@@ -239,9 +236,6 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
 
             writers.put(i, bw);
             generatedFiles.add(out);
-
-          //  bw.write("DATE_HEURE;heure;" + areaCluster);
-           // bw.newLine();
         }
 
         return writers;
@@ -257,15 +251,11 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
             String[] fields = line.split(";");
             if (fields.length < 2) continue;
 
-          //  String date = fields[0].trim();
-         //   String hour = fields[1].trim();
-
             for (int i = 2; i < columns.length; i++) {
                 BufferedWriter bw = writers.get(i);
                 if (bw == null) continue;
 
                 String value = (i < fields.length) ? fields[i].trim() : "";
-              //  bw.write(date + ";" + hour + ";" + value);
                 bw.write(value);
                 bw.newLine();
             }

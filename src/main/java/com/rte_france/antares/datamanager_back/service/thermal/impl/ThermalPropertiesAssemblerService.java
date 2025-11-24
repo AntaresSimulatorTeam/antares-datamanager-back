@@ -88,10 +88,6 @@ public class ThermalPropertiesAssemblerService {
         //example file name : MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Other Gas conventional old 2.csv.6401800f-8425-49d5-a42b-e89cb1e8a293.arrow
         //area : BE
         //cluster name : Other Gas conventional old 2
-
-        if(areaClusterRefKey.area.equals("BE") && areaClusterRefKey.thermalClusterRef.getName().equals("Other Gas conventional old 2")) {
-            log.info("stop ici");
-        }
         return splitedTsFileNameList.stream()
                 .filter(fileName -> 
                         fileName.contains("_" + areaClusterRefKey.area() + "_" + areaClusterRefKey.thermalClusterRef().getName() + ".csv"))
