@@ -318,7 +318,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                     .filter(e -> e.getArea().equals(area) || area.equals(OTHERS_AREA))
                     .map(e -> String.format("%s/%s",
                             e.getThermalClusterRef().getName(),
-                            Optional.ofNullable(e.getArea()).orElse("")))
+                            Optional.of(e.getArea()).orElse("")))
                     .collect(Collectors.toSet());
         }
     }

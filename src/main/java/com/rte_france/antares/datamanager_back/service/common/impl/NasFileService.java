@@ -2,6 +2,9 @@ package com.rte_france.antares.datamanager_back.service.common.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -13,12 +16,19 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NasFileService {
+
+    private final TimeSeriesReader reader;
+
+    private final TimeSeriesWriter writer;
+
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
@@ -47,7 +57,7 @@ public class NasFileService {
      * @param content  the content to save in the file
      * @throws IOException if an I/O error occurs or if the file name is invalid
      */
-    public void saveFile(String filename, byte[] content) throws IOException {
+    public void saveFile(String filename, byte[] content, String outputDir) throws IOException {
         Objects.requireNonNull(filename, "filename must not be null");
         Objects.requireNonNull(content, "content must not be null");
 
@@ -58,14 +68,13 @@ public class NasFileService {
         }
 
         String nasDir = antaressDataManagerProperties.getNasDirectory();
-        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
 
         Path nasPath = Path.of(nasDir).toAbsolutePath().normalize();
 
-        Path relativeOutputDir = Path.of(outputLoadDir);
+        Path relativeOutputDir = Path.of(outputDir);
         if (relativeOutputDir.isAbsolute()) {
             throw TechnicalException.builder()
-                    .message("Output directory must be a relative path: " + outputLoadDir)
+                    .message("Output directory must be a relative path: " + outputDir)
                     .build();
         }
 
@@ -84,6 +93,34 @@ public class NasFileService {
 
         // Écriture du fichier
         Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    /**
+     * Saves a time series matrix read from the given path to NAS with a unique filename.
+     *
+     * @param inputPath Path to input .txt file
+     * @return Saved filename
+     * @throws IOException on read/write failure
+     */
+    public String saveMatrixToNas(Path inputPath, String outputDir) throws IOException {
+        var matrix = reader.readFromTxt(inputPath);
+        var outputFileName = generateUniqueFileName(inputPath);
+        saveMatrix(outputFileName, matrix, outputDir);
+        setFilePermissions(inputPath);
+        return outputFileName;
+    }
+
+    private String generateUniqueFileName(Path inputPath) {
+        return inputPath.getFileName() + "." + UUID.randomUUID() + "." + writer.getDefaultFileExtension();
+    }
+
+    private void saveMatrix(String fileName, TimeSeriesMatrix matrix, String outputDir) throws IOException {
+        byte[] data = writer.writeToByteArray(matrix);
+        saveFile(fileName, data, outputDir);
+    }
+
+    private void setFilePermissions(Path path) throws IOException {
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
     }
 
 }

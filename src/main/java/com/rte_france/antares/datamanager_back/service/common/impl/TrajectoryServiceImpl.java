@@ -62,7 +62,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
-    private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
     private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
@@ -83,6 +82,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final UserService userService;
 
     private final LoadRepository loadRepository;
+
+    private final ThermalParamModulationService thermalParamModulationService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -366,7 +367,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 studyId, trajectoryFilePath.resolve(mrFileName), mrFileName, thermalModulationParameters, mrFile, "MR");
 
 
-        return thermalFileProcessorService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+        return thermalParamModulationService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
     }
 
     @Override
@@ -794,31 +795,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         );
     }
 
-    private Optional<Path> findFile(Path directory, String fileName) throws IOException {
-        Path baseDir = directory.toRealPath().normalize();
-
-        // Reject dangerous path input
-        Path target = baseDir.resolve(fileName).normalize();
-        if (!target.startsWith(baseDir)) {
-            throw new SecurityException("Invalid file path: path traversal attempt detected");
-        }
-
-        try (var files = Files.list(baseDir)) {
-            return files
-                    .filter(p -> p.getFileName().toString().equals(target.getFileName().toString()))
-                    .findFirst();
-        }
-    }
-
 
     private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
 
-        List<ThermalSpecificParametersEntity> params = thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon);
-
-        Set<String> listClusterByAreaForMrSpecificParam = params.stream()
-                .filter(p -> Objects.equals(p.getMrSpecific(), 1))
-                .map(p -> (p.getArea() + "_" + p.getThermalClusterRef().getName()).toLowerCase())
-                .collect(Collectors.toSet());
+        Set<String> listClusterByAreaForMrSpecificParam = getListClusterByAreaForMrSpecificParam(horizon, studyId);
 
         Set<String> missingClusters = listClusterByAreaForMrSpecificParam.stream()
                 .filter(cluster -> !clustersInFile.contains(cluster))
@@ -836,12 +816,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
 
-        List<ThermalSpecificParametersEntity> params = thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon);
-
-        Set<String> listClusterByAreaForCmSpecificParam = params.stream()
-                .filter(p -> Objects.equals(p.getCmSpecific(), 1))
-                .map(p -> (p.getArea() + "_" + p.getThermalClusterRef().getName()).toLowerCase())
-                .collect(Collectors.toSet());
+        Set<String> listClusterByAreaForCmSpecificParam = getListClusterByAreaForCmSpecificParam(horizon, studyId);
 
         Set<String> missingClusters = listClusterByAreaForCmSpecificParam.stream()
                 .filter(cluster -> !clustersInFile.contains(cluster))
@@ -856,6 +831,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
+    private Set<String> getListClusterByAreaForMrSpecificParam(String horizon, Integer studyId) {
+        return thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true);
+    }
+
+    private Set<String> getListClusterByAreaForCmSpecificParam(String horizon, Integer studyId) {
+        return thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, false);
+    }
 
     public List<String> extractClustersFromCsvHeader(Path normalized) throws IOException {
         try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {

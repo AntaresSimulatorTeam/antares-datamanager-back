@@ -56,7 +56,7 @@ public final class TimeSeriesReader {
         values = iterator.next().split("\\s+");
       }
       for (var j = 0; j < values.length; j++) {
-        data[j][rowIndex] = Double.parseDouble(values[j]);
+        data[j][rowIndex] = Double.parseDouble(values[j].replace(',', '.'));
       }
       rowIndex++;
     }

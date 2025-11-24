@@ -9,14 +9,7 @@ import java.nio.file.Path;
 import java.util.Set;
 
 public interface LoadFileProcessorService {
-    /**
-     * Processes a load file and returns a trajectory entity.
-     *
-     * @param path the path to the load file
-     * @return the processed trajectory entity
-     * @throws IOException if an I/O error occurs
-     */
-  String saveMatrixToNas(Path path) throws IOException;
+
   /**
    * Processes a load file and returns a trajectory entity.
    *

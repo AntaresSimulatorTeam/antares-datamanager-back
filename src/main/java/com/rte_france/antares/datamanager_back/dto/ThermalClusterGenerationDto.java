@@ -22,6 +22,7 @@ public class ThermalClusterGenerationDto {
     public static class ThermalClusterViews {
         public interface Properties {}
         public interface Data {}
+        public interface ParamModulation {}
     }
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("enabled")
@@ -207,5 +208,9 @@ public class ThermalClusterGenerationDto {
     @JsonView(ThermalClusterViews.Data.class)
     @JsonProperty("po_monthly_rate")
     private List<Double> poMonthlyRate;
+
+    @JsonView(ThermalClusterViews.ParamModulation.class)
+    @JsonProperty("modulation")
+    private List<String> paramModulationTsList;
 
 }

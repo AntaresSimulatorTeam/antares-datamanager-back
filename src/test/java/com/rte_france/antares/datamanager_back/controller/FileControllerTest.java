@@ -67,7 +67,7 @@ class FileControllerTest {
 
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertEquals("Fichier uploadé avec succès !", response.getBody());
-    verify(nasFileService, times(1)).saveFile(anyString(), eq(content));
+    verify(nasFileService, times(1)).saveFile(anyString(), eq(content), anyString());
   }
 
   @Test
@@ -80,7 +80,7 @@ class FileControllerTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     assertEquals("Invalid file name: " + filename, response.getBody());
-    verify(nasFileService, never()).saveFile(anyString(), any());
+    verify(nasFileService, never()).saveFile(anyString(), any(), anyString());
   }
 
   @Test
@@ -90,7 +90,7 @@ class FileControllerTest {
     var file = new MockMultipartFile("file", filename, "text/plain", content);
     when(properties.getNasDirectory()).thenReturn("/nas");
 
-    doThrow(new IOException("Path outside of target")).when(nasFileService).saveFile(anyString(), eq(content));
+    doThrow(new IOException("Path outside of target")).when(nasFileService).saveFile(anyString(), eq(content), anyString());
 
     assertThrows(IOException.class, () -> fileController.uploadFile(file));
   }

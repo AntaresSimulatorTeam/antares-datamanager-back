@@ -115,31 +115,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), thermalClusterCapacityDto, type);
     }
 
-    /**
-     * Processes a thermal modulation parameter file and saves the corresponding trajectory.
-     *
-     * @param path                               The path to the thermal modulation parameter file.
-     * @param horizon                            The horizon for the trajectory.
-     * @param thermalModulationParameterEntities The list of thermal modulation parameter entities.
-     * @param type                               The type of trajectory.
-     * @return The saved trajectory entity.
-     * @throws IOException If an error occurs while processing the file.
-     */
-    @Override
-    public TrajectoryEntity processThermalModulationParameterFile(Path path, String horizon, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) throws IOException {
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        // Find existing trajectory for the same file name/horizon/type
-        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(path.getFileName().toString(), horizon, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.name());
-
-        TrajectoryEntity trajectory;
-
-        int version = existingOpt.isPresent() && checkParamModulationTrajectoryVersion(thermalModulationParameterEntities, existingOpt.get()) ? existingOpt.get().getVersion() : 0;
-
-        trajectory = buildTrajectory(path, version, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null);
-
-        return saveThermalParamModulationTrajectory(trajectory, thermalModulationParameterEntities, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
-    }
-
     @Override
     public TrajectoryEntity processThermalEconomicCostsAndRatesFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, List<ThermalCostsRateEntity> thermalEconomicRates, TrajectoryType type) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
@@ -165,21 +140,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(trajectory, thermalEconomicCosts, thermalEconomicRates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
-    /**
-     * Saves a thermal modulation parameter trajectory.
-     *
-     * @param trajectory                         The trajectory entity to save.
-     * @param thermalModulationParameterEntities The list of thermal modulation parameter entities.
-     * @param type                               The type of trajectory.
-     * @return The saved trajectory entity.
-     */
-    @Override
-    public TrajectoryEntity saveThermalParamModulationTrajectory(TrajectoryEntity trajectory, List<ThermalModulationParameterEntity> thermalModulationParameterEntities, TrajectoryType type) {
-        trajectory.setType(type.name());
-        thermalModulationParameterEntities.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectory));
-        trajectory.setThermalModulationParameters(thermalModulationParameterEntities);
-        return trajectoryRepository.save(trajectory);
-    }
+
 
     /**
      * Saves a thermal capacities trajectory.
@@ -280,7 +241,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
         List<ThermalClusterCapacityEntity> filteredCapacities = capacities.stream()
-                .filter(capacity -> !studyAreas.contains(capacity.getArea()))
+                .filter(capacity -> studyAreas.contains(capacity.getArea()))
                 .toList();
 
         String checksum = calculateChecksum(checksumBuilder.toString());

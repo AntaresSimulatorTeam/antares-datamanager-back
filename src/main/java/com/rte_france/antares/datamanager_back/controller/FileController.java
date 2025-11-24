@@ -51,7 +51,7 @@ public class FileController {
             throw TechnicalException.builder().message("Path outside of target: " + targetPath).build();
         }
 
-        nasFileService.saveFile(targetPath.toString(), file.getBytes());
+        nasFileService.saveFile(targetPath.toString(), file.getBytes(),"directory");
         return ResponseEntity.ok("Fichier uploadé avec succès !");
     }
 }

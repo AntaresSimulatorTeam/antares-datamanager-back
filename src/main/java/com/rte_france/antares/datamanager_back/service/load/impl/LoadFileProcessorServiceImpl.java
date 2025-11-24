@@ -30,9 +30,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
-    private final NasFileService nasFileService;
-    private final TimeSeriesReader reader;
-    private final TimeSeriesWriter writer;
+
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
     private final WarningService warningService;
@@ -40,33 +38,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
 
     private static final String OTHER_AREA = "OTHERS";
 
-    /**
-     * Saves a time series matrix read from the given path to NAS with a unique filename.
-     *
-     * @param inputPath Path to input .txt file
-     * @return Saved filename
-     * @throws IOException on read/write failure
-     */
-    public String saveMatrixToNas(Path inputPath) throws IOException {
-        var matrix = reader.readFromTxt(inputPath);
-        var outputFileName = generateUniqueFileName(inputPath);
-        saveMatrix(outputFileName, matrix);
-        setFilePermissions(inputPath);
-        return outputFileName;
-    }
 
-    private String generateUniqueFileName(Path inputPath) {
-        return inputPath.getFileName() + "." + UUID.randomUUID() + "." + writer.getDefaultFileExtension();
-    }
-
-    private void saveMatrix(String fileName, TimeSeriesMatrix matrix) throws IOException {
-        byte[] data = writer.writeToByteArray(matrix);
-        nasFileService.saveFile(fileName, data);
-    }
-
-    private void setFilePermissions(Path path) throws IOException {
-        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
-    }
 
     @Override
     public Set<WarningMessageEntity> checkForMissingLoadFiles(Path trajectoryPath, String horizon, Integer studyId,

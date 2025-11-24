@@ -12,10 +12,12 @@ import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
-import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,7 +26,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,22 +40,22 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
+    private final NasFileService nasFileService;
+
+
     private final StudyRepository studyRepository;
 
     private final LoadRepository loadRepository;
-
-    private final NasFileService nasFileService;
 
     private final WebClient webClient;
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
-    private final LoadFileProcessorService loadFileProcessorService;
-
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String DATA = "data";
+    private static final String PARAM_MODULATION = "modulation";
 
     private static final String MATRIX_HASH = "matrix hash";
 
@@ -62,7 +67,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             String generatorJson = objectMapper.writeValueAsString(jsonStudyDataForGeneration);
-            nasFileService.saveFile(studyId + ".json", generatorJson.getBytes());
+            String studyJsonDir = antaressDataManagerProperties.getStudyJsonOutputDirectory();
+            nasFileService.saveFile(studyId + ".json", generatorJson.getBytes(), studyJsonDir);
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("Erreur lors de la génération du fichier JSON : " + e)
@@ -85,17 +91,17 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Map<String, Object> linksMap = new TreeMap<>();
 
             for (TrajectoryEntity trajectory : trajectories) {
-                var trajectoryType =  TrajectoryType.valueOf(trajectory.getType());
+                var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
 
                 switch (trajectoryType) {
                     case AREA -> buildAreasDataMap(study, trajectory, areasMap);
                     case LINK -> buildLinksDataMap(trajectory, linksMap);
                     case LOAD ->
                             log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
-                    case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER ,THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
+                    case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
+                         THERMAL_TECHNICAL_SPECIFIC_PARAMETER , THERMAL_TECHNICAL_MODULATION_PARAMETER->
                             log.warn("Thermal trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
-                    default ->
-                            throw TechnicalException.builder().message("Unhandled type: " + trajectoryType).build();
+                    default -> throw TechnicalException.builder().message("Unhandled type: " + trajectoryType).build();
                 }
             }
 
@@ -116,96 +122,95 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return jsonForGenerator;
     }
 
-  public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
-    Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
-    return studyEntity.getTrajectories().stream()
-            .filter(this::isLoadTrajectoryWithEntities)
-            .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern))
-            .collect(Collectors.groupingBy(
-                    Map.Entry::getKey,
-                    Collectors.mapping(Map.Entry::getValue, Collectors.toList())
-            ));
-  }
-  private boolean isLoadTrajectoryWithEntities(TrajectoryEntity trajectory) {
-    return "LOAD".equals(trajectory.getType())
-            && trajectory.getLoadEntities() != null
-            && !trajectory.getLoadEntities().isEmpty();
-  }
-
-  private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
-    if ("OTHERS".equals(trajectory.getArea())) {
-      return trajectory.getLoadEntities().stream()
-              .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
-              .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
-    } else {
-        return trajectory.getLoadEntities().stream()
-                .map(loadEntity -> {
-                    processLoadEntityWithPattern(loadEntity, trajectory, pattern);
-                    return Map.entry(trajectory.getArea().toUpperCase(), loadEntity.getOutPutFileName());
-                });
-
+    public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
+        Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
+        return studyEntity.getTrajectories().stream()
+                .filter(this::isLoadTrajectoryWithEntities)
+                .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern))
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
     }
-  }
 
-  private Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern) {
-    if (loadEntity.getOutPutFileName() == null) {
-      String outputFileName = generateAndSaveOutputFileName(loadEntity, trajectory);
-      loadEntity.setOutPutFileName(outputFileName);
-      loadRepository.save(loadEntity);
+    private boolean isLoadTrajectoryWithEntities(TrajectoryEntity trajectory) {
+        return "LOAD".equals(trajectory.getType())
+                && trajectory.getLoadEntities() != null
+                && !trajectory.getLoadEntities().isEmpty();
     }
-    String area = extractAreaFromFileName(loadEntity.getOutPutFileName(), pattern);
-    return Map.entry(area, loadEntity.getOutPutFileName());
-  }
 
-  private String generateAndSaveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory) {
-    var inputTxtFilePath = Paths.get(
-            antaressDataManagerProperties.getNasDirectory(),
-            antaressDataManagerProperties.getTrajectoryFilePath(),
-            antaressDataManagerProperties.getLoadDirectory(),
-            trajectory.getFileName(),
-            loadEntity.getFileName()
-    ).normalize();
+    private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
+        if ("OTHERS".equals(trajectory.getArea())) {
+            return trajectory.getLoadEntities().stream()
+                    .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
+                    .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
+        } else {
+            return trajectory.getLoadEntities().stream()
+                    .map(loadEntity -> {
+                        processLoadEntityWithPattern(loadEntity, trajectory, pattern);
+                        return Map.entry(trajectory.getArea().toUpperCase(), loadEntity.getOutPutFileName());
+                    });
 
-    try {
-      return loadFileProcessorService.saveMatrixToNas(inputTxtFilePath);
-    } catch (IOException e) {
-      throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
+        }
     }
-  }
 
-  private String extractAreaFromFileName(String fileName, Pattern pattern) {
-    var matcher = pattern.matcher(fileName);
-    return matcher.find() ? matcher.group(1).toUpperCase() : "OTHERS";
-  }
+    private Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern) {
+        if (loadEntity.getOutPutFileName() == null) {
+            String outputFileName = generateAndSaveOutputFileName(loadEntity, trajectory);
+            loadEntity.setOutPutFileName(outputFileName);
+            loadRepository.save(loadEntity);
+        }
+        String area = extractAreaFromFileName(loadEntity.getOutPutFileName(), pattern);
+        return Map.entry(area, loadEntity.getOutPutFileName());
+    }
 
-  private boolean isLoadLinkedToStudy(LoadEntity loadEntity, int studyId) {
-    return loadEntity.getTrajectoryEntities().stream()
-            .flatMap(traj -> traj.getScenarioEntities().stream())
-            .anyMatch(study -> study.getId().equals(studyId));
-  }
+    private String generateAndSaveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory) {
+        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
+        var inputTxtFilePath = Paths.get(
+                antaressDataManagerProperties.getNasDirectory(),
+                antaressDataManagerProperties.getTrajectoryFilePath(),
+                antaressDataManagerProperties.getLoadDirectory(),
+                trajectory.getFileName(),
+                loadEntity.getFileName()
+        ).normalize();
+
+        try {
+            return nasFileService.saveMatrixToNas(inputTxtFilePath, outputLoadDir);
+        } catch (IOException e) {
+            throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
+        }
+    }
+
+    private String extractAreaFromFileName(String fileName, Pattern pattern) {
+        var matcher = pattern.matcher(fileName);
+        return matcher.find() ? matcher.group(1).toUpperCase() : "OTHERS";
+    }
+
+    private boolean isLoadLinkedToStudy(LoadEntity loadEntity, int studyId) {
+        return loadEntity.getTrajectoryEntities().stream()
+                .flatMap(traj -> traj.getScenarioEntities().stream())
+                .anyMatch(study -> study.getId().equals(studyId));
+    }
 
     private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
 
-        List<AreaConfigEntity> areaList = trajectory.getAreaConfigEntities();
-
-        List<AreaEntity> areasEntities = areaList.stream()
+        List<AreaDTO> areaDTOs = trajectory.getAreaConfigEntities().stream()
                 .map(AreaConfigEntity::getArea)
+                .map(AreaMapper::toAreaDto)
                 .toList();
 
-
-        List<AreaDTO> areaDTOs = AreaMapper.toAreaDTOs(areasEntities);
-
-
+        // Get LOAD files by area from all study trajectories
         Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
 
-       var areaRefProps = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity.getTrajectories());
+        // Get thermal cluster generation DTOs for all trajectories in the study
+        var areaClusterRefThermalClusterGenerationDtoMap = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity);
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
                         areaDTO -> areasMapGenerator(
                                 listArrowLoadFilesByArea.get(areaDTO.getName()),
-                                getClusterPropsForArea(areaRefProps, areaDTO.getName())
+                                getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName())
                         )
                 ));
 
@@ -213,11 +218,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     }
 
-    private static Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
+    private static Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaClusterRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
         return areaRefProps.entrySet().stream()
                 .filter(e -> e.getKey().area().equalsIgnoreCase(areaName))
                 .collect(Collectors.toMap(
-                        e -> e.getKey().area().toUpperCase(Locale.ROOT) + "_" + e.getKey().ref().getName(),
+                        e -> e.getKey().area().toUpperCase(Locale.ROOT) + "_" + e.getKey().thermalClusterRef().getName(),
                         Map.Entry::getValue,
                         (a, b) -> a,
                         LinkedHashMap::new
@@ -273,16 +278,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private static final ObjectMapper PROPERTIES_MAPPER = new ObjectMapper()
-            .setConfig(new ObjectMapper().getSerializationConfig()
-                    .withView(ThermalClusterGenerationDto.ThermalClusterViews.Properties.class));
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalClusterGenerationDto.ThermalClusterViews.Properties.class));
 
     private static final ObjectMapper DATA_MAPPER = new ObjectMapper()
-            .setConfig(new ObjectMapper().getSerializationConfig()
-                    .withView(ThermalClusterGenerationDto.ThermalClusterViews.Data.class));
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalClusterGenerationDto.ThermalClusterViews.Data.class));
 
-    private static Map<String, Object> thermalsMapGenerator(
-            Map<String, ThermalClusterGenerationDto> clusterProps
-    ) {
+    private static final ObjectMapper PARAM_MODULATION_MAPPER = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalClusterGenerationDto.ThermalClusterViews.ParamModulation.class));
+
+    private static Map<String, Object> thermalsMapGenerator(Map<String, ThermalClusterGenerationDto> clusterProps) {
         if (clusterProps == null || clusterProps.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -291,13 +295,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         clusterProps.forEach((clusterName, dto) -> {
 
-            Map<String, Object> propertiesMap = PROPERTIES_MAPPER.convertValue(
-                    dto, new TypeReference<>() {
-                    });
+            Map<String, Object> propertiesMap = PROPERTIES_MAPPER.convertValue(dto, new TypeReference<>() {});
 
-            Map<String, Object> dataMap = DATA_MAPPER.convertValue(
-                    dto, new TypeReference<>() {
-                    });
+            Map<String, Object> dataMap = DATA_MAPPER.convertValue(dto, new TypeReference<>() {});
+
+            Map<String, Object> paramModulation = PARAM_MODULATION_MAPPER.convertValue(dto, new TypeReference<>() {});
 
             Map<String, Object> clusterData = new LinkedHashMap<>();
             clusterData.put(PROPERTIES, propertiesMap);
@@ -305,14 +307,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             clusterData.put("fuel_cost", MATRIX_HASH);
             clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put(DATA, dataMap);
-            clusterData.put("modulation", MATRIX_HASH);
+            clusterData.put("modulation", dto.getParamModulationTsList());
+          //  clusterData.put(PARAM_MODULATION, paramModulation);
 
             clusterMap.put(clusterName, clusterData);
         });
 
         return clusterMap;
     }
-
 
 
     private static Map<String, Object> linksMapGenerator() {
