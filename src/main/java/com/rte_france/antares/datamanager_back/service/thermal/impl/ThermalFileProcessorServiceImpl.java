@@ -280,7 +280,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
         List<ThermalClusterCapacityEntity> filteredCapacities = capacities.stream()
-                .filter(capacity -> !studyAreas.contains(capacity.getArea()))
+                .filter(capacity -> studyAreas.contains(capacity.getArea()))
                 .toList();
 
         String checksum = calculateChecksum(checksumBuilder.toString());
