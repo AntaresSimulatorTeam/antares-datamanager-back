@@ -41,6 +41,12 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.load.output.directory}")
     public String outputLoadDirectory;
 
+    @Value("${antares.datamanager.thermal.modulation.output.directory}")
+    public String paramModulationOutputDirectory;
+
+    @Value("${antares.datamanager.study.json.output.directory}")
+    public String studyJsonOutputDirectory;
+
     @Value("${pegase.nas.directory}")
     public String nasDirectory;
 

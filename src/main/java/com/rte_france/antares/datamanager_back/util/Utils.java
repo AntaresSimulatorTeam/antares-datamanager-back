@@ -27,10 +27,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -594,4 +591,19 @@ public class Utils {
         return o == null ? "" : o.toString();
     }
 
+    public static Optional<Path> findFile(Path directory, String fileName) throws IOException {
+        Path baseDir = directory.toRealPath().normalize();
+
+        // Reject dangerous path input
+        Path target = baseDir.resolve(fileName).normalize();
+        if (!target.startsWith(baseDir)) {
+            throw new SecurityException("Invalid file path: path traversal attempt detected");
+        }
+
+        try (var files = Files.list(baseDir)) {
+            return files
+                    .filter(p -> p.getFileName().toString().equals(target.getFileName().toString()))
+                    .findFirst();
+        }
+    }
 }

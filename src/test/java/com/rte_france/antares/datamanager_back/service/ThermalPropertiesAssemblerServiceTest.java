@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalGroupMappingService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -23,6 +25,9 @@ class ThermalPropertiesAssemblerServiceTest {
 
     @Mock
     private ThermalGroupMappingService groupMappingService;
+
+    @Mock
+    private ThermalParamModulationService paramModulationService;
 
     @InjectMocks
     private ThermalPropertiesAssemblerService service;
@@ -34,6 +39,7 @@ class ThermalPropertiesAssemblerServiceTest {
     void init() {
         gasRef = ThermalClusterRef.builder().name("Gas1").build();
         nucRef = ThermalClusterRef.builder().name("NuclearA").build();
+        when(paramModulationService.createMatrixParamModulationTsFiles(any())).thenReturn(List.of());
     }
 
     @Test
@@ -84,10 +90,11 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory));
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory)).build();
+        var out = service.assembleForTrajectories(study);
 
         // then
-        var key = new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef);
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -135,11 +142,13 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build();
+
+        var out = service.assembleForTrajectories(study);
 
         // then
-        assertThat(out).hasSize(1).containsKey(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
-        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+        assertThat(out).hasSize(1).containsKey(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
         assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getUnitCount()).isEqualTo(3);
@@ -176,15 +185,16 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("NuclearA")).thenReturn(Optional.of("NUCLEAR"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
+
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
 
         // then
         assertThat(out.keySet()).containsExactlyInAnyOrder(
-                new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef),
-                new ThermalPropertiesAssemblerService.AreaRefKey("FR", nucRef)
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef),
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", nucRef)
         );
-        assertThat(out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef)).getGroup()).isEqualTo("GAS");
-        assertThat(out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", nucRef)).getGroup()).isEqualTo("NUCLEAR");
+        assertThat(out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef)).getGroup()).isEqualTo("GAS");
+        assertThat(out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", nucRef)).getGroup()).isEqualTo("NUCLEAR");
     }
 
     @Test
@@ -209,10 +219,10 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capTrajectory, paramTraj));
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTrajectory, paramTraj)).build());
 
         // then
-        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
         assertThat(dto.getNominalCapacity()).isEqualTo(100.0);
         assertThat(dto.getMinStablePower()).isEqualTo(0.50 * 100.0);
         assertThat(dto.getEnabled()).isTrue();
@@ -248,14 +258,14 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
 
         // then
         assertThat(out)
                 .hasSize(1)
-                .containsKey(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+                .containsKey(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
-        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
         assertThat(dto.getNominalCapacity()).isEqualTo(600.0/3);
         assertThat(dto.getUnitCount()).isEqualTo(3);
@@ -292,11 +302,11 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(Set.of(capTraj, paramTraj));
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
 
         // then
         assertThat(out).hasSize(1);
-        var dto = out.get(new ThermalPropertiesAssemblerService.AreaRefKey("FR", gasRef));
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
         // nominal capacity = max POWER / max NUMBER = 900 / 3 = 300.0
         assertThat(dto.getNominalCapacity()).isEqualTo(300.0);

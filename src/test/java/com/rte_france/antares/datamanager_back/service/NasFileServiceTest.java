@@ -3,6 +3,9 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,15 +23,30 @@ import static org.mockito.Mockito.*;
 
 class NasFileServiceTest {
 
+  @Mock
+  private TimeSeriesReader timeSeriesReader;
+
+  @Mock
+  private TimeSeriesWriter timeSeriesWriter;
+
+  @Mock
+  private TimeSeriesMatrix timeSeriesMatrix;
+
   @InjectMocks
   private NasFileService nasFileService;
 
   @Mock
   private AntaressDataManagerProperties antaressDataManagerProperties;
 
+  private static final String OUTPUT_DIRECTORY = "output";
+
+  @TempDir
+  private Path tempDir;
+
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
+    when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
   }
 
   @Test
@@ -60,9 +78,6 @@ class NasFileServiceTest {
     assertThrows(TechnicalException.class, () -> nasFileService.loadFile(filename));
   }
 
-  @TempDir
-  Path tempDir;
-
   @Test
   void saveFile_validInput() throws IOException {
     var filename = "validFile.txt";
@@ -71,9 +86,9 @@ class NasFileServiceTest {
     Files.createDirectories(targetDirectory);
 
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-    when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
+    when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn(OUTPUT_DIRECTORY);
 
-    nasFileService.saveFile(filename, content);
+    nasFileService.saveFile(filename, content,OUTPUT_DIRECTORY);
 
     var savedFile = targetDirectory.resolve(filename);
     assertTrue(Files.exists(savedFile));
@@ -84,14 +99,14 @@ class NasFileServiceTest {
   void saveFile_nullFilename() {
     var content = "test content".getBytes();
 
-    assertThrows(NullPointerException.class, () -> nasFileService.saveFile(null, content));
+    assertThrows(NullPointerException.class, () -> nasFileService.saveFile(null, content,OUTPUT_DIRECTORY));
   }
 
   @Test
   void saveFile_nullContent() {
     var filename = "validFile.txt";
 
-    assertThrows(NullPointerException.class, () -> nasFileService.saveFile(filename, null));
+    assertThrows(NullPointerException.class, () -> nasFileService.saveFile(filename, null,OUTPUT_DIRECTORY));
   }
 
   @Test
@@ -101,7 +116,7 @@ class NasFileServiceTest {
 
     when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
 
-    assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content));
+    assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content, OUTPUT_DIRECTORY));
   }
 
   @Test
@@ -114,6 +129,35 @@ class NasFileServiceTest {
     when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
     when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
 
-    assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content));
+    assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content, OUTPUT_DIRECTORY));
+  }
+
+
+  @Test
+  void processLoadFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+    var tempFile = tempDir.resolve("test-path.txt");
+    Files.createFile(tempFile);
+    Files.writeString(tempFile, "This is the content to be written to the file.");
+    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
+
+    assertDoesNotThrow(() -> nasFileService.saveMatrixToNas(tempFile, "loadOutputDir"));
+
+    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
+    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
+  }
+
+  @Test
+  void processLoadFile_whenTrajectoryDoesNotExist() throws IOException {
+    var tempFile = tempDir.resolve("test-path.txt");
+    Files.createFile(tempFile);
+    Files.writeString(tempFile, "This is the content to be written to the file.");
+    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
+
+    assertDoesNotThrow(() -> nasFileService.saveMatrixToNas(tempFile, "loadOutputDir"));
+
+    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
+    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
   }
 }

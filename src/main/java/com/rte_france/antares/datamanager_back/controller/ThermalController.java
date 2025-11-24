@@ -1,7 +1,11 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalParamModulationServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
@@ -9,12 +13,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 
@@ -24,6 +27,9 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @RequiredArgsConstructor
 public class ThermalController {
     private final TrajectoryService trajectoryService;
+    private final StudyRepository studyRepository;
+    private final ThermalParamModulationServiceImpl thermalParamModulationService;
+    private final ThermalSpecificFileProcessorService thermalSpecificFileProcessorService;
 
 
     @Operation(summary = "import thermal capacity trajectory to database ")
@@ -99,4 +105,14 @@ public class ThermalController {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
     }
+
+    @PostMapping("/split/{studyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<List<String>> splitCmAndMrByStudy(@PathVariable Integer studyId) {
+        StudyEntity study = studyRepository.findById(studyId).orElseThrow(() -> new IllegalArgumentException("Study not found with id: " + studyId));
+
+      List<String> splitCmAndMrFiles =  thermalParamModulationService.createMatrixParamModulationTsFiles(study);
+        return new ResponseEntity<>(splitCmAndMrFiles, HttpStatus.CREATED);
+    }
+
 }

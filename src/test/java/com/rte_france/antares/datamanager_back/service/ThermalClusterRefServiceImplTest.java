@@ -77,7 +77,7 @@ import static org.mockito.Mockito.atLeast;
 
     @Test
     void findOrCreateThermalClusterRef_whenExistingAndPemmdbIsNA_updatesAndSaves() {
-        // Given existing ref in cache with NA PEMMDB
+        // Given existing thermalClusterRef in cache with NA PEMMDB
         ThermalTechnology tech = ThermalTechnology.builder().name("oil").build();
         ThermalClusterRef existing = ThermalClusterRef.builder()
                 .name("ClusterOil")
@@ -100,7 +100,7 @@ import static org.mockito.Mockito.atLeast;
 
     @Test
     void findOrCreateThermalClusterRef_whenExistingAndPemmdbAlreadySet_doesNotOverwriteOrSave() {
-        // Given existing ref with non-NA PEMMDB
+        // Given existing thermalClusterRef with non-NA PEMMDB
         ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
         ThermalClusterRef existing = ThermalClusterRef.builder()
                 .name("ClusterY")

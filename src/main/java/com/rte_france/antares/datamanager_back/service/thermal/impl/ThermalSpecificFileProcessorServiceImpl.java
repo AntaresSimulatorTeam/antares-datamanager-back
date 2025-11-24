@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.ThermalSpecificParametersRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
@@ -34,11 +35,11 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificFileProcessorService {
 
-    private final ThermalFileProcessorServiceImpl thermalFileProcessorService;
     private final AreaRepository areaRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final ThermalControlService thermalControlService;
     private final ThermalClusterRefServiceImpl thermalClusterRef;
+    private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
     /**
      * Builds a list of ThermalSpecificParametersEntity objects based on the provided trajectory file
@@ -126,6 +127,17 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
 
     }
+
+    @Override
+    public Set<String> getListClusterByAreaForSpecificParam(String horizon, Integer studyId, boolean mr) {
+        List<ThermalSpecificParametersEntity> params = thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon);
+
+        return params.stream()
+                .filter(p -> Objects.equals(mr ? p.getMrSpecific() : p.getCmSpecific(), 1))
+                .map(p -> (p.getArea() + "_" + p.getThermalClusterRef().getName()).toLowerCase())
+                .collect(Collectors.toSet());
+    }
+
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
 

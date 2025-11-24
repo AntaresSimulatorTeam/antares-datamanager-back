@@ -158,7 +158,7 @@ class StudyServiceImplTest {
         String nextYear = String.valueOf(Year.now().getValue() + 1);
         String horizon = currentYear + "-" + nextYear;
 
-        String studyName = "Study 1-" + currentYear + "-" + nextYear + "ref";
+        String studyName = "Study 1-" + currentYear + "-" + nextYear + "thermalClusterRef";
         StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").project(EXISTING_PROJECT).horizon(currentYear).build();
         ProjectEntity existingProject = new ProjectEntity();
         existingProject.setId(1);

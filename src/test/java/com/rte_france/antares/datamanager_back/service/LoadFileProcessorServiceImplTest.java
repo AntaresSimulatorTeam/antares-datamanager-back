@@ -41,20 +41,6 @@ class LoadFileProcessorServiceImplTest {
     @Mock
     private AreaRepository areaRepository;
 
-    @Mock
-    private TimeSeriesReader timeSeriesReader;
-
-    @Mock
-    private TimeSeriesWriter timeSeriesWriter;
-
-    @Mock
-    private TimeSeriesMatrix timeSeriesMatrix;
-
-    @Mock
-    private NasFileService nasFileService;
-
-    @Mock
-    private UserService userService;
 
     @Mock
     private WarningService warningService;
@@ -79,41 +65,6 @@ class LoadFileProcessorServiceImplTest {
                 .fileName("testTrajectory")
                 .build();
 
-    }
-
-    @Test
-    void processLoadFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-        var tempFile = tempDir.resolve("test-path.txt");
-        Files.createFile(tempFile);
-        Files.writeString(tempFile, "This is the content to be written to the file.");
-        var trajectoryEntity = new TrajectoryEntity();
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
-        when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
-        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
-
-        assertDoesNotThrow(() -> loadFileProcessorService.saveMatrixToNas(tempFile));
-
-        verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
-        verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
-        verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
-    }
-
-    @Test
-    void processLoadFile_whenTrajectoryDoesNotExist() throws IOException {
-        var tempFile = tempDir.resolve("test-path.txt");
-        Files.createFile(tempFile);
-        Files.writeString(tempFile, "This is the content to be written to the file.");
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
-        when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
-        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
-
-        assertDoesNotThrow(() -> loadFileProcessorService.saveMatrixToNas(tempFile));
-
-        verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
-        verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
-        verify(nasFileService, times(1)).saveFile(anyString(), any(byte[].class));
     }
 
     @Test

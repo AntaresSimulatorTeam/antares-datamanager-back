@@ -8,12 +8,12 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
+import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
+import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +58,8 @@ class TrajectoryServiceImplTest {
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
     @Mock
+    private ThermalParamModulationService  thermalParamModulationService;
+    @Mock
     private ThermalControlService thermalControlService;
     @Mock
     private StudyRepository studyRepository;
@@ -70,9 +72,11 @@ class TrajectoryServiceImplTest {
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
     @Mock
+    private NasFileService nasFileService;
+    @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorService;
     @Mock
-    private ThermalSpecificParametersRepository thermalSpecificParametersRepository;
+    private ThermalSpecificFileProcessorService thermalSpecificProcessorService;
     @Mock
     private LoadRepository loadRepository;
     @Mock
@@ -621,7 +625,7 @@ class TrajectoryServiceImplTest {
         assertNull(result.getLoadEntities().iterator().next().getOutPutFileName(),
                 "Should be null because .arrow is generated later"
         );
-        verify(loadFileProcessorService, never()).saveMatrixToNas(any());
+        verify(nasFileService, never()).saveMatrixToNas(any(), any());
     }
 
     @Test
@@ -649,7 +653,7 @@ class TrajectoryServiceImplTest {
 
         Path mockPath = mock(Path.class);
         when(mockPath.resolve(anyString())).thenReturn(mockPath);
-        when(loadFileProcessorService.saveMatrixToNas(mockPath)).thenThrow(IOException.class);
+        when(nasFileService.saveMatrixToNas(mockPath, "outputDir")).thenThrow(IOException.class);
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
 
@@ -1137,21 +1141,8 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
-                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
-                        .id(1)
-                        .area("FR")
-                        .mrSpecific(1)
-                        .cmSpecific(0)
-                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
-                        .build()));
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
-                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
-                        .id(2)
-                        .area("FR")
-                        .mrSpecific(1)
-                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster2").build())
-                        .build()));
+
+        when(thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(any(), any(), eq(true))).thenReturn(Set.of("fr_cluster1","fr_cluster2"));
 
         TrajectoryServiceImpl spyService = spy(trajectoryService);
         doReturn(List.of("other_cluster","fr_cluster1")).when(spyService).extractClustersFromCsvHeader(any());
@@ -1189,15 +1180,8 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
-                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
-                        .id(1)
-                        .area("FR")
-                        .mrSpecific(1)
-                        .cmSpecific(1)
-                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
-                        .build()));
-
+        when(thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(any(), any(), eq(true))).thenReturn(Set.of("fr_cluster1"));
+        when(thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(any(), any(), eq(false))).thenReturn(Set.of("fr_cluster1"));
         // Simule l'absence du cluster attendu dans le fichier CM
         TrajectoryServiceImpl spyService = spy(trajectoryService);
         doReturn(List.of("other_cluster")).when(spyService).extractClustersFromCsvHeader(any());
@@ -1238,26 +1222,12 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
-                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
-                        .id(1)
-                        .area("FR")
-                        .mrSpecific(1)
-                        .cmSpecific(1)
-                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster1").build())
-                        .build()));
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(any(), any()))
-                .thenReturn(List.of(ThermalSpecificParametersEntity.builder()
-                        .id(2)
-                        .area("FR")
-                        .mrSpecific(1)
-                        .cmSpecific(1)
-                        .thermalClusterRef(ThermalClusterRef.builder().name("cluster2").build())
-                        .build()));
+
+        when(thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(any(), any(), eq(false))).thenReturn(Set.of("fr_cluster1","fr_cluster2"));
 
         trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId);
 
-        verify(thermalFileProcessorService, times(1)).processThermalModulationParameterFile(any(), any(), any(), any());
+        verify(thermalParamModulationService, times(1)).processThermalModulationParameterFile(any(), any(), any(), any());
     }
 
     @Test
