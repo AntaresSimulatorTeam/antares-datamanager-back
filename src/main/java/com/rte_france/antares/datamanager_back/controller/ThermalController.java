@@ -1,10 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalParamModulationServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
