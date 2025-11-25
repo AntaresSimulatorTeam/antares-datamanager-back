@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -7,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalParamModulationServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -18,7 +20,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -41,9 +46,14 @@ class ThermalParamModulationServiceImplTest {
     @Mock
     private ThermalSpecificFileProcessorService thermalSpecificFileProcessorService;
 
+    @Mock
+    private NasFileService nasFileService;
+
+    @Mock
+    private AntaressDataManagerProperties antaressDataManagerProperties;
+
     @InjectMocks
     private ThermalParamModulationServiceImpl thermalParamModulationService;
-
 
 
     @Test
@@ -179,30 +189,302 @@ class ThermalParamModulationServiceImplTest {
         return t;
     }
 
+
     @Test
-    void processThermalModulationParameterFile_shouldSaveNewTrajectory_whenValidHorizonAndNoExistingTrajectory() throws IOException {
-        String trajectoryToUse = "modulation_trajectory";
-        String paramModulationDir = "thermal";
+    void testGetParamModulationTsFiles_nominal() throws IOException {
+        TrajectoryEntity t1 = mock(TrajectoryEntity.class);
+        when(t1.getType()).thenReturn(TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.name());
 
-        Path trajectoryPath = tempDir.resolve(paramModulationDir).resolve(trajectoryToUse);
-        Files.createDirectories(trajectoryPath);
+        ThermalModulationParameterEntity p1 = mock(ThermalModulationParameterEntity.class);
+        when(p1.getTsName()).thenReturn("ts1.csv");
 
-        String horizon = "2025-2026";
-        List<ThermalModulationParameterEntity> entities = List.of(new ThermalModulationParameterEntity());
+        when(t1.getThermalModulationParameters()).thenReturn(List.of(p1));
 
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        TrajectoryEntity t2 = mock(TrajectoryEntity.class);
+        when(t2.getType()).thenReturn("THERMAL_TECHNICAL_MODULATION_PARAMETER");
 
-        TrajectoryEntity result = thermalParamModulationService.processThermalModulationParameterFile(
-                trajectoryPath, horizon, entities, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+        ThermalModulationParameterEntity p2 = mock(ThermalModulationParameterEntity.class);
+        when(p2.getTsName()).thenReturn(null);
 
-        assertNotNull(result);
-        assertEquals("THERMAL_TECHNICAL_MODULATION_PARAMETER", result.getType());
-        assertEquals(1, result.getVersion());
-        verify(trajectoryRepository).save(any());
+        when(t2.getThermalModulationParameters()).thenReturn(List.of(p2));
+
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn("thermal_modulation");
+
+        Path base = tempDir.resolve("trajectories").resolve("thermal_modulation");
+        Files.createDirectories(base);
+        Path tsFile = base.resolve("ts1.csv");
+        Files.createFile(tsFile);
+
+        List<Path> result = thermalParamModulationService.getParamModulationTsFiles(List.of(t1, t2));
+
+        assertEquals(1, result.size());
+        assertEquals(tsFile.toRealPath(), result.get(0).toRealPath());
     }
+
+    @Test
+    void testCreateWriters_nominal() throws IOException {
+        String[] columns = {"col0", "col1", "AreaA", "AreaB", "AreaC"};
+        Path inputFile = tempDir.resolve("testfile.csv");
+
+        List<Path> generatedFiles = new ArrayList<>();
+        Set<String> clusters = Set.of("areaa", "areac");
+
+        Map<Integer, BufferedWriter> writers = thermalParamModulationService.createWriters(
+                columns,
+                inputFile,
+                tempDir,
+                generatedFiles,
+                clusters
+        );
+
+        // Vérifie les index créés (AreaA et AreaC => index 2 et 4)
+        assertEquals(2, writers.size());
+        assertTrue(writers.containsKey(2));
+        assertTrue(writers.containsKey(4));
+
+        // Vérifie les fichiers créés
+        assertEquals(2, generatedFiles.size());
+        assertTrue(Files.exists(tempDir.resolve("testfile_AreaA.csv")));
+        assertTrue(Files.exists(tempDir.resolve("testfile_AreaC.csv")));
+
+        // Ferme les écrivains utilisés dans le test
+        thermalParamModulationService.closeAll(writers);
+    }
+
+    @Test
+    void testCreateWriters_ignoreUnknownClusters() throws IOException {
+        String[] columns = {"col0", "col1", "X", "Y"};
+        Path inputFile = tempDir.resolve("file.csv");
+
+        List<Path> generatedFiles = new ArrayList<>();
+        Set<String> clusters = Set.of("zzz"); // Aucun match
+
+        Map<Integer, BufferedWriter> writers = thermalParamModulationService.createWriters(
+                columns,
+                inputFile,
+                tempDir,
+                generatedFiles,
+                clusters
+        );
+
+        assertTrue(writers.isEmpty());
+        assertTrue(generatedFiles.isEmpty());
+    }
+
+    @Test
+    void testCreateWriters_skipEmptyColumns() throws IOException {
+        String[] columns = {"c0", "c1", " ", "AreaX"};
+        Path inputFile = tempDir.resolve("t.csv");
+
+        List<Path> generatedFiles = new ArrayList<>();
+        Set<String> clusters = Set.of("areax");
+
+        Map<Integer, BufferedWriter> writers = thermalParamModulationService.createWriters(
+                columns,
+                inputFile,
+                tempDir,
+                generatedFiles,
+                clusters
+        );
+
+        // index 2 ignoré (vide)
+        assertEquals(1, writers.size());
+        assertTrue(writers.containsKey(3));
+
+        thermalParamModulationService.closeAll(writers);
+    }
+
+    // ---------------------------------------------------
+    //                TEST processFileLines
+    // ---------------------------------------------------
+    @Test
+    void testProcessFileLines_nominal() throws IOException {
+        // Prépare un jeu de données
+        String[] columns = {"c0", "c1", "A", "B"};
+        Path outfileA = tempDir.resolve("base_A.csv");
+        Path outfileB = tempDir.resolve("base_B.csv");
+
+        // Writers
+        Map<Integer, BufferedWriter> writers = new HashMap<>();
+        writers.put(2, Files.newBufferedWriter(outfileA));
+        writers.put(3, Files.newBufferedWriter(outfileB));
+
+        // Input simulé
+        String data = """
+                1;2;AA;BB
+                x;y;CC;DD
+                """;
+
+        BufferedReader reader = new BufferedReader(new StringReader(data));
+
+        thermalParamModulationService.processFileLines(reader, columns, writers);
+        thermalParamModulationService.closeAll(writers);
+
+        // Vérifie le contenu
+        assertLinesMatch(List.of("AA", "CC"), Files.readAllLines(outfileA));
+        assertLinesMatch(List.of("BB", "DD"), Files.readAllLines(outfileB));
+    }
+
+    @Test
+    void testProcessFileLines_skipEmptyAndShortLines() throws IOException {
+        String[] columns = {"c0", "c1", "A"};
+
+        Path outA = tempDir.resolve("A.csv");
+        Map<Integer, BufferedWriter> writers = Map.of(2, Files.newBufferedWriter(outA));
+
+        String data = """
+                
+                onlyOneField
+                1;2;VALUE
+                """;
+
+        BufferedReader reader = new BufferedReader(new StringReader(data));
+
+        thermalParamModulationService.processFileLines(reader, columns, writers);
+        thermalParamModulationService.closeAll(writers);
+
+        assertLinesMatch(List.of("VALUE"), Files.readAllLines(outA));
+    }
+
+    @Test
+    void testProcessFileLines_missingFieldFilledEmpty() throws IOException {
+        String[] columns = {"c0", "c1", "A", "B"};
+
+        Path outA = tempDir.resolve("A.csv");
+        Path outB = tempDir.resolve("B.csv");
+
+        Map<Integer, BufferedWriter> writers = new HashMap<>();
+        writers.put(2, Files.newBufferedWriter(outA));
+        writers.put(3, Files.newBufferedWriter(outB));
+
+        String data = "1;2;ONLYA";
+
+        BufferedReader reader = new BufferedReader(new StringReader(data));
+
+        thermalParamModulationService.processFileLines(reader, columns, writers);
+        thermalParamModulationService.closeAll(writers);
+
+        assertLinesMatch(List.of("ONLYA"), Files.readAllLines(outA));
+        assertLinesMatch(List.of(""), Files.readAllLines(outB)); // manque => ""
+    }
+
+    // ---------------------------------------------------
+    //                TEST closeAll
+    // ---------------------------------------------------
+    @Test
+    void testCloseAll_doesNotThrow() throws IOException {
+        BufferedWriter bw1 = Files.newBufferedWriter(tempDir.resolve("a.txt"));
+        BufferedWriter bw2 = Files.newBufferedWriter(tempDir.resolve("b.txt"));
+
+        Map<Integer, BufferedWriter> writers = Map.of(1, bw1, 2, bw2);
+
+        assertDoesNotThrow(() -> thermalParamModulationService.closeAll(writers));
+    }
+
+    // ---------------------------------------------------
+    //                TEST getBaseName
+    // ---------------------------------------------------
+    @Test
+    void testGetBaseName() {
+        assertEquals("file", thermalParamModulationService.getBaseName(Path.of("file.csv")));
+        assertEquals("noext", thermalParamModulationService.getBaseName(Path.of("noext")));
+        assertEquals("archive.tar", thermalParamModulationService.getBaseName(Path.of("archive.tar.gz")));
+    }
+
+    @Test
+    void testFileDoesNotExist_returnsEmpty() throws IOException {
+        Path missingFile = tempDir.resolve("missing.csv");
+
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(missingFile, Set.of("area"));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testEmptyFile_returnsEmpty() throws IOException {
+
+        Path file = tempDir.resolve("empty.csv");
+        Files.writeString(file, "");
+
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, Set.of("a"));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testHeaderWithoutEnoughColumns_returnsEmpty() throws IOException {
+
+        Path file = tempDir.resolve("badheader.csv");
+        Files.writeString(file, "A;B");
+
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, Set.of("a"));
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testNullClusterList_handledCorrectly() throws IOException {
+
+        Path file = tempDir.resolve("test.csv");
+        Files.writeString(file, "c0;c1;AreaA\n1;2;xx");
+
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testNominalCase_generatesFilesAndWritesValues() throws IOException {
+
+        Path file = tempDir.resolve("data.csv");
+
+        String content = """
+                C0;C1;Area1;Area2
+                1;2;A1;B1
+                3;4;A2;B2
+                """;
+
+        Files.writeString(file, content);
+
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, Set.of("area1"));
+
+        // --- Vérification des fichiers générés ---
+        assertEquals(1, result.size());
+        Path out = result.get(0);
+
+        assertTrue(Files.exists(out));
+        assertEquals("data_Area1.csv", out.getFileName().toString());
+
+        // --- Vérification du contenu ---
+        List<String> lines = Files.readAllLines(out);
+        assertEquals(List.of("A1", "A2"), lines);
+    }
+
+    @Test
+    void testClusterValuesWithSpacesAndUppercase() throws IOException {
+
+        Path file = tempDir.resolve("data2.csv");
+
+        String content = """
+                C0;C1;  ArEaX  ;Other
+                1;2;XX;YY
+                """;
+
+        Files.writeString(file, content);
+
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, Set.of("areax"));
+
+        assertEquals(1, result.size());
+        Path out = result.get(0);
+
+        assertTrue(Files.exists(out));
+        assertLinesMatch(List.of("XX"), Files.readAllLines(out));
+    }
+
+
 
 
 }

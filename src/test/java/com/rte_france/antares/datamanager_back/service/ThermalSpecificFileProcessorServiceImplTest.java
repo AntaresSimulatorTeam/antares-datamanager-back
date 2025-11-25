@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.ThermalSpecificParametersRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
@@ -23,7 +24,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +39,9 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @TempDir
     Path tempDir;
+
+    @Mock
+    private ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
     @Mock
     private ThermalFileProcessorServiceImpl thermalFileProcessorService;
@@ -368,4 +374,78 @@ class ThermalSpecificFileProcessorServiceImplTest {
             return outputStream.toByteArray();
         }
     }
+
+    @Test
+    void shouldReturnEmptySetWhenNoPreferredEntitiesFound() {
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+                .thenReturn(Collections.emptyList());
+
+        Set<String> result = service.getListClusterByAreaForSpecificParam("2025", 1, true);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldReturnClustersForMrSpecificWhenMrIsTrue() {
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+                .thenReturn(List.of(
+                        ThermalSpecificParametersEntity.builder()
+                                .area("FR")
+                                .mrSpecific(1)
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .build(),
+                        ThermalSpecificParametersEntity.builder()
+                                .area("DE")
+                                .mrSpecific(1)
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .build()
+                ));
+
+        Set<String> result = service.getListClusterByAreaForSpecificParam("2025", 1, true);
+
+        assertEquals(Set.of("fr_clustera", "de_clusterb"), result);
+    }
+
+    @Test
+    void shouldReturnClustersForCmSpecificWhenMrIsFalse() {
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+                .thenReturn(List.of(
+                        ThermalSpecificParametersEntity.builder()
+                                .area("FR")
+                                .cmSpecific(1)
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .build(),
+                        ThermalSpecificParametersEntity.builder()
+                                .area("DE")
+                                .cmSpecific(1)
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .build()
+                ));
+
+        Set<String> result = service.getListClusterByAreaForSpecificParam("2025", 1, false);
+
+        assertEquals(Set.of("fr_clustera", "de_clusterb"), result);
+    }
+
+    @Test
+    void shouldIgnoreEntitiesWithNullOrZeroSpecificValues() {
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+                .thenReturn(List.of(
+                        ThermalSpecificParametersEntity.builder()
+                                .area("FR")
+                                .mrSpecific(0)
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .build(),
+                        ThermalSpecificParametersEntity.builder()
+                                .area("DE")
+                                .mrSpecific(null)
+                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .build()
+                ));
+
+        Set<String> result = service.getListClusterByAreaForSpecificParam("2025", 1, true);
+
+        assertTrue(result.isEmpty());
+    }
+
 }

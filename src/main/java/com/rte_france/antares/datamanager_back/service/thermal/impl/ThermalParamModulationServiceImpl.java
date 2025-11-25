@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -148,7 +149,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
                 .toList();
     }
 
-    private Path resolveTrajectoryFile(String tsName) {
+    public Path resolveTrajectoryFile(String tsName) {
         String trajectoryName = betweenFirstAndLastUnderscore(tsName);
         try {
             Path path = buildTrajectoryPath(
@@ -175,8 +176,10 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
                 .collect(Collectors.toSet());
 
         List<Path> generatedFiles = new ArrayList<>();
-        Path tmpDir = Paths.get("/tmp");
-
+        Path tmpDir = Files.createTempDirectory("thermal_param_modulation_split_",
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rwx------"))
+        );
         if (!Files.exists(tmpDir)) {
             Files.createDirectories(tmpDir);
         }
@@ -211,7 +214,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         return generatedFiles;
     }
 
-    private Map<Integer, BufferedWriter> createWriters(String[] columns,
+    public Map<Integer, BufferedWriter> createWriters(String[] columns,
                                                        Path file,
                                                        Path targetDir,
                                                        List<Path> generatedFiles,
@@ -242,7 +245,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
     }
 
 
-    private void processFileLines(BufferedReader reader, String[] columns, Map<Integer, BufferedWriter> writers) throws IOException {
+    public void processFileLines(BufferedReader reader, String[] columns, Map<Integer, BufferedWriter> writers) throws IOException {
         String line;
 
         while ((line = reader.readLine()) != null) {
@@ -262,7 +265,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         }
     }
 
-    private void closeAll(Map<Integer, BufferedWriter> writers) {
+    public void closeAll(Map<Integer, BufferedWriter> writers) {
         writers.values().forEach(bw -> {
             try {
                 bw.close();
@@ -271,7 +274,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         });
     }
 
-    private String getBaseName(Path file) {
+    public String getBaseName(Path file) {
         String name = file.getFileName().toString();
         int dot = name.lastIndexOf('.');
         return (dot > 0) ? name.substring(0, dot) : name;
