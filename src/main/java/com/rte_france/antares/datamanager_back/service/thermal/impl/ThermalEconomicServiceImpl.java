@@ -47,7 +47,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             if(thermalEconomicCo2EntityList.isEmpty()) {
                 throw BusinessException.builder()
                         .message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_Emission tab")
-                        .errorMessageArguments(List.of(horizon))
+                        .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
                         .build();
             }
             return thermalEconomicCo2EntityList;
