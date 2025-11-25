@@ -53,4 +53,7 @@ public class  AntaressDataManagerProperties {
     @Value("${peagse.genarator.host.url}")
     public String generatorHostUrl;
 
+    @Value("antares.datamanager.thermal.modulation.tmp.output.directory")
+    public String paramModulationTmpOutputDirectory;
+
 }
