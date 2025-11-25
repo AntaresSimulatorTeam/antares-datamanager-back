@@ -11,7 +11,6 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;

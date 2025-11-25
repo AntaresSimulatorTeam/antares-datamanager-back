@@ -6,22 +6,16 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.WarningService;
 import com.rte_france.antares.datamanager_back.util.Utils;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.stream.Collectors;
 
