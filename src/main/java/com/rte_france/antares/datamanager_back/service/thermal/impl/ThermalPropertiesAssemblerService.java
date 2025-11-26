@@ -262,7 +262,7 @@ public class ThermalPropertiesAssemblerService {
         }
         //spinning
         thermalSpecificParameters.stream()
-                .map(ThermalSpecificParametersEntity::getSpinning)
+                .map(thermalSpecificParam -> thermalSpecificParam.getSpinning() * 100)
                 .findFirst()
                 .ifPresent(builder::spinning);
         //efficiency
