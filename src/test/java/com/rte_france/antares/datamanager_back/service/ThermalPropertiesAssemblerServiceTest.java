@@ -68,7 +68,7 @@ class ThermalPropertiesAssemblerServiceTest {
                         specificParams(
                                 gasRef,
                                 0.50, // minStableGeneration (ratio of nominal)
-                                1.23, // spinning
+                                0.23, // spinning
                                 0.37, // efficiency (ratio)
                                 2.5,  // FO duration
                                 3.75, // PO duration
@@ -100,7 +100,7 @@ class ThermalPropertiesAssemblerServiceTest {
         // From specific parameters (override common)
         assertThat(dto.getMinStablePower()).isEqualTo(0.50 * (600.0/3));
         assertThat(dto.getEfficiency()).isEqualTo(37.0); // 0.37 -> 37%
-        assertThat(dto.getSpinning()).isEqualTo(1.23);
+        assertThat(dto.getSpinning()).isEqualTo(23.0); //0.23 ->23%
         assertThat(dto.getFoDuration()).isEqualTo(2.5);
         assertThat(dto.getPoDuration()).isEqualTo(3.75);
 
