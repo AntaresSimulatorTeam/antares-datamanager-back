@@ -26,6 +26,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class ThermalControlsServiceImpl implements ThermalControlService {
 
+    private final StudyRepository studyRepository;
     private final TrajectoryRepository trajectoryRepository;
     public static final String SHEET_COSTS = "costs";
     public static final String SHEET_RATE = "rate";
@@ -139,7 +140,16 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     }
 
     @Override
-    public void verifyCostsTrajectory(String horizon, Path trajectoryFilePath, String trajectoryName) throws IOException {
+    public void verifyCostsTrajectory(String horizon, Path trajectoryFilePath, String trajectoryName, Integer studyId) throws IOException {
+
+        Set<String> distinctTechnologyList = trajectoryRepository
+                .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name())
+                .stream()
+                .flatMap(trajectory -> trajectory.getThermalClusterCapacities().stream())
+                .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
+                .collect(Collectors.toSet());
+
+
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -184,6 +194,14 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             for (int r = 1; r <= costsSheet.getLastRowNum(); r++) {
                 Row row = costsSheet.getRow(r);
                 if (row != null) {
+                    String technology = row.getCell( 1).getStringCellValue() != null ? row.getCell( 1).getStringCellValue().toLowerCase() : "";
+                    if(!technology.isEmpty() && !distinctTechnologyList.isEmpty() && !distinctTechnologyList.contains(technology)){
+                        throw BusinessException.builder()
+                                .message("Technology {0} in THERMAL Costs trajectory {1} in costs tab does not exist in installed power trajectory for horizon {2}")
+                                .errorMessageArguments(List.of(technology, trajectoryName, horizon))
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
                     Object value = getCellValue(row, horizonColCosts);
                     if (value != null && (!(value instanceof String) || !((String) value).trim().isEmpty())) {
                         hasDataInHorizonColCosts = true;
@@ -245,12 +263,6 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                     .build();
         }
     }
-
-
-    // --- Private  utilitaire  methods -----------------------------------------------------------------------------
-    // --------------------------------------------------------------------------------------------------------------
-    // --------------------------------------------------------------------------------------------------------------
-    // --------------------------------------------------------------------------------------------------------------
 
 
     private void mergeExistingSpecificClusters(Integer studyId, Set<String> paramClusters, TrajectoryType trajectoryType, String area) {

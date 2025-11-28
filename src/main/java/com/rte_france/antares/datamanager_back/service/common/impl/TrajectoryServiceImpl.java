@@ -374,7 +374,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
         String oneYearHorizon = horizon.split("-")[1];
-        thermalControlService.verifyCostsTrajectory(oneYearHorizon,trajectoryFilePath, trajectoryToUse);
+        thermalControlService.verifyCostsTrajectory(oneYearHorizon,trajectoryFilePath, trajectoryToUse,studyId);
         var thermalCostTypeEntities = thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, oneYearHorizon, studyId);
         var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, trajectoryFilePath, oneYearHorizon, studyId);
         if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {

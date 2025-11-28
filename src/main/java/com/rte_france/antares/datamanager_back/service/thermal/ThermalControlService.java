@@ -16,5 +16,5 @@ public interface ThermalControlService {
 
       void verifyClustersInSpecificParamTrajectory(Integer studyId, String horizon, List<ThermalClusterCapacityEntity> capacities);
 
-      void verifyCostsTrajectory(String horizon, Path trajectoryFilePath, String trajectoryName) throws IOException;
+      void verifyCostsTrajectory(String horizon, Path trajectoryFilePath, String trajectoryName, Integer studyId) throws IOException;
      }
