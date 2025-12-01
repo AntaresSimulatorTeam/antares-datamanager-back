@@ -2,8 +2,9 @@ package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.*;
-import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,7 +29,6 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class ThermalControlsServiceImpl implements ThermalControlService {
 
-    private final StudyRepository studyRepository;
     private final TrajectoryRepository trajectoryRepository;
     public static final String SHEET_COSTS = "costs";
     public static final String SHEET_RATE = "rate";
@@ -35,11 +37,11 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     /**
      * Checks for missing clusters in the provided parameter clusters.
      *
-     * @param studyId The ID of the study.
-     * @param horizon The horizon for the trajectory.
-     * @param paramClusters The set of parameter clusters to check.
+     * @param studyId        The ID of the study.
+     * @param horizon        The horizon for the trajectory.
+     * @param paramClusters  The set of parameter clusters to check.
      * @param trajectoryType The type of the trajectory.
-     * @param area The area associated with the trajectory.
+     * @param area           The area associated with the trajectory.
      */
     @Override
     public void checkMissingClusters(Integer studyId, String horizon, Set<String> paramClusters, TrajectoryType trajectoryType, String area) {
@@ -68,8 +70,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     /**
      * Verifies that all clusters in the thermal installed power trajectory are present in the common parameter trajectory.
      *
-     * @param studyId The ID of the study.
-     * @param horizon The horizon for the trajectory.
+     * @param studyId    The ID of the study.
+     * @param horizon    The horizon for the trajectory.
      * @param capacities The list of thermal cluster capacities.
      */
     @Override
@@ -102,8 +104,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     /**
      * Verifies that all clusters in the thermal installed power trajectory are present in the specific parameter trajectory.
      *
-     * @param studyId The ID of the study.
-     * @param horizon The horizon for the trajectory.
+     * @param studyId    The ID of the study.
+     * @param horizon    The horizon for the trajectory.
      * @param capacities The list of thermal cluster capacities.
      */
     @Override
@@ -247,6 +249,31 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
         }
     }
 
+    @Override
+    public void verifyThermalCapacityTechnology(Integer studyId, String horizon, String trajectoryName, Set<String> listTechnology, Set<String> existingThermalCapacityTechnologies) {
+        //horizon pattern yyyy-yyyy+1
+        Pattern horizonPattern = Pattern.compile("^(\\d{4})-(\\d{4})$");
+        Matcher horizonMatcher = horizonPattern.matcher(horizon);
+        String buildHorizon = horizonMatcher.matches()  ?  horizon : Integer.parseInt(horizon) - 1 + "-" + horizon;
+        Set<String> listTechnologyOfThermalCapacity = trajectoryRepository
+                .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, buildHorizon, TrajectoryType.THERMAL_CAPACITY.name())
+                .stream()
+                .flatMap(trajectory -> trajectory.getThermalClusterCapacities().stream())
+                .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
+                .collect(Collectors.toSet());
+        listTechnologyOfThermalCapacity.addAll(existingThermalCapacityTechnologies);
+        listTechnology.forEach(techno -> {
+            if (!listTechnologyOfThermalCapacity.isEmpty() && !listTechnologyOfThermalCapacity.contains(techno.toLowerCase())) {
+                throw BusinessException.builder()
+                        .message("Technology {0} in THERMAL Costs trajectory {1} in costs tab does not exist in installed power trajectory for horizon {2}")
+                        .errorMessageArguments(List.of(techno, trajectoryName, horizon))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        });
+
+    }
+
 
     private void mergeExistingSpecificClusters(Integer studyId, Set<String> paramClusters, TrajectoryType trajectoryType, String area) {
         if (trajectoryType.equals(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER)) {
@@ -362,8 +389,6 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             }
         }
     }
-
-
 
 
     // Utility to check if a cell is null or blank
