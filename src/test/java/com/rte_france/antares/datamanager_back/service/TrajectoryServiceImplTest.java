@@ -473,6 +473,8 @@ class TrajectoryServiceImplTest {
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .horizon(horizon)
                 .thermalClusterCapacities(thermalClusterCapacities)
+                .thermalEconomicCo2s(List.of(ThermalEconomicCo2Entity.builder().fuel("Gas").build()))
+                .thermalCosts(List.of(ThermalCostEntity.builder().thermalType(ThermalCostTypeEntity.builder().fuel("GAS").build()).build()))
                 .build();
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");

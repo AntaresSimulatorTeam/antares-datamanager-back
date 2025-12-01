@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostEntit
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +28,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
@@ -41,6 +40,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCostAndRateService {
 
     private final TrajectoryRepository trajectoryRepository;
+    private final ThermalControlService  thermalControlService;
     private final ThermalCostTypeRepository thermalCostTypeRepository;
 
     public static final String SHEET_COSTS = "costs";
@@ -62,25 +62,12 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
             }
 
             Integer horizonCol = findHorizonColumnIndex(header, horizon);
-            Set<String> distinctTechnologyList = trajectoryRepository
-                    .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, Integer.parseInt(horizon)-1 +"-"+ horizon, TrajectoryType.THERMAL_CAPACITY.name())
-                    .stream()
-                    .flatMap(trajectory -> trajectory.getThermalClusterCapacities().stream())
-                    .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
-                    .collect(Collectors.toSet());
             List<ThermalCostTypeEntity> result = new ArrayList<>();
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
                 String fuel = castString(getCellValue(row, 1));
                 if (fuel == null || fuel.isBlank()) continue;
-                if(!distinctTechnologyList.isEmpty() && !distinctTechnologyList.contains(fuel.toLowerCase())){
-                    throw BusinessException.builder()
-                            .message("Technology {0} in THERMAL Costs trajectory {1} in costs tab does not exist in installed power trajectory for horizon {2}")
-                            .errorMessageArguments(List.of(fuel, trajectoryName, horizon))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
                 ThermalCostTypeEntity type = buildThermalEconomicCostType(row, header);
 
                 Double costValue = castDouble(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
@@ -96,6 +83,8 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                 }
                 result.add(type);
             }
+            var listTechnology = result.stream().map(ThermalCostTypeEntity::getFuel).collect(java.util.stream.Collectors.toSet());
+            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology,Collections.emptySet());
 
             return result;
         } catch (IOException e) {
