@@ -1004,12 +1004,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private void verifyThermalEconomicParameter(Integer studyId, TrajectoryEntity trajectory) {
         var listTechno = trajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
-        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno,Collections.emptySet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno, Collections.emptySet());
     }
 
-    private void verifyThermalEconomicCostParameter(Integer studyId, TrajectoryEntity trajectory) {
+    public void verifyThermalEconomicCostParameter(Integer studyId, TrajectoryEntity trajectory) {
         var listTechno = trajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).collect(Collectors.toSet());
-        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno,Collections.emptySet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno, Collections.emptySet());
     }
 
     private void verifyThermalCommonParameter(Integer studyId, TrajectoryEntity trajectory) {
@@ -1032,10 +1032,24 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private void verifyThermalCapacity(Integer studyId, TrajectoryEntity trajectory) {
         thermalControlService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
         thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-        var listCostTechno = trajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).collect(Collectors.toSet());
-        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listCostTechno, Collections.emptySet());
-        var listEconomicTechno = trajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
-        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listEconomicTechno, Collections.emptySet());
+
+        var listTechnoOfTrajectory = trajectory.getThermalClusterCapacities().stream()
+                .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
+                .collect(Collectors.toSet());
+
+        trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name(), studyId).stream().findFirst()
+                .ifPresent( economicCostTrajectory -> {
+                var listCostTechno = economicCostTrajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).collect(Collectors.toSet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listCostTechno, listTechnoOfTrajectory);
+        }
+        );
+
+
+         trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name(), studyId).stream().findFirst()
+                 .ifPresent( economicTrajectory -> {
+             var listEconomicTechno = economicTrajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+             thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listEconomicTechno, listTechnoOfTrajectory);
+         });
     }
 
 

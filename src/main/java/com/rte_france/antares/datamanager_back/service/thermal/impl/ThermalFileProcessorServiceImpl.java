@@ -266,7 +266,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return dto;
     }
 
-    private void verifyThermalCapacityTechnologie(Path path, String horizon, Integer studyId, List<ThermalClusterCapacityEntity> capacities) {
+    public void verifyThermalCapacityTechnologie(Path path, String horizon, Integer studyId, List<ThermalClusterCapacityEntity> capacities) {
         Set<String> existingTechnologies = capacities.stream()
                 .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
                 .collect(Collectors.toSet());
