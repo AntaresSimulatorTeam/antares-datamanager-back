@@ -80,7 +80,6 @@ public class AreasValidator {
             var invalidRowsJoin = String.join(", ", invalidRows);
             throw BusinessException.builder()
                     .message("Value too long for area(s) : {0} in {1} trajectory")
-                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
                     .errorMessageArguments(List.of(invalidRowsJoin, TrajectoryType.AREA.name()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();

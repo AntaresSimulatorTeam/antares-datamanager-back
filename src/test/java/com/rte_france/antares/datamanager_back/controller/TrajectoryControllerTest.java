@@ -337,4 +337,20 @@ class TrajectoryControllerTest {
                         .content("[1,2,3]"))
                 .andExpect(status().isConflict());
     }
+
+    @Test
+    void whenTrajectoryToUseTooLong_thenBusinessException() throws Exception {
+        String longTrajectory = "areas_CBN_3592_Perim_RestreintRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR";
+
+        mockMvc.perform(post("/v1/trajectory")
+                        .param("trajectoryType", "AREA")
+                        .param("trajectoryToUse", longTrajectory)
+                        .param("horizon", "2026-2027")
+                        .param("studyId", "100")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.antaresErrorMessage")
+                        .value("Trajectory name cannot exceed 40 characters"))
+                .andExpect(jsonPath("$.type").value("BUSINESS"));
+    }
 }

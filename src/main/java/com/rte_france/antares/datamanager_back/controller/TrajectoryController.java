@@ -11,10 +11,12 @@ import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -27,6 +29,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/v1/trajectory")
 @RequiredArgsConstructor
 public class TrajectoryController {
@@ -62,7 +65,7 @@ public class TrajectoryController {
     @Operation(summary = "import Trajectory file to database ")
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
-                                                          @RequestParam("trajectoryToUse")
+                                                          @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters")
                                                           String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
@@ -74,7 +77,7 @@ public class TrajectoryController {
     @Operation(summary = "import Trajectory load to database ")
     @PostMapping("/load")
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("area") String area,
-                                                          @RequestParam("trajectoryToUse") String trajectoryToUse,
+                                                          @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId) throws IOException {

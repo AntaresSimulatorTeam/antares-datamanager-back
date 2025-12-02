@@ -1,14 +1,19 @@
 package com.rte_france.antares.datamanager_back.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.text.MessageFormat;
@@ -72,4 +77,24 @@ public class AntaresExceptionHandler extends ResponseEntityExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new AntaresExceptionDto(ex));
     }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<AntaresExceptionDto> handleConstraintViolation(ConstraintViolationException ex) {
+
+        String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getMessage())
+                .findFirst()
+                .orElse("Validation failed");
+
+        BusinessException businessException = BusinessException.builder()
+                .message(message)
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+
+        return businessExceptionHandler(businessException);
+    }
+
+
+
+
 }
