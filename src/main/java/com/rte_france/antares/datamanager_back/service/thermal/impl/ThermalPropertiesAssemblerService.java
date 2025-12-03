@@ -25,6 +25,12 @@ public class ThermalPropertiesAssemblerService {
     public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
     }
 
+    // Helper container used when grouping capacities by (area, canonicalName)
+    private static class CapGroup {
+        ThermalClusterRef ref;
+        List<ThermalClusterCapacityEntity> caps = new ArrayList<>();
+    }
+
     /**
      * Builds thermal properties by {@code (area, cluster_ref)} from the given trajectories.
      * Uses {@code THERMAL_CAPACITY} rows (grouped by capacity.area + cluster_ref) and aggregates with
@@ -41,19 +47,9 @@ public class ThermalPropertiesAssemblerService {
         Set<TrajectoryEntity> trajectories = study.getTrajectories();
         Objects.requireNonNull(trajectories);
 
-        var capacityTrajectories = trajectories.stream()
-                .filter(Objects::nonNull)
-                .filter(t -> THERMAL_CAPACITY.equals(TrajectoryType.valueOf(t.getType())))
-                .toList();
-
-        var commonTrajectories = trajectories.stream()
-                .filter(Objects::nonNull)
-                .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
-                .toList();
-        var specificTrajectories = trajectories.stream()
-                .filter(Objects::nonNull)
-                .filter(t -> THERMAL_TECHNICAL_SPECIFIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
-                .toList();
+        var capacityTrajectories = filterTrajectoriesByType(trajectories, THERMAL_CAPACITY);
+        var commonTrajectories = filterTrajectoriesByType(trajectories, THERMAL_TECHNICAL_COMMON_PARAMETER);
+        var specificTrajectories = filterTrajectoriesByType(trajectories, THERMAL_TECHNICAL_SPECIFIC_PARAMETER);
 
        List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
 
@@ -61,27 +57,17 @@ public class ThermalPropertiesAssemblerService {
         var commonsByRef = extractCommonParamsByClusterRef(commonTrajectories);
         var specificsByRef = extractSpecificParamsByClusterRef(specificTrajectories);
 
-        var thermalClusterGenerationOutput = new LinkedHashMap<AreaClusterRefKey, ThermalClusterGenerationDto>();
+        var commonsByCanonical = mergeCommonsByCanonical(commonsByRef);
+        var specificsByCanonical = mergeSpecificsByCanonical(specificsByRef);
 
-        for (var entry : capacitiesByAreaRef.entrySet()) {
-            AreaClusterRefKey areaClusterRefKey = entry.getKey();
-            List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
+        var capByAreaCanonical = groupCapacitiesByAreaCanonical(capacitiesByAreaRef);
 
-            ThermalClusterRef thermalClusterRef = areaClusterRefKey.thermalClusterRef();
-            String clusterName = thermalClusterRef != null ? thermalClusterRef.getName() : null;
-            List<ThermalCommonParameterEntity> commonsForRef = clusterName == null
-                    ? List.of()
-                    : commonsByRef.getOrDefault(clusterName, List.of());
-            List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
-
-            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef);
-
-            // modulation param ts files ts
-            List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
-            thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
-
-            thermalClusterGenerationOutput.put(areaClusterRefKey, thermalClusterGenerationDto);
-        }
+        var thermalClusterGenerationOutput = buildAreaClusterGeneration(
+                capByAreaCanonical,
+                commonsByCanonical,
+                specificsByCanonical,
+                splitedCmAndMrParamModulationTsFiles
+        );
 
         return thermalClusterGenerationOutput;
     }
@@ -97,6 +83,124 @@ public class ThermalPropertiesAssemblerService {
                 .toList();
 
 
+    }
+
+    private List<TrajectoryEntity> filterTrajectoriesByType(Set<TrajectoryEntity> trajectories, TrajectoryType type) {
+        return trajectories.stream()
+                .filter(Objects::nonNull)
+                .filter(t -> type.equals(TrajectoryType.valueOf(t.getType())))
+                .toList();
+    }
+
+    private Map<String, List<ThermalCommonParameterEntity>> mergeCommonsByCanonical(Map<ThermalClusterRef, List<ThermalCommonParameterEntity>> commonsByRef) {
+        Map<String, List<ThermalCommonParameterEntity>> commonsByCanonical = new LinkedHashMap<>();
+        for (var e : commonsByRef.entrySet()) {
+            String canonical = canonicalName(e.getKey());
+            commonsByCanonical.merge(canonical, e.getValue(), (a, b) -> {
+                var list = new ArrayList<ThermalCommonParameterEntity>(a.size() + b.size());
+                list.addAll(a);
+                list.addAll(b);
+                return list;
+            });
+        }
+        return commonsByCanonical;
+    }
+
+    private Map<String, List<ThermalSpecificParametersEntity>> mergeSpecificsByCanonical(Map<ThermalClusterRef, List<ThermalSpecificParametersEntity>> specificsByRef) {
+        Map<String, List<ThermalSpecificParametersEntity>> specificsByCanonical = new LinkedHashMap<>();
+        for (var e : specificsByRef.entrySet()) {
+            String canonical = canonicalName(e.getKey());
+            specificsByCanonical.merge(canonical, e.getValue(), (a, b) -> {
+                var list = new ArrayList<ThermalSpecificParametersEntity>(a.size() + b.size());
+                list.addAll(a);
+                list.addAll(b);
+                return list;
+            });
+        }
+        return specificsByCanonical;
+    }
+
+    private Map<String, CapGroup> groupCapacitiesByAreaCanonical(LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> capacitiesByAreaRef) {
+        Map<String, CapGroup> capByAreaCanonical = new LinkedHashMap<>();
+        for (var e : capacitiesByAreaRef.entrySet()) {
+            AreaClusterRefKey key = e.getKey();
+            String area = key.area();
+            ThermalClusterRef ref = key.thermalClusterRef();
+            String canonical = canonicalName(ref);
+            String mapKey = area + "|" + canonical;
+            var group = capByAreaCanonical.computeIfAbsent(mapKey, k -> new CapGroup());
+            if (group.ref == null) group.ref = ref; // keep first encountered as representative
+            group.caps.addAll(e.getValue());
+        }
+        return capByAreaCanonical;
+    }
+
+    private LinkedHashMap<AreaClusterRefKey, ThermalClusterGenerationDto> buildAreaClusterGeneration(
+            Map<String, CapGroup> capByAreaCanonical,
+            Map<String, List<ThermalCommonParameterEntity>> commonsByCanonical,
+            Map<String, List<ThermalSpecificParametersEntity>> specificsByCanonical,
+            List<String> splitedCmAndMrParamModulationTsFiles
+    ) {
+        var out = new LinkedHashMap<AreaClusterRefKey, ThermalClusterGenerationDto>();
+
+        for (var e : capByAreaCanonical.entrySet()) {
+            String[] parts = e.getKey().split("\\|", 2);
+            String area = parts[0];
+            String canonical = parts.length > 1 ? parts[1] : "";
+            CapGroup group = e.getValue();
+
+            List<ThermalCommonParameterEntity> commonsForRef = commonsByCanonical.getOrDefault(canonical, List.of());
+            List<ThermalSpecificParametersEntity> specificForRef = specificsByCanonical.getOrDefault(canonical, List.of());
+
+            ThermalClusterGenerationDto dto = computeClusterProperties(group.caps, commonsForRef, specificForRef);
+
+            ThermalClusterRef preferredRef = selectPreferredRef(area, group.ref, commonsForRef, specificForRef);
+
+            AreaClusterRefKey outKey = new AreaClusterRefKey(area, preferredRef);
+            List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, outKey);
+            dto.setParamModulationTsList(modulationParamTsFiles);
+
+            out.put(outKey, dto);
+        }
+
+        return out;
+    }
+
+    private ThermalClusterRef selectPreferredRef(String area,
+                                                 ThermalClusterRef defaultRef,
+                                                 List<ThermalCommonParameterEntity> commonsForRef,
+                                                 List<ThermalSpecificParametersEntity> specificForRef) {
+        ThermalClusterRef preferredRef = defaultRef;
+
+        // 1) SPECIFIC (area-scoped)
+        if (specificForRef != null && !specificForRef.isEmpty()) {
+            ThermalSpecificParametersEntity specForArea = specificForRef.stream()
+                    .filter(Objects::nonNull)
+                    .filter(spe -> Objects.equals(area, spe.getArea()))
+                    .findFirst()
+                    .orElse(null);
+            if (specForArea != null && specForArea.getThermalClusterRef() != null) {
+                ThermalClusterRef specRef = specForArea.getThermalClusterRef();
+                if (specRef.getName() != null && !specRef.getName().isBlank()) {
+                    preferredRef = specRef;
+                }
+            }
+        }
+
+        // 2) COMMON (if SPECIFIC was not selected)
+        if (preferredRef == defaultRef && commonsForRef != null && !commonsForRef.isEmpty()) {
+            ThermalClusterRef commonRef = commonsForRef.getFirst().getThermalClusterRef();
+            if (commonRef != null && commonRef.getName() != null && !commonRef.getName().isBlank()) {
+                preferredRef = commonRef;
+            }
+        }
+
+        return preferredRef;
+    }
+
+    private String canonicalName(ThermalClusterRef ref) {
+        if (ref == null || ref.getName() == null) return "";
+        return thermalGroupMappingService.toGroup(ref.getName()).orElse(ref.getName());
     }
 
     private static LinkedHashMap<ThermalClusterRef, List<ThermalSpecificParametersEntity>> extractSpecificParamsByClusterRef(List<TrajectoryEntity> specificTrajectories) {
