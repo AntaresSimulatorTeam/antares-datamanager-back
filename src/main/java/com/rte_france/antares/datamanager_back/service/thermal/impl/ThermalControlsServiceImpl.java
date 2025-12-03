@@ -30,6 +30,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     public static final String SHEET_COSTS = "costs";
     public static final String SHEET_RATE = "rate";
 
+    private final ThermalGroupMappingService thermalGroupMappingService;
+
 
     /**
      * Checks for missing clusters in the provided parameter clusters.
@@ -50,10 +52,20 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
         Set<String> installedPowerClusters = TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.equals(trajectoryType) ?
                 getInstalledPowerClustersByStudyId(studyId, horizon) : getInstalledPowerClusterAreaByStudyId(studyId, horizon, area);
 
-        if (!installedPowerClusters.isEmpty()) {
-            clustersWithoutParameters = installedPowerClusters.stream()
-                    .filter(cluster -> !paramClusters.contains(cluster))
-                    .collect(Collectors.toSet());
+        // Canonicalize both input paramClusters and installed power clusters to ensure mapping alignment
+        Set<String> canonicalParamClusters = paramClusters == null ? Set.of() : paramClusters.stream()
+                .filter(Objects::nonNull)
+                .map(this::canonical)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> canonicalInstalled = installedPowerClusters.stream()
+                .filter(Objects::nonNull)
+                .map(this::canonical)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (!canonicalInstalled.isEmpty()) {
+            clustersWithoutParameters = canonicalInstalled.stream()
+                    .filter(cluster -> !canonicalParamClusters.contains(cluster))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
 
             if (!clustersWithoutParameters.isEmpty()) {
                 var paramType = trajectoryType.equals(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER) ? "Common" : "Specific";
@@ -79,11 +91,13 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
 
         if (thermalCommonParamTrajectory != null) {
             Set<String> commonParamClusters = thermalCommonParamTrajectory.getThermalCommonParameters().stream()
-                    .map(e -> e.getThermalClusterRef().getName())
-                    .collect(Collectors.toSet());
+                    .map(e -> canonical(e.getThermalClusterRef().getName()))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
 
-            Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon);
-            capacities.forEach(e -> installedPowerClusters.add(e.getThermalClusterRef().getName()));
+            Set<String> installedPowerClusters = getInstalledPowerClustersByStudyId(studyId, horizon).stream()
+                    .map(this::canonical)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            capacities.forEach(e -> installedPowerClusters.add(canonical(e.getThermalClusterRef().getName())));
 
             List<String> missingClusters = installedPowerClusters.stream()
                     .filter(cluster -> !commonParamClusters.contains(cluster))
@@ -111,18 +125,26 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                 .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId);
 
         if (!specificParamTrajectories.isEmpty()) {
-            // Récupère tous les clusters/areas présents dans les trajectoires spécifiques
+
             Set<String> specificParamAreaClusters = specificParamTrajectories.stream()
                     .map(TrajectoryEntity::getThermalSpecificParameters)
                     .filter(Objects::nonNull)
                     .flatMap(List::stream)
-                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
-                    .collect(Collectors.toSet());
+                    .map(e -> canonical(e.getThermalClusterRef().getName()) + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
 
-            // Récupère tous les clusters/areas de Installed Power existants + en cours d'import
-            Set<String> installedPowerAreaClusters = getInstalledPowerClusterAreaByStudyId(studyId, horizon, OTHERS_AREA);
+
+            Set<String> installedPowerAreaClusters = getInstalledPowerClusterAreaByStudyId(studyId, horizon, OTHERS_AREA).stream()
+                    .map(s -> {
+                        int idx = s.indexOf('/');
+                        if (idx < 0) return canonical(s); // fallback
+                        String name = s.substring(0, idx);
+                        String areaPart = s.substring(idx + 1);
+                        return canonical(name) + "/" + areaPart;
+                    })
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
             capacities.forEach(e -> installedPowerAreaClusters.add(
-                    e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : "")));
+                    canonical(e.getThermalClusterRef().getName()) + "/" + (e.getArea() != null ? e.getArea() : "")));
 
             List<String> missingAreaClusters = installedPowerAreaClusters.stream()
                     .filter(ac -> !specificParamAreaClusters.contains(ac))
@@ -135,6 +157,15 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                                 " are not in Specific trajectory " + trajectoryName)
                         .build();
             }
+        }
+    }
+
+    private String canonical(String name) {
+        if (name == null) return "";
+        try {
+            return thermalGroupMappingService.toGroup(name).orElse(name);
+        } catch (Exception ex) {
+            return name;
         }
     }
 

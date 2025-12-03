@@ -22,6 +22,8 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
 
     private final ThermalTechnologyRepository thermalTechnologyRepository;
 
+    private final ThermalGroupMappingService thermalGroupMappingService;
+
     private List<ThermalClusterRef> cachedClusterRefs;
 
 
@@ -52,7 +54,7 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
         ensureClusterRefsLoaded();
 
-        // supprimer uniquement les espaces en fin de chaîne
+        //Keep name for .json
         String trimmedName = name != null ? name.trim() : null;
 
         // Check if the cluster already exists in the cache
