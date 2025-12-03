@@ -25,10 +25,8 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -36,7 +34,6 @@ import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 
 
 @Slf4j
@@ -361,12 +358,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
         List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
 
-        processThermalModulationSingleFile(trajectoryToUse, horizon,
+        thermalParamModulationService.processThermalModulationSingleFile(trajectoryToUse, horizon,
                 studyId, trajectoryFilePath.resolve(cmFileName), cmFileName, thermalModulationParameters, cmFile, "CM");
 
-        processThermalModulationSingleFile(trajectoryToUse, horizon,
+        thermalParamModulationService.processThermalModulationSingleFile(trajectoryToUse, horizon,
                 studyId, trajectoryFilePath.resolve(mrFileName), mrFileName, thermalModulationParameters, mrFile, "MR");
-
 
         return thermalParamModulationService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
     }
@@ -758,101 +754,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private void processThermalModulationSingleFile(
-            String trajectoryToUse,
-            String horizon,
-            Integer studyId,
-            Path trajectoryFilePath,
-            String fileName,
-            List<ThermalModulationParameterEntity> thermalModulationParameters,
-            Path file,
-            String fileType // "CM" or "MR"
-    ) throws IOException {
-        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .normalize();
-        Path normalizedPath = trajectoryFilePath.normalize();
 
-        if (!normalizedPath.startsWith(allowedBaseDir)) {
-            throw new SecurityException("Trying to access a file outside the allowed base directory: " + allowedBaseDir);
-        }
-
-        List<String> clustersInFile = extractClustersFromCsvHeader(normalizedPath);
-
-        checkNumericDataCMorMR(normalizedPath, trajectoryToUse, fileType);
-
-        // Verify existing clusters depending on type
-        if ("CM".equalsIgnoreCase(fileType)) {
-            verifyExistingCmSpecificClusters(horizon, studyId, clustersInFile, trajectoryToUse);
-        } else if ("MR".equalsIgnoreCase(fileType)) {
-            verifyExistingMrSpecificClusters(horizon, studyId, clustersInFile, trajectoryToUse);
-        }
-
-        thermalModulationParameters.add(
-                ThermalModulationParameterEntity.builder()
-                        .tsName(fileName)
-                        .checksum(getFileChecksum(file.toString()))
-                        .build()
-        );
-    }
-
-
-    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
-
-        Set<String> listClusterByAreaForMrSpecificParam = getListClusterByAreaForMrSpecificParam(horizon, studyId);
-
-        Set<String> missingClusters = listClusterByAreaForMrSpecificParam.stream()
-                .filter(cluster -> !clustersInFile.contains(cluster))
-                .collect(Collectors.toSet());
-
-        if (!missingClusters.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Missing Areas/Cluster {0} in Must Run file for trajectory {1} in horizon {2}")
-                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-
-    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
-
-        Set<String> listClusterByAreaForCmSpecificParam = getListClusterByAreaForCmSpecificParam(horizon, studyId);
-
-        Set<String> missingClusters = listClusterByAreaForCmSpecificParam.stream()
-                .filter(cluster -> !clustersInFile.contains(cluster))
-                .collect(Collectors.toSet());
-
-        if (!missingClusters.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Missing Areas/Cluster {0} in Cost Modulation file for trajectory {1} in horizon {2}")
-                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    private Set<String> getListClusterByAreaForMrSpecificParam(String horizon, Integer studyId) {
-        return thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true);
-    }
-
-    private Set<String> getListClusterByAreaForCmSpecificParam(String horizon, Integer studyId) {
-        return thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, false);
-    }
-
-    public List<String> extractClustersFromCsvHeader(Path normalized) throws IOException {
-        try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
-            String header = reader.readLine();
-            if (header != null) {
-                String[] columns = header.split(";");
-                return Arrays.stream(columns)
-                        .skip(2)
-                        .map(String::toLowerCase)// Ignore DATE_HEURE et heure
-                        .toList();
-            }
-        }
-        return List.of();
-    }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -990,6 +892,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> verifyThermalSpecificParameter(studyId, trajectory);
             case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
             case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
+            case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
+
         }
 
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
@@ -1054,9 +958,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
          });
     }
 
+    public void verifyParamModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {
+        var pathToParamModulation = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+        trajectory.getThermalModulationParameters().stream()
+               .map(ThermalModulationParameterEntity::getTsName)
+               .forEach(paramModulationFileName -> {
+                   try {
+                       thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(),
+                               studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
+                   } catch (IOException e) {
+                       throw TechnicalException.builder().message("could not verify param modulation trajectory on selection" +e.getMessage()).cause(e).build();
 
-    public void checkLinkCoherence(Integer
-                                           studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
+                   }
+               });
+    }
+
+    public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         var listLink = trajectory.getLinkEntities();
         List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
         if (!areasSavedForScenario.isEmpty()) {

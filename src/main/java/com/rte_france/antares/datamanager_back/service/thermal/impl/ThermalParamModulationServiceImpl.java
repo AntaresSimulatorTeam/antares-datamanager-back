@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 
 
 @Slf4j
@@ -102,6 +104,82 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
                     }
                 })
                 .toList();
+    }
+
+
+    public void processThermalModulationSingleFile(
+            String trajectoryToUse,
+            String horizon,
+            Integer studyId,
+            Path trajectoryFilePath,
+            String fileName,
+            List<ThermalModulationParameterEntity> thermalModulationParameters,
+            Path file,
+            String fileType // "CM" or "MR"
+    ) throws IOException {
+        Path normalizedPath = buildParamModulationFilePath(trajectoryFilePath);
+        checkNumericDataCMorMR(normalizedPath, trajectoryToUse, fileType);
+        // Verify existing clusters depending on type
+        verifyExistingSpecificClustersOfParamModulation(horizon, studyId, normalizedPath, trajectoryToUse, fileType);
+
+        thermalModulationParameters.add(
+                ThermalModulationParameterEntity.builder()
+                        .tsName(fileName)
+                        .checksum(getFileChecksum(file.toString()))
+                        .build()
+        );
+    }
+
+    private Path buildParamModulationFilePath(Path trajectoryFilePath) {
+        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
+                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                .normalize();
+        Path normalizedPath = trajectoryFilePath.normalize();
+
+        if (!normalizedPath.startsWith(allowedBaseDir)) {
+            throw new SecurityException("Trying to access a file outside the allowed base directory: " + allowedBaseDir);
+        }
+        return normalizedPath;
+    }
+
+    public void verifyExistingSpecificClustersOfParamModulation(String horizon, Integer studyId, Path modulationFile, String trajectoryName, String fileType) throws IOException {
+
+        List<String> clustersInFile = extractClustersFromCsvHeader(modulationFile);
+
+        boolean isMrFile = fileType.equals("MR");
+        Set<String> listClusterByAreaForSpecificParam = thermalSpecificFileProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, isMrFile);
+        if(listClusterByAreaForSpecificParam.isEmpty()) {
+            log.warn("No specific clusters found for horizon {} and studyId {}. Skipping verification.", horizon, studyId);
+            return;
+        }
+
+        Set<String> missingClusters = listClusterByAreaForSpecificParam.stream()
+                .filter(cluster -> !clustersInFile.contains(cluster))
+                .collect(Collectors.toSet());
+
+        if (!missingClusters.isEmpty()) {
+            String fileTypeLabel = isMrFile ? "Must Run" : "Cost Modulation";
+            throw BusinessException.builder()
+                    .message("Missing Areas/Cluster {0} in " + fileTypeLabel + " file for trajectory {1} in horizon {2}")
+                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+
+    public List<String> extractClustersFromCsvHeader(Path normalized) throws IOException {
+        try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
+            String header = reader.readLine();
+            if (header != null) {
+                String[] columns = header.split(";");
+                return Arrays.stream(columns)
+                        .skip(2)
+                        .map(String::toLowerCase)// Ignore DATE_HEURE et heure
+                        .toList();
+            }
+        }
+        return List.of();
     }
 
     public List<Path> createSplitCmAndMrParamFiles(StudyEntity study) {

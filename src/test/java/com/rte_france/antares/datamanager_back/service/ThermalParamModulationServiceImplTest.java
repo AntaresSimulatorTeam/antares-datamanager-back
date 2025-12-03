@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
@@ -15,6 +16,8 @@ import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -484,7 +487,58 @@ class ThermalParamModulationServiceImplTest {
         assertLinesMatch(List.of("XX"), Files.readAllLines(out));
     }
 
+    // java
+    @Test
+    void processThermalModulationSingleFile_addsThermalModulationParameterWhenValid() throws IOException {
+        String trajectoryToUse = "trajectory_2025";
+        String horizon = "2025-2026";
+        Integer studyId = 1;
+        String fileName = "valid.csv";
 
+        Path baseDir = tempDir.resolve("trajectories");
+        Files.createDirectories(baseDir);
+        Path trajectoryFilePath = baseDir.resolve(fileName);
+        Files.writeString(trajectoryFilePath, "DATE;HEURE;ClusterA;ClusterB\n2025-01-01;00:00;1;2");
 
+        List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
+        Path file = trajectoryFilePath;
 
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(thermalSpecificFileProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true))
+                .thenReturn(Set.of("clustera", "clusterb"));
+
+        thermalParamModulationService.processThermalModulationSingleFile(
+                trajectoryToUse, horizon, studyId, trajectoryFilePath, fileName, thermalModulationParameters, file, "MR");
+
+        assertEquals(1, thermalModulationParameters.size());
+        assertEquals(fileName, thermalModulationParameters.get(0).getTsName());
+    }
+
+    @Test
+    void processThermalModulationSingleFile_throwsBusinessExceptionWhenClustersMissing() throws IOException {
+        String trajectoryToUse = "trajectory_2025";
+        String horizon = "2025-2026";
+        Integer studyId = 1;
+        String fileName = "missing_clusters.csv";
+
+        Path baseDir = tempDir.resolve("trajectories");
+        Files.createDirectories(baseDir);
+        Path trajectoryFilePath = baseDir.resolve(fileName);
+        Files.writeString(trajectoryFilePath, "DATE;HEURE;ClusterX\n2025-01-01;00:00;1");
+
+        List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
+        Path file = trajectoryFilePath;
+
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(thermalSpecificFileProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true))
+                .thenReturn(Set.of("clustera", "clusterb"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalParamModulationService.processThermalModulationSingleFile(
+                        trajectoryToUse, horizon, studyId, trajectoryFilePath, fileName, thermalModulationParameters, file, "MR"));
+
+        assertTrue(exception.getMessage().contains("Missing Areas/Cluster"));
+    }
 }
