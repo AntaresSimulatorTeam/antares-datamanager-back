@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
-import org.hibernate.annotations.ColumnDefault;
 
 
 @EqualsAndHashCode(callSuper = true)

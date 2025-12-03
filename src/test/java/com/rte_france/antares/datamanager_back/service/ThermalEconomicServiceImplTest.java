@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicC
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicEnerContentEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Row;
@@ -42,6 +43,9 @@ class ThermalEconomicServiceImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
+
+    @Mock
+    private ThermalControlService thermalControlService;
 
 
     @Test
