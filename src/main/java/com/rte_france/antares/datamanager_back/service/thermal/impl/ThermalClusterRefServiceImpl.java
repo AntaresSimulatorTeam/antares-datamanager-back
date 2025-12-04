@@ -8,7 +8,6 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnolog
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -119,32 +118,7 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
                         .build());
     }
 
-//    /**
-//     * Overload that allows providing a trajectory name to enrich the business error message when technology is unknown.
-//     */
-//    public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb, String trajectoryName) {
-//        ensureClusterRefsLoaded();
-//
-//        String trimmedName = name != null ? name.trim() : null;
-//
-//        Optional<ThermalClusterRef> existingOpt = findCachedClusterRef(technology, trimmedName);
-//        if (existingOpt.isPresent()) {
-//            return updatePemmdbIfNeeded(existingOpt.get(), namePemmdb);
-//        }
-//
-//        ThermalTechnology thermalTechnology = null;
-//        if (technology != null) {
-//            thermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(technology)
-//                    .orElseThrow(() -> com.rte_france.antares.datamanager_back.exception.BusinessException.builder()
-//                            .message("Technology " + technology + " does not exist in the technology repository for trajectory" + (trajectoryName != null ? (" " + trajectoryName) : ""))
-//                            .build());
-//        }
-//
-//        ThermalClusterRef newRef = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
-//        ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
-//        cachedClusterRefs.add(saved);
-//        return saved;
-//    }
+
 
     private ThermalClusterRef buildClusterRef(String name, ThermalTechnology technology, String namePemmdb) {
         return ThermalClusterRef.builder()

@@ -218,7 +218,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
+
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
+
                 if (rowArea.isEmpty()) continue;
                 String trajectoryName = path.getFileName().toString();
 
@@ -324,8 +326,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
         String technology = castString(getCellValue(row, 3));
+
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
+                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(null,clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
                 .fuel(technology)
                 .type(castString(getCellValue(row, 4)))
@@ -538,7 +541,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void validateHeaderColumns(Row header, Path path) {
-        List<String> requiredColumns = List.of("ToUse", "Area", "Type", "Cluster", "Category");
+        List<String> requiredColumns = List.of("ToUse", "Area", "Technology", "Cluster", "Category");
         for (int i = 0; i < requiredColumns.size(); i++) {
             String cellValue = header.getCell(i).getStringCellValue();
             if (!cellValue.equalsIgnoreCase(requiredColumns.get(i))) {

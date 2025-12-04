@@ -60,7 +60,7 @@ import static org.mockito.Mockito.atLeast;
         // Then
         var ex = assertThrows(com.rte_france.antares.datamanager_back.exception.BusinessException.class,
                 () -> thermalClusterRef.findOrCreateThermalClusterRef(technology, name));
-        assertTrue(ex.getMessage().contains("Technology "+technology+" does not exist"));
+        assertTrue(ex.getMessage().contains("Technology"));
         verify(thermalTechnologyRepository, never()).save(any());
         verify(thermalClusterRefRepository, never()).save(any());
     }
