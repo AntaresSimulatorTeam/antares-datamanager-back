@@ -388,19 +388,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, trajectoryToUse, "");
         var economicsCo2Param = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(trajectoryFilePath, horizon, studyId);
-        if (CollectionUtils.isEmpty(economicsCo2Param)) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
-                    .message("Thermal Economic Co2 Parameter not found in trajectory {0}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
         var economicsEnerContentParam = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(trajectoryFilePath, horizon, studyId);
-
         if (CollectionUtils.isEmpty(economicsEnerContentParam)) {
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
-                    .message("Thermal Economic Ener Content Parameter not found in trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .message("No data in THERMAL Economic trajectory {0} in ener_content tab ")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
