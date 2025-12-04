@@ -43,6 +43,85 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     @Test
+    void extractCommonParams_skipsNA_andNullRef_andNullName_thenGroupsByClusterName() {
+        // given
+        // Capacity for FR with a valid ref name "Gas1" to build the output key and nominal capacity
+        ThermalClusterRef refIncluded = ThermalClusterRef.builder().name("Gas1").build();
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(refIncluded, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(refIncluded, ThermalCategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Common parameters with various refs to test the filters in extractCommonParamsByClusterRef
+        ThermalClusterRef refNA = ThermalClusterRef.builder().name("Gas1").namePemmdb("NA").build(); // should be skipped
+        ThermalClusterRef refNullName = ThermalClusterRef.builder().name(null).build(); // should be skipped
+        ThermalClusterRef refOk = ThermalClusterRef.builder().name("Gas1").namePemmdb(null).build(); // should be kept
+
+        var commonNA = params(refNA, 0.9, 1, 1, 0.33, 1.0);         // skipped by name_pemmdb == "NA"
+        var commonNullName = params(refNullName, 0.8, 1, 1, 0.33, 1.0); // skipped by null name
+        var commonOk = params(refOk, 0.40, 3, 2, 0.415, 7.2);          // kept
+
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(commonNA, commonNullName, commonOk))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", refIncluded);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+
+        // nominal = 600 / 2 = 300
+        assertThat(dto.getNominalCapacity()).isEqualTo(300.0);
+        // minStablePower should come from the kept common (0.40 * nominal)
+        assertThat(dto.getMinStablePower()).isEqualTo(0.40 * 300.0);
+        // group resolved
+        assertThat(dto.getGroup()).isEqualTo("GAS");
+    }
+
+    @Test
+    void assembleForTrajectories_whenCapacityClusterNameNull_thenNoCommonParametersApplied() {
+        // given
+        // Capacity ref with null name -> clusterName == null => commonsForRef should be empty
+        ThermalClusterRef refWithNullName = ThermalClusterRef.builder().name(null).build();
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(refWithNullName, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(refWithNullName, ThermalCategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // A common parameter for a different ref (with name), which should NOT be picked because capacity ref name is null
+        ThermalClusterRef refCommon = ThermalClusterRef.builder().name("Gas1").build();
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(params(refCommon, 0.5, 1, 1, 0.35, 1.0)))
+                .build();
+
+        // when
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", refWithNullName);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+
+        // nominal = 600 / 2 = 300
+        assertThat(dto.getNominalCapacity()).isEqualTo(300.0);
+        // Because clusterName == null for capacity ref, no common params should be applied
+        assertThat(dto.getMinStablePower()).isNull();
+    }
+
+    @Test
     void assembleForTrajectory_buildsOneCluster_withSpecificParametersApplied() {
         // given
         var capacityTrajectory = TrajectoryEntity.builder()
