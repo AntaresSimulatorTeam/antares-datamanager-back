@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
@@ -7,9 +8,11 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnolog
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,7 +69,7 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
         }
 
         // Create a new ThermalClusterRef entity if it does not exist
-        ThermalTechnology thermalTechnology = technology != null ? findOrCreateTechnology(technology) : null;
+        ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
         ThermalClusterRef newRef = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
         ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
         cachedClusterRefs.add(saved); // Add the new entity to the cache
@@ -108,11 +111,40 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
         return ref;
     }
 
-    private ThermalTechnology findOrCreateTechnology(String technology) {
+    private ThermalTechnology findThermalTechnology(String technology) {
         return thermalTechnologyRepository.findThermalTechnologyByName(technology)
-                .orElseGet(() -> thermalTechnologyRepository.save(
-                        ThermalTechnology.builder().name(technology).build()));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Technology {0} does not exist in the technology repository")
+                        .errorMessageArguments(Collections.singletonList(technology))
+                        .build());
     }
+
+//    /**
+//     * Overload that allows providing a trajectory name to enrich the business error message when technology is unknown.
+//     */
+//    public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb, String trajectoryName) {
+//        ensureClusterRefsLoaded();
+//
+//        String trimmedName = name != null ? name.trim() : null;
+//
+//        Optional<ThermalClusterRef> existingOpt = findCachedClusterRef(technology, trimmedName);
+//        if (existingOpt.isPresent()) {
+//            return updatePemmdbIfNeeded(existingOpt.get(), namePemmdb);
+//        }
+//
+//        ThermalTechnology thermalTechnology = null;
+//        if (technology != null) {
+//            thermalTechnology = thermalTechnologyRepository.findThermalTechnologyByName(technology)
+//                    .orElseThrow(() -> com.rte_france.antares.datamanager_back.exception.BusinessException.builder()
+//                            .message("Technology " + technology + " does not exist in the technology repository for trajectory" + (trajectoryName != null ? (" " + trajectoryName) : ""))
+//                            .build());
+//        }
+//
+//        ThermalClusterRef newRef = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
+//        ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
+//        cachedClusterRefs.add(saved);
+//        return saved;
+//    }
 
     private ThermalClusterRef buildClusterRef(String name, ThermalTechnology technology, String namePemmdb) {
         return ThermalClusterRef.builder()

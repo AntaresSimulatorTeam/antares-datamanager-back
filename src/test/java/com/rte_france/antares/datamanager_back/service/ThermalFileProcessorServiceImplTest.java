@@ -174,7 +174,7 @@ class ThermalFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
-        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any()))
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), isNull(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
         when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
@@ -578,7 +578,7 @@ class ThermalFileProcessorServiceImplTest {
 
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(List.of(TrajectoryEntity.builder().build()));
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
-        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any(), anyString()))
                 .thenReturn(ThermalClusterRef.builder().name("ClusterA").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
 
         var list = thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, studyId);

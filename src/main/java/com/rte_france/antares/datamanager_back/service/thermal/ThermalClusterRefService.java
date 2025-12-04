@@ -7,4 +7,9 @@ public interface ThermalClusterRefService {
     ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name);
 
     ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb);
+
+    /**
+     * Variant used to enrich error messages when technology is missing by including the trajectory/file name.
+     */
+   // ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb, String trajectoryName);
 }
