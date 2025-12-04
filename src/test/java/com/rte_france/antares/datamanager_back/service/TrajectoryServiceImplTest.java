@@ -1248,7 +1248,7 @@ class TrajectoryServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId));
 
-        assertTrue(exception.getMessage().contains("Thermal Economic Co2 Parameter not found"));
+        assertTrue(exception.getMessage().contains("No data in THERMAL Economic trajectory {0} in ener_content tab"));
     }
 
     @Test
@@ -1269,7 +1269,7 @@ class TrajectoryServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId));
 
-        assertTrue(exception.getMessage().contains("Thermal Economic Ener Content Parameter not found"));
+        assertTrue(exception.getMessage().contains("No data in THERMAL Economic trajectory {0} in ener_content tab "));
     }
 
     @Test

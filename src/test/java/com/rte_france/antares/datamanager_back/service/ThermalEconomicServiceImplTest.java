@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicCo2Entity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicEnerContentEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -116,19 +114,50 @@ class ThermalEconomicServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicCo2ParameterValuesList_shouldReturnEmptyListWhenSheetMissingInGeneratedExcel() throws Exception {
-        Path temp = generateExcelFileWithDifferentSheet();
+    void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenCo2IsNotValid() throws Exception {
+        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2023", "100w.5", "kg", "comment"}, new String[]{"Oil", "FR", "2023", "200.0", "kg", "comment2"}));
         try {
             BusinessException ex = assertThrows(
                     BusinessException.class,
                     () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
             );
-            assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_Emission tab"));
+            assertTrue(ex.getMessage().contains("The value of CO2_EmissionFuel of horizon {0} in THERMAL Economic trajectory {1} in CO2_emissions  tab must be numeric"));
+
         } finally {
             Files.deleteIfExists(temp);
         }
     }
 
+    @Test
+    void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenFileEmpty() throws Exception {
+        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2027", "100.5", "kg", "comment"},
+                new String[]{"Oil", "FR", "2027", "200.0", "kg", "comment2"}));
+        try {
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
+            );
+            assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_emissions tab "));
+
+        } finally {
+            Files.deleteIfExists(temp);
+        }
+    }
+
+    @Test
+    void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenHorizonDoesNotExist() throws Exception {
+        Path temp = generateExcelFileWithCo2Rows(List.of());
+        try {
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
+            );
+            assertTrue(ex.getMessage().contains("No data in THERMAL Economic trajectory {0} in CO2_emissions tab"));
+
+        } finally {
+            Files.deleteIfExists(temp);
+        }
+    }
 
     @Test
     void buildThermalEconomicEnerContentParameterValuesList_shouldReturnPopulatedListFromGeneratedExcel() throws Exception {
@@ -150,29 +179,30 @@ class ThermalEconomicServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicEnerContentParameterValuesList_shouldReturnEmptyListWhenSheetMissingInGeneratedExcel() throws Exception {
-        Path temp = generateExcelFileWithDifferentSheet();
+    void buildThermalEconomicEnerContentParameterValuesList_shouldThrowBusinessExceptionWhenValueIsNotNumeric() throws Exception {
+        Path temp = generateExcelFileWithEnerRows(List.of(new String[]{"", "MJ", "comment1"}, new String[]{"1000", "MJ", "comment2"}));
+
         try {
-            List<ThermalEconomicEnerContentEntity> result = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1);
-            assertTrue(result.isEmpty());
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1)
+
+            );
+            assertTrue(ex.getMessage().contains("The value of value of horizon {0} in THERMAL Economic trajectory {1} in ener_content  tab must be numeric"));
         } finally {
             Files.deleteIfExists(temp);
         }
     }
 
     @Test
-    void buildThermalEconomicEnerContentParameterValuesList_shouldSkipRowsWithInvalidValues() throws Exception {
-        Path temp = generateExcelFileWithEnerRows(List.of(
-                new String[]{"invalid", "MJ", "comment1"},
-                new String[]{"1000", "MJ", "comment2"}
-        ));
-
+    void buildThermalEconomicEnerContentParameterValuesList_shouldThrowBusinessException() throws Exception {
+        Path temp = generateExcelFileWithDifferentSheet();
         try {
-            List<ThermalEconomicEnerContentEntity> result = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1);
-            assertEquals(1, result.size());
-            assertEquals(new BigDecimal("1000"), result.get(0).getValue());
-            assertEquals("MJ", result.get(0).getUnit());
-            assertEquals("comment2", result.get(0).getComment());
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1)
+            );
+            assertTrue(ex.getMessage().contains("Missing ener_content data in trajectory {0}"));
         } finally {
             Files.deleteIfExists(temp);
         }
