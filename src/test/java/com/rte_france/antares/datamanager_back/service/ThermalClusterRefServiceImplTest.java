@@ -51,28 +51,18 @@ import static org.mockito.Mockito.atLeast;
     }
 
     @Test
-    void findOrCreateThermalClusterRef_shouldCreateTechnologyWhenNotFound() {
+    void findOrCreateThermalClusterRef_whenTechnologyNotFound_shouldThrowBusinessException() {
         // Given
         String technology = "NewTech";
         String name = "ClusterA";
         when(thermalTechnologyRepository.findThermalTechnologyByName(technology)).thenReturn(Optional.empty());
-        ThermalTechnology newTech = ThermalTechnology.builder().name(technology).build();
-        when(thermalTechnologyRepository.save(any())).thenReturn(newTech);
-
-        ThermalClusterRef expectedRef = ThermalClusterRef.builder()
-                .name(name)
-                .namePemmdb("NA")
-                .thermalTechnology(newTech)
-                .build();
-        when(thermalClusterRefRepository.save(any())).thenReturn(expectedRef);
-
-        // When
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef(technology, name);
 
         // Then
-        assertNotNull(result);
-        assertEquals(technology, result.getThermalTechnology().getName());
-        verify(thermalTechnologyRepository).save(any(ThermalTechnology.class));
+        var ex = assertThrows(com.rte_france.antares.datamanager_back.exception.BusinessException.class,
+                () -> thermalClusterRef.findOrCreateThermalClusterRef(technology, name));
+        assertTrue(ex.getMessage().contains("Technology "+technology+" does not exist"));
+        verify(thermalTechnologyRepository, never()).save(any());
+        verify(thermalClusterRefRepository, never()).save(any());
     }
 
     @Test
