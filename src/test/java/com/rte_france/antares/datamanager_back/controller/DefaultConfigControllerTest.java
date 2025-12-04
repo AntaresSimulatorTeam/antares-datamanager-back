@@ -1,7 +1,8 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
-import com.rte_france.antares.datamanager_back.service.common.impl.DefaultLoadServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.DefaultThermalTechnologyDTO;
+import com.rte_france.antares.datamanager_back.service.common.impl.DefaultConfigServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class DefaultLoadControllerTest {
+class DefaultConfigControllerTest {
 
     @Autowired
     protected WebApplicationContext wac;
@@ -32,7 +33,7 @@ class DefaultLoadControllerTest {
     protected MockMvc mockMvc;
 
     @MockBean
-    private DefaultLoadServiceImpl defaultLoadService;
+    private DefaultConfigServiceImpl defaultLoadService;
 
     @BeforeEach
      void setup() {
@@ -62,6 +63,34 @@ class DefaultLoadControllerTest {
                 .andDo(MockMvcResultHandlers.print());
 
         verify(defaultLoadService, times(1)).fetchAllDefaults();
+    }
+
+
+    @Test
+    void fetchThermalTechnologyForDisplay() throws Exception {
+        // Given
+        DefaultThermalTechnologyDTO entity1 = DefaultThermalTechnologyDTO.builder()
+                .name("Nuclear")
+                .build();
+        DefaultThermalTechnologyDTO entity2 = DefaultThermalTechnologyDTO.builder()
+                .name("CCGT")
+                .build();
+        List< DefaultThermalTechnologyDTO > entities = List.of(entity1, entity2);
+
+        when(defaultLoadService.fetchAllThermalTechnologies()).thenReturn(entities);
+
+        // When
+        mockMvc.perform(get("/v1/default_config/thermal-technology-display")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                // Then
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Nuclear"))
+                .andExpect(jsonPath("$[1].name").value("CCGT"))
+                .andDo(MockMvcResultHandlers.print());
+
+        verify(defaultLoadService, times(1)).fetchAllThermalTechnologies();
     }
 }
 

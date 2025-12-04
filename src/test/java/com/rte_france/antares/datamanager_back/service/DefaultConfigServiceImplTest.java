@@ -1,10 +1,13 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
+import com.rte_france.antares.datamanager_back.dto.DefaultThermalTechnologyDTO;
 
 import com.rte_france.antares.datamanager_back.repository.DefaultLoadRepository;
+import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.DefaultLoadEntity;
-import com.rte_france.antares.datamanager_back.service.common.impl.DefaultLoadServiceImpl;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnology;
+import com.rte_france.antares.datamanager_back.service.common.impl.DefaultConfigServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,12 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
- class DefaultLoadServiceImplTest {
+ class DefaultConfigServiceImplTest {
     @Mock
     private DefaultLoadRepository defaultLoadRepository;
 
+    @Mock
+    private ThermalTechnologyRepository thermalTechnologyRepository;
+
     @InjectMocks
-    private DefaultLoadServiceImpl loadDefaultService;
+    private DefaultConfigServiceImpl loadDefaultService;
 
 
     @Test
@@ -70,5 +76,39 @@ import static org.mockito.Mockito.*;
         assertEquals("ES", result.get(1).getName());
         assertEquals("RO", result.get(2).getName());
         verify(defaultLoadRepository).findAllByIsDefaultIsTrue();
+    }
+
+    @Test
+    void fetchAllThermalTechnologies_shouldReturnMappedDTOs() {
+        // Given
+        ThermalTechnology t1 = ThermalTechnology.builder().id(1).name("Nuclear").build();
+        ThermalTechnology t2 = ThermalTechnology.builder().id(2).name("CCGT").build();
+        when(thermalTechnologyRepository.findAll()).thenReturn(List.of(t1, t2));
+
+        // When
+        List<DefaultThermalTechnologyDTO> result = loadDefaultService.fetchAllThermalTechnologies();
+
+        // Then
+        // Mapper keeps only name; ensure both mapped
+        assertEquals(2, result.size());
+        verify(thermalTechnologyRepository).findAll();
+    }
+
+    @Test
+    void fetchAllThermalTechnologies_shouldReturnMappedDTOsSortedByName() {
+        // Given: unordered names
+        ThermalTechnology t1 = ThermalTechnology.builder().id(1).name("Nuclear").build();
+        ThermalTechnology t2 = ThermalTechnology.builder().id(2).name("CCGT").build();
+        ThermalTechnology t3 = ThermalTechnology.builder().id(3).name("Additional power").build();
+        when(thermalTechnologyRepository.findAll()).thenReturn(List.of(t1, t2, t3));
+
+        // When
+        List<DefaultThermalTechnologyDTO> result = loadDefaultService.fetchAllThermalTechnologies();
+
+        // Then: ascending alphabetical order by name
+        assertEquals("Additional power", result.get(0).getName());
+        assertEquals("CCGT", result.get(1).getName());
+        assertEquals("Nuclear", result.get(2).getName());
+        verify(thermalTechnologyRepository).findAll();
     }
 }

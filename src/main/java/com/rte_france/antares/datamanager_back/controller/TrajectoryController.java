@@ -137,11 +137,4 @@ public class TrajectoryController {
     public ResponseEntity<Map<String, Integer>> countWarningMessage(@PathVariable Integer id) {
         return new ResponseEntity<>(trajectoryService.countWarningMessage(id), HttpStatus.OK);
     }
-
-    @Operation(summary = "Get thermal technology defaults values for IHM")
-    @GetMapping(value = "/thermalTechnologyToDisplay")
-    public ResponseEntity<List<DefaultLoadDTO>> fetchDefaultLoadConfig() {
-
-        return ResponseEntity.ok(trajectoryService.fetchAllDefaults());
-    }
 }
