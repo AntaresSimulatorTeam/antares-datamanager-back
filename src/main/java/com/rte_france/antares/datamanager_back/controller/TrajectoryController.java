@@ -1,10 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDataDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -139,5 +136,12 @@ public class TrajectoryController {
     @GetMapping("/count/warning/{id}")
     public ResponseEntity<Map<String, Integer>> countWarningMessage(@PathVariable Integer id) {
         return new ResponseEntity<>(trajectoryService.countWarningMessage(id), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get thermal technology defaults values for IHM")
+    @GetMapping(value = "/thermalTechnologyToDisplay")
+    public ResponseEntity<List<DefaultLoadDTO>> fetchDefaultLoadConfig() {
+
+        return ResponseEntity.ok(trajectoryService.fetchAllDefaults());
     }
 }
