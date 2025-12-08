@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicCo2Entity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicEnerContentEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.AllArgsConstructor;
@@ -18,9 +19,8 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.throwAlreadyProcessedFileException;
@@ -36,6 +36,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
 
     private final UserService userService;
     private final TrajectoryRepository trajectoryRepository;
+    private final ThermalControlService thermalControlService;
 
     @Override
     public List<ThermalEconomicCo2Entity> buildThermalEconomicCo2ParameterValuesList(Path trajectoryFilePath, String horizon, Integer studyId) throws IOException {
@@ -44,6 +45,8 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
             List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon);
+            Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryFilePath.getFileName().toString(), listTechnology, Collections.emptySet());
             if(thermalEconomicCo2EntityList.isEmpty()) {
                 throw BusinessException.builder()
                         .message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_Emission tab")
@@ -98,6 +101,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     private List<ThermalEconomicCo2Entity> parseCo2Sheet(Sheet sheet, String horizon) {
         List<ThermalEconomicCo2Entity> list = new ArrayList<>();
         if (sheet == null) return list;
+
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) continue;

@@ -29,7 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
- class ThermalControlsServiceImplTest {
+class ThermalControlsServiceImplTest {
     @Mock
     private TrajectoryRepository trajectoryRepository;
 
@@ -84,7 +84,7 @@ import static org.mockito.Mockito.when;
                 ));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER,"FR"));
+                thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, "FR"));
 
         assertTrue(exception.getMessage().contains("Clusters : ClusterB/FR are not in Specific trajectory"));
     }
@@ -98,7 +98,7 @@ import static org.mockito.Mockito.when;
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
                 .thenReturn(List.of());
 
-        assertDoesNotThrow(() -> thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,null));
+        assertDoesNotThrow(() -> thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null));
     }
 
 
@@ -139,7 +139,7 @@ import static org.mockito.Mockito.when;
             wb.createSheet("other");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("Missing costs/rate data in trajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -150,7 +150,7 @@ import static org.mockito.Mockito.when;
             wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("Missing costs data in trajectory"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
@@ -166,7 +166,7 @@ import static org.mockito.Mockito.when;
             costs.createRow(1).createCell(5).setCellValue(1.0);
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("Missing rate data in trajectory"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
@@ -193,7 +193,7 @@ import static org.mockito.Mockito.when;
 
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("No data for horizon {0} in THERMAL Costs trajectory {1} in costs tab"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
@@ -210,7 +210,7 @@ import static org.mockito.Mockito.when;
             wb.getSheet(ThermalControlsServiceImpl.SHEET_RATE).createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("costs tab"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
@@ -229,7 +229,7 @@ import static org.mockito.Mockito.when;
             rate.createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("must be numeric"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -250,7 +250,7 @@ import static org.mockito.Mockito.when;
         });
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory"));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("No data for horizon"));
         assertTrue(ex.getMessage().contains("rate tab"));
     }
@@ -268,7 +268,7 @@ import static org.mockito.Mockito.when;
             rate.createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj"));
+                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj", 1));
         assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("rate tab"));
     }
@@ -390,6 +390,7 @@ import static org.mockito.Mockito.when;
                 thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
         );
     }
+
     @Test
     void validateDataCells_shouldThrowWhenAnyHeaderIsEmpty() throws IOException {
         Path file = createWorkbook(wb -> {
@@ -417,4 +418,36 @@ import static org.mockito.Mockito.when;
 
         }
     }
+
+    @Test
+    void verifyThermalCapacityTechnology_shouldThrowWhenTechnologiesAreMissing() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String trajectoryName = "ThermalCapacityTrajectory";
+        Set<String> paramTechnologies = Set.of("TechA", "TechB");
+        Set<String> existingTechnologies = Set.of("TechA");
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
+                .thenReturn(List.of(TrajectoryEntity.builder()
+                        .thermalClusterCapacities(List.of(ThermalClusterCapacityEntity
+                                .builder().thermalClusterRef(ThermalClusterRef
+                                        .builder().thermalTechnology(ThermalTechnology
+                                                .builder().name("Gas").build()).build()).build())).build()));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, paramTechnologies, existingTechnologies));
+
+        assertTrue(exception.getMessage().contains("Technology {0} in THERMAL Costs trajectory {1} in costs tab does not exist in installed power trajectory for horizon {2}"));
     }
+
+    @Test
+    void verifyThermalCapacityTechnology_shouldNotThrowWhenAllTechnologiesArePresent() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String trajectoryName = "ThermalCapacityTrajectory";
+        Set<String> paramTechnologies = Set.of("tech", "a");
+        Set<String> existingTechnologies = Set.of("tech", "a");
+
+        assertDoesNotThrow(() ->
+                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, paramTechnologies, existingTechnologies));
+    }
+}

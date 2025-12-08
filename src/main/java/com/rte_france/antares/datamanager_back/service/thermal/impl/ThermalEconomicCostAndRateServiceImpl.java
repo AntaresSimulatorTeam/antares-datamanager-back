@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostEntit
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCostAndRateService {
 
     private final TrajectoryRepository trajectoryRepository;
+    private final ThermalControlService  thermalControlService;
     private final ThermalCostTypeRepository thermalCostTypeRepository;
 
     public static final String SHEET_COSTS = "costs";
@@ -60,14 +62,12 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
             }
 
             Integer horizonCol = findHorizonColumnIndex(header, horizon);
-
             List<ThermalCostTypeEntity> result = new ArrayList<>();
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
                 String fuel = castString(getCellValue(row, 1));
                 if (fuel == null || fuel.isBlank()) continue;
-
                 ThermalCostTypeEntity type = buildThermalEconomicCostType(row, header);
 
                 Double costValue = castDouble(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
@@ -83,6 +83,8 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                 }
                 result.add(type);
             }
+            var listTechnology = result.stream().map(ThermalCostTypeEntity::getFuel).collect(java.util.stream.Collectors.toSet());
+            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology,Collections.emptySet());
 
             return result;
         } catch (IOException e) {

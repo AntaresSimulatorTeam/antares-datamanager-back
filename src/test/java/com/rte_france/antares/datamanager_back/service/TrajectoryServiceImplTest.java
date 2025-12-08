@@ -467,12 +467,16 @@ class TrajectoryServiceImplTest {
     void verifyClustersInCommonAndSpecificParamTrajectory_shouldCallVerificationMethodsForThermalCapacity() throws IOException {
         Integer studyId = 1;
         String horizon = "2023-2024";
-        List<ThermalClusterCapacityEntity> thermalClusterCapacities = List.of(new ThermalClusterCapacityEntity());
+        List<ThermalClusterCapacityEntity> thermalClusterCapacities = List.of(ThermalClusterCapacityEntity.builder()
+        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterX").thermalTechnology(ThermalTechnology.builder().name("GAS").build()).build())
+                .build());
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .horizon(horizon)
                 .thermalClusterCapacities(thermalClusterCapacities)
+                .thermalEconomicCo2s(List.of(ThermalEconomicCo2Entity.builder().fuel("Gas").build()))
+                .thermalCosts(List.of(ThermalCostEntity.builder().thermalType(ThermalCostTypeEntity.builder().fuel("GAS").build()).build()))
                 .build();
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
@@ -1287,6 +1291,19 @@ class TrajectoryServiceImplTest {
         TrajectoryEntity result = trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId);
 
         assertNotNull(result);
+    }
+
+    @Test
+    void checkTrajectoryCoherence_shouldCallVerifyThermalEconomicCostParameter() throws IOException {
+
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                .thermalCosts(List.of(ThermalCostEntity.builder().thermalType(ThermalCostTypeEntity.builder().fuel("gas").build()).build()))
+                .build();
+
+        trajectoryService.checkTrajectoryCoherence(studyId,new HashSet<>() , trajectory,"userNni");
+
     }
 
 }

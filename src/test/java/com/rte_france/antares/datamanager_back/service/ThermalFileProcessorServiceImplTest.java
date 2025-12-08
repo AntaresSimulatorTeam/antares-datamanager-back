@@ -863,6 +863,19 @@ class ThermalFileProcessorServiceImplTest {
         }
     }
 
+    @Test
+    void getTechnologiesFromCostsAndCo2_shouldReturnDistinctTechnologies() {
+when(trajectoryRepository.findByTypeAndStudyId(any(),any())).thenReturn(List.of(TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                .thermalEconomicCo2s(List.of(
+                        ThermalEconomicCo2Entity.builder().fuel("CCGT").build(),
+                        ThermalEconomicCo2Entity.builder().fuel("Nuclear").build()
+                ))
+                .thermalCosts(List.of(ThermalCostEntity.builder().thermalType(ThermalCostTypeEntity.builder().fuel("GAS").build()).build()))
+        .build()));
+        Set<String> result = thermalFileProcessorService.getTechnologiesFromCostsAndCo2(1);
+        assertEquals(3, result.size());
 
+    }
 
 }

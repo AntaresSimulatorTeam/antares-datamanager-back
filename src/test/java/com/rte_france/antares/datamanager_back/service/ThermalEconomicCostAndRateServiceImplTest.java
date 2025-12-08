@@ -8,6 +8,8 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostEntit
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicCostAndRateServiceImpl;
 import org.apache.poi.ss.usermodel.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,12 +31,18 @@ import java.util.Optional;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ThermalEconomicCostAndRateServiceImplTest {
+class ThermalEconomicCostAndRateServiceImplTest {
     @Mock
     private TrajectoryRepository trajectoryRepository;
 
     @Mock
+    private TrajectoryService trajectoryService;
+
+    @Mock
     private ThermalCostTypeRepository thermalCostTypeRepository;
+
+    @Mock
+    private ThermalControlService thermalControlService;
 
     @InjectMocks
     private ThermalEconomicCostAndRateServiceImpl service;
@@ -44,10 +52,9 @@ public class ThermalEconomicCostAndRateServiceImplTest {
         MockitoAnnotations.openMocks(this);
     }
 
-    ;
 
     @Test
-    void testBuildThermalEconomicCostsValueList_shouldParseCostsSheetCorrectly() throws Exception {
+    void testBuildThermalEconomicCostsValueList_shouldParseCostsSheetCorrectly() {
 
         Workbook workbook = mock(Workbook.class);
         Sheet sheet = mock(Sheet.class);
