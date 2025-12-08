@@ -1,15 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalSpecificParametersRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalSpecificFileProcessorServiceImpl;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -19,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
@@ -60,6 +59,12 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Mock
     private ThermalClusterRefServiceImpl thermalClusterRefServiceImpl;
+
+    @Mock
+    private StudyRepository studyRepository;
+
+    @Mock
+    private WarningRepository warningRepository;
 
 
     @InjectMocks
@@ -446,6 +451,125 @@ class ThermalSpecificFileProcessorServiceImplTest {
         Set<String> result = service.getListClusterByAreaForSpecificParam("2025", 1, true);
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testIsParamModulationRequired_returnsTrue_whenClustersContainMrOrCm() {
+        // GIVEN
+        Integer studyId = 1;
+        String horizon = "H1";
+        Integer trajectoryId = 10;
+
+        ThermalSpecificParametersEntity p1 = new ThermalSpecificParametersEntity();
+        p1.setMrSpecific(1);
+        p1.setCmSpecific(0);
+
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
+                .thenReturn(List.of(p1));
+
+        // WHEN
+        boolean result = service.isParamModulationRequired(horizon, studyId, trajectoryId);
+
+        // THEN
+        assertTrue(result);
+        verify(warningRepository, never()).save(any());
+        verify(warningRepository, never()).deleteAll(any());
+    }
+
+
+    /**
+     * ==============================================
+     *  CASE 2 : No CM / MR → return FALSE + warning
+     * ==============================================
+     */
+    @Test
+    void testIsParamModulationRequired_returnsFalse_andSaveWarning() {
+        // GIVEN
+        Integer studyId = 2;
+        Integer trajectoryId = 20;
+        String horizon = "H2";
+
+        ThermalSpecificParametersEntity p1 = new ThermalSpecificParametersEntity();
+        p1.setMrSpecific(0);
+        p1.setCmSpecific(0);
+
+        // Clusters
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
+                .thenReturn(Collections.singletonList(p1));
+
+        // Study + Trajectory
+        TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
+        trajectoryEntity.setId(trajectoryId);
+
+        StudyEntity studyEntity = new StudyEntity();
+        studyEntity.setTrajectories(Collections.singleton(trajectoryEntity));
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(studyEntity));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("tart").build());
+
+        // WHEN
+        boolean result = service.isParamModulationRequired(horizon, studyId, trajectoryId);
+
+        // THEN
+        assertFalse(result);
+        verify(warningRepository).deleteAll(any());   // existing warnings removed
+        verify(warningRepository).save(any());       // new warning saved
+    }
+
+
+    /**
+     * ==================================
+     *  CASE 3 : Study not found → EXCEPTION
+     * ==================================
+     */
+    @Test
+    void testIsParamModulationRequired_throwsException_whenStudyNotFound() {
+        Integer studyId = 5;
+        Integer trajectoryId = 50;
+        String horizon = "H3";
+
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
+                .thenReturn(Collections.emptyList());
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> service.isParamModulationRequired(horizon, studyId, trajectoryId)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Study not found"));
+    }
+
+
+    /**
+     * =======================================
+     *  CASE 4 : Trajectory not found → EXCEPTION
+     * =======================================
+     */
+    @Test
+    void testIsParamModulationRequired_throwsException_whenTrajectoryNotFound() {
+        Integer studyId = 7;
+        Integer trajectoryId = 70;
+        String horizon = "H4";
+
+        // Aucun CM/MR → déclenche saveWarningMessage
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
+                .thenReturn(Collections.emptyList());
+
+        StudyEntity study = new StudyEntity();
+        study.setTrajectories(Collections.emptySet());   // no trajectory
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> service.isParamModulationRequired(horizon, studyId, trajectoryId)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Trajectory not found"));
     }
 
 }

@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
@@ -24,16 +25,17 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @RequiredArgsConstructor
 public class ThermalController {
     private final TrajectoryService trajectoryService;
+    private final ThermalSpecificFileProcessorService thermalSpecificFileProcessorService;
 
     @Operation(summary = "import thermal capacity trajectory to database ")
     @PostMapping("/thermal-capacity")
     public ResponseEntity<TrajectoryDTO> uploadThermalCapacityTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
-                                                         @RequestParam(value = "technology", required = false) String technology,
-                                                         @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
-                                                         @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
-                                                         @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                         @RequestParam("studyId") Integer studyId,
-                                                         @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+                                                                         @RequestParam(value = "technology", required = false) String technology,
+                                                                         @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+                                                                         @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                                         @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                                         @RequestParam("studyId") Integer studyId,
+                                                                         @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(
                 trajectoryService.processThermalCapacityTrajectory(trajectoryToUse, horizon, studyId, isCivilYear, area, technology)
@@ -84,7 +86,7 @@ public class ThermalController {
             @Parameter(description = "example of horizon : 2020-2021") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
-                trajectoryService.processThermalEconomicCostTrajectory(trajectoryToUse, horizon, studyId)),HttpStatus.CREATED);
+                trajectoryService.processThermalEconomicCostTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
 
@@ -99,4 +101,12 @@ public class ThermalController {
         ), HttpStatus.CREATED);
     }
 
+    @PutMapping("/specific-param-modulation-required")
+    public ResponseEntity<Boolean> isParamModulationRequired(@RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                             @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                             @RequestParam("studyId") Integer studyId,
+                                                             @RequestParam("trajectoryId") Integer trajectoryId) {
+        boolean required = thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId, trajectoryId);
+        return ResponseEntity.ok(required);
+    }
 }

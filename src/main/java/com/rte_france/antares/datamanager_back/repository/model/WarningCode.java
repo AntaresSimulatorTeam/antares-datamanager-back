@@ -11,7 +11,8 @@ public enum WarningCode {
     LOAD_MISSING_TRAJECTORY_FOR_AREAS("load.missing_trajectories_for_areas"),
     DUPLICATION_MISSING_TRAJECTORIES("duplication.missing_trajectories"),
     THERMAL_INSTALLED_POWER_MISSING_AREAS("thermal.installed_power_missing_areas"),
-    THERMAL_SPECIFIC_PARAM_MISSING_AREAS("thermal.specific_param_missing_areas");
+    THERMAL_SPECIFIC_PARAM_MISSING_AREAS("thermal.specific_param_missing_areas"),
+    THERMAL_SPECIFIC_PARAM_ANY_CM_MR_REQUIRED("thermal.specific_param_any_cm_mr_required");
     private final String value;
 
     public String value() {
