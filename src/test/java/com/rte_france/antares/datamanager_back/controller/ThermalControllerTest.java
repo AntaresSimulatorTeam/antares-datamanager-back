@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,9 @@ class ThermalControllerTest {
 
     @MockBean
     TrajectoryServiceImpl trajectoryService;
+
+    @MockBean
+    ThermalSpecificFileProcessorService thermalSpecificFileProcessorService;
 
     @BeforeEach
      void setup() {
@@ -231,6 +235,68 @@ class ThermalControllerTest {
     @Test
     void uploadThermalEconomicParamTrajectory_shouldReturnBadRequestWhenTrajectoryToUseIsMissing() throws Exception {
         mockMvc.perform(post("/v1/trajectory/thermal-economic-parameter")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void isParamModulationRequired_shouldReturnTrueWhenModulationIsRequired() throws Exception {
+        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt(), anyInt())).thenReturn(true);
+
+        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .param("trajectoryId", "10")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void isParamModulationRequired_shouldReturnFalseWhenModulationIsNotRequired() throws Exception {
+        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt(), anyInt())).thenReturn(false);
+
+        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .param("trajectoryId", "10")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void isParamModulationRequired_shouldReturnBadRequestWhenHorizonIsInvalid() throws Exception {
+        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", "1")
+                        .param("trajectoryId", "10")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void isParamModulationRequired_shouldReturnBadRequestWhenStudyIdIsMissing() throws Exception {
+        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("horizon", "2023-2024")
+                        .param("trajectoryId", "10")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest())
+                .andDo(MockMvcResultHandlers.print());
+    }
+
+    @Test
+    void isParamModulationRequired_shouldReturnBadRequestWhenTrajectoryIdIsMissing() throws Exception {
+        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")

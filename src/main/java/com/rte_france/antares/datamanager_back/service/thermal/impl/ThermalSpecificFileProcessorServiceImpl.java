@@ -3,26 +3,25 @@ package com.rte_france.antares.datamanager_back.service.thermal.impl;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.ThermalSpecificParametersRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalSpecificParametersEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -40,6 +39,9 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     private final ThermalControlService thermalControlService;
     private final ThermalClusterRefServiceImpl thermalClusterRef;
     private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
+    private final WarningRepository warningRepository;
+    private final StudyRepository studyRepository;
+    private final UserService userService;
 
     /**
      * Builds a list of ThermalSpecificParametersEntity objects based on the provided trajectory file
@@ -82,7 +84,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
                 String rowArea = castString(getCellValue(row, 0));
                 rowArea = rowArea == null ? null : rowArea.trim();
-                if (rowArea == null || rowArea.isBlank() || (!area.equals(OTHERS_AREA) && !rowArea.equals(area))  || !studyAreas.contains(rowArea.toUpperCase())) {
+                if (rowArea == null || rowArea.isBlank() || (!area.equals(OTHERS_AREA) && !rowArea.equals(area)) || !studyAreas.contains(rowArea.toUpperCase())) {
                     continue; // ignore empty lines
                 }
                 String rowAreaUpper = rowArea.toUpperCase();
@@ -136,6 +138,47 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 .filter(p -> Objects.equals(mr ? p.getMrSpecific() : p.getCmSpecific(), 1))
                 .map(p -> (p.getArea() + "_" + p.getThermalClusterRef().getName()).toLowerCase())
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public boolean isParamModulationRequired(String horizon, Integer studyId, Integer trajectoryId) {
+        Set<ThermalSpecificParametersEntity> clustersWithCmOrMr = thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon)
+                .stream()
+                .filter(p -> Objects.equals(p.getMrSpecific(), 1) || Objects.equals(p.getCmSpecific(), 1))
+                .collect(Collectors.toSet());
+        if (!clustersWithCmOrMr.isEmpty()) {
+            return true;
+        }
+        saveWarningMessage(studyId, trajectoryId);
+        return false;
+    }
+
+    private void saveWarningMessage(Integer studyId, Integer trajectoryId) {
+        StudyEntity studyEntity = studyRepository.findById(studyId)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Study not found with id: " + studyId)
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
+        TrajectoryEntity trajectoryEntity = studyEntity.getTrajectories().stream()
+                .filter(trajectory -> trajectory.getId().equals(trajectoryId)).findFirst()
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Trajectory not found with id: " + trajectoryId)
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build());
+        //delete existing warning message by trajectory id , study id and  WarningCode before saving new one
+        Set<WarningMessageEntity> warningMessageEntities = warningRepository.findByWarningContentAndTrajectoryIdAndStudyId(WarningCode.THERMAL_SPECIFIC_PARAM_ANY_CM_MR_REQUIRED, trajectoryId, studyId);
+        warningRepository.deleteAll(warningMessageEntities);
+        WarningMessageEntity warning = WarningMessageEntity.builder()
+                .warningContent("No cluster among the Specific trajectories requires a Param Modulation trajectory")
+                .warningLevel(WarningLevel.WARNING_LEVEL)
+                .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_ANY_CM_MR_REQUIRED)
+                .study(studyEntity)
+                .creationDate(LocalDateTime.now())
+                .createdBy(userService.getCurrentUserDetails().getNni())
+                .isAck(false)
+                .trajectory(trajectoryEntity)
+                .build();
+        warningRepository.save(warning);
     }
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
@@ -203,8 +246,8 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         result.add(entity);
     }
 
-    private  Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
-        if ( value != null && Double.compare(value, 0.0) < 0) {
+    private Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
+        if (value != null && Double.compare(value, 0.0) < 0) {
             throw BusinessException.builder()
                     .message("Values for node " + areaName
                             + " / cluster " + clusterName
@@ -213,6 +256,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         }
         return value;
     }
+
     private void validateHeaderColumns(Row header, String trajectoryName) {
         // Primary expected names (used for error message)
         List<String> expected = new ArrayList<>(List.of(

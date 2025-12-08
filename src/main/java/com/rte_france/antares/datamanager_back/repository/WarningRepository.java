@@ -1,11 +1,11 @@
 package com.rte_france.antares.datamanager_back.repository;
 
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.List;
 import java.util.Set;
 
 public interface WarningRepository extends JpaRepository<WarningMessageEntity, Integer> {
@@ -31,5 +31,17 @@ public interface WarningRepository extends JpaRepository<WarningMessageEntity, I
                // ")" +
                 "")
         Set<WarningMessageEntity> findByTrajectoryTypeAndStudyId(@Param("studyId") Integer studyId, @Param("trajectoryType") String trajectoryType);
+
+
+        @Query("SELECT w " +
+                "FROM WarningMessageEntity w " +
+                "LEFT OUTER JOIN w.trajectory t " +
+                "LEFT OUTER JOIN w.study s " +
+                "WHERE w.warningCode = :warningCode " +
+                "AND t.id = :trajectoryId " +
+                "AND s.id = :studyId")
+        Set<WarningMessageEntity> findByWarningContentAndTrajectoryIdAndStudyId(@Param("warningCode") WarningCode warningCode,
+                                                                @Param("trajectoryId") Integer trajectoryId,
+                                                                @Param("studyId") Integer studyId);
 
 }
