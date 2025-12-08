@@ -81,6 +81,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalParamModulationService thermalParamModulationService;
 
+    private final DefaultConfigServiceImpl defaultConfigService;
+
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
