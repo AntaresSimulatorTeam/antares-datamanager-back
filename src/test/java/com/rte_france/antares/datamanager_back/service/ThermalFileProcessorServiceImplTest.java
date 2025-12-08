@@ -89,7 +89,7 @@ class ThermalFileProcessorServiceImplTest {
             var headerRow = sheet.createRow(0);
 
             // Colonnes de l’année civile 2025 (janvier à décembre)
-            String[] baseHeaders = {"ToUse", "Area", "Type", "Cluster", "Category"};
+            String[] baseHeaders = {"ToUse", "Area", "Technology", "Cluster", "Category"};
             String[] horizonHeaders = new String[12];
             for (int i = 0; i < 12; i++) {
                 horizonHeaders[i] = String.format("2025_%02d", i + 1);

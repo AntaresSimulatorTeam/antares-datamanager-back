@@ -17,4 +17,8 @@ public interface ThermalParamModulationService {
 
     List<String> createMatrixParamModulationTsFiles(StudyEntity study);
 
-}
+    void processThermalModulationSingleFile(String trajectoryToUse, String horizon, Integer studyId, Path trajectoryFilePath, String fileName, List<ThermalModulationParameterEntity> thermalModulationParameters, Path file, String fileType) throws IOException;
+
+    void verifyExistingSpecificClustersOfParamModulation(String horizon, Integer studyId, Path modulationFile, String trajectoryName, String fileType) throws IOException;
+
+    }

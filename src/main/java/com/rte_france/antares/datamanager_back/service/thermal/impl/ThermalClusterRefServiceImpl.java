@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +23,8 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
     private final ThermalClusterRefRepository thermalClusterRefRepository;
 
     private final ThermalTechnologyRepository thermalTechnologyRepository;
+
+    private final ThermalGroupMappingService thermalGroupMappingService;
 
     private List<ThermalClusterRef> cachedClusterRefs;
 
@@ -52,7 +56,7 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
         ensureClusterRefsLoaded();
 
-        // supprimer uniquement les espaces en fin de chaîne
+        //Keep name for .json
         String trimmedName = name != null ? name.trim() : null;
 
         // Check if the cluster already exists in the cache
@@ -64,7 +68,7 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
         }
 
         // Create a new ThermalClusterRef entity if it does not exist
-        ThermalTechnology thermalTechnology = technology != null ? findOrCreateTechnology(technology) : null;
+        ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
         ThermalClusterRef newRef = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
         ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
         cachedClusterRefs.add(saved); // Add the new entity to the cache
@@ -106,11 +110,15 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
         return ref;
     }
 
-    private ThermalTechnology findOrCreateTechnology(String technology) {
+    private ThermalTechnology findThermalTechnology(String technology) {
         return thermalTechnologyRepository.findThermalTechnologyByName(technology)
-                .orElseGet(() -> thermalTechnologyRepository.save(
-                        ThermalTechnology.builder().name(technology).build()));
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Technology {0} does not exist in the technology repository")
+                        .errorMessageArguments(Collections.singletonList(technology))
+                        .build());
     }
+
+
 
     private ThermalClusterRef buildClusterRef(String name, ThermalTechnology technology, String namePemmdb) {
         return ThermalClusterRef.builder()

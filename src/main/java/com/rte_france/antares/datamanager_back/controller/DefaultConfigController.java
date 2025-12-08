@@ -1,7 +1,8 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
-import com.rte_france.antares.datamanager_back.service.common.DefaultLoadService;
+import com.rte_france.antares.datamanager_back.dto.DefaultThermalTechnologyDTO;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,14 +15,22 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/v1/default_config")
-public class DefaultLoadController {
+public class DefaultConfigController {
 
-    private final DefaultLoadService defaultLoadService;
+    private final DefaultConfigService defaultConfigService;
 
     @Operation(summary = "Get load defaults values for IHM")
     @GetMapping(value = "/load")
     public ResponseEntity<List<DefaultLoadDTO>> fetchDefaultLoadConfig() {
 
-        return ResponseEntity.ok(defaultLoadService.fetchAllDefaults());
+        return ResponseEntity.ok(defaultConfigService.fetchAllDefaults());
+    }
+
+
+    @Operation(summary = "Get thermal technology defaults values for IHM")
+    @GetMapping(value = "/thermal-technology-display")
+    public ResponseEntity<List<DefaultThermalTechnologyDTO>> fetchDefaultThermalTechnologyToDisplay() {
+
+        return ResponseEntity.ok(defaultConfigService.fetchAllThermalTechnologies());
     }
 }

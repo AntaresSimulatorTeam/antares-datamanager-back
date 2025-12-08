@@ -56,7 +56,7 @@ public class ThermalPropertiesAssemblerService {
                 .toList();
 
        List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
-       
+
         var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories);
         var commonsByRef = extractCommonParamsByClusterRef(commonTrajectories);
         var specificsByRef = extractSpecificParamsByClusterRef(specificTrajectories);
@@ -68,11 +68,14 @@ public class ThermalPropertiesAssemblerService {
             List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
 
             ThermalClusterRef thermalClusterRef = areaClusterRefKey.thermalClusterRef();
-            List<ThermalCommonParameterEntity> commonsForRef = commonsByRef.getOrDefault(thermalClusterRef, List.of());
+            String clusterName = thermalClusterRef != null ? thermalClusterRef.getName() : null;
+            List<ThermalCommonParameterEntity> commonsForRef = clusterName == null
+                    ? List.of()
+                    : commonsByRef.getOrDefault(clusterName, List.of());
             List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
 
             ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef);
-            
+
             // modulation param ts files ts
             List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
             thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
@@ -89,10 +92,10 @@ public class ThermalPropertiesAssemblerService {
         //area : BE
         //cluster name : Other Gas conventional old 2
         return splitedTsFileNameList.stream()
-                .filter(fileName -> 
+                .filter(fileName ->
                         fileName.contains("_" + areaClusterRefKey.area() + "_" + areaClusterRefKey.thermalClusterRef().getName() + ".csv"))
                 .toList();
-                
+
 
     }
 
@@ -106,11 +109,19 @@ public class ThermalPropertiesAssemblerService {
                 ));
     }
 
-    private static LinkedHashMap<ThermalClusterRef, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajectories) {
+    private static LinkedHashMap<String, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajectories) {
         return parameterTrajectories.stream()
                 .flatMap(t -> Optional.ofNullable(t.getThermalCommonParameters()).orElseGet(List::of).stream())
+                // Only for common parameters: skip entries whose cluster ref has name_pemmdb == "NA"
+                .filter(common -> {
+                    ThermalClusterRef ref = common.getThermalClusterRef();
+                    if (ref == null) return false;
+                    String namePemmdb = ref.getNamePemmdb();
+                    return namePemmdb == null || !"NA".equalsIgnoreCase(namePemmdb.trim());
+                })
+                .filter(common -> common.getThermalClusterRef().getName() != null)
                 .collect(Collectors.groupingBy(
-                        ThermalCommonParameterEntity::getThermalClusterRef,
+                        common -> common.getThermalClusterRef().getName(),
                         LinkedHashMap::new,
                         Collectors.toList()
                 ));
