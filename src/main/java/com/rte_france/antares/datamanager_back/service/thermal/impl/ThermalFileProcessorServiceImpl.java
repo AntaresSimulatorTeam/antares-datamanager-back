@@ -29,6 +29,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.repository.model.WarningCode.THERMAL_INSTALLED_POWER_MISSING_AREAS;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
@@ -141,7 +142,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
 
-
     /**
      * Saves a thermal capacities trajectory.
      *
@@ -218,7 +218,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
+
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
+
                 if (rowArea.isEmpty()) continue;
                 String trajectoryName = path.getFileName().toString();
 
@@ -238,6 +240,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .message("could not build thermal_capacity cluster  list : " + e.getMessage())
                     .build();
         }
+        verifyThermalCapacityTechnologie(path, horizon, studyId, capacities);
 
         List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
         List<ThermalClusterCapacityEntity> filteredCapacities = capacities.stream()
@@ -263,6 +266,31 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         dto.setWarningMessage(warningMessage);
 
         return dto;
+    }
+
+    public void verifyThermalCapacityTechnologie(Path path, String horizon, Integer studyId, List<ThermalClusterCapacityEntity> capacities) {
+        Set<String> existingTechnologies = capacities.stream()
+                .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
+                .collect(Collectors.toSet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, path.getFileName().toString(), getTechnologiesFromCostsAndCo2(studyId), existingTechnologies);
+    }
+
+    public Set<String> getTechnologiesFromCostsAndCo2(Integer studyId) {
+        List<TrajectoryEntity> trajectories = trajectoryRepository.findByTypeAndStudyId(null, studyId);
+
+        return trajectories.stream()
+                .filter(trajectory -> trajectory.getType().equals(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                        || trajectory.getType().equals(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name()))
+                .flatMap(t -> Stream.concat(
+                        Optional.ofNullable(t.getThermalCosts()).stream().flatMap(List::stream)
+                                .map(cost -> cost.getThermalType().getFuel()),
+                        Optional.ofNullable(t.getThermalEconomicCo2s()).stream().flatMap(List::stream)
+                                .map(ThermalEconomicCo2Entity::getFuel)
+                ))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -324,8 +352,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
         String technology = castString(getCellValue(row, 3));
+
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology, clusterName, clusterPemmdb))
+                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(null,clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
                 .fuel(technology)
                 .type(castString(getCellValue(row, 4)))
@@ -538,7 +567,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void validateHeaderColumns(Row header, Path path) {
-        List<String> requiredColumns = List.of("ToUse", "Area", "Type", "Cluster", "Category");
+        List<String> requiredColumns = List.of("ToUse", "Area", "Technology", "Cluster", "Category");
         for (int i = 0; i < requiredColumns.size(); i++) {
             String cellValue = header.getCell(i).getStringCellValue();
             if (!cellValue.equalsIgnoreCase(requiredColumns.get(i))) {

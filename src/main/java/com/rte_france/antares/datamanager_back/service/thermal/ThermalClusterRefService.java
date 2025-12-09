@@ -7,4 +7,5 @@ public interface ThermalClusterRefService {
     ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name);
 
     ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb);
+
 }

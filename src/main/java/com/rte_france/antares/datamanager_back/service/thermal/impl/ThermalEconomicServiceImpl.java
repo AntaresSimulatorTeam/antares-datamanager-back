@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicCo2Entity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalEconomicEnerContentEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.AllArgsConstructor;
@@ -18,9 +19,8 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.throwAlreadyProcessedFileException;
@@ -36,30 +36,30 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
 
     private final UserService userService;
     private final TrajectoryRepository trajectoryRepository;
+    private final ThermalControlService thermalControlService;
 
     @Override
     public List<ThermalEconomicCo2Entity> buildThermalEconomicCo2ParameterValuesList(Path trajectoryFilePath, String horizon, Integer studyId) throws IOException {
-
-        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
+        final String trajectoryFileName = trajectoryFilePath.getFileName().toString();
+        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
-            List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon);
-            if(thermalEconomicCo2EntityList.isEmpty()) {
-                throw BusinessException.builder()
-                        .message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_Emission tab")
-                        .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
-                        .build();
-            }
+            List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon, trajectoryFileName);
+            Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryFileName, listTechnology, Collections.emptySet());
             return thermalEconomicCo2EntityList;
         }
     }
 
     @Override
     public List<ThermalEconomicEnerContentEntity> buildThermalEconomicEnerContentParameterValuesList(Path trajectoryFilePath, String horizon, Integer studyId) throws IOException {
-        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
+        final String trajectoryFileName = trajectoryFilePath.getFileName().toString();
+        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = findHorizonSheet(workbook, SHEET_ENR);
-            return parseEnerSheet(sheet);
+            if (sheet != null) {
+                return parseEnerSheet(sheet, trajectoryFileName, horizon);
+            } else {
+                throw BusinessException.builder().message("Missing ener_content data in trajectory {0}").errorMessageArguments(List.of(trajectoryFileName)).build();
+            }
         }
     }
 
@@ -95,23 +95,37 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     }
 
 
-    private List<ThermalEconomicCo2Entity> parseCo2Sheet(Sheet sheet, String horizon) {
+    private List<ThermalEconomicCo2Entity> parseCo2Sheet(Sheet sheet, String horizon, String trajectoryFileName) {
         List<ThermalEconomicCo2Entity> list = new ArrayList<>();
         if (sheet == null) return list;
-        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-            Row row = sheet.getRow(r);
-            if (row == null) continue;
-            Integer year = parseInteger(getCellString(row, 2));
-            Integer horizonYear = parseInteger(horizon.split("-")[1]);
-            if (year != null && !year.equals(horizonYear)) continue;
+        boolean onlyHeader = true;
+        Integer horizonYear = parseInteger(horizon.split("-")[1]);
+
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0) continue;
+
             String fuel = getCellString(row, 0);
             String country = getCellString(row, 1);
+            Integer year = parseInteger(getCellString(row, 2));
             BigDecimal co2 = parseBigDecimal(getCellString(row, 3));
+            if(co2 == null) {
+                throw BusinessException.builder()
+                        .message("The value of CO2_EmissionFuel of horizon {0} in THERMAL Economic trajectory {1} in CO2_emissions  tab must be numeric")
+                        .errorMessageArguments(List.of(horizon, trajectoryFileName))
+                        .build();
+            }
             String unitCo2 = getCellString(row, 4);
             String comment = getCellString(row, 5);
 
-            if (fuel.isEmpty() && country.isEmpty() && year == null && co2 == null) continue;
+            if (fuel.isEmpty() && country.isEmpty() && year == null) {
+                continue;
+            }
+            onlyHeader = false;
 
+            // filtrage horizon
+            if (year != null && !year.equals(horizonYear)) continue;
+
+            // mapping
             ThermalEconomicCo2Entity e = new ThermalEconomicCo2Entity();
             e.setFuel(fuel);
             e.setCountry(country);
@@ -119,12 +133,21 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             e.setCo2EmissionFuel(co2 != null ? co2 : BigDecimal.ZERO);
             e.setUnitCo2(unitCo2);
             e.setComment(comment);
+
             list.add(e);
         }
+        if (onlyHeader) {
+            throw BusinessException.builder().message("No data in THERMAL Economic trajectory {0} in CO2_emissions tab ").errorMessageArguments(List.of(trajectoryFileName)).build();
+        }
+        if (list.isEmpty()) {
+            throw BusinessException.builder().message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_emissions tab ").errorMessageArguments(List.of(trajectoryFileName)).build();
+        }
+
         return list;
     }
 
-    private List<ThermalEconomicEnerContentEntity> parseEnerSheet(Sheet sheet) {
+
+    private List<ThermalEconomicEnerContentEntity> parseEnerSheet(Sheet sheet, String trajectoryFileName, String horizon) {
         List<ThermalEconomicEnerContentEntity> list = new ArrayList<>();
         if (sheet == null) return list;
 
@@ -135,7 +158,14 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             String unit = getCellString(row, 1);
             String comment = getCellString(row, 2);
 
-            if (value == null) continue;
+            if (value == null) {
+                throw BusinessException.builder()
+                        .message("The value of value of horizon {0} in THERMAL Economic trajectory {1} in ener_content  tab must be numeric")
+                        .errorMessageArguments(List.of(horizon, trajectoryFileName))
+                        .build();
+
+            }
+
 
             ThermalEconomicEnerContentEntity e = new ThermalEconomicEnerContentEntity();
             e.setValue(value);
@@ -171,7 +201,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     private BigDecimal parseBigDecimal(String s) {
         try {
             if (s == null || s.isBlank()) return null;
-            String normalized = s.replace(",", ".").replaceAll("[^0-9.\\-]", "");
+            String normalized = s.replace(",", ".");
             if (normalized.isBlank()) return null;
             return new BigDecimal(normalized);
         } catch (Exception ex) {
@@ -185,13 +215,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         if (thermalEconomicCo2Entities != null) {
             for (ThermalEconomicCo2Entity entity : thermalEconomicCo2Entities) {
                 if (entity != null) {
-                    sb.append(entity.getFuel())
-                            .append(entity.getCountry())
-                            .append(entity.getYear())
-                            .append(entity.getCo2EmissionFuel())
-                            .append(entity.getUnitCo2())
-                            .append(entity.getComment())
-                            .append("|");
+                    sb.append(entity.getFuel()).append(entity.getCountry()).append(entity.getYear()).append(entity.getCo2EmissionFuel()).append(entity.getUnitCo2()).append(entity.getComment()).append("|");
                 }
             }
         }
@@ -199,10 +223,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         if (thermalEconomicEnerContentEntities != null) {
             for (ThermalEconomicEnerContentEntity entity : thermalEconomicEnerContentEntities) {
                 if (entity != null) {
-                    sb.append(entity.getValue())
-                            .append(entity.getUnit())
-                            .append(entity.getComment())
-                            .append("|");
+                    sb.append(entity.getValue()).append(entity.getUnit()).append(entity.getComment()).append("|");
                 }
             }
         }

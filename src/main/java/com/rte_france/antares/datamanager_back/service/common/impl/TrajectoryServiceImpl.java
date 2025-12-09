@@ -25,19 +25,15 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 
 
 @Slf4j
@@ -84,6 +80,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final LoadRepository loadRepository;
 
     private final ThermalParamModulationService thermalParamModulationService;
+
+    private final DefaultConfigServiceImpl defaultConfigService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -360,12 +358,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
         List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
 
-        processThermalModulationSingleFile(trajectoryToUse, horizon,
+        thermalParamModulationService.processThermalModulationSingleFile(trajectoryToUse, horizon,
                 studyId, trajectoryFilePath.resolve(cmFileName), cmFileName, thermalModulationParameters, cmFile, "CM");
 
-        processThermalModulationSingleFile(trajectoryToUse, horizon,
+        thermalParamModulationService.processThermalModulationSingleFile(trajectoryToUse, horizon,
                 studyId, trajectoryFilePath.resolve(mrFileName), mrFileName, thermalModulationParameters, mrFile, "MR");
-
 
         return thermalParamModulationService.processThermalModulationParameterFile(trajectoryFilePath, horizon, thermalModulationParameters, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
     }
@@ -374,7 +371,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
         String oneYearHorizon = horizon.split("-")[1];
-        thermalControlService.verifyCostsTrajectory(oneYearHorizon,trajectoryFilePath, trajectoryToUse);
+        thermalControlService.verifyCostsTrajectory(oneYearHorizon, trajectoryFilePath, trajectoryToUse, studyId);
         var thermalCostTypeEntities = thermalEconomicCostAndRateService.buildThermalEconomicCostValueList(trajectoryToUse, trajectoryFilePath, oneYearHorizon, studyId);
         var thermalRateEntities = thermalEconomicCostAndRateService.buildThermalEconomicRateValueList(trajectoryToUse, trajectoryFilePath, oneYearHorizon, studyId);
         if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {
@@ -391,19 +388,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, trajectoryToUse, "");
         var economicsCo2Param = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(trajectoryFilePath, horizon, studyId);
-        if (CollectionUtils.isEmpty(economicsCo2Param)) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
-                    .message("Thermal Economic Co2 Parameter not found in trajectory {0}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
         var economicsEnerContentParam = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(trajectoryFilePath, horizon, studyId);
-
         if (CollectionUtils.isEmpty(economicsEnerContentParam)) {
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse, horizon))
-                    .message("Thermal Economic Ener Content Parameter not found in trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .message("No data in THERMAL Economic trajectory {0} in ener_content tab ")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -757,101 +746,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private void processThermalModulationSingleFile(
-            String trajectoryToUse,
-            String horizon,
-            Integer studyId,
-            Path trajectoryFilePath,
-            String fileName,
-            List<ThermalModulationParameterEntity> thermalModulationParameters,
-            Path file,
-            String fileType // "CM" or "MR"
-    ) throws IOException {
-        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .normalize();
-        Path normalizedPath = trajectoryFilePath.normalize();
 
-        if (!normalizedPath.startsWith(allowedBaseDir)) {
-            throw new SecurityException("Trying to access a file outside the allowed base directory: " + allowedBaseDir);
-        }
-
-        List<String> clustersInFile = extractClustersFromCsvHeader(normalizedPath);
-
-        checkNumericDataCMorMR(normalizedPath, trajectoryToUse, fileType);
-
-        // Verify existing clusters depending on type
-        if ("CM".equalsIgnoreCase(fileType)) {
-            verifyExistingCmSpecificClusters(horizon, studyId, clustersInFile, trajectoryToUse);
-        } else if ("MR".equalsIgnoreCase(fileType)) {
-            verifyExistingMrSpecificClusters(horizon, studyId, clustersInFile, trajectoryToUse);
-        }
-
-        thermalModulationParameters.add(
-                ThermalModulationParameterEntity.builder()
-                        .tsName(fileName)
-                        .checksum(getFileChecksum(file.toString()))
-                        .build()
-        );
-    }
-
-
-    private void verifyExistingMrSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) {
-
-        Set<String> listClusterByAreaForMrSpecificParam = getListClusterByAreaForMrSpecificParam(horizon, studyId);
-
-        Set<String> missingClusters = listClusterByAreaForMrSpecificParam.stream()
-                .filter(cluster -> !clustersInFile.contains(cluster))
-                .collect(Collectors.toSet());
-
-        if (!missingClusters.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Missing Areas/Cluster {0} in Must Run file for trajectory {1} in horizon {2}")
-                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-
-    private void verifyExistingCmSpecificClusters(String horizon, Integer studyId, List<String> clustersInFile, String trajectoryName) throws IOException {
-
-        Set<String> listClusterByAreaForCmSpecificParam = getListClusterByAreaForCmSpecificParam(horizon, studyId);
-
-        Set<String> missingClusters = listClusterByAreaForCmSpecificParam.stream()
-                .filter(cluster -> !clustersInFile.contains(cluster))
-                .collect(Collectors.toSet());
-
-        if (!missingClusters.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Missing Areas/Cluster {0} in Cost Modulation file for trajectory {1} in horizon {2}")
-                    .errorMessageArguments(List.of(String.join(", ", missingClusters), trajectoryName, horizon))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    private Set<String> getListClusterByAreaForMrSpecificParam(String horizon, Integer studyId) {
-        return thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true);
-    }
-
-    private Set<String> getListClusterByAreaForCmSpecificParam(String horizon, Integer studyId) {
-        return thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, false);
-    }
-
-    public List<String> extractClustersFromCsvHeader(Path normalized) throws IOException {
-        try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
-            String header = reader.readLine();
-            if (header != null) {
-                String[] columns = header.split(";");
-                return Arrays.stream(columns)
-                        .skip(2)
-                        .map(String::toLowerCase)// Ignore DATE_HEURE et heure
-                        .toList();
-            }
-        }
-        return List.of();
-    }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -983,42 +878,94 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         switch (type) {
             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
-            case "LOAD" -> {
-                if (OTHER_AREA.equals(trajectory.getArea())) {
-                    warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
-                            trajectory.getHorizon(), studyId, userNni, trajectory);
-                }
-            }
-            case "THERMAL_CAPACITY" -> {
-                thermalControlService.verifyClustersInCommonParamTrajectory(
-                        studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-                thermalControlService.verifyClustersInSpecificParamTrajectory(
-                        studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-            }
-            case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> {
-                Set<String> commonClusters = trajectory.getThermalCommonParameters().stream()
-                        .map(param -> param.getThermalClusterRef().getName())
-                        .collect(Collectors.toSet());
-                thermalControlService.checkMissingClusters(
-                        studyId, trajectory.getHorizon(), commonClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
-            }
-            case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> {
-                Set<String> specificClusters = trajectory.getThermalSpecificParameters().stream()
-                        .map(param -> param.getThermalClusterRef().getName() + "/" +
-                                Optional.ofNullable(param.getArea()).orElse(""))
-                        .collect(Collectors.toSet());
-                thermalControlService.checkMissingClusters(
-                        studyId, trajectory.getHorizon(), specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectory.getArea());
-            }
+            case "LOAD" -> warningMessages = verifyLoad(studyId, warningMessages, trajectory, userNni);
+            case "THERMAL_CAPACITY" -> verifyThermalCapacity(studyId, trajectory);
+            case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> verifyThermalCommonParameter(studyId, trajectory);
+            case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> verifyThermalSpecificParameter(studyId, trajectory);
+            case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
+            case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
+            case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
+
         }
 
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
     }
 
+    private Set<WarningMessageEntity> verifyLoad(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
+        if (OTHER_AREA.equals(trajectory.getArea())) {
+            warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
+                    trajectory.getHorizon(), studyId, userNni, trajectory);
+        }
+        return warningMessages;
+    }
 
-    public void checkLinkCoherence(Integer
-                                           studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
+    private void verifyThermalEconomicParameter(Integer studyId, TrajectoryEntity trajectory) {
+        var listTechno = trajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno, Collections.emptySet());
+    }
+
+    public void verifyThermalEconomicCostParameter(Integer studyId, TrajectoryEntity trajectory) {
+        var listTechno = trajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).collect(Collectors.toSet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno, Collections.emptySet());
+    }
+
+    private void verifyThermalCommonParameter(Integer studyId, TrajectoryEntity trajectory) {
+        Set<String> commonClusters = trajectory.getThermalCommonParameters().stream()
+                .map(param -> param.getThermalClusterRef().getName())
+                .collect(Collectors.toSet());
+        thermalControlService.checkMissingClusters(
+                studyId, trajectory.getHorizon(), commonClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
+    }
+
+    private void verifyThermalSpecificParameter(Integer studyId, TrajectoryEntity trajectory) {
+        Set<String> specificClusters = trajectory.getThermalSpecificParameters().stream()
+                .map(param -> param.getThermalClusterRef().getName() + "/" +
+                        Optional.ofNullable(param.getArea()).orElse(""))
+                .collect(Collectors.toSet());
+        thermalControlService.checkMissingClusters(
+                studyId, trajectory.getHorizon(), specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectory.getArea());
+    }
+
+    private void verifyThermalCapacity(Integer studyId, TrajectoryEntity trajectory) {
+        thermalControlService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+
+        var listTechnoOfTrajectory = trajectory.getThermalClusterCapacities().stream()
+                .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
+                .collect(Collectors.toSet());
+
+        trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name(), studyId).stream().findFirst()
+                .ifPresent( economicCostTrajectory -> {
+                var listCostTechno = economicCostTrajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).collect(Collectors.toSet());
+        thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listCostTechno, listTechnoOfTrajectory);
+        }
+        );
+
+
+         trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name(), studyId).stream().findFirst()
+                 .ifPresent( economicTrajectory -> {
+             var listEconomicTechno = economicTrajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+             thermalControlService.verifyThermalCapacityTechnology(studyId, trajectory.getHorizon(), trajectory.getFileName(), listEconomicTechno, listTechnoOfTrajectory);
+         });
+    }
+
+    public void verifyParamModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {
+        var pathToParamModulation = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
+        trajectory.getThermalModulationParameters().stream()
+               .map(ThermalModulationParameterEntity::getTsName)
+               .forEach(paramModulationFileName -> {
+                   try {
+                       thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(),
+                               studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
+                   } catch (IOException e) {
+                       throw TechnicalException.builder().message("could not verify param modulation trajectory on selection" +e.getMessage()).cause(e).build();
+
+                   }
+               });
+    }
+
+    public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
         var listLink = trajectory.getLinkEntities();
         List<String> areasSavedForScenario = linkFileProcessorService.findListArea(studyId);
         if (!areasSavedForScenario.isEmpty()) {
