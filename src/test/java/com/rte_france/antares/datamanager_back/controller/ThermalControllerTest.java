@@ -245,7 +245,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnTrueWhenModulationIsRequired() throws Exception {
-        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt(), anyInt())).thenReturn(true);
+        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt())).thenReturn(true);
 
         mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -259,7 +259,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnFalseWhenModulationIsNotRequired() throws Exception {
-        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt(), anyInt())).thenReturn(false);
+        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt())).thenReturn(false);
 
         mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -301,7 +301,7 @@ class ThermalControllerTest {
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print());
     }
 

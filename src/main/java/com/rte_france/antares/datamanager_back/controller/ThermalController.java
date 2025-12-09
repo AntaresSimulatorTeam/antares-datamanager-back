@@ -110,14 +110,10 @@ public class ThermalController {
 
                 @RequestParam("studyId")
                 @Parameter(description = "ID of the study")
-                Integer studyId,
-
-                @RequestParam("trajectoryId")
-                @Parameter(description = "ID of the trajectory")
-                Integer trajectoryId
+                Integer studyId
         ) {
             boolean required =
-                    thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId, trajectoryId);
+                    thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId);
 
             return ResponseEntity.ok(required);
         }

@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
@@ -458,118 +459,23 @@ class ThermalSpecificFileProcessorServiceImplTest {
         // GIVEN
         Integer studyId = 1;
         String horizon = "H1";
-        Integer trajectoryId = 10;
 
         ThermalSpecificParametersEntity p1 = new ThermalSpecificParametersEntity();
         p1.setMrSpecific(1);
         p1.setCmSpecific(0);
+        ThermalSpecificParametersEntity p2 = new ThermalSpecificParametersEntity();
+        p2.setMrSpecific(0);
+        p2.setCmSpecific(0);
 
         when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
-                .thenReturn(List.of(p1));
+                .thenReturn(List.of(p1,p2));
 
         // WHEN
-        boolean result = service.isParamModulationRequired(horizon, studyId, trajectoryId);
+        boolean result = service.isParamModulationRequired(horizon, studyId);
 
         // THEN
         assertTrue(result);
-        verify(warningRepository, never()).save(any());
-        verify(warningRepository, never()).deleteAll(any());
-    }
 
-
-    /**
-     * ==============================================
-     *  CASE 2 : No CM / MR → return FALSE + warning
-     * ==============================================
-     */
-    @Test
-    void testIsParamModulationRequired_returnsFalse_andSaveWarning() {
-        // GIVEN
-        Integer studyId = 2;
-        Integer trajectoryId = 20;
-        String horizon = "H2";
-
-        ThermalSpecificParametersEntity p1 = new ThermalSpecificParametersEntity();
-        p1.setMrSpecific(0);
-        p1.setCmSpecific(0);
-
-        // Clusters
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
-                .thenReturn(Collections.singletonList(p1));
-
-        // Study + Trajectory
-        TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
-        trajectoryEntity.setId(trajectoryId);
-
-        StudyEntity studyEntity = new StudyEntity();
-        studyEntity.setTrajectories(Collections.singleton(trajectoryEntity));
-
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(studyEntity));
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("tart").build());
-
-        // WHEN
-        boolean result = service.isParamModulationRequired(horizon, studyId, trajectoryId);
-
-        // THEN
-        assertFalse(result);
-        verify(warningRepository).deleteAll(any());   // existing warnings removed
-        verify(warningRepository).save(any());       // new warning saved
-    }
-
-
-    /**
-     * ==================================
-     *  CASE 3 : Study not found → EXCEPTION
-     * ==================================
-     */
-    @Test
-    void testIsParamModulationRequired_throwsException_whenStudyNotFound() {
-        Integer studyId = 5;
-        Integer trajectoryId = 50;
-        String horizon = "H3";
-
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
-                .thenReturn(Collections.emptyList());
-
-        when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
-
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> service.isParamModulationRequired(horizon, studyId, trajectoryId)
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
-        assertTrue(ex.getMessage().contains("Study not found"));
-    }
-
-
-    /**
-     * =======================================
-     *  CASE 4 : Trajectory not found → EXCEPTION
-     * =======================================
-     */
-    @Test
-    void testIsParamModulationRequired_throwsException_whenTrajectoryNotFound() {
-        Integer studyId = 7;
-        Integer trajectoryId = 70;
-        String horizon = "H4";
-
-        // Aucun CM/MR → déclenche saveWarningMessage
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(studyId, horizon))
-                .thenReturn(Collections.emptyList());
-
-        StudyEntity study = new StudyEntity();
-        study.setTrajectories(Collections.emptySet());   // no trajectory
-
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
-
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> service.isParamModulationRequired(horizon, studyId, trajectoryId)
-        );
-
-        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
-        assertTrue(ex.getMessage().contains("Trajectory not found"));
     }
 
 }
