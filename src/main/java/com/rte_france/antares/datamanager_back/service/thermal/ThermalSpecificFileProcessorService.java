@@ -17,5 +17,5 @@ public interface ThermalSpecificFileProcessorService {
 
     Set<String> getListClusterByAreaForSpecificParam(String horizon, Integer studyId, boolean mr);
 
-    boolean isParamModulationRequired(String horizon, Integer studyId, Integer trajectoryId);
+    boolean isParamModulationRequired(String horizon, Integer studyId);
 }
