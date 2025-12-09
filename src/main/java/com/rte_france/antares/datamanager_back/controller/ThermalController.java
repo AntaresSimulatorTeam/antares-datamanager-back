@@ -101,12 +101,25 @@ public class ThermalController {
         ), HttpStatus.CREATED);
     }
 
-    @PutMapping("/specific-param-modulation-required")
-    public ResponseEntity<Boolean> isParamModulationRequired(@RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
-                                                             @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                             @RequestParam("studyId") Integer studyId,
-                                                             @RequestParam("trajectoryId") Integer trajectoryId) {
-        boolean required = thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId, trajectoryId);
-        return ResponseEntity.ok(required);
-    }
+        @PostMapping("/param-modulation/check")
+        public ResponseEntity<Boolean> checkParamModulationRequired(
+                @RequestParam("horizon")
+                @Pattern(regexp = "^\\d{4}-\\d{4}$", message = "Horizon must match format YYYY-YYYY")
+                @Parameter(description = "example of horizon : 2020-2021")
+                String horizon,
+
+                @RequestParam("studyId")
+                @Parameter(description = "ID of the study")
+                Integer studyId,
+
+                @RequestParam("trajectoryId")
+                @Parameter(description = "ID of the trajectory")
+                Integer trajectoryId
+        ) {
+            boolean required =
+                    thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId, trajectoryId);
+
+            return ResponseEntity.ok(required);
+        }
+
 }
