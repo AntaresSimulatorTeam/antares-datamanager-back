@@ -247,7 +247,7 @@ class ThermalControllerTest {
     void isParamModulationRequired_shouldReturnTrueWhenModulationIsRequired() throws Exception {
         when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt(), anyInt())).thenReturn(true);
 
-        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+        mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
@@ -261,7 +261,7 @@ class ThermalControllerTest {
     void isParamModulationRequired_shouldReturnFalseWhenModulationIsNotRequired() throws Exception {
         when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt(), anyInt())).thenReturn(false);
 
-        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+        mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
@@ -273,7 +273,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnBadRequestWhenHorizonIsInvalid() throws Exception {
-        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+        mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("horizon", "invalid-horizon")
                         .param("studyId", "1")
@@ -285,7 +285,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnBadRequestWhenStudyIdIsMissing() throws Exception {
-        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+        mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("horizon", "2023-2024")
                         .param("trajectoryId", "10")
@@ -296,7 +296,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnBadRequestWhenTrajectoryIdIsMissing() throws Exception {
-        mockMvc.perform(put("/v1/trajectory/specific-param-modulation-required")
+        mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
