@@ -24,8 +24,6 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
 
     private final ThermalTechnologyRepository thermalTechnologyRepository;
 
-    private final ThermalGroupMappingService thermalGroupMappingService;
-
     private List<ThermalClusterRef> cachedClusterRefs;
 
 
