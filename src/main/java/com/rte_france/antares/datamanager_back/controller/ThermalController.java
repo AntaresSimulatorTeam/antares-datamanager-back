@@ -12,9 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-import java.io.IOException;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 
@@ -101,21 +104,18 @@ public class ThermalController {
         ), HttpStatus.CREATED);
     }
 
-        @PostMapping("/param-modulation/check")
-        public ResponseEntity<Boolean> checkParamModulationRequired(
-                @RequestParam("horizon")
-                @Pattern(regexp = "^\\d{4}-\\d{4}$", message = "Horizon must match format YYYY-YYYY")
-                @Parameter(description = "example of horizon : 2020-2021")
-                String horizon,
+    @PostMapping("/param-modulation/check")
+    public ResponseEntity<Boolean> checkParamModulationRequired(
+            @RequestParam("horizon")
+            @Pattern(regexp = "^\\d{4}-\\d{4}$", message = "Horizon must match format YYYY-YYYY")
+            @Parameter(description = "example of horizon : 2020-2021")
+            String horizon,
 
-                @RequestParam("studyId")
-                @Parameter(description = "ID of the study")
-                Integer studyId
-        ) {
-            boolean required =
-                    thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId);
-
-            return ResponseEntity.ok(required);
-        }
+            @RequestParam("studyId")
+            @Parameter(description = "ID of the study")
+            Integer studyId
+    ) {
+        return ResponseEntity.ok(thermalSpecificFileProcessorService.isParamModulationRequired(horizon, studyId));
+    }
 
 }

@@ -45,7 +45,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
             List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon, trajectoryFileName);
             Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
-            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryFileName, listTechnology, Collections.emptySet());
+            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryFileName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
             return thermalEconomicCo2EntityList;
         }
     }
@@ -103,10 +103,12 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
 
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
+            Integer year = parseInteger(getCellString(row, 2));
 
+            // filtrage horizon
+            if (year != null && !year.equals(horizonYear)) continue;
             String fuel = getCellString(row, 0);
             String country = getCellString(row, 1);
-            Integer year = parseInteger(getCellString(row, 2));
             BigDecimal co2 = parseBigDecimal(getCellString(row, 3));
             if(co2 == null) {
                 throw BusinessException.builder()
@@ -122,8 +124,6 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             }
             onlyHeader = false;
 
-            // filtrage horizon
-            if (year != null && !year.equals(horizonYear)) continue;
 
             // mapping
             ThermalEconomicCo2Entity e = new ThermalEconomicCo2Entity();

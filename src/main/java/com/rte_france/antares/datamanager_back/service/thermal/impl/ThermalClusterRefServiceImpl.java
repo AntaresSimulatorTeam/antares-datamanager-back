@@ -111,7 +111,7 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
     private ThermalTechnology findThermalTechnology(String technology) {
         return thermalTechnologyRepository.findThermalTechnologyByName(technology)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Technology {0} does not exist in the technology repository")
+                        .message("Technology {0} does not exist in the technology reference table.")
                         .errorMessageArguments(Collections.singletonList(technology))
                         .build());
     }

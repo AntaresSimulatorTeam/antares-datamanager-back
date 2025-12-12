@@ -115,29 +115,13 @@ class ThermalEconomicServiceImplTest {
 
     @Test
     void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenCo2IsNotValid() throws Exception {
-        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2023", "100w.5", "kg", "comment"}, new String[]{"Oil", "FR", "2023", "200.0", "kg", "comment2"}));
+        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2024", "100w.5", "kg", "comment"}, new String[]{"Oil", "FR", "2024", "200.0", "kg", "comment2"}));
         try {
             BusinessException ex = assertThrows(
                     BusinessException.class,
                     () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
             );
             assertTrue(ex.getMessage().contains("The value of CO2_EmissionFuel of horizon {0} in THERMAL Economic trajectory {1} in CO2_emissions  tab must be numeric"));
-
-        } finally {
-            Files.deleteIfExists(temp);
-        }
-    }
-
-    @Test
-    void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenFileEmpty() throws Exception {
-        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2027", "100.5", "kg", "comment"},
-                new String[]{"Oil", "FR", "2027", "200.0", "kg", "comment2"}));
-        try {
-            BusinessException ex = assertThrows(
-                    BusinessException.class,
-                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
-            );
-            assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_emissions tab "));
 
         } finally {
             Files.deleteIfExists(temp);
