@@ -240,7 +240,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .message("could not build thermal_capacity cluster  list : " + e.getMessage())
                     .build();
         }
-        verifyThermalCapacityTechnologie(path, horizon, studyId, capacities);
 
         List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
         List<ThermalClusterCapacityEntity> filteredCapacities = capacities.stream()
@@ -266,13 +265,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         dto.setWarningMessage(warningMessage);
 
         return dto;
-    }
-
-    public void verifyThermalCapacityTechnologie(Path path, String horizon, Integer studyId, List<ThermalClusterCapacityEntity> capacities) {
-        Set<String> existingTechnologies = capacities.stream()
-                .map(capacity -> capacity.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
-                .collect(Collectors.toSet());
-        thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, path.getFileName().toString(), getTechnologiesFromCostsAndCo2(studyId), existingTechnologies);
     }
 
     public Set<String> getTechnologiesFromCostsAndCo2(Integer studyId) {
@@ -354,7 +346,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String technology = castString(getCellValue(row, 3));
 
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(null,clusterName, clusterPemmdb))
+                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology,clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
                 .fuel(technology)
                 .type(castString(getCellValue(row, 4)))

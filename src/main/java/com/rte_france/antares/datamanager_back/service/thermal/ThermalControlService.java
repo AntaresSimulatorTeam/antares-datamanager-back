@@ -18,5 +18,5 @@ public interface ThermalControlService {
 
     void verifyCostsTrajectory(String horizon, Path trajectoryFilePath, String trajectoryName, Integer studyId) throws IOException;
 
-    void verifyThermalCapacityTechnology(Integer studyId, String horizon, String trajectoryName, Set<String> listTechnology, Set<String> existingThermalCapacityTechnologies);
+    void verifyThermalCapacityTechnology(Integer studyId, String horizon, String trajectoryName, Set<String> listTechnology, TrajectoryType trajectoryType) throws IOException;
 }

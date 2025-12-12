@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalControlsServiceImpl;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,6 +34,9 @@ import static org.mockito.Mockito.when;
 class ThermalControlsServiceImplTest {
     @Mock
     private TrajectoryRepository trajectoryRepository;
+
+    @Mock
+    private StudyRepository studyRepository;
 
     @InjectMocks
     private ThermalControlsServiceImpl thermalControlsService;
@@ -420,34 +425,101 @@ class ThermalControlsServiceImplTest {
     }
 
     @Test
-    void verifyThermalCapacityTechnology_shouldThrowWhenTechnologiesAreMissing() {
+    void verifyThermalCapacityTechnology_shouldNotThrowWhenAllTechnologiesExist() {
         Integer studyId = 1;
         String horizon = "2025-2026";
-        String trajectoryName = "ThermalCapacityTrajectory";
-        Set<String> paramTechnologies = Set.of("TechA", "TechB");
-        Set<String> existingTechnologies = Set.of("TechA");
-        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(List.of(TrajectoryEntity.builder()
-                        .thermalClusterCapacities(List.of(ThermalClusterCapacityEntity
-                                .builder().thermalClusterRef(ThermalClusterRef
-                                        .builder().thermalTechnology(ThermalTechnology
-                                                .builder().name("Gas").build()).build()).build())).build()));
+        String trajectoryName = "EconomicTrajectory";
+        Set<String> listTechnology = Set.of("tech1", "tech2");
+        TrajectoryType trajectoryType = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER;
 
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, paramTechnologies, existingTechnologies));
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(
+                StudyEntity.builder()
+                        .trajectories(Set.of(
+                                TrajectoryEntity.builder()
+                                        .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                                        .horizon(horizon)
+                                        .thermalCommonParameters(List.of(
+                                                ThermalCommonParameterEntity.builder()
+                                                        .thermalClusterRef(ThermalClusterRef.builder()
+                                                                .name("Cluster1")
+                                                                .thermalTechnology(ThermalTechnology.builder().name("tech1").build())
+                                                                .build())
+                                                        .build(),
+                                                ThermalCommonParameterEntity.builder()
+                                                        .thermalClusterRef(ThermalClusterRef.builder()
+                                                                .name("Cluster2")
+                                                                .thermalTechnology(ThermalTechnology.builder().name("tech2").build())
+                                                                .build())
+                                                        .build()
+                                        ))
+                                        .build()
+                        ))
+                        .build()
+        ));
 
-        assertTrue(exception.getMessage().contains("Technology {0} in THERMAL Costs trajectory {1} in costs tab does not exist in installed power trajectory for horizon {2}"));
+        assertDoesNotThrow(() -> thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
     }
 
     @Test
-    void verifyThermalCapacityTechnology_shouldNotThrowWhenAllTechnologiesArePresent() {
+    void verifyThermalCapacityTechnology_shouldThrowWhenTechnologyDoesNotExist() {
         Integer studyId = 1;
         String horizon = "2025-2026";
-        String trajectoryName = "ThermalCapacityTrajectory";
-        Set<String> paramTechnologies = Set.of("tech", "a");
-        Set<String> existingTechnologies = Set.of("tech", "a");
+        String trajectoryName = "EconomicTrajectory";
+        Set<String> listTechnology = Set.of("tech1", "tech3");
+        TrajectoryType trajectoryType = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER;
 
-        assertDoesNotThrow(() ->
-                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, paramTechnologies, existingTechnologies));
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(
+                StudyEntity.builder()
+                        .trajectories(Set.of(
+                                TrajectoryEntity.builder()
+                                        .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                                        .horizon(horizon)
+                                        .thermalCommonParameters(List.of(
+                                                ThermalCommonParameterEntity.builder()
+                                                        .thermalClusterRef(ThermalClusterRef.builder()
+                                                                .name("Cluster1")
+                                                                .thermalTechnology(ThermalTechnology.builder().name("tech1").build())
+                                                                .build())
+                                                        .build()
+                                        ))
+                                        .build(),
+                                TrajectoryEntity.builder()
+                                        .type(TrajectoryType.THERMAL_CAPACITY.name())
+                                        .horizon(horizon)
+                                        .thermalClusterCapacities(List.of(
+                                                ThermalClusterCapacityEntity.builder()
+                                                        .thermalClusterRef(ThermalClusterRef.builder()
+                                                                .name("Cluster1")
+                                                                .thermalTechnology(ThermalTechnology.builder().name("tech1").build())
+                                                                .build())
+                                                        .build()
+                                        ))
+                                        .build()
+                        ))
+                        .build()
+        ));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
+
+        assertTrue(exception.getMessage().contains("Fuel {0} does not exist in Cost Trajectory {1} for horizon {2}"));
     }
+
+    @Test
+    void verifyThermalCapacityTechnology_shouldThrowWhenStudyNotFound() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String trajectoryName = "EconomicTrajectory";
+        Set<String> listTechnology = Set.of("tech1");
+        TrajectoryType trajectoryType = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER;
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
+
+        assertTrue(exception.getMessage().contains("Study with id {0} not found"));
+    }
+
+
 }
