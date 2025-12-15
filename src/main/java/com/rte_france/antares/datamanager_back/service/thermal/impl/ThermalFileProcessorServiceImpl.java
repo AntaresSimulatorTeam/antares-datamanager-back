@@ -346,7 +346,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String technology = castString(getCellValue(row, 3));
 
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology,clusterName, clusterPemmdb))
+                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(null,clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
                 .fuel(technology)
                 .type(castString(getCellValue(row, 4)))
