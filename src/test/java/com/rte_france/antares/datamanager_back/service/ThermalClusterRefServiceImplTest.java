@@ -38,7 +38,7 @@ import static org.mockito.Mockito.atLeast;
     @Test
     void findOrCreateThermalClusterRef_shouldCreateAndSaveNewClusterRef() {
         ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT"))
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
                 .thenReturn(Optional.of(technology));
         when(thermalClusterRefRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -55,7 +55,7 @@ import static org.mockito.Mockito.atLeast;
         // Given
         String technology = "NewTech";
         String name = "ClusterA";
-        when(thermalTechnologyRepository.findThermalTechnologyByName(technology)).thenReturn(Optional.empty());
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase(technology)).thenReturn(Optional.empty());
 
         // Then
         var ex = assertThrows(com.rte_france.antares.datamanager_back.exception.BusinessException.class,
@@ -113,7 +113,7 @@ import static org.mockito.Mockito.atLeast;
         // First call: empty cache, no existing entries
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
         ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByName("CCGT"))
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
                 .thenReturn(Optional.of(tech));
         when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
                 .thenAnswer(inv -> inv.getArgument(0));

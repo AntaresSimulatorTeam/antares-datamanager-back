@@ -10,5 +10,5 @@ import java.util.Optional;
 @Repository
 public interface ThermalTechnologyRepository extends JpaRepository<ThermalTechnology, StudyTrajectoryKey>  {
 
-    Optional<ThermalTechnology> findThermalTechnologyByName(String name);
+    Optional<ThermalTechnology> findThermalTechnologyByNameIgnoreCase(String name);
 }
