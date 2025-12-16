@@ -89,6 +89,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String COMMON_PREFIX = "common_param_";
     private static final String CAPACITY_PREFIX = "thermal_";
     private static final String ECONOMIC_COST_PREFIX = "costs_";
+    private static final String ECONOMIC_PREFIX = "economic_param_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -413,21 +414,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
-                            || isRelevantFile(path, trajectoryType))
-                    .filter(path -> switch (trajectoryType) {
-                        case THERMAL_CAPACITY ->
-                                path.getFileName().toString().toLowerCase().startsWith(CAPACITY_PREFIX);
-                        case THERMAL_TECHNICAL_SPECIFIC_PARAMETER ->
-                                path.getFileName().toString().toLowerCase().startsWith(SPECIFIC_PREFIX);
-                        case THERMAL_TECHNICAL_COMMON_PARAMETER ->
-                                path.getFileName().toString().toLowerCase().startsWith(COMMON_PREFIX);
-                        case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
-                                Files.isDirectory(path); //directories for modulation parameter
-                        case THERMAL_ECONOMIC_COST_PARAMETER ->
-                                path.getFileName().toString().toLowerCase().startsWith(ECONOMIC_COST_PREFIX);
-                        default -> true;
-                    })
+                    .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
+                            || isRelevantFile(path, trajectoryType)) &&  matchesPrefix(path, trajectoryType))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -442,6 +430,19 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType) {
+        String fileName = path.getFileName().toString().toLowerCase();
+        return switch (trajectoryType) {
+            case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
+            case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
+            case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
+            case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
+            default -> true;
+        };
     }
 
 
