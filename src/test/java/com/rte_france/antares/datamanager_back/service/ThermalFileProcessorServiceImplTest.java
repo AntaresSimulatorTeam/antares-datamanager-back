@@ -632,7 +632,7 @@ class ThermalFileProcessorServiceImplTest {
                 var sheet = wb.createSheet(HORIZON_SHEET);
                 createHeader(sheet);
                 var row = sheet.createRow(5);
-                row.createCell(0).setCellValue("pemmdb_name");
+                row.createCell(0).setCellValue("pemmdb name");
                 row.createCell(1).setCellValue("ClusterA");
                 row.createCell(4).setCellValue("CCGT");
                 wb.write(contentStream);

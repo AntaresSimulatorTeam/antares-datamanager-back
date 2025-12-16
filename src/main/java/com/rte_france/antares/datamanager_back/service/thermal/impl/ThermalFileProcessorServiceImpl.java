@@ -303,7 +303,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             validateCommonParamHeaderColumns(header, path);
 
             Set<String> commonParamClusters = new HashSet<>();
-            List<ThermalCommonParameterEntity> thermalParameters = parseThermalCommonParameterRows(sheet, header, commonParamClusters);
+            List<ThermalCommonParameterEntity> thermalParameters = parseThermalCommonParameterRows(sheet, header, commonParamClusters, path.getFileName().toString());
 
             if (thermalParameters.isEmpty()) {
                 throw BusinessException.builder()
@@ -320,15 +320,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
     }
 
-    private List<ThermalCommonParameterEntity> parseThermalCommonParameterRows(Sheet sheet, Row header, Set<String> commonParamClusters) {
+    private List<ThermalCommonParameterEntity> parseThermalCommonParameterRows(Sheet sheet, Row header, Set<String> commonParamClusters, String trajectoryName) {
         List<ThermalCommonParameterEntity> thermalParameters = new ArrayList<>();
         for (Row row : sheet) {
             if (row.getRowNum() <= 4) continue;
-            String clusterName = castString(getCellValue(row, 1));
+            String clusterName = checkNoSpecialCharacters(castString(getCellValue(row, 1)), row.getRowNum(), trajectoryName);
             if (clusterName == null || clusterName.isEmpty()) continue;
-            String clusterPemmdb = castString(getCellValue(row, 0));
+            String clusterPemmdb = checkNoSpecialCharacters(castString(getCellValue(row, 0)), row.getRowNum(), trajectoryName);
             commonParamClusters.add(clusterName);
-            ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, clusterName, clusterPemmdb, header);
+            ThermalCommonParameterEntity param = buildThermalCommonParameterEntity(row, clusterName, clusterPemmdb, header, trajectoryName);
             thermalParameters.add(param);
         }
         return thermalParameters;
@@ -342,14 +342,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
 
-    private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header) {
-        String technology = castString(getCellValue(row, 3));
+    private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header, String trajectoryName) {
+        String technology = checkNoSpecialCharacters(castString(getCellValue(row, 3)), row.getRowNum(), trajectoryName);
 
         return ThermalCommonParameterEntity.builder()
                 .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology,clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
                 .fuel(technology)
-                .type(castString(getCellValue(row, 4)))
+                .type(checkNoSpecialCharacters(castString(getCellValue(row, 4)), row.getRowNum(), trajectoryName))
                 .efficiencyRange(castString(getCellValue(row, 5)))
                 .efficiencyDefault(castDouble(getCellValue(row, 6), header.getCell(6).getStringCellValue(), row.getRowNum()))
                 .co2(castDouble(getCellValue(row, 7), header.getCell(7).getStringCellValue(), row.getRowNum()))
@@ -377,6 +377,16 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .build();
     }
 
+
+    public static String checkNoSpecialCharacters(String value, int rowNum, String trajectoryName) {
+        if (value != null && !value.isBlank() && !value.matches("[a-zA-Z0-9 _-]+")) {
+            throw BusinessException.builder()
+                    .message("The value {0}  in line {1} is not supported in THERMAL Common Param trajectory {2}")
+                    .errorMessageArguments(List.of(value, String.valueOf(rowNum), trajectoryName))
+                    .build();
+        }
+        return value;
+    }
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
                 getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()),
