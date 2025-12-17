@@ -477,7 +477,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
                     .toUse(toUse)
                     .area(rowArea)
-                    .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName))
+                    .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName, null))
                     .category(category)
                     .monthYear(monthYear)
                     .value(value)

@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepos
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnology;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,24 +16,23 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.atLeast;
 
 @ExtendWith(MockitoExtension.class)
- class ThermalClusterRefServiceImplTest {
+class ThermalClusterRefServiceImplTest {
 
     @Mock
-    private ThermalTechnologyRepository  thermalTechnologyRepository;
+    private ThermalTechnologyRepository thermalTechnologyRepository;
 
     @Mock
     private ThermalClusterRefRepository thermalClusterRefRepository;
 
+    @Mock
+    private EntityManager entityManager;
+
     @InjectMocks
     private ThermalClusterRefServiceImpl thermalClusterRef;
-
 
 
     @Test
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.atLeast;
                 .thenReturn(Optional.of(technology));
         when(thermalClusterRefRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "Cluster2");
+        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "Cluster2", null);
 
         assertNotNull(result);
         assertEquals("Cluster2", result.getName());
@@ -59,7 +59,7 @@ import static org.mockito.Mockito.atLeast;
 
         // Then
         var ex = assertThrows(com.rte_france.antares.datamanager_back.exception.BusinessException.class,
-                () -> thermalClusterRef.findOrCreateThermalClusterRef(technology, name));
+                () -> thermalClusterRef.findOrCreateThermalClusterRef(technology, name, null));
         assertTrue(ex.getMessage().contains("Technology"));
         verify(thermalTechnologyRepository, never()).save(any());
         verify(thermalClusterRefRepository, never()).save(any());
@@ -67,46 +67,58 @@ import static org.mockito.Mockito.atLeast;
 
     @Test
     void findOrCreateThermalClusterRef_whenExistingAndPemmdbIsNA_updatesAndSaves() {
-        // Given existing thermalClusterRef in cache with NA PEMMDB
+        // Given
         ThermalTechnology tech = ThermalTechnology.builder().name("oil").build();
         ThermalClusterRef existing = ThermalClusterRef.builder()
+                .id(1)
                 .name("ClusterOil")
                 .thermalTechnology(tech)
                 .namePemmdb("NA")
                 .build();
+
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
+        when(entityManager.getReference(ThermalClusterRef.class, 1)).thenReturn(existing);
         when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
         // When
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
 
         // Then
         assertSame(existing, result);
         assertEquals("Oil-123", result.getNamePemmdb());
-        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
+
+        verify(thermalClusterRefRepository, times(1)).save(existing);
         verifyNoInteractions(thermalTechnologyRepository);
     }
 
     @Test
     void findOrCreateThermalClusterRef_whenExistingAndPemmdbAlreadySet_doesNotOverwriteOrSave() {
-        // Given existing thermalClusterRef with non-NA PEMMDB
+        // Given
         ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
         ThermalClusterRef existing = ThermalClusterRef.builder()
+                .id(1)
                 .name("ClusterY")
                 .thermalTechnology(tech)
                 .namePemmdb("EXISTING-VAL")
                 .build();
+
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
+        when(entityManager.getReference(ThermalClusterRef.class, 1)).thenReturn(existing);
 
         // When
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "ClusterY", "NEW-VAL");
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "ClusterY", "NEW-VAL");
 
         // Then
         assertSame(existing, result);
         assertEquals("EXISTING-VAL", result.getNamePemmdb());
+
         verify(thermalClusterRefRepository, never()).save(any());
+        verifyNoInteractions(thermalTechnologyRepository);
     }
+
 
     @Test
     void findOrCreateThermalClusterRef_whenCreating_setsProvidedPemmdbOrDefaultNA() {
@@ -131,5 +143,54 @@ import static org.mockito.Mockito.atLeast;
 
         verify(thermalClusterRefRepository, atLeast(2)).save(any(ThermalClusterRef.class));
     }
+
+    @Test
+    void findOrCreateThermalClusterRef_whenTechnologyIsNull_createsClusterWithoutTechnology() {
+        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef(null, "ClusterX", "PEM123");
+
+        assertNotNull(result);
+        assertEquals("ClusterX", result.getName());
+        assertEquals("PEM123", result.getNamePemmdb());
+        assertNull(result.getThermalTechnology());
+        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
+    }
+
+    @Test
+    void findOrCreateThermalClusterRef_whenNameIsNull_createsClusterWithNullName() {
+        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
+                .thenReturn(Optional.of(technology));
+        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", null, "PEM123");
+
+        assertNotNull(result);
+        assertNull(result.getName());
+        assertEquals("PEM123", result.getNamePemmdb());
+        assertEquals("CCGT", result.getThermalTechnology().getName());
+        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
+    }
+
+    @Test
+    void findOrCreateThermalClusterRef_whenPemmdbIsNull_defaultsToNA() {
+        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
+                .thenReturn(Optional.of(technology));
+        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "ClusterZ", null);
+
+        assertNotNull(result);
+        assertEquals("ClusterZ", result.getName());
+        assertEquals("NA", result.getNamePemmdb());
+        assertEquals("CCGT", result.getThermalTechnology().getName());
+        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
+    }
+
 
 }
