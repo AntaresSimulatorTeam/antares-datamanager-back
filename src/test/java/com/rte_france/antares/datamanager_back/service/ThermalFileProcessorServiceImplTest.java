@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
+import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
@@ -174,7 +175,7 @@ class ThermalFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
-        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any()))
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
                 .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
         when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
@@ -184,6 +185,22 @@ class ThermalFileProcessorServiceImplTest {
         verify(trajectoryRepository, times(1)).save(any());
     }
 
+    @Test
+    void processThermalCapacityFile_whenTrajectoryExistsAndVersionIsValidWithOtherArea(@TempDir Path tempDir) throws Exception {
+        var tempFile = mockExcelFile(tempDir, THERMAL_CAPACITY_FILE_NAME, ThermalFileProcessorServiceImplTest::generateCapacityExcelFile);
+        TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
+                .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+
+        var horizon = "2025-2026";
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,OTHERS_AREA,"CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
+
+        verify(trajectoryRepository, times(1)).save(any());
+    }
     @Test
     void saveThermalCapacitiesTrajectory() {
         // Given
