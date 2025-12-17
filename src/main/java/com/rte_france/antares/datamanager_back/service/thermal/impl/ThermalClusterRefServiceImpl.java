@@ -6,94 +6,75 @@ import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepos
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnology;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
+public class ThermalClusterRefServiceImpl implements ThermalClusterRefService {
 
     private final ThermalClusterRefRepository thermalClusterRefRepository;
-
     private final ThermalTechnologyRepository thermalTechnologyRepository;
-
-    private List<ThermalClusterRef> cachedClusterRefs;
-
-
-    /**
-     * Finds or creates a ThermalClusterRef entity based on the provided technology and name.
-     * If the entity does not exist, it will be created with default values.
-     *
-     * @param technology The name of the thermal technology associated with the cluster (can be null).
-     * @param name The name of the thermal cluster (cannot be null).
-     * @return The existing or newly created ThermalClusterRef entity.
-     */
-    public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name) {
+    private final EntityManager entityManager;
 
 
-        return findOrCreateThermalClusterRef(technology, name, null);
-    }
+    private Map<ClusterKey, Integer> cachedClusterRefIds;
 
-    /**
-     * Finds or creates a ThermalClusterRef entity based on the provided technology, name, and optional PEMMDB name.
-     * If the entity does not exist, it will be created and saved to the database.
-     * If the entity exists but the PEMMDB name is missing or invalid, it will be updated.
-     *
-     * @param technology The name of the thermal technology associated with the cluster (can be null).
-     * @param name The name of the thermal cluster (cannot be null).
-     * @param namePemmdb The PEMMDB name for the cluster (can be null or blank).
-     * @return The existing or newly created ThermalClusterRef entity.
-     */
+
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    @Override
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
-        ensureClusterRefsLoaded();
+        ensureCacheLoaded();
 
-        //Keep name for .json
         String trimmedName = name != null ? name.trim() : null;
+        ClusterKey key = new ClusterKey(technology, trimmedName);
 
-        // Check if the cluster already exists in the cache
-        Optional<ThermalClusterRef> existingOpt = findCachedClusterRef(technology, trimmedName);
-
-        if (existingOpt.isPresent()) {
-            // Update the PEMMDB name if necessary and return the existing entity
-            return updatePemmdbIfNeeded(existingOpt.get(), namePemmdb);
+        Integer existingId = cachedClusterRefIds.get(key);
+        if (existingId != null) {
+            ThermalClusterRef ref = entityManager.getReference(ThermalClusterRef.class, existingId);
+            return updatePemmdbIfNeeded(ref, namePemmdb);
         }
 
-        // Create a new ThermalClusterRef entity if it does not exist
         ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
+
         ThermalClusterRef newRef = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
         ThermalClusterRef saved = thermalClusterRefRepository.save(newRef);
-        cachedClusterRefs.add(saved); // Add the new entity to the cache
+
+        // Sécurise la FK
+        thermalClusterRefRepository.flush();
+
+        cachedClusterRefIds.put(key, saved.getId());
         return saved;
     }
 
 
 
-    private void ensureClusterRefsLoaded() {
-        if (cachedClusterRefs == null) {
+    private void ensureCacheLoaded() {
+        if (cachedClusterRefIds == null) {
             loadAllThermalClusterRefs();
         }
     }
 
     private void loadAllThermalClusterRefs() {
-        List<ThermalClusterRef> list = thermalClusterRefRepository.findAll();
-        cachedClusterRefs = new ArrayList<>(list);
-    }
+        List<ThermalClusterRef> refs = thermalClusterRefRepository.findAll();
+        Map<ClusterKey, Integer> map = new HashMap<>();
 
-    private Optional<ThermalClusterRef> findCachedClusterRef(String technology, String name) {
-        return cachedClusterRefs.stream()
-                .filter(ref -> ref.getName() != null && ref.getName().equalsIgnoreCase(name)
-                        && (technology == null || technology.isBlank()
-                        || (ref.getThermalTechnology() != null
-                        && ref.getThermalTechnology().getName() != null
-                        && ref.getThermalTechnology().getName().equalsIgnoreCase(technology))))
-                .findFirst();
+        for (ThermalClusterRef ref : refs) {
+            String techName = ref.getThermalTechnology() != null ? ref.getThermalTechnology().getName() : null;
+            map.put(new ClusterKey(techName, ref.getName()), ref.getId());
+        }
+        cachedClusterRefIds = map;
     }
 
 
@@ -109,14 +90,12 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
     }
 
     private ThermalTechnology findThermalTechnology(String technology) {
-        return thermalTechnologyRepository.findThermalTechnologyByName(technology)
+        return thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase(technology)
                 .orElseThrow(() -> BusinessException.builder()
                         .message("Technology {0} does not exist in the technology reference table.")
                         .errorMessageArguments(Collections.singletonList(technology))
                         .build());
     }
-
-
 
     private ThermalClusterRef buildClusterRef(String name, ThermalTechnology technology, String namePemmdb) {
         return ThermalClusterRef.builder()
@@ -124,5 +103,32 @@ public class ThermalClusterRefServiceImpl  implements ThermalClusterRefService {
                 .thermalTechnology(technology)
                 .namePemmdb((namePemmdb != null && !namePemmdb.isBlank()) ? namePemmdb : "NA")
                 .build();
+    }
+
+
+
+    private record ClusterKey(String technology, String name) {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ClusterKey(String technology1, String name1))) return false;
+            return equalsIgnoreCase(technology, technology1)
+                    && equalsIgnoreCase(name, name1);
+        }
+
+        @Override
+        public int hashCode() {
+            return (normalize(technology) + "|" + normalize(name)).hashCode();
+        }
+
+        private static boolean equalsIgnoreCase(String a, String b) {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            return a.equalsIgnoreCase(b);
+        }
+
+        private static String normalize(String s) {
+            return s == null ? "" : s.toLowerCase();
+        }
     }
 }

@@ -18,5 +18,7 @@ VALUES
     (2, 'Additional power'),
     (3, 'TAC'),
     (4, 'Other'),
-    (5, 'Coal_Lignite'),
-    (6, 'Nuclear');
+    (5, 'Coal and lignite'),
+    (6, 'Nuclear'),
+    (7, 'Gas conventional'),
+    (8, 'Heavy oil');

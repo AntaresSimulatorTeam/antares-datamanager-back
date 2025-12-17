@@ -4,8 +4,6 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRe
 
 public interface ThermalClusterRefService {
 
-    ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name);
-
     ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb);
 
 }

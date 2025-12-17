@@ -440,12 +440,14 @@ class ThermalControlsServiceImplTest {
                                         .horizon(horizon)
                                         .thermalCommonParameters(List.of(
                                                 ThermalCommonParameterEntity.builder()
+                                                        .fuel("tech1")
                                                         .thermalClusterRef(ThermalClusterRef.builder()
                                                                 .name("Cluster1")
                                                                 .thermalTechnology(ThermalTechnology.builder().name("tech1").build())
                                                                 .build())
                                                         .build(),
                                                 ThermalCommonParameterEntity.builder()
+                                                        .fuel("tech2")
                                                         .thermalClusterRef(ThermalClusterRef.builder()
                                                                 .name("Cluster2")
                                                                 .thermalTechnology(ThermalTechnology.builder().name("tech2").build())
@@ -476,6 +478,7 @@ class ThermalControlsServiceImplTest {
                                         .horizon(horizon)
                                         .thermalCommonParameters(List.of(
                                                 ThermalCommonParameterEntity.builder()
+                                                        .fuel("tech1")
                                                         .thermalClusterRef(ThermalClusterRef.builder()
                                                                 .name("Cluster1")
                                                                 .thermalTechnology(ThermalTechnology.builder().name("tech1").build())
@@ -502,7 +505,7 @@ class ThermalControlsServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
 
-        assertTrue(exception.getMessage().contains("Fuel {0} does not exist in Cost Trajectory {1} for horizon {2}"));
+        assertTrue(exception.getMessage().contains("Fuel {0} in Cost Trajectory {1} for horizon {2} does not exist in Thermal Common Parameters Trajectory"));
     }
 
     @Test

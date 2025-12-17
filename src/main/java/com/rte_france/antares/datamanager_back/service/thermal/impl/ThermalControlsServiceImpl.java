@@ -309,7 +309,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             if (!listTechnologyOfThermalCommonParam.isEmpty() && !listTechnologyOfThermalCommonParam.contains(techno.toLowerCase())) {
                 final String typeTrajectoryName = trajectoryType.equals(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER) ? "Cost" : "Economic";
                 throw BusinessException.builder()
-                        .message("Fuel {0} does not exist in "+ typeTrajectoryName+" Trajectory {1} for horizon {2}")
+                        .message("Fuel {0} in "+ typeTrajectoryName+" Trajectory {1} for horizon {2} does not exist in Thermal Common Parameters Trajectory")
                         .errorMessageArguments(List.of(techno, trajectoryName, horizon))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -341,7 +341,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                 .flatMap(t -> t.getThermalCommonParameters().stream())
                 .filter(p ->
                         capacityClusters.isEmpty() || capacityClusters.contains(p.getThermalClusterRef().getName().toLowerCase()))
-                .map(p -> p.getThermalClusterRef().getThermalTechnology().getName().toLowerCase())
+                .map(p -> p.getFuel().toLowerCase())
                 .collect(Collectors.toSet());
     }
 

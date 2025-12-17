@@ -346,7 +346,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String technology = checkNoSpecialCharacters(castString(getCellValue(row, 3)), row.getRowNum(), trajectoryName);
 
         return ThermalCommonParameterEntity.builder()
-                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(technology,clusterName, clusterPemmdb))
+                .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(null,clusterName, clusterPemmdb))
                 .category(castDouble(getCellValue(row, 2), header.getCell(2).getStringCellValue(), row.getRowNum()))
                 .fuel(technology)
                 .type(checkNoSpecialCharacters(castString(getCellValue(row, 4)), row.getRowNum(), trajectoryName))
@@ -487,7 +487,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
                     .toUse(toUse)
                     .area(rowArea)
-                    .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName))
+                    .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName, null))
                     .category(category)
                     .monthYear(monthYear)
                     .value(value)
