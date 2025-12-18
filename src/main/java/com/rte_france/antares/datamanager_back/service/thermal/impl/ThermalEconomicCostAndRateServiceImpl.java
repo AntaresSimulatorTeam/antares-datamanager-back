@@ -84,7 +84,7 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                 result.add(type);
             }
             var listTechnology = result.stream().map(ThermalCostTypeEntity::getFuel).collect(java.util.stream.Collectors.toSet());
-            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+            thermalControlService.verifyThermalFuel(studyId, horizon, trajectoryName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
 
             return result;
         } catch (IOException e) {

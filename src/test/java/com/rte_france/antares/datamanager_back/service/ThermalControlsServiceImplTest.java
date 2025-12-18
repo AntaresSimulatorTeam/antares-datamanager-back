@@ -425,7 +425,7 @@ class ThermalControlsServiceImplTest {
     }
 
     @Test
-    void verifyThermalCapacityTechnology_shouldNotThrowWhenAllTechnologiesExist() {
+    void verifyThermalFuel_shouldNotThrowWhenAllTechnologiesExist() {
         Integer studyId = 1;
         String horizon = "2025-2026";
         String trajectoryName = "EconomicTrajectory";
@@ -459,15 +459,15 @@ class ThermalControlsServiceImplTest {
                         .build()
         ));
 
-        assertDoesNotThrow(() -> thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
+        assertDoesNotThrow(() -> thermalControlsService.verifyThermalFuel(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
     }
 
     @Test
-    void verifyThermalCapacityTechnology_shouldThrowWhenTechnologyDoesNotExist() {
+    void verifyThermalFuelDoesNotExist() {
         Integer studyId = 1;
         String horizon = "2025-2026";
         String trajectoryName = "EconomicTrajectory";
-        Set<String> listTechnology = Set.of("tech1", "tech3");
+        Set<String> listTechnology = Set.of("tech2", "tech3");
         TrajectoryType trajectoryType = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER;
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(
@@ -503,13 +503,13 @@ class ThermalControlsServiceImplTest {
         ));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
+                thermalControlsService.verifyThermalFuel(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
 
-        assertTrue(exception.getMessage().contains("Fuel {0} in Cost Trajectory {1} for horizon {2} does not exist in Thermal Common Parameters Trajectory"));
+        assertTrue(exception.getMessage().contains("Fuel {0} does not exist in Cost Trajectory {1} for horizon {2}"));
     }
 
     @Test
-    void verifyThermalCapacityTechnology_shouldThrowWhenStudyNotFound() {
+    void verifyThermalFuel_shouldThrowWhenStudyNotFound() {
         Integer studyId = 1;
         String horizon = "2025-2026";
         String trajectoryName = "EconomicTrajectory";
@@ -519,7 +519,7 @@ class ThermalControlsServiceImplTest {
         when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
+                thermalControlsService.verifyThermalFuel(studyId, horizon, trajectoryName, listTechnology, trajectoryType));
 
         assertTrue(exception.getMessage().contains("Study with id {0} not found"));
     }
