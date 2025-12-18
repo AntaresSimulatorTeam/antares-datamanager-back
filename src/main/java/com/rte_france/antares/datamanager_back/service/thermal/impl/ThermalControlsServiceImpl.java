@@ -297,20 +297,20 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     }
 
     @Override
-    public void verifyThermalCapacityTechnology(Integer studyId, String horizon, String trajectoryName, Set<String> listTechnology, TrajectoryType trajectoryType) throws IOException {
+    public void verifyThermalFuel(Integer studyId, String horizon, String trajectoryName, Set<String> listEconomicFuel, TrajectoryType trajectoryType) throws IOException {
         //horizon pattern yyyy-yyyy+1
         Pattern horizonPattern = Pattern.compile("^(\\d{4})-(\\d{4})$");
         Matcher horizonMatcher = horizonPattern.matcher(horizon);
         String buildHorizon = horizonMatcher.matches() ? horizon : Integer.parseInt(horizon) - 1 + "-" + horizon;
 
-        Set<String> listTechnologyOfThermalCommonParam = getListTechnologyOfThermalCommonParam(studyId, buildHorizon);
+        Set<String> listFuelOfThermalCommonParam = getListTechnologyOfThermalCommonParam(studyId, buildHorizon);
 
-        listTechnology.forEach(techno -> {
-            if (!listTechnologyOfThermalCommonParam.isEmpty() && !listTechnologyOfThermalCommonParam.contains(techno.toLowerCase())) {
+        listFuelOfThermalCommonParam.forEach(commonFuel -> {
+            if (!listEconomicFuel.isEmpty() && !listEconomicFuel.contains(commonFuel.toLowerCase())) {
                 final String typeTrajectoryName = trajectoryType.equals(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER) ? "Cost" : "Economic";
                 throw BusinessException.builder()
-                        .message("Fuel {0} in "+ typeTrajectoryName+" Trajectory {1} for horizon {2} does not exist in Thermal Common Parameters Trajectory")
-                        .errorMessageArguments(List.of(techno, trajectoryName, horizon))
+                        .message("Fuel {0} does not exist in "+ typeTrajectoryName+" Trajectory {1} for horizon {2}")
+                        .errorMessageArguments(List.of(commonFuel, trajectoryName, horizon))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

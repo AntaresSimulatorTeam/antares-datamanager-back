@@ -45,7 +45,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
             List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon, trajectoryFileName);
             Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
-            thermalControlService.verifyThermalCapacityTechnology(studyId, horizon, trajectoryFileName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
+            thermalControlService.verifyThermalFuel(studyId, horizon, trajectoryFileName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
             return thermalEconomicCo2EntityList;
         }
     }
