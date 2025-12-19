@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -97,102 +98,100 @@ class ThermalEconomicServiceImplTest {
 
     @Test
     void buildThermalEconomicCo2ParameterValuesList_shouldReturnPopulatedListFromGeneratedExcel() throws Exception {
-        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2023", "100.5", "kg", "comment"},
+        Sheet sheet = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2023", "100.5", "kg", "comment"},
                 new String[]{"Oil", "FR", "2023", "200.0", "kg", "comment2"}));
 
-        try {
-            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2022-2023", 1);
+
+            List<ThermalEconomicCo2Entity> result = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList("temp", "2022-2023", 1, sheet);
             assertFalse(result.isEmpty());
             assertEquals(2, result.size());
             assertEquals("Gas", result.getFirst().getFuel());
             assertEquals("FR", result.getFirst().getCountry());
             assertEquals(2023, result.getFirst().getYear());
             assertEquals(new java.math.BigDecimal("100.5"), result.getFirst().getCo2EmissionFuel());
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+
+    }
+
+    @Test
+    void buildThermalEconomicCo2ParameterValuesList_shouldThrowExceptionHorizonDoesNotExist() throws Exception {
+        Sheet sheet = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2023", "100.5", "kg", "comment"},
+                new String[]{"Oil", "FR", "2023", "200.0", "kg", "comment2"}));
+
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList("temp", "2023-2024", 1, sheet)
+        );
+        assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_emissions tab"));
+
+
     }
 
     @Test
     void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenCo2IsNotValid() throws Exception {
-        Path temp = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2024", "100w.5", "kg", "comment"}, new String[]{"Oil", "FR", "2024", "200.0", "kg", "comment2"}));
-        try {
+        Sheet sheet = generateExcelFileWithCo2Rows(List.of(new String[]{"Gas", "FR", "2024", "100w.5", "kg", "comment"}, new String[]{"Oil", "FR", "2024", "200.0", "kg", "comment2"}));
             BusinessException ex = assertThrows(
                     BusinessException.class,
-                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
+                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList("temp", "2023-2024", 1, sheet)
             );
             assertTrue(ex.getMessage().contains("The value of CO2_EmissionFuel of horizon {0} in THERMAL Economic trajectory {1} in CO2_emissions  tab must be numeric"));
 
-        } finally {
-            Files.deleteIfExists(temp);
-        }
     }
 
     @Test
     void buildThermalEconomicCo2ParameterValuesList_shouldThrowBusinessExceptionWhenHorizonDoesNotExist() throws Exception {
-        Path temp = generateExcelFileWithCo2Rows(List.of());
-        try {
+        Sheet sheet = generateExcelFileWithCo2Rows(List.of());
+
             BusinessException ex = assertThrows(
                     BusinessException.class,
-                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(temp, "2023-2024", 1)
+                    () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList("temp", "2023-2024", 1, sheet)
             );
             assertTrue(ex.getMessage().contains("No data in THERMAL Economic trajectory {0} in CO2_emissions tab"));
 
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+
     }
 
     @Test
     void buildThermalEconomicEnerContentParameterValuesList_shouldReturnPopulatedListFromGeneratedExcel() throws Exception {
-        Path temp = generateExcelFileWithEnerRows(List.of(
+        Sheet sheet = generateExcelFileWithEnerRows(List.of(
                 new String[]{"500", "MJ", "comment1"},
                 new String[]{"1000", "MJ", "comment2"}
         ));
 
-        try {
-            List<ThermalEconomicEnerContentEntity> result = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1);
+
+            List<ThermalEconomicEnerContentEntity> result = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList("temp", "2023-2024", 1,sheet);
             assertFalse(result.isEmpty());
             assertEquals(2, result.size());
             assertEquals(new BigDecimal("500"), result.get(0).getValue());
             assertEquals("MJ", result.get(0).getUnit());
             assertEquals("comment1", result.get(0).getComment());
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+
     }
 
     @Test
-    void buildThermalEconomicEnerContentParameterValuesList_shouldThrowBusinessExceptionWhenValueIsNotNumeric() throws Exception {
-        Path temp = generateExcelFileWithEnerRows(List.of(new String[]{"", "MJ", "comment1"}, new String[]{"1000", "MJ", "comment2"}));
+    void buildThermalEconomicEnerContentParameterValuesList_shouldThrowExceptionWithOnlyHeader() throws Exception {
+        Sheet sheet = generateExcelFileWithEnerRows(Collections.emptyList());
 
-        try {
             BusinessException ex = assertThrows(
                     BusinessException.class,
-                    () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1)
+                    () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList("temp", "2023-2024", 1, sheet)
+            );
+            assertTrue(ex.getMessage().contains("No data in THERMAL Economic trajectory {0} in ener_content tab"));
+
+    }
+    @Test
+    void buildThermalEconomicEnerContentParameterValuesList_shouldThrowBusinessExceptionWhenValueIsNotNumeric() throws Exception {
+        Sheet sheet = generateExcelFileWithEnerRows(List.of(new String[]{"", "MJ", "comment1"}, new String[]{"1000", "MJ", "comment2"}));
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList("temp", "2023-2024", 1, sheet)
 
             );
             assertTrue(ex.getMessage().contains("The value of value of horizon {0} in THERMAL Economic trajectory {1} in ener_content  tab must be numeric"));
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+
     }
 
-    @Test
-    void buildThermalEconomicEnerContentParameterValuesList_shouldThrowBusinessException() throws Exception {
-        Path temp = generateExcelFileWithDifferentSheet();
-        try {
-            BusinessException ex = assertThrows(
-                    BusinessException.class,
-                    () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(temp, "2023-2024", 1)
-            );
-            assertTrue(ex.getMessage().contains("Missing ener_content data in trajectory {0}"));
-        } finally {
-            Files.deleteIfExists(temp);
-        }
-    }
-
-    private Path generateExcelFileWithEnerRows(List<String[]> rows) throws Exception {
+    private Sheet generateExcelFileWithEnerRows(List<String[]> rows) throws Exception {
         XSSFWorkbook wb = new XSSFWorkbook();
         Sheet sheet = wb.createSheet("ener_content");
         Row header = sheet.createRow(0);
@@ -213,16 +212,10 @@ class ThermalEconomicServiceImplTest {
                 }
             }
         }
-        Path temp = Files.createTempFile("te_ener_", ".xlsx");
-        try (java.io.OutputStream os = Files.newOutputStream(temp)) {
-            wb.write(os);
-        } finally {
-            wb.close();
-        }
-        return temp;
+        return sheet;
     }
 
-    private Path generateExcelFileWithCo2Rows(List<String[]> rows) throws Exception {
+    private Sheet generateExcelFileWithCo2Rows(List<String[]> rows) throws Exception {
         XSSFWorkbook wb = new XSSFWorkbook();
         Sheet sheet = wb.createSheet("CO2_emissions");
         Row header = sheet.createRow(0);
@@ -246,25 +239,7 @@ class ThermalEconomicServiceImplTest {
                 }
             }
         }
-        Path temp = Files.createTempFile("te_co2_", ".xlsx");
-        try (java.io.OutputStream os = Files.newOutputStream(temp)) {
-            wb.write(os);
-        } finally {
-            wb.close();
-        }
-        return temp;
-    }
-
-    private Path generateExcelFileWithDifferentSheet() throws Exception {
-        org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
-        wb.createSheet("some_other_sheet");
-        Path temp = Files.createTempFile("te_other_", ".xlsx");
-        try (java.io.OutputStream os = Files.newOutputStream(temp)) {
-            wb.write(os);
-        } finally {
-            wb.close();
-        }
-        return temp;
+        return sheet;
     }
 
 }

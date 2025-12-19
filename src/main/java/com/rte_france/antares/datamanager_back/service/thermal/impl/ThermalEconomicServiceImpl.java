@@ -11,56 +11,50 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicSe
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.throwAlreadyProcessedFileException;
-import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
+import static com.rte_france.antares.datamanager_back.util.Utils.getFileNameWithoutExtensionAndWithoutPrefix;
 
 @Slf4j
 @Service
 @AllArgsConstructor
 public class ThermalEconomicServiceImpl implements ThermalEconomicService {
 
-    private static final String SHEET_CO2 = "CO2_emissions";
-    private static final String SHEET_ENR = "ener_content";
+    public static final String SHEET_CO2 = "CO2_emissions";
+    public static final String SHEET_ENR = "ener_content";
 
     private final UserService userService;
     private final TrajectoryRepository trajectoryRepository;
     private final ThermalControlService thermalControlService;
 
     @Override
-    public List<ThermalEconomicCo2Entity> buildThermalEconomicCo2ParameterValuesList(Path trajectoryFilePath, String horizon, Integer studyId) throws IOException {
-        final String trajectoryFileName = trajectoryFilePath.getFileName().toString();
-        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = findHorizonSheet(workbook, SHEET_CO2);
-            List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(sheet, horizon, trajectoryFileName);
-            Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
-            thermalControlService.verifyThermalFuel(studyId, horizon, trajectoryFileName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
-            return thermalEconomicCo2EntityList;
-        }
+    public List<ThermalEconomicCo2Entity> buildThermalEconomicCo2ParameterValuesList(String trajectoryFileName, String horizon, Integer studyId, Sheet co2Sheet) throws IOException {
+        List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(co2Sheet, horizon, trajectoryFileName);
+        Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+        thermalControlService.verifyThermalFuel(studyId, horizon, trajectoryFileName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
+        return thermalEconomicCo2EntityList;
+
     }
 
     @Override
-    public List<ThermalEconomicEnerContentEntity> buildThermalEconomicEnerContentParameterValuesList(Path trajectoryFilePath, String horizon, Integer studyId) throws IOException {
-        final String trajectoryFileName = trajectoryFilePath.getFileName().toString();
-        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = findHorizonSheet(workbook, SHEET_ENR);
-            if (sheet != null) {
-                return parseEnerSheet(sheet, trajectoryFileName, horizon);
-            } else {
-                throw BusinessException.builder().message("Missing ener_content data in trajectory {0}").errorMessageArguments(List.of(trajectoryFileName)).build();
-            }
-        }
+    public List<ThermalEconomicEnerContentEntity> buildThermalEconomicEnerContentParameterValuesList(String trajectoryFileName, String horizon, Integer studyId, Sheet enerSheet) throws IOException {
+        return parseEnerSheet(enerSheet, trajectoryFileName, horizon);
     }
 
     @Override
@@ -94,87 +88,128 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
 
     }
 
-
+    // java
     private List<ThermalEconomicCo2Entity> parseCo2Sheet(Sheet sheet, String horizon, String trajectoryFileName) {
         List<ThermalEconomicCo2Entity> list = new ArrayList<>();
         if (sheet == null) return list;
-        boolean onlyHeader = true;
+
+        boolean foundAnyDataRow = false;
+        boolean foundAnyMatchingHorizon = false;
         Integer horizonYear = parseInteger(horizon.split("-")[1]);
 
         for (Row row : sheet) {
-            if (row.getRowNum() == 0) continue;
-            Integer year = parseInteger(getCellString(row, 2));
+            if (row.getRowNum() == 0) continue; // skip header
 
-            // filtrage horizon
-            if (year != null && !year.equals(horizonYear)) continue;
             String fuel = getCellString(row, 0);
             String country = getCellString(row, 1);
-            BigDecimal co2 = parseBigDecimal(getCellString(row, 3));
-            if(co2 == null) {
+            String yearStr = getCellString(row, 2);
+            String co2Str = getCellString(row, 3);
+            String unitCo2 = getCellString(row, 4);
+            String comment = getCellString(row, 5);
+
+            // ignorer les lignes entièrement vides
+            if (fuel.isEmpty() && country.isEmpty() && yearStr.isBlank() && co2Str.isBlank() && unitCo2.isEmpty() && comment.isEmpty()) {
+                continue;
+            }
+
+            foundAnyDataRow = true;
+
+            Integer year = parseInteger(yearStr);
+
+            // filtrage horizon : si l'année est renseignée et différente -> ligne à ignorer
+            if (year != null && horizonYear != null && !year.equals(horizonYear)) {
+                continue;
+            }
+
+            // si on arrive ici, la ligne est considérée comme correspondant à l'horizon (year == null ou égal)
+            foundAnyMatchingHorizon = true;
+
+            BigDecimal co2 = parseBigDecimal(co2Str);
+            if (co2 == null) {
                 throw BusinessException.builder()
                         .message("The value of CO2_EmissionFuel of horizon {0} in THERMAL Economic trajectory {1} in CO2_emissions  tab must be numeric")
                         .errorMessageArguments(List.of(horizon, trajectoryFileName))
                         .build();
             }
-            String unitCo2 = getCellString(row, 4);
-            String comment = getCellString(row, 5);
-
-            if (fuel.isEmpty() && country.isEmpty() && year == null) {
-                continue;
-            }
-            onlyHeader = false;
-
 
             // mapping
             ThermalEconomicCo2Entity e = new ThermalEconomicCo2Entity();
             e.setFuel(fuel);
             e.setCountry(country);
             if (year != null) e.setYear(year);
-            e.setCo2EmissionFuel(co2 != null ? co2 : BigDecimal.ZERO);
+            e.setCo2EmissionFuel(co2);
             e.setUnitCo2(unitCo2);
             e.setComment(comment);
 
             list.add(e);
         }
-        if (onlyHeader) {
-            throw BusinessException.builder().message("No data in THERMAL Economic trajectory {0} in CO2_emissions tab ").errorMessageArguments(List.of(trajectoryFileName)).build();
+
+        if (!foundAnyDataRow) {
+            throw BusinessException.builder()
+                    .message("No data in THERMAL Economic trajectory {0} in CO2_emissions tab")
+                    .errorMessageArguments(List.of(trajectoryFileName))
+                    .build();
         }
-        if (list.isEmpty()) {
-            throw BusinessException.builder().message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_emissions tab ").errorMessageArguments(List.of(trajectoryFileName)).build();
+
+        if (!foundAnyMatchingHorizon) {
+            throw BusinessException.builder()
+                    .message("Horizon does not exist in THERMAL Economic trajectory {0} in CO2_emissions tab")
+                    .errorMessageArguments(List.of(trajectoryFileName))
+                    .build();
         }
 
         return list;
     }
 
 
+
+    // java
     private List<ThermalEconomicEnerContentEntity> parseEnerSheet(Sheet sheet, String trajectoryFileName, String horizon) {
         List<ThermalEconomicEnerContentEntity> list = new ArrayList<>();
         if (sheet == null) return list;
 
+        boolean onlyHeader = true;
+
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) continue;
-            BigDecimal value = parseBigDecimal(getCellString(row, 0));
+
+            String valueStr = getCellString(row, 0);
             String unit = getCellString(row, 1);
             String comment = getCellString(row, 2);
 
+            // ignorer les lignes entièrement vides
+            if (valueStr.isEmpty() && unit.isEmpty() && comment.isEmpty()) {
+                continue;
+            }
+
+            // une ligne contient des données -> tenter de parser la valeur
+            BigDecimal value = parseBigDecimal(valueStr);
             if (value == null) {
                 throw BusinessException.builder()
                         .message("The value of value of horizon {0} in THERMAL Economic trajectory {1} in ener_content  tab must be numeric")
                         .errorMessageArguments(List.of(horizon, trajectoryFileName))
                         .build();
-
             }
-
 
             ThermalEconomicEnerContentEntity e = new ThermalEconomicEnerContentEntity();
             e.setValue(value);
             e.setUnit(unit);
             e.setComment(comment);
             list.add(e);
+            onlyHeader = false;
         }
+
+        if (onlyHeader) {
+            throw BusinessException.builder()
+                    .message("No data in THERMAL Economic trajectory {0} in ener_content tab")
+                    .errorMessageArguments(List.of(trajectoryFileName))
+                    .build();
+        }
+
         return list;
     }
+
 
     private String getCellString(Row row, int idx) {
         Cell c = row.getCell(idx);
