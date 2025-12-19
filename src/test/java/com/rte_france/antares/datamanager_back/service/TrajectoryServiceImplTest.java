@@ -14,6 +14,11 @@ import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcess
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,6 +29,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,6 +37,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -1158,6 +1166,7 @@ class TrajectoryServiceImplTest {
 
     @Test
     void processThermalEconomicParameterTrajectory_shouldThrowExceptionWhenCo2ParametersAreEmpty(@TempDir Path tempDir) throws IOException {
+
         String trajectoryToUse = "economic_trajectory";
         String horizon = "2023-2024";
         Integer studyId = 1;
@@ -1165,9 +1174,10 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
-        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(tempDir, horizon, studyId))
+        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
-
+        // Création du fichier .xlsx minimal attendu par la méthode sous test
+        generateExcelFile(tempDir, trajectoryToUse);
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId));
 
@@ -1184,17 +1194,19 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
 
-        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any()))
+        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(List.of(ThermalEconomicCo2Entity.builder().id(1).build()));
-        when(thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(any(), any(), any()))
+        when(thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
-
+        // Création du fichier .xlsx minimal attendu par la méthode sous test
+        generateExcelFile(tempDir, trajectoryToUse);
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId));
 
         assertTrue(exception.getMessage().contains("No data in THERMAL Economic trajectory {0} in ener_content tab "));
     }
 
+    // java
     @Test
     void processThermalEconomicParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters(@TempDir Path tempDir) throws IOException {
         String trajectoryToUse = "economic_trajectory";
@@ -1204,9 +1216,13 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
-        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any()))
+
+        // Création du fichier .xlsx minimal attendu par la méthode sous test
+        generateExcelFile(tempDir, trajectoryToUse);
+
+        when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(List.of(new ThermalEconomicCo2Entity()));
-        when(thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(any(), any(), any()))
+        when(thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(List.of(new ThermalEconomicEnerContentEntity()));
         when(thermalEconomicService.processThermalEconomicParameterFile(any(), any(), anyList(), anyList(), any()))
                 .thenReturn(new TrajectoryEntity());
@@ -1214,6 +1230,18 @@ class TrajectoryServiceImplTest {
         TrajectoryEntity result = trajectoryService.processThermalEconomicParameterTrajectory(trajectoryToUse, horizon, studyId);
 
         assertNotNull(result);
+    }
+
+    private static void generateExcelFile(Path tempDir, String trajectoryToUse) throws IOException {
+        Path economicDir = tempDir.resolve("economic");
+        Files.createDirectories(economicDir);
+        Path xlsxPath = economicDir.resolve(trajectoryToUse + ".xlsx");
+        try (Workbook wb = new XSSFWorkbook();
+             java.io.OutputStream os = Files.newOutputStream(xlsxPath)) {
+            wb.createSheet(SHEET_CO2);
+            wb.createSheet(SHEET_ENR);
+            wb.write(os);
+        }
     }
 
     @Test
@@ -1284,6 +1312,48 @@ class TrajectoryServiceImplTest {
         assertTrue(exception.getMessage().contains("could not verify param modulation trajectory"));
         verify(thermalParamModulationService, times(1)).verifyExistingSpecificClustersOfParamModulation(
                 eq(horizon), eq(studyId), eq(expectedPath), eq(trajectoryFileName), eq("CM"));
+    }
+    @Test
+    void verifyExistingEconomicSheet_throwsExceptionWhenBothSheetsAreMissing() {
+        String trajectoryToUse = "trajectory_missing_sheets";
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                TrajectoryServiceImpl.verifyExistingEconomicSheet(trajectoryToUse, null, null));
+
+        assertEquals("Missing CO2_emissions /ener_content data in trajectory {0}", exception.getMessage());
+        assertEquals(List.of(trajectoryToUse), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    void verifyExistingEconomicSheet_throwsExceptionWhenCo2SheetIsMissing() {
+        String trajectoryToUse = "trajectory_missing_co2";
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                TrajectoryServiceImpl.verifyExistingEconomicSheet(trajectoryToUse, null, mock(Sheet.class)));
+
+        assertEquals("Missing CO2_emissions data in trajectory {0}", exception.getMessage());
+        assertEquals(List.of(trajectoryToUse), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    void verifyExistingEconomicSheet_throwsExceptionWhenEnerContentSheetIsMissing() {
+        String trajectoryToUse = "trajectory_missing_ener_content";
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                TrajectoryServiceImpl.verifyExistingEconomicSheet(trajectoryToUse, mock(Sheet.class), null));
+
+        assertEquals("Missing ener_content data in trajectory {0}", exception.getMessage());
+        assertEquals(List.of(trajectoryToUse), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    void verifyExistingEconomicSheet_doesNotThrowExceptionWhenBothSheetsArePresent() {
+        String trajectoryToUse = "trajectory_valid";
+        Sheet sheetCo2 = mock(Sheet.class);
+        Sheet sheetEnr = mock(Sheet.class);
+
+        assertDoesNotThrow(() ->
+                TrajectoryServiceImpl.verifyExistingEconomicSheet(trajectoryToUse, sheetCo2, sheetEnr));
     }
 
 

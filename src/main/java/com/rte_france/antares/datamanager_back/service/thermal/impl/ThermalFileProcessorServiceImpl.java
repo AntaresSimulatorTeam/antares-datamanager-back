@@ -377,16 +377,18 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 .build();
     }
 
-
     public static String checkNoSpecialCharacters(String value, int rowNum, String trajectoryName) {
-        if (value != null && !value.isBlank() && !value.matches("[a-zA-Z0-9 _-]+")) {
+        if (value != null && !value.isBlank()
+                && !value.matches("[a-zA-Z0-9 _\\-/]+")) {
+
             throw BusinessException.builder()
-                    .message("The value {0}  in line {1} is not supported in THERMAL Common Param trajectory {2}")
+                    .message("The value {0} in line {1} is not supported in THERMAL Common Param trajectory {2}")
                     .errorMessageArguments(List.of(value, String.valueOf(rowNum), trajectoryName))
                     .build();
         }
         return value;
     }
+
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
                 getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()),

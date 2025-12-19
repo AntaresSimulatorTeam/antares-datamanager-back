@@ -18,12 +18,16 @@ import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,6 +37,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -388,16 +394,52 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, trajectoryToUse, "");
-        var economicsCo2Param = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(trajectoryFilePath, horizon, studyId);
-        var economicsEnerContentParam = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(trajectoryFilePath, horizon, studyId);
-        if (CollectionUtils.isEmpty(economicsEnerContentParam)) {
+        final String fileName = trajectoryFilePath.getFileName().toString();
+
+        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheetEnr = findHorizonSheet(workbook, SHEET_ENR);
+            Sheet sheetCo2 = findHorizonSheet(workbook, SHEET_CO2);
+            verifyExistingEconomicSheet(trajectoryToUse, sheetCo2, sheetEnr);
+
+            var economicsCo2Param = thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(fileName, horizon, studyId, sheetCo2);
+            var economicsEnerContentParam = thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList(fileName, horizon, studyId, sheetEnr);
+
+            if (CollectionUtils.isEmpty(economicsEnerContentParam)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(trajectoryToUse))
+                        .message("No data in THERMAL Economic trajectory {0} in ener_content tab ")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            return thermalEconomicService.processThermalEconomicParameterFile(trajectoryFilePath, horizon, economicsCo2Param, economicsEnerContentParam, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
+        }
+    }
+
+    public static void verifyExistingEconomicSheet(String trajectoryToUse, Sheet sheetCo2, Sheet sheetEnr) {
+        if (sheetCo2 == null && sheetEnr == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse))
-                    .message("No data in THERMAL Economic trajectory {0} in ener_content tab ")
+                    .message("Missing CO2_emissions /ener_content data in trajectory {0}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return thermalEconomicService.processThermalEconomicParameterFile(trajectoryFilePath, horizon, economicsCo2Param, economicsEnerContentParam, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
+        if (sheetCo2 == null) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .message("Missing CO2_emissions data in trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        if (sheetEnr == null) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .message("Missing ener_content data in trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+
+
+        }
     }
 
     public List<TrajectoryEntity> findTrajectoriesByTypeAndFileNameContainsFromDB(TrajectoryType trajectoryType, String horizon, String fileNameContains, String area, String technology) {
@@ -415,7 +457,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
-                            || isRelevantFile(path, trajectoryType)) &&  matchesPrefix(path, trajectoryType))
+                            || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -747,8 +789,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-
-
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
                 BusinessException.builder()
@@ -937,16 +977,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public void verifyParamModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {
         var pathToParamModulation = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
         trajectory.getThermalModulationParameters().stream()
-               .map(ThermalModulationParameterEntity::getTsName)
-               .forEach(paramModulationFileName -> {
-                   try {
-                       thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(),
-                               studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
-                   } catch (IOException e) {
-                       throw TechnicalException.builder().message("could not verify param modulation trajectory on selection" +e.getMessage()).cause(e).build();
+                .map(ThermalModulationParameterEntity::getTsName)
+                .forEach(paramModulationFileName -> {
+                    try {
+                        thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(),
+                                studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
+                    } catch (IOException e) {
+                        throw TechnicalException.builder().message("could not verify param modulation trajectory on selection" + e.getMessage()).cause(e).build();
 
-                   }
-               });
+                    }
+                });
     }
 
     public void checkLinkCoherence(Integer studyId, Set<WarningMessageEntity> warningMessageEntities, TrajectoryEntity trajectory, String userNni) {
