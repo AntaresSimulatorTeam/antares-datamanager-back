@@ -32,7 +32,7 @@ public class ThermalClusterRefServiceImpl implements ThermalClusterRefService {
 
 
 
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional
     @Override
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
         ensureCacheLoaded();
