@@ -942,12 +942,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private void verifyThermalEconomicParameter(Integer studyId, TrajectoryEntity trajectory) throws IOException {
-        var listTechno = trajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+        var listTechno = trajectory.getThermalEconomicCo2s().stream().map(ThermalEconomicCo2Entity::getFuel).map(String::toLowerCase).collect(Collectors.toSet());
         thermalControlService.verifyThermalFuel(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
     }
 
     public void verifyThermalEconomicCostParameter(Integer studyId, TrajectoryEntity trajectory) throws IOException {
-        var listTechno = trajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).collect(Collectors.toSet());
+        var listTechno = trajectory.getThermalCosts().stream().map(cost -> cost.getThermalType().getFuel()).map(String::toLowerCase).collect(Collectors.toSet());
         thermalControlService.verifyThermalFuel(studyId, trajectory.getHorizon(), trajectory.getFileName(), listTechno, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
     }
 
