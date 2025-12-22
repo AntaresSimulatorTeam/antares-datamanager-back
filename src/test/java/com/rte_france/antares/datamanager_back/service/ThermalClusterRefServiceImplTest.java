@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepos
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnology;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClusterRefServiceImpl;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,9 +26,6 @@ class ThermalClusterRefServiceImplTest {
 
     @Mock
     private ThermalClusterRefRepository thermalClusterRefRepository;
-
-    @Mock
-    private EntityManager entityManager;
 
     @InjectMocks
     private ThermalClusterRefServiceImpl thermalClusterRef;
@@ -77,19 +73,14 @@ class ThermalClusterRefServiceImplTest {
                 .build();
 
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
-        when(entityManager.getReference(ThermalClusterRef.class, 1)).thenReturn(existing);
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
 
         // When
-        ThermalClusterRef result =
-                thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
+        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
 
         // Then
         assertSame(existing, result);
         assertEquals("Oil-123", result.getNamePemmdb());
 
-        verify(thermalClusterRefRepository, times(1)).save(existing);
         verifyNoInteractions(thermalTechnologyRepository);
     }
 
@@ -105,7 +96,6 @@ class ThermalClusterRefServiceImplTest {
                 .build();
 
         when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
-        when(entityManager.getReference(ThermalClusterRef.class, 1)).thenReturn(existing);
 
         // When
         ThermalClusterRef result =

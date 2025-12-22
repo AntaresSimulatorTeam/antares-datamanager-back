@@ -206,6 +206,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
+    @Transactional
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
         if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith("thermal_")) {
             throw BusinessException.builder()
