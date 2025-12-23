@@ -383,7 +383,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             throw BusinessException.builder()
                     .message("The value {0} in line {1} is not supported in THERMAL Common Param trajectory {2}")
-                    .errorMessageArguments(List.of(value, String.valueOf(rowNum), trajectoryName))
+                    .errorMessageArguments(List.of(value, String.valueOf(rowNum+1), trajectoryName))
                     .build();
         }
         return value;

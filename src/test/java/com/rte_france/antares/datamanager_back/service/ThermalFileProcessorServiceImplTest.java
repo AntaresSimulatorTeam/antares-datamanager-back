@@ -618,7 +618,7 @@ class ThermalFileProcessorServiceImplTest {
     @Test
     void buildThermalCommonParameterValuesList_shouldThrowTechnicalExceptionWhenHorizonSheetMissing(@TempDir Path tempDir) throws Exception {
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile("OTHER_SHEET"));
-        TechnicalException ex = assertThrows(TechnicalException.class, () ->
+        BusinessException ex = assertThrows(BusinessException.class, () ->
                 thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET,1)
         );
         assertTrue(ex.getMessage().contains("Missing suitable sheet for horizon"));
