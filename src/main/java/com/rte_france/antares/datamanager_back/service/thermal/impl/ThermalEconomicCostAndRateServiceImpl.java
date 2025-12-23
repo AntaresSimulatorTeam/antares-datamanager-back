@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
@@ -83,7 +84,7 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                 }
                 result.add(type);
             }
-            var listTechnology = result.stream().map(ThermalCostTypeEntity::getFuel).collect(java.util.stream.Collectors.toSet());
+            var listTechnology = result.stream().map(ThermalCostTypeEntity::getFuel).map(String::toLowerCase).collect(Collectors.toSet());
             thermalControlService.verifyThermalFuel(studyId, horizon, trajectoryName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
 
             return result;
