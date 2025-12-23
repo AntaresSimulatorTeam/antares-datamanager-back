@@ -981,8 +981,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .map(ThermalModulationParameterEntity::getTsName)
                 .forEach(paramModulationFileName -> {
                     try {
-                        thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(),
-                                studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
+                        thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(), studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
                     } catch (IOException e) {
                         throw TechnicalException.builder().message("could not verify param modulation trajectory on selection" + e.getMessage()).cause(e).build();
 

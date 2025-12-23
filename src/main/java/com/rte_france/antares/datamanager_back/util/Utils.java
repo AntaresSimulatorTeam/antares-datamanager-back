@@ -502,8 +502,9 @@ public class Utils {
     public static Sheet findHorizonSheetOrThrow(Workbook workbook, String horizon) {
         Sheet sheet = findHorizonSheet(workbook, horizon);
         if (sheet == null) {
-            throw TechnicalException.builder()
+            throw BusinessException.builder()
                     .message("Missing suitable sheet for horizon '" + horizon + "'")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         return sheet;
