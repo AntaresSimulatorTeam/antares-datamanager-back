@@ -478,7 +478,7 @@ class ThermalControlsServiceImplTest {
                                         .horizon(horizon)
                                         .thermalCommonParameters(List.of(
                                                 ThermalCommonParameterEntity.builder()
-                                                        .fuel("tech1")
+                                                        .fuel("Tech1")
                                                         .thermalClusterRef(ThermalClusterRef.builder()
                                                                 .name("Cluster1")
                                                                 .thermalTechnology(ThermalTechnology.builder().name("tech1").build())

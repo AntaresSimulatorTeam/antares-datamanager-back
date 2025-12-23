@@ -4,10 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterCapacityEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -306,7 +303,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
         Set<String> listFuelOfThermalCommonParam = getListTechnologyOfThermalCommonParam(studyId, buildHorizon);
 
         listFuelOfThermalCommonParam.forEach(commonFuel -> {
-            if (!listEconomicFuel.isEmpty() && !listEconomicFuel.contains(commonFuel.toLowerCase())) {
+            String commonFuelLower = commonFuel.toLowerCase();
+            if (!listEconomicFuel.isEmpty() && !listEconomicFuel.contains(commonFuelLower)) {
                 final String typeTrajectoryName = trajectoryType.equals(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER) ? "Cost" : "Economic";
                 throw BusinessException.builder()
                         .message("Fuel {0} does not exist in "+ typeTrajectoryName+" Trajectory {1} for horizon {2}")
@@ -341,7 +339,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                 .flatMap(t -> t.getThermalCommonParameters().stream())
                 .filter(p ->
                         capacityClusters.isEmpty() || capacityClusters.contains(p.getThermalClusterRef().getName().toLowerCase()))
-                .map(p -> p.getFuel().toLowerCase())
+                .map(ThermalCommonParameterEntity::getFuel)
                 .collect(Collectors.toSet());
     }
 

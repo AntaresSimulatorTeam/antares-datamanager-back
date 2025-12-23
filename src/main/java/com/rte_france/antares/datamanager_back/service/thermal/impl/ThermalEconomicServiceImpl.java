@@ -46,7 +46,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     @Override
     public List<ThermalEconomicCo2Entity> buildThermalEconomicCo2ParameterValuesList(String trajectoryFileName, String horizon, Integer studyId, Sheet co2Sheet) throws IOException {
         List<ThermalEconomicCo2Entity> thermalEconomicCo2EntityList = parseCo2Sheet(co2Sheet, horizon, trajectoryFileName);
-        Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).collect(Collectors.toSet());
+        Set<String> listTechnology = thermalEconomicCo2EntityList.stream().map(ThermalEconomicCo2Entity::getFuel).map(String::toLowerCase).collect(Collectors.toSet());
         thermalControlService.verifyThermalFuel(studyId, horizon, trajectoryFileName, listTechnology, TrajectoryType.THERMAL_ECONOMIC_PARAMETER);
         return thermalEconomicCo2EntityList;
 
