@@ -107,6 +107,7 @@ public class NasFileService {
         var outputFileName = generateUniqueFileName(inputPath);
         saveMatrix(outputFileName, matrix, outputDir);
         setFilePermissions(inputPath);
+        log.info("Matrix from file {} saved to NAS as {}", inputPath, outputFileName);
         return outputFileName;
     }
 
