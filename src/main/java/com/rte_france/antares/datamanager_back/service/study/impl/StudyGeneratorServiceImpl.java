@@ -98,7 +98,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     case LINK -> buildLinksDataMap(trajectory, linksMap);
                     case LOAD ->
                             log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
-                    case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
+                    case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER,
                          THERMAL_TECHNICAL_SPECIFIC_PARAMETER , THERMAL_TECHNICAL_MODULATION_PARAMETER->
                             log.warn("Thermal trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                     default -> throw TechnicalException.builder().message("Unhandled type: " + trajectoryType).build();
