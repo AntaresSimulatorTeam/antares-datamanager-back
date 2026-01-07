@@ -72,7 +72,7 @@ class ThermalClusterRefServiceImplTest {
                 .namePemmdb("NA")
                 .build();
 
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
+        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterOil", "oil")).thenReturn(Optional.ofNullable(existing));
 
         // When
         ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
@@ -95,7 +95,7 @@ class ThermalClusterRefServiceImplTest {
                 .namePemmdb("EXISTING-VAL")
                 .build();
 
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of(existing));
+        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterY","CCGT")).thenReturn(Optional.ofNullable(existing));
 
         // When
         ThermalClusterRef result =
@@ -113,7 +113,8 @@ class ThermalClusterRefServiceImplTest {
     @Test
     void findOrCreateThermalClusterRef_whenCreating_setsProvidedPemmdbOrDefaultNA() {
         // First call: empty cache, no existing entries
-        when(thermalClusterRefRepository.findAll()).thenReturn(List.of());
+        when(thermalClusterRefRepository.findByNameAndTechnologyName("C1","CCGT")).thenReturn(Optional.empty());
+
         ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
         when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
                 .thenReturn(Optional.of(tech));
