@@ -14,4 +14,10 @@ public interface ThermalClusterRefRepository extends JpaRepository<ThermalCluste
             "WHERE tcr.name = ?1 AND tt.name = :name AND tt.name = :technology")
     Optional<ThermalClusterRef> findByNameAndNameAndThermalTechnology(String name, String technology);
 
+    @Query("SELECT tcr FROM ThermalClusterRef tcr " +
+            "LEFT JOIN FETCH tcr.thermalTechnology tt " +
+            "WHERE tcr.name = :name AND tt.name = :technology")
+    Optional<ThermalClusterRef> findByNameAndTechnologyName(String name, String technology);
+
+
 }

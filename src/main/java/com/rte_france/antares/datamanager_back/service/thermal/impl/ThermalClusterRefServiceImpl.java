@@ -12,9 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -24,55 +21,20 @@ public class ThermalClusterRefServiceImpl implements ThermalClusterRefService {
     private final ThermalClusterRefRepository thermalClusterRefRepository;
     private final ThermalTechnologyRepository thermalTechnologyRepository;
 
-    /**
-     * Cache d'entités MANAGÉES (clé = technology + name)
-     * ⚠️ valide uniquement dans la transaction d'import
-     */
-    private Map<ClusterKey, ThermalClusterRef> cachedClusterRefs;
 
     @Transactional
     @Override
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
-        ensureCacheLoaded();
-
         String trimmedName = name != null ? name.trim() : null;
-        ClusterKey key = new ClusterKey(technology, trimmedName);
 
-        ThermalClusterRef ref = cachedClusterRefs.get(key);
-        if (ref != null) {
-            return updatePemmdbIfNeeded(ref, namePemmdb);
-        }
-
-        // Création si absent
-        ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
-
-        ref = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
-        thermalClusterRefRepository.save(ref);
-
-        cachedClusterRefs.put(key, ref);
-        return ref;
-    }
-
-    // ==========================
-    // Cache
-    // ==========================
-
-    private void ensureCacheLoaded() {
-        if (cachedClusterRefs == null) {
-            loadAllThermalClusterRefs();
-        }
-    }
-
-    private void loadAllThermalClusterRefs() {
-        List<ThermalClusterRef> refs = thermalClusterRefRepository.findAll();
-        Map<ClusterKey, ThermalClusterRef> map = new HashMap<>();
-
-        for (ThermalClusterRef ref : refs) {
-            String techName = ref.getThermalTechnology() != null ? ref.getThermalTechnology().getName() : null;
-
-            map.put(new ClusterKey(techName, ref.getName()), ref);
-        }
-        cachedClusterRefs = map;
+        return thermalClusterRefRepository.findByNameAndTechnologyName(trimmedName, technology)
+                .map(ref -> updatePemmdbIfNeeded(ref, namePemmdb))
+                .orElseGet(() -> {
+                    // Création si absent
+                    ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
+                    ThermalClusterRef ref = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
+                    return thermalClusterRefRepository.save(ref);
+                });
     }
 
     // ==========================
