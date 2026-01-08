@@ -61,11 +61,6 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
     <dependency>
-      <groupId>pl.project13.maven</groupId>
-      <artifactId>git-commit-id-plugin</artifactId>
-      <version>4.0.4</version>
-    </dependency>
-    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
@@ -174,7 +169,7 @@
     <dependency>
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
-      <version>7.4</version>
+      <version>7.3</version>
     </dependency>
     <!-- Spring Integration SFTP -->
     <dependency>
@@ -223,11 +218,6 @@
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-access</artifactId>
       <version>1.4.14</version>
-    </dependency>
-    <dependency>
-      <groupId>net.logstash.logback</groupId>
-      <artifactId>logstash-logback-encoder</artifactId>
-      <version>7.0.1</version>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
@@ -304,6 +294,56 @@
         <!-- Add git info to /actuator/info endpoint -->
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>
+        <version>8.0.2</version>
+        <executions>
+          <execution>
+            <id>get-the-git-infos</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+          <includeOnlyProperties>
+            <includeOnlyProperty>^git.build.(time|version)$</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
+            <includeOnlyProperty>^git.branch$</includeOnlyProperty>
+          </includeOnlyProperties>
+          <commitIdGenerationMode>full</commitIdGenerationMode>
+          <useNativeGit>true</useNativeGit>
+          <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+          <offline>true</offline>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
+          <replacementProperties>
+            <replacementProperty>
+              <property>git.branch</property>
+              <token>^$|HEAD|[a-f0-9]{40}</token>
+              <value>${env.CI_COMMIT_BRANCH}</value>
+              <regex>true</regex>
+            </replacementProperty>
+            <replacementProperty>
+              <property>git.branch</property>
+              <token>^$|HEAD|[a-f0-9]{40}</token>
+              <value>${env.BRANCH_NAME}</value>
+              <regex>true</regex>
+            </replacementProperty>
+            <replacementProperty>
+              <property>git.branch</property>
+              <token>^$|HEAD|[a-f0-9]{40}</token>
+              <value>${env.CI_COMMIT_REF_NAME}</value>
+              <regex>true</regex>
+            </replacementProperty>
+            <replacementProperty>
+              <property>git.branch</property>
+              <token>^$|HEAD|[a-f0-9]{40}</token>
+              <value>${env.GIT_BRANCH}</value>
+              <regex>true</regex>
+            </replacementProperty>
+          </replacementProperties>
+        </configuration>
       </plugin>
     </plugins>
   </build>
