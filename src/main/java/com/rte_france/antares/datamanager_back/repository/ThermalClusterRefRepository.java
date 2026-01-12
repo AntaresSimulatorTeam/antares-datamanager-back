@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalTechnolog
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ThermalClusterRefRepository extends JpaRepository<ThermalClusterRef, Integer> {
@@ -17,7 +18,7 @@ public interface ThermalClusterRefRepository extends JpaRepository<ThermalCluste
     @Query("SELECT tcr FROM ThermalClusterRef tcr " +
             "LEFT JOIN FETCH tcr.thermalTechnology tt " +
             "WHERE tcr.name = :name AND tt.name = :technology")
-    Optional<ThermalClusterRef> findByNameAndTechnologyName(String name, String technology);
+    List<ThermalClusterRef> findByNameAndTechnologyName(String name, String technology);
 
 
 }
