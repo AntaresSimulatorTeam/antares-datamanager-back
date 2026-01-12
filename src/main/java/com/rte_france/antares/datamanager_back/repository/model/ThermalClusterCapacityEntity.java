@@ -34,6 +34,10 @@ public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
     @Column(name = "month_year")
     private String monthYear;
 
+    @Size(max = 10)
+    @Column(name = "fuel")
+    private String fuel;
+
     @Column(name = "capacity")
     private Double value;
 
