@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -28,16 +27,14 @@ public class ThermalClusterRefServiceImpl implements ThermalClusterRefService {
     public ThermalClusterRef findOrCreateThermalClusterRef(String technology, String name, String namePemmdb) {
         String trimmedName = name != null ? name.trim() : null;
 
-        List<ThermalClusterRef> refs = thermalClusterRefRepository.findByNameAndTechnologyName(trimmedName, technology);
-        if (!refs.isEmpty()) {
-            ThermalClusterRef ref = refs.get(0);
-            return updatePemmdbIfNeeded(ref, namePemmdb);
-        }
-
-        // Création si absent
-        ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
-        ThermalClusterRef ref = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
-        return thermalClusterRefRepository.save(ref);
+        return thermalClusterRefRepository.findByNameAndTechnologyName(trimmedName, technology)
+                .map(ref -> updatePemmdbIfNeeded(ref, namePemmdb))
+                .orElseGet(() -> {
+                    // Création si absent
+                    ThermalTechnology thermalTechnology = technology != null ? findThermalTechnology(technology) : null;
+                    ThermalClusterRef ref = buildClusterRef(trimmedName, thermalTechnology, namePemmdb);
+                    return thermalClusterRefRepository.save(ref);
+                });
     }
 
     // ==========================
