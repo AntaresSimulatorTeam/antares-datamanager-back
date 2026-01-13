@@ -25,11 +25,8 @@ import java.util.stream.IntStream;
 @Getter
 public class ExcelCommonValidator {
 
+
     public static final String AREAS = "areas";
-
-    private ExcelCommonValidator() {
-
-    }
 
     /**
      * @param path     trajectory file
