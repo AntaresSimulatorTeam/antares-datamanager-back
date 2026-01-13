@@ -11,7 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,7 +72,7 @@ class ThermalClusterRefServiceImplTest {
                 .namePemmdb("NA")
                 .build();
 
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterOil", "oil")).thenReturn(List.of(existing));
+        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterOil", "oil")).thenReturn(Optional.ofNullable(existing));
 
         // When
         ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
@@ -96,7 +95,7 @@ class ThermalClusterRefServiceImplTest {
                 .namePemmdb("EXISTING-VAL")
                 .build();
 
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterY","CCGT")).thenReturn(List.of(existing));
+        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterY","CCGT")).thenReturn(Optional.ofNullable(existing));
 
         // When
         ThermalClusterRef result =
@@ -114,7 +113,7 @@ class ThermalClusterRefServiceImplTest {
     @Test
     void findOrCreateThermalClusterRef_whenCreating_setsProvidedPemmdbOrDefaultNA() {
         // First call: empty cache, no existing entries
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("C1","CCGT")).thenReturn(Collections.emptyList());
+        when(thermalClusterRefRepository.findByNameAndTechnologyName("C1","CCGT")).thenReturn(Optional.empty());
 
         ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
         when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
@@ -129,7 +128,6 @@ class ThermalClusterRefServiceImplTest {
         assertEquals("CCGT", createdWithPemmdb.getThermalTechnology().getName());
 
         // With null pemmdb should default to NA (use a different name so it creates a new one)
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("C2","CCGT")).thenReturn(Collections.emptyList());
         ThermalClusterRef createdWithDefault = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "C2", null);
         assertEquals("C2", createdWithDefault.getName());
         assertEquals("NA", createdWithDefault.getNamePemmdb());
@@ -185,21 +183,4 @@ class ThermalClusterRefServiceImplTest {
         verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
     }
 
-
-    @Test
-    void findOrCreateThermalClusterRef_whenMultipleMatches_shouldReturnFirstOne() {
-        // Given
-        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
-        ThermalClusterRef ref1 = ThermalClusterRef.builder().id(1).name("ClusterX").thermalTechnology(tech).namePemmdb("PEM1").build();
-        ThermalClusterRef ref2 = ThermalClusterRef.builder().id(2).name("ClusterX").thermalTechnology(tech).namePemmdb("PEM2").build();
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterX", "CCGT"))
-                .thenReturn(List.of(ref1, ref2));
-
-        // When
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "ClusterX", "PEM3");
-
-        // Then
-        assertEquals(ref1, result);
-        assertEquals("PEM1", result.getNamePemmdb()); // PEM1 was already set, so it's not updated
-    }
 }
