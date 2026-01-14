@@ -37,4 +37,11 @@ public enum AreaColumns {
                 .toList();
     }
 
+    public static List<String> getNumericalColumnNames() {
+        return Arrays.stream(values())
+                .map(AreaColumns::getDisplayName)
+                .filter(name -> name.equals("x") || name.equals("y") || name.equals("r") || name.equals("g") || name.equals("b"))
+                .toList();
+    }
+
 }
