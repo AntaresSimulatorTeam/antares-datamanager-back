@@ -907,6 +907,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_ECONOMIC_PARAMETER -> antaressDataManagerProperties.getThermalEconomicDirectory();
             case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
                     antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            case STS ->
+                    Path.of(antaressDataManagerProperties.getStsDirectory()).resolve(area).resolve("clusters").toString();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
