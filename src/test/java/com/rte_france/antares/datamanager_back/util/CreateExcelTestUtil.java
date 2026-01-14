@@ -33,14 +33,11 @@ public class CreateExcelTestUtil {
 
                     if (value == null) {
                         cell.setBlank();
-                    }
-                    else if (value instanceof Number) {
+                    } else if (value instanceof Number) {
                         cell.setCellValue(((Number) value).doubleValue());
-                    }
-                    else if (value instanceof Boolean) {
+                    } else if (value instanceof Boolean) {
                         cell.setCellValue((Boolean) value);
-                    }
-                    else if (value instanceof String s) {
+                    } else if (value instanceof String s) {
                         if (isNumeric(s)) {
                             cell.setCellValue(Double.parseDouble(s));
                         } else if (s.isBlank()) {
@@ -48,8 +45,7 @@ public class CreateExcelTestUtil {
                         } else {
                             cell.setCellValue(s);
                         }
-                    }
-                    else {
+                    } else {
                         cell.setCellValue(value.toString());
                     }
                 }
