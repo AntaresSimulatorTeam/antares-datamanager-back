@@ -73,7 +73,7 @@ class ExcelCommonValidatorTest {
         Sheet sheet = workbook.getSheetAt(0);
 
         // Colonnes numériques à vérifier
-        List<String> numericalColumns = List.of("x", "y", "r");
+        List<String> numericalColumns = List.of("x", "y", "r", "g", "b");
 
         // --- Exécution ---
         BusinessException ex = assertThrows(BusinessException.class, () ->
@@ -115,7 +115,7 @@ class ExcelCommonValidatorTest {
         Sheet sheet = workbook.getSheetAt(0);
 
         // Colonnes numériques à vérifier
-        List<String> numericalColumns = List.of("x", "y", "r");
+        List<String> numericalColumns = List.of("x", "y", "r", "g", "b");
 
         // --- Exécution ---
         BusinessException ex = assertThrows(BusinessException.class, () ->
@@ -159,7 +159,7 @@ class ExcelCommonValidatorTest {
         Sheet sheet = workbook.getSheetAt(0);
 
         // Colonnes numériques à vérifier
-        List<String> numericalColumns = List.of("x", "y", "r");
+        List<String> numericalColumns = List.of("x", "y", "r", "g", "b");
 
         // --- Exécution ---
         BusinessException ex = assertThrows(BusinessException.class, () ->
@@ -199,7 +199,7 @@ class ExcelCommonValidatorTest {
         Sheet sheet = workbook.getSheetAt(0);
 
         // Colonnes numériques à vérifier
-        List<String> numericalColumns = List.of("x", "y", "r");
+        List<String> numericalColumns = List.of("x", "y", "r", "g", "b");
 
         // --- Exécution ---
         BusinessException ex = assertThrows(BusinessException.class, () ->
