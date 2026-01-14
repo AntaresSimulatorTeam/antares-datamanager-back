@@ -245,6 +245,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                             linkMap.put("summerHpIndirectMw", linkEntity.getSummerHpIndirectMw());
                             linkMap.put("summerHcDirectMw", linkEntity.getSummerHcDirectMw());
                             linkMap.put("summerHcIndirectMw", linkEntity.getSummerHcIndirectMw());
+                            linkMap.put("hurdleCost", linkEntity.getHurdleCost());
                             return linkMap;
                         },
                         (existing, replacement) -> existing
