@@ -11,6 +11,7 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.integration.events.IntegrationEvent;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -313,45 +314,6 @@ public class ExcelCommonValidator {
             throw BusinessException.builder()
                     .message("Waiting for Numeric values in {0} columns for area(s) {1}")
                     .errorMessageArguments(List.of(String.join(", ", invalidColumns), String.join(", ", invalidAreas)))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    public static void checkNumericalColumns(Sheet sheet, String horizon) {
-        Row header = sheet.getRow(0);
-        Set<String> areas = new LinkedHashSet<>();
-
-        Set<String> columns =
-                IntStream.rangeClosed(1, sheet.getLastRowNum())
-                        .mapToObj(sheet::getRow)
-                        .filter(Objects::nonNull)
-                        .flatMap(row -> {
-                            String areaName = row.getCell(0).getStringCellValue();
-
-                            return IntStream.range(4, 8)
-                                    .filter(col -> {
-                                        Cell cell = row.getCell(col);
-
-                                        boolean invalid =
-                                                cell == null ||
-                                                        (cell.getCellType() != CellType.NUMERIC
-                                                                && !isInvalidOrUndefinedCell(cell));
-
-                                        if (invalid) {
-                                            areas.add(areaName);
-                                        }
-
-                                        return invalid;
-                                    })
-                                    .mapToObj(col -> header.getCell(col).getStringCellValue());
-                        })
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        if (!columns.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Waiting for Numeric values in " + String.join(", ", columns) + " columns for area(s) " + String.join(", ", areas))
-                    .errorMessageArguments(List.of(String.join(", ", columns), horizon,  String.join(", ", areas)))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
