@@ -18,14 +18,12 @@ public class CreateExcelTestUtil {
 
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet(sheetName);
-
-
+            
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.size(); i++) {
                 headerRow.createCell(i).setCellValue(headers.get(i));
             }
-
-
+            
             for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
                 Row row = sheet.createRow(rowIndex + 1);
                 List<?> rowData = rows.get(rowIndex);
@@ -33,16 +31,25 @@ public class CreateExcelTestUtil {
                     Cell cell = row.createCell(colIndex);
                     Object value = rowData.get(colIndex);
 
-
-                    if (value instanceof String) {
-                        cell.setCellValue((String) value);
-                    } else if (value instanceof Integer) {
-                        cell.setCellValue((Integer) value);
-                    } else if (value instanceof Double) {
-                        cell.setCellValue((Double) value);
-                    } else if (value instanceof Boolean) {
+                    if (value == null) {
+                        cell.setBlank();
+                    }
+                    else if (value instanceof Number) {
+                        cell.setCellValue(((Number) value).doubleValue());
+                    }
+                    else if (value instanceof Boolean) {
                         cell.setCellValue((Boolean) value);
-                    } else if (value != null) {
+                    }
+                    else if (value instanceof String s) {
+                        if (isNumeric(s)) {
+                            cell.setCellValue(Double.parseDouble(s));
+                        } else if (s.isBlank()) {
+                            cell.setBlank();
+                        } else {
+                            cell.setCellValue(s);
+                        }
+                    }
+                    else {
                         cell.setCellValue(value.toString());
                     }
                 }
@@ -54,6 +61,15 @@ public class CreateExcelTestUtil {
         }
 
         return filePath;
+    }
+
+    private static boolean isNumeric(String s) {
+        try {
+            Double.parseDouble(s.trim());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static Path createExcelFileWithTwoSheets(@TempDir Path tempDir, String fileName, List<String> sheetNames, List<List<String>> headers, List<List<List<?>>> rows) throws IOException {
