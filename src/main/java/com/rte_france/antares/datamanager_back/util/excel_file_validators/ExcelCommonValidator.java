@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
-import org.springframework.integration.events.IntegrationEvent;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,8 +25,11 @@ import java.util.stream.IntStream;
 @Getter
 public class ExcelCommonValidator {
 
-
     public static final String AREAS = "areas";
+
+    private ExcelCommonValidator() {
+
+    }
 
     /**
      * @param path     trajectory file

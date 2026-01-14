@@ -15,7 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class CheckNumericalColumnsTest {
+class ExcelCommonValidatorTest {
     @TempDir
     Path tempDir;
 
