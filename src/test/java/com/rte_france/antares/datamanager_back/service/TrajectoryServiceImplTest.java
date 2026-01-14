@@ -1007,6 +1007,13 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void getDirectoryByTrajectoryType_returnsSTSDirectory_whenTypeIsSTS() {
+        when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.STS,"DRS");
+        assertEquals("STS/DRS/clusters", result);
+    }
+
+    @Test
     void getDirectoryByTrajectoryType_throwsTechnicalException_whenTypeIsMisc() {
         TechnicalException exception = assertThrows(
                 TechnicalException.class,
