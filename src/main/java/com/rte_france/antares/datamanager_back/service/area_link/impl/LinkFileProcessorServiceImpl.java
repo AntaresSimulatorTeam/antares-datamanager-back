@@ -32,6 +32,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.getBooleanCellValue;
 
 
 /**
@@ -206,10 +207,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .summerHpIndirectMw(row.getCell(6).getNumericCellValue())
                             .summerHcDirectMw(row.getCell(7).getNumericCellValue())
                             .summerHcIndirectMw(row.getCell(8).getNumericCellValue())
-                            .flowbasedPerimeter(Boolean.valueOf(row.getCell(9).getStringCellValue()))
-                            .hvdc(Boolean.valueOf(row.getCell(10).getStringCellValue()))
-                            .specificTs(Boolean.valueOf(row.getCell(11).getStringCellValue()))
-                            .forcedOutageHvac(Boolean.valueOf(row.getCell(12).getStringCellValue()))
+                            .flowbasedPerimeter(getBooleanCellValue(row.getCell(9)).orElseThrow())
+                            .hvdc(getBooleanCellValue(row.getCell(10)).orElseThrow())
+                            .specificTs(getBooleanCellValue(row.getCell(11)).orElseThrow())
+                            .forcedOutageHvac(getBooleanCellValue(row.getCell(12)).orElseThrow())
                             .hurdleCost(hurdleCostSheet.getRow(1).getCell(findCellIndexByHorizon(hurdleCostSheet, horizon)).getNumericCellValue())
                             .build();
                     linkEntities.add(link);
