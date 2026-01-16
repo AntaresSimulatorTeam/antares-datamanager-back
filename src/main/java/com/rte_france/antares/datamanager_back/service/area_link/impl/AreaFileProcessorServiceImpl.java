@@ -83,10 +83,10 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
                 if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
 
                 AreaEntity areaEntity = findOrCreateAreaEntity(row);
-                var value1 = getBooleanCellValue(row.getCell(1));
-                var value2 = getBooleanCellValue(row.getCell(2));
+        //        var value1 = getBooleanCellValue(row.getCell(1));
+        //        var value2 = getBooleanCellValue(row.getCell(2));
 
-                areaConfigEntities.add(new AreaConfigEntity(value1.orElseThrow(), value2.orElseThrow(), areaEntity));
+          ///      areaConfigEntities.add(new AreaConfigEntity(value1.orElseThrow(), value2.orElseThrow(), areaEntity));
             }
             return areaConfigEntities;
         } catch (IOException e) {
