@@ -101,14 +101,26 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     }
 
     private AreaEntity findOrCreateAreaEntity(Row area) {
-        return areaRepository.findAreaByName(area.getCell(0).getStringCellValue())
-                .orElseGet(() -> areaRepository.save(AreaEntity.builder()
-                        .name(area.getCell(0).getStringCellValue())
-                        .x(area.getCell(3).getNumericCellValue())
-                        .y(area.getCell(4).getNumericCellValue())
-                        .r(area.getCell(5).getNumericCellValue())
-                        .g(area.getCell(6).getNumericCellValue())
-                        .b(area.getCell(7).getNumericCellValue())
-                        .build()));
+        String name = area.getCell(0).getStringCellValue();
+
+        return areaRepository.findAreaByName(name)
+                .map(existing -> {
+                    existing.setX(area.getCell(3).getNumericCellValue());
+                    existing.setY(area.getCell(4).getNumericCellValue());
+                    existing.setR(area.getCell(5).getNumericCellValue());
+                    existing.setG(area.getCell(6).getNumericCellValue());
+                    existing.setB(area.getCell(7).getNumericCellValue());
+                    return areaRepository.save(existing);
+                })
+                .orElseGet(() -> areaRepository.save(
+                        AreaEntity.builder()
+                                .name(name)
+                                .x(area.getCell(3).getNumericCellValue())
+                                .y(area.getCell(4).getNumericCellValue())
+                                .r(area.getCell(5).getNumericCellValue())
+                                .g(area.getCell(6).getNumericCellValue())
+                                .b(area.getCell(7).getNumericCellValue())
+                                .build()
+                ));
     }
 }
