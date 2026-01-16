@@ -54,3 +54,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V24-rename_npo_max_winter_column_thermal_specific_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V25-modify_thermal_technology_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V26-add-STS-tables.sql
