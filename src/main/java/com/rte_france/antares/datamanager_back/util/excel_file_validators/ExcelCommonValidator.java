@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.column
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
 import lombok.Getter;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
@@ -22,14 +23,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-@Getter
+@UtilityClass
 public class ExcelCommonValidator {
 
     public static final String AREAS = "areas";
-
-    private ExcelCommonValidator() {
-
-    }
 
     /**
      * @param path     trajectory file
