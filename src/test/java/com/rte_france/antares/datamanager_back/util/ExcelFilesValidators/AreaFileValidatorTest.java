@@ -31,10 +31,10 @@ class AreaFileValidatorTest {
     @Test
     void checkColumnsOKWhenColumnsAndDataAreValid() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile( tempDir,"ValidFile.xlsx", "2035-2036",
-                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
                 List.of(
-                        List.of("Area1", "True", "True", "230", "420", "128", "260", "113"),
-                        List.of("Area2", "False", "True", "168", "650", "125", "265", "113")
+                        List.of("Area1", "Dist1", "100.0", "200.0", "230", "420", "128", "260", "113"),
+                        List.of("Area2", "Dist2", "150.0", "250.0", "168", "650", "125", "265", "113")
                 )
         );
 
@@ -70,7 +70,7 @@ class AreaFileValidatorTest {
     @Test
     void shouldFailWhenColumnAreMissing() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidColumns.xlsx", "2036-2037",
-                List.of("", "", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of("", "", "unsupplied energy cost", "x", "y", "r", "g", "b"),
                 List.of(
                         List.of("Area1", "false", "true", "131", "425", "125", "230", "125")
                 )
@@ -81,7 +81,7 @@ class AreaFileValidatorTest {
 
         assertAll(
                 () -> assertEquals(
-                        "Columns: areas, Power To Gas not found for horizon {0} in {1} trajectory",
+                        "Columns: areas, district, spilled energy cost not found for horizon {0} in {1} trajectory",
                         exception.getMessage()),
                 () -> assertEquals(
                         List.of("2036-2037", TrajectoryType.AREA.name()),
@@ -95,10 +95,10 @@ class AreaFileValidatorTest {
     @Test
     void shouldFailWhenEmptyCellsArePresent() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyCells.xlsx", "2037-2038",
-                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of("areas", "district","spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
                 List.of(
-                        List.of("B1", "10", "", "", "4", "1", "2", "3"),
-                        List.of("A2", "10", "", "", "4", "1", "2", "3")
+                        List.of("B1", "BB1", "", "", "4", "1", "2", "3",""),
+                        List.of("A2", "AA2", "", "", "4", "1", "2", "3","")
                 )
         );
 
@@ -200,10 +200,10 @@ class AreaFileValidatorTest {
 
 
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TooLongArea.xlsx", "2035-2036",
-                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of("areas", "district", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
                 List.of(
-                        List.of(longAreaName, "True", "True", "230", "420", "128", "260", "113"),
-                        List.of(longAreaName2, "False", "True", "168", "650", "125", "265", "113")
+                        List.of(longAreaName, "Dist1", "True", "True", "230", "420", "128", "260", "113"),
+                        List.of(longAreaName2, "Dist2", "False", "True", "168", "650", "125", "265", "113")
                 )
         );
 
@@ -211,14 +211,52 @@ class AreaFileValidatorTest {
             Sheet sheet = workbook.getSheet("2035-2036");
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> AreasValidator.checkAreasValuesLength(sheet, "2035-2036", "areas"));
+                    () -> AreasValidator.checkColumnValueLength(sheet, "2035-2036", "areas", 10));
 
             assertAll(
-                    () -> assertEquals("Value too long for area(s) : {0} in {1} trajectory",
+                    () -> assertEquals("Value too long for {0}(s) : {1} in {2} trajectory",
                             exception.getMessage()),
                     () -> assertIterableEquals(
                             List.of(
+                                    "areas",
                                     String.format("%s, %s", longAreaName, longAreaName2),
+                                    TrajectoryType.AREA.name()
+                            ),
+                            exception.getErrorMessageArguments()),
+                    () -> assertEquals(HttpStatus.BAD_REQUEST,
+                            exception.getHttpStatus())
+            );
+        }
+    }
+
+    @Test
+    void checkDistrictValuesLengthShouldThrowExceptionWhenValueIsTooLong() throws IOException {
+
+        String longDistrictName = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
+        String longDistrictName2 = "aBcDeFgHiJkLmNoPqRsTuVwXyZ123456";
+
+
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TooLongDistrict.xlsx", "2035-2036",
+                List.of("areas", "district", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", longDistrictName, "True", "True", "230", "420", "128", "260", "113"),
+                        List.of("Area2", longDistrictName2, "False", "True", "168", "650", "125", "265", "113")
+                )
+        );
+
+        try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(tempFile))) {
+            Sheet sheet = workbook.getSheet("2035-2036");
+
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> AreasValidator.checkColumnValueLength(sheet, "2035-2036", "district", 20));
+
+            assertAll(
+                    () -> assertEquals("Value too long for {0}(s) : {1} in {2} trajectory",
+                            exception.getMessage()),
+                    () -> assertIterableEquals(
+                            List.of(
+                                    "district",
+                                    String.format("%s, %s", longDistrictName, longDistrictName2),
                                     TrajectoryType.AREA.name()
                             ),
                             exception.getErrorMessageArguments()),

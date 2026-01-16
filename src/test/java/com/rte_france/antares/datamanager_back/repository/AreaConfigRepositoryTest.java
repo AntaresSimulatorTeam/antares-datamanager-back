@@ -54,8 +54,6 @@ class AreaConfigRepositoryTest {
 
         AreaConfigEntity areaConfig = new AreaConfigEntity();
         areaConfig.setArea(area);
-        areaConfig.setPowerToGas(true);
-        areaConfig.setShortTermStorage(false);
         areaConfig.setTrajectory(trajectory);
         entityManager.persist(areaConfig);
 
