@@ -28,10 +28,6 @@ public class ExcelCommonValidator {
 
     public static final String AREAS = "areas";
 
-    private ExcelCommonValidator() {
-
-    }
-
     /**
      * @param path     trajectory file
      * @param fileType to verify columns names using ColumnEnums
