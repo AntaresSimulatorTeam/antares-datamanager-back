@@ -90,7 +90,17 @@ class StudyGeneratorServiceImplTest {
 
         studyEntity = StudyEntity.builder().id(1).name("studyTest").build();
         // Create LinkEntity with data
-        LinkEntity linkEntity = LinkEntity.builder().name("FR-DE").winterHpDirectMw(100.0).winterHpIndirectMw(200.0).winterHcDirectMw(300.0).winterHcIndirectMw(400.0).summerHpDirectMw(500.0).summerHpIndirectMw(600.0).summerHcDirectMw(700.0).summerHcIndirectMw(800.0).build();
+        LinkEntity linkEntity = LinkEntity.builder().name("FR-DE")
+                .winterHpDirectMw(100.0)
+                .winterHpIndirectMw(200.0)
+                .winterHcDirectMw(300.0)
+                .winterHcIndirectMw(400.0)
+                .summerHpDirectMw(500.0)
+                .summerHpIndirectMw(600.0)
+                .summerHcDirectMw(700.0)
+                .summerHcIndirectMw(800.0)
+                .hurdleCost(0.1)
+                .build();
 
         // Create TrajectoryEntity for links
         TrajectoryEntity trajectoryEntityLinks = TrajectoryEntity.builder().type("LINK").linkEntities(Collections.singletonList(linkEntity)).build();
@@ -188,7 +198,12 @@ class StudyGeneratorServiceImplTest {
         // Validate the data for the "FR/DE" link.
         Map<String, Object> linkData = objectMapper.convertValue(linksMap.get("FR/DE"), new TypeReference<>() {
         });
-        assertThat(linkData).as("Check that link data contains the correct winter and summer values").containsEntry("winterHpDirectMw", 100.0).containsEntry("winterHpIndirectMw", 200.0).containsEntry("winterHcDirectMw", 300.0).containsEntry("winterHcIndirectMw", 400.0).containsEntry("summerHpDirectMw", 500.0).containsEntry("summerHpIndirectMw", 600.0).containsEntry("summerHcDirectMw", 700.0).containsEntry("summerHcIndirectMw", 800.0);
+        assertThat(linkData).as("Check that link data contains the correct winter and summer values")
+                .containsEntry("winterHpDirectMw", 100.0).containsEntry("winterHpIndirectMw", 200.0)
+                .containsEntry("winterHcDirectMw", 300.0).containsEntry("winterHcIndirectMw", 400.0)
+                .containsEntry("summerHpDirectMw", 500.0).containsEntry("summerHpIndirectMw", 600.0)
+                .containsEntry("summerHcDirectMw", 700.0).containsEntry("summerHcIndirectMw", 800.0)
+                .containsEntry("hurdleCost", 0.1);
     }
 
     private byte[] captureGeneratedJson(Integer studyId) throws IOException {
