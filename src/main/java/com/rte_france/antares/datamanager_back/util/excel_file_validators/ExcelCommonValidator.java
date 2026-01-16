@@ -6,7 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
-import lombok.Getter;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-@Getter
+@UtilityClass
 public class ExcelCommonValidator {
 
 
@@ -283,6 +283,39 @@ public class ExcelCommonValidator {
                     .build();
         }
 
+    }
+
+    public static void checkNumericalColumns(Sheet sheet, String horizon, List<String> numericalColumns, String trajectoryType) {
+        Set<String> invalidAreas = new LinkedHashSet<>();
+        Set<String> invalidColumns = new LinkedHashSet<>();
+
+        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row)) continue;
+
+            String areaName = row.getCell(0).getStringCellValue();
+
+            for (int i = 0; i < numericalColumns.size(); i++) {
+                int colIndex = findColumnIndex(sheet, numericalColumns.get(i), horizon, trajectoryType);
+                Cell cell = row.getCell(colIndex);
+
+                boolean invalid = cell == null ||
+                        (cell.getCellType() != CellType.NUMERIC || isInvalidOrUndefinedCell(cell));
+
+                if (invalid) {
+                    invalidAreas.add(areaName);
+                    invalidColumns.add(numericalColumns.get(i));
+                }
+            }
+        }
+
+        if (!invalidColumns.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Waiting for Numeric values in {0} columns for area(s) {1}")
+                    .errorMessageArguments(List.of(String.join(", ", invalidColumns), String.join(", ", invalidAreas)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     private static boolean isValidBoolean(Cell cell) {
