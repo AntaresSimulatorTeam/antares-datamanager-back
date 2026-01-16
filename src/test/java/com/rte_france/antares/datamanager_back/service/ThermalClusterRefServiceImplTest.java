@@ -183,5 +183,4 @@ class ThermalClusterRefServiceImplTest {
         verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
     }
 
-
 }

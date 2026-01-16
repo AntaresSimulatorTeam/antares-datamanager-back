@@ -36,7 +36,7 @@ public class AreasValidator {
                         .build();
             }
 
-            checkColumnsRules(sheet, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames(), TrajectoryType.AREA.name());
+            checkColumnsRules(sheet, horizon, AreaColumns.getBooleanColumnNames(), AreaColumns.getStringColumnNames(), AreaColumns.getNumericalColumnNames(), TrajectoryType.AREA.name());
             checkAreasValuesLength(sheet, horizon, AreaColumns.AREAS.getDisplayName());
             checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), horizon, false, TrajectoryType.AREA.name());
         } catch (IOException e) {
@@ -50,10 +50,10 @@ public class AreasValidator {
     }
 
 
-    private static void checkColumnsRules(Sheet sheet, String horizon, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
+    private static void checkColumnsRules(Sheet sheet, String horizon, List<String> booleanColumns, List<String> stringColumns, List<String> numericalColumns, String trajectoryType) {
         checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
+        checkNumericalColumns(sheet, horizon, numericalColumns, trajectoryType);
         stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.AREA.name()));
-
     }
 
 

@@ -459,13 +459,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void processThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology, String rowArea, List<ThermalClusterCapacityEntity> result, StringBuilder checksum, String trajectoryName) {
-        String techName = row.getCell(2).getStringCellValue();
-        String clusterName = row.getCell(3).getStringCellValue();
-        String categoryStr = row.getCell(4).getStringCellValue().toLowerCase();
+        String fuel = row.getCell(2).getStringCellValue();
+        String techName = row.getCell(3).getStringCellValue();
+        String clusterName = row.getCell(4).getStringCellValue();
+        String categoryStr = row.getCell(5).getStringCellValue().toLowerCase();
 
         if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) return;
 
-        for (int i = 5; i < header.getLastCellNum(); i++) {
+        for (int i = 6; i < header.getLastCellNum(); i++) {
             String monthYear = header.getCell(i).getStringCellValue();
             boolean toUse = row.getCell(0).getNumericCellValue() == 1;
             if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
@@ -483,11 +484,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     .append(category.name()).append("|")
                     .append(monthYear).append("|")
                     .append(value).append("|")
+                    .append(fuel).append("|")
                     .append(toUse).append("\n");
 
             ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
                     .toUse(toUse)
                     .area(rowArea)
+                    .fuel(fuel)
                     .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName, null))
                     .category(category)
                     .monthYear(monthYear)
@@ -553,7 +556,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         List<String> expectedColumns = getExpectedColumns(horizon, isCivilYear);
         // Vérifie la présence de chaque colonne attendue via isCellInHorizon
         List<String> actualColumns = new ArrayList<>();
-        for (int i = 5; i < header.getLastCellNum(); i++) {
+        for (int i = 6; i < header.getLastCellNum(); i++) {
             String colName = header.getCell(i).getStringCellValue();
             if (isCellInHorizon(colName, horizon, isCivilYear)) {
                 actualColumns.add(colName);
@@ -570,7 +573,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void validateHeaderColumns(Row header, Path path) {
-        List<String> requiredColumns = List.of("ToUse", "Area", "Technology", "Cluster", "Category");
+        List<String> requiredColumns = List.of("ToUse", "Area", "Fuel", "Technology", "Cluster", "Category");
         for (int i = 0; i < requiredColumns.size(); i++) {
             String cellValue = header.getCell(i).getStringCellValue();
             if (!cellValue.equalsIgnoreCase(requiredColumns.get(i))) {
