@@ -84,4 +84,4 @@ class AreaFileProcessorServiceImplTest {
             verify(trajectoryRepository, times(1)).save(any());
             verify(areaConfigRepository, times(1)).saveAll(any());
         }
-    }
+}
