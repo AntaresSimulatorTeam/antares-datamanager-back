@@ -1,0 +1,121 @@
+package com.rte_france.antares.datamanager_back.controller;
+
+import com.rte_france.antares.datamanager_back.service.StStorage.StStorageFileProcessorService;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith(SpringExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class StStorageControllerTest {
+
+    @Autowired
+    protected WebApplicationContext wac;
+
+    protected MockMvc mockMvc;
+
+    @MockBean
+    private StStorageFileProcessorService stStorageFileProcessorService;
+
+    @BeforeEach
+    void setup() {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    }
+
+    @Test
+    void postValidRequest_should_returnCreated_and_callService() throws Exception {
+        // Given
+        String area = "FR";
+        String technology = "techno";
+        String trajectoryToUse = "cluster_" + technology + "_test.xls";
+        String horizon = "2025-2026";
+        String studyId = "1";
+        String isCivilYear = "true";
+
+        TrajectoryEntity fakeEntity = Mockito.mock(TrajectoryEntity.class);
+        when(stStorageFileProcessorService.processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString()))
+                .thenReturn(fakeEntity);
+
+
+            // When / Then
+            mockMvc.perform(post("/v1/trajectory/st-storage")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .param("area", area)
+                            .param("technology", technology)
+                            .param("trajectoryToUse", trajectoryToUse)
+                            .param("horizon", horizon)
+                            .param("studyId", studyId)
+                            .param("isCivilYear", isCivilYear)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isCreated());
+
+            verify(stStorageFileProcessorService, times(1))
+                    .processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString())
+            ;
+
+    }
+
+    @Test
+    void postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
+        String area = "FR";
+        String technology = "techno";
+        // trajectoryToUse > 40 chars
+        String trajectoryToUse = "cluster_" + technology + "_" + "a".repeat(35) + ".xls";
+        String horizon = "2025-2026";
+
+        mockMvc.perform(post("/v1/trajectory/st-storage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("area", area)
+                        .param("technology", technology)
+                        .param("trajectoryToUse", trajectoryToUse)
+                        .param("horizon", horizon)
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        // service should not be called
+        verify(stStorageFileProcessorService, times(0)).processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString());
+    }
+
+    @Test
+    void postWithInvalidHorizon_should_returnBadRequest() throws Exception {
+        String area = "FR";
+        String technology = "techno";
+        String trajectoryToUse = "cluster_" + technology + "_test.xls";
+        String invalidHorizon = "20252026"; // does not match ^\\d{4}-\\d{4}$
+
+        mockMvc.perform(post("/v1/trajectory/st-storage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("area", area)
+                        .param("technology", technology)
+                        .param("trajectoryToUse", trajectoryToUse)
+                        .param("horizon", invalidHorizon)
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(stStorageFileProcessorService, times(0)).processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString());
+    }
+}
