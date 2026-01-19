@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -320,6 +321,118 @@ class AreaFileValidatorTest {
         }
 
 
+    }
+
+    @Test
+    void shouldNotThrowWhenAllNumeric() throws Exception {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "ValidNumericColumns.xlsx",
+                "2036-2037",
+                // En-têtes
+                List.of("areas", "Power to gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "false", "true", 131, 425, 125, 230, 125),
+                        List.of("Area2", "false", "true", 200, 300, 150, 210, 180)
+                )
+        );
+
+        Workbook workbook;
+        try (InputStream is = Files.newInputStream(tempFile)) {
+            workbook = WorkbookFactory.create(is);
+        }
+        Sheet sheet = workbook.getSheetAt(0);
+
+        List<String> numericalColumns = List.of("x", "y", "r", "g", "b");
+
+        assertDoesNotThrow(() ->
+                AreasValidator.checkNumericalColumns(
+                        sheet,
+                        "2036-2037",
+                        numericalColumns,
+                        "Stockage court terme"
+                )
+        );
+    }
+
+    @Test
+    void shouldThrowWhenCellIsNotNumeric() throws Exception {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "InvalidNumericColumn.xlsx",
+                "2036-2037",
+                List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "false", "true", "abc", 425, 125, 230, 125)
+                )
+        );
+
+        // --- Lecture du fichier Excel ---
+        Workbook workbook;
+        try (InputStream is = Files.newInputStream(tempFile)) {
+            workbook = WorkbookFactory.create(is);
+        }
+        Sheet sheet = workbook.getSheetAt(0);
+
+        // Colonnes numériques à vérifier
+        List<String> numericalColumns = List.of("x", "y", "r", "g", "b");
+
+        // --- Exécution ---
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                AreasValidator.checkNumericalColumns(
+                        sheet,
+                        "2036-2037",
+                        numericalColumns,
+                        TrajectoryType.AREA.name()
+                )
+        );
+
+        // --- Vérifications ---
+        String invalidCols = ex.getErrorMessageArguments().get(0);
+        String invalidAreas = ex.getErrorMessageArguments().get(1);
+
+        assertTrue(invalidCols.contains("x"));
+        assertTrue(invalidAreas.contains("Area1"));
+    }
+
+    @Test
+    void shouldThrowWhenCellIsNegativeForCostColumns() throws Exception {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "NegativeCostColumn.xlsx",
+                "2036-2037",
+                List.of("areas", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", -10.0, 200.0, 131, 425, 125, 230, 125),
+                        List.of("Area2", 150.0, -5.0, 200, 300, 150, 210, 180)
+                )
+        );
+
+        Workbook workbook;
+        try (InputStream is = Files.newInputStream(tempFile)) {
+            workbook = WorkbookFactory.create(is);
+        }
+        Sheet sheet = workbook.getSheetAt(0);
+
+        List<String> numericalColumns = List.of("spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b");
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                AreasValidator.checkNumericalColumns(
+                        sheet,
+                        "2036-2037",
+                        numericalColumns,
+                        TrajectoryType.AREA.name()
+                )
+        );
+
+        assertEquals("Waiting for positive Numeric values in {0} columns for area(s) {1}", ex.getMessage());
+        String invalidCols = ex.getErrorMessageArguments().get(0);
+        String invalidAreas = ex.getErrorMessageArguments().get(1);
+
+        assertTrue(invalidCols.contains("spilled energy cost"));
+        assertTrue(invalidCols.contains("unsupplied energy cost"));
+        assertTrue(invalidAreas.contains("Area1"));
+        assertTrue(invalidAreas.contains("Area2"));
     }
 
     @Test

@@ -181,7 +181,7 @@ public class ExcelCommonValidator {
         /**
          * Check if a row is fully empty, even if formatted
          */
-    private static boolean isRowEmpty(Row row) {
+    public static boolean isRowEmpty(Row row) {
         return row == null || IntStream.range(0, row.getLastCellNum())
                 .mapToObj(row::getCell)
                 .allMatch(cell -> cell == null ||
@@ -285,38 +285,6 @@ public class ExcelCommonValidator {
 
     }
 
-    public static void checkNumericalColumns(Sheet sheet, String horizon, List<String> numericalColumns, String trajectoryType) {
-        Set<String> invalidAreas = new LinkedHashSet<>();
-        Set<String> invalidColumns = new LinkedHashSet<>();
-
-        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-            Row row = sheet.getRow(r);
-            if (row == null || isRowEmpty(row)) continue;
-
-            String areaName = row.getCell(0).getStringCellValue();
-
-            for (int i = 0; i < numericalColumns.size(); i++) {
-                int colIndex = findColumnIndex(sheet, numericalColumns.get(i), horizon, trajectoryType);
-                Cell cell = row.getCell(colIndex);
-
-                boolean invalid = cell == null ||
-                        (cell.getCellType() != CellType.NUMERIC || isInvalidOrUndefinedCell(cell));
-
-                if (invalid) {
-                    invalidAreas.add(areaName);
-                    invalidColumns.add(numericalColumns.get(i));
-                }
-            }
-        }
-
-        if (!invalidColumns.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Waiting for Numeric values in {0} columns for area(s) {1}")
-                    .errorMessageArguments(List.of(String.join(", ", invalidColumns), String.join(", ", invalidAreas)))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
 
     private static boolean isValidBoolean(Cell cell) {
         if (isInvalidOrUndefinedCell(cell)) return true;
@@ -324,7 +292,7 @@ public class ExcelCommonValidator {
         return value.isPresent();
     }
 
-    private static boolean isInvalidOrUndefinedCell(Cell cell) {
+    public static boolean isInvalidOrUndefinedCell(Cell cell) {
         return cell == null || cell.getCellType() == CellType.BLANK;
     }
 
