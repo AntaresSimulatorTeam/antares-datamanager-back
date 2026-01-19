@@ -48,6 +48,7 @@ public class Utils {
     private static final String THERMAL_SPECIFIC_PREFIX = "specific_param_";
     private static final String THERMAL_ECONOMIC_PREFIX = "economic_param_";
     private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
+    private static final String STS_PREFIX = "cluster_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -141,6 +142,7 @@ public class Utils {
                 .horizon(horizon)
                 .area(area)
                 .technology(technology)
+                .type(trajectoryType.name())
                 .build();
     }
 
@@ -202,6 +204,11 @@ public class Utils {
                 .orElse(null);
     }
 
+    private static String removeClusterPrefix(String fileName) {
+        // enlève un préfixe du type "cluster_<techno>_" au début du nom, insensible à la casse
+        return fileName.replaceFirst("(?i)^cluster_[^_]+_", "");
+    }
+
     public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
@@ -225,15 +232,20 @@ public class Utils {
         } else {
             prefix = "";
         }
-        if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {
+
+        if (Objects.equals(trajectoryType, TrajectoryType.STS.toString())) {
+            fileName = removeClusterPrefix(fileName);
+        } else if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {
             fileName = fileName.substring(prefix.length());
         }
+
         int lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex <= 0) {
             return fileName;
         }
         return fileName.substring(0, lastDotIndex);
     }
+
 
     /**
      * Finds a sheet in the provided workbook that matches the given horizon name.
