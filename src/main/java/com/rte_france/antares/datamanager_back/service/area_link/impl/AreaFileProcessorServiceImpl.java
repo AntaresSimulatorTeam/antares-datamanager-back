@@ -103,24 +103,13 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     private AreaEntity findOrCreateAreaEntity(Row area) {
         String name = area.getCell(0).getStringCellValue();
 
-        return areaRepository.findAreaByName(name)
-                .map(existing -> {
-                    existing.setX(area.getCell(3).getNumericCellValue());
-                    existing.setY(area.getCell(4).getNumericCellValue());
-                    existing.setR(area.getCell(5).getNumericCellValue());
-                    existing.setG(area.getCell(6).getNumericCellValue());
-                    existing.setB(area.getCell(7).getNumericCellValue());
-                    return areaRepository.save(existing);
-                })
-                .orElseGet(() -> areaRepository.save(
-                        AreaEntity.builder()
-                                .name(name)
-                                .x(area.getCell(3).getNumericCellValue())
-                                .y(area.getCell(4).getNumericCellValue())
-                                .r(area.getCell(5).getNumericCellValue())
-                                .g(area.getCell(6).getNumericCellValue())
-                                .b(area.getCell(7).getNumericCellValue())
-                                .build()
-                ));
+        AreaEntity entity = areaRepository.findAreaByName(name).orElseGet(() -> AreaEntity.builder().name(name).build()); 
+        entity.setX(area.getCell(3).getNumericCellValue()); 
+        entity.setY(area.getCell(4).getNumericCellValue()); 
+        entity.setR(area.getCell(5).getNumericCellValue()); 
+        entity.setG(area.getCell(6).getNumericCellValue()); 
+        entity.setB(area.getCell(7).getNumericCellValue()); 
+        
+        return areaRepository.save(entity);
     }
 }
