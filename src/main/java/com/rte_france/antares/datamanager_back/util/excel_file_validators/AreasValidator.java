@@ -11,7 +11,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.*;
@@ -56,6 +58,55 @@ public class AreasValidator {
         checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
         checkNumericalColumns(sheet, horizon, numericalColumns, trajectoryType);
         stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.AREA.name()));
+    }
+
+    public static void checkNumericalColumns(Sheet sheet, String horizon, List<String> numericalColumns, String trajectoryType) {
+        Set<String> invalidAreas = new LinkedHashSet<>();
+        Set<String> invalidColumns = new LinkedHashSet<>();
+        Set<String> negativeValueAreas = new LinkedHashSet<>();
+        Set<String> negativeValueColumns = new LinkedHashSet<>();
+
+        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row)) continue;
+
+            String areaName = row.getCell(0).getStringCellValue();
+
+            for (String columnName : numericalColumns) {
+                int colIndex = findColumnIndex(sheet, columnName, horizon, trajectoryType);
+                Cell cell = row.getCell(colIndex);
+
+                boolean isNumeric = cell != null && cell.getCellType() == CellType.NUMERIC && !isInvalidOrUndefinedCell(cell);
+
+                if (!isNumeric) {
+                    invalidAreas.add(areaName);
+                    invalidColumns.add(columnName);
+                } else if (AreaColumns.SPILLED_ENERGY_COST.getDisplayName().equals(columnName)
+                        || AreaColumns.UNSUPPLIED_ENERGY_COST.getDisplayName().equals(columnName)) {
+                    double value = cell.getNumericCellValue();
+                    if (value < 0) {
+                        negativeValueAreas.add(areaName);
+                        negativeValueColumns.add(columnName);
+                    }
+                }
+            }
+        }
+
+        if (!invalidColumns.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Waiting for Numeric values in {0} columns for area(s) {1}")
+                    .errorMessageArguments(List.of(String.join(", ", invalidColumns), String.join(", ", invalidAreas)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        if (!negativeValueColumns.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Waiting for positive Numeric values in {0} columns for area(s) {1}")
+                    .errorMessageArguments(List.of(String.join(", ", negativeValueColumns), String.join(", ", negativeValueAreas)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     /**
