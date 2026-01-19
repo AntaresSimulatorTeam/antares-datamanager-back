@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.AreaConfigRepository;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.area_link.impl.AreaFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -73,6 +74,26 @@ class AreaFileProcessorServiceImplTest {
             verify(trajectoryRepository, times(1)).save(any());
             verify(areaConfigRepository, times(1)).saveAll(any());
         }
+
+    @Test
+    void processAreaFile_whenAreaExistsInBDD() throws IOException {
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        var trajectoryEntity = mock(TrajectoryEntity.class);
+        trajectoryEntity.setType(TrajectoryType.AREA.name());
+        trajectoryEntity.setFileName(tempFile.toString());
+        var areaEntity = mock(AreaEntity.class);
+        areaEntity.setName("Area1");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
+                .thenReturn(Optional.of(trajectoryEntity));
+        when(areaRepository.findAreaByName(anyString()))
+                .thenReturn(Optional.of(areaEntity));
+
+        areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
+
+        verify(trajectoryRepository, times(1)).save(any());
+        verify(areaConfigRepository, times(1)).saveAll(any());
+        verify(areaConfigRepository, times(1)).saveAll(any());
+    }
 
         @Test
         void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
