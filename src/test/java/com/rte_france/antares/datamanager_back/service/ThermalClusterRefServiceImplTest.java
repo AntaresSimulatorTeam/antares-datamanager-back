@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ThermalClusterRefRepository;
 import com.rte_france.antares.datamanager_back.repository.ThermalTechnologyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
@@ -11,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,38 +32,37 @@ class ThermalClusterRefServiceImplTest {
 
 
     @Test
-    void findOrCreateThermalClusterRef_shouldCreateAndSaveNewClusterRef() {
-        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
+    void findOrCreateThermalClusterRef_trimsTechnologyAndClusterNameBeforeLookupAndCreation() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("CCGT", "C1"))
+                .thenReturn(Optional.empty());
         when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
-                .thenReturn(Optional.of(technology));
-        when(thermalClusterRefRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+                .thenReturn(Optional.of(tech));
+        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
 
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "Cluster2", null);
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "C1", "PEM1");
 
         assertNotNull(result);
-        assertEquals("Cluster2", result.getName());
+        assertEquals("C1", result.getName());
+        assertEquals("PEM1", result.getNamePemmdb());
         assertEquals("CCGT", result.getThermalTechnology().getName());
-        verify(thermalClusterRefRepository, times(1)).save(any());
+
+        verify(thermalTechnologyRepository).findThermalTechnologyByNameIgnoreCase("CCGT");
+        verify(thermalClusterRefRepository).save(any(ThermalClusterRef.class));
     }
 
     @Test
-    void findOrCreateThermalClusterRef_whenTechnologyNotFound_shouldThrowBusinessException() {
-        // Given
-        String technology = "NewTech";
-        String name = "ClusterA";
-        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase(technology)).thenReturn(Optional.empty());
+    void findOrCreateThermalClusterRef_whenClusterNameIsNull_throwsNullPointerException() {
+        assertThrows(NullPointerException.class,
+                () -> thermalClusterRef.findOrCreateThermalClusterRef("CCGT", null, "PEM123"));
 
-        // Then
-        var ex = assertThrows(com.rte_france.antares.datamanager_back.exception.BusinessException.class,
-                () -> thermalClusterRef.findOrCreateThermalClusterRef(technology, name, null));
-        assertTrue(ex.getMessage().contains("Technology"));
-        verify(thermalTechnologyRepository, never()).save(any());
-        verify(thermalClusterRefRepository, never()).save(any());
+        verifyNoInteractions(thermalClusterRefRepository);
     }
 
     @Test
-    void findOrCreateThermalClusterRef_whenExistingAndPemmdbIsNA_updatesAndSaves() {
-        // Given
+    void findOrCreateThermalClusterRef_withBlankPemmdb_doesNotOverwriteExistingNA() {
         ThermalTechnology tech = ThermalTechnology.builder().name("oil").build();
         ThermalClusterRef existing = ThermalClusterRef.builder()
                 .id(1)
@@ -72,115 +71,156 @@ class ThermalClusterRefServiceImplTest {
                 .namePemmdb("NA")
                 .build();
 
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterOil", "oil")).thenReturn(Optional.ofNullable(existing));
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("oil", "ClusterOil"))
+                .thenReturn(Optional.of(existing));
 
-        // When
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "Oil-123");
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("oil", "ClusterOil", "   ");
 
-        // Then
         assertSame(existing, result);
-        assertEquals("Oil-123", result.getNamePemmdb());
+        assertEquals("NA", result.getNamePemmdb());
 
         verifyNoInteractions(thermalTechnologyRepository);
+        verify(thermalClusterRefRepository, never()).save(any());
     }
 
     @Test
-    void findOrCreateThermalClusterRef_whenExistingAndPemmdbAlreadySet_doesNotOverwriteOrSave() {
-        // Given
-        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
+    void updatePemmdb_overwritesWhenExistingIsNA() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("coal").build();
         ThermalClusterRef existing = ThermalClusterRef.builder()
-                .id(1)
-                .name("ClusterY")
+                .id(11)
+                .name("ClusterCoal")
                 .thermalTechnology(tech)
-                .namePemmdb("EXISTING-VAL")
+                .namePemmdb("NA")
                 .build();
 
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("ClusterY","CCGT")).thenReturn(Optional.ofNullable(existing));
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("coal", "ClusterCoal"))
+                .thenReturn(Optional.of(existing));
 
-        // When
         ThermalClusterRef result =
-                thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "ClusterY", "NEW-VAL");
+                thermalClusterRef.findOrCreateThermalClusterRef("coal", "ClusterCoal", "PEM-Y");
 
-        // Then
         assertSame(existing, result);
-        assertEquals("EXISTING-VAL", result.getNamePemmdb());
+        assertEquals("PEM-Y", result.getNamePemmdb());
 
-        verify(thermalClusterRefRepository, never()).save(any());
         verifyNoInteractions(thermalTechnologyRepository);
+        verify(thermalClusterRefRepository, never()).save(any());
+    }
+
+    @Test
+    void updatePemmdb_setsWhenExistingIsNull() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("gas").build();
+        ThermalClusterRef existing = ThermalClusterRef.builder()
+                .id(10)
+                .name("ClusterGas")
+                .thermalTechnology(tech)
+                .namePemmdb(null)
+                .build();
+
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("gas", "ClusterGas"))
+                .thenReturn(Optional.of(existing));
+
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("gas", "ClusterGas", "PEM-X");
+
+        assertSame(existing, result);
+        assertEquals("PEM-X", result.getNamePemmdb());
+
+        verifyNoInteractions(thermalTechnologyRepository);
+        verify(thermalClusterRefRepository, never()).save(any());
     }
 
 
     @Test
-    void findOrCreateThermalClusterRef_whenCreating_setsProvidedPemmdbOrDefaultNA() {
-        // First call: empty cache, no existing entries
-        when(thermalClusterRefRepository.findByNameAndTechnologyName("C1","CCGT")).thenReturn(Optional.empty());
-
-        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
-                .thenReturn(Optional.of(tech));
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
+    void findOrCreateThermalClusterRef_withoutTechnology_createsClusterWithNullTechnology() {
+        when(thermalClusterRefRepository.findByThermalTechnologyIsNullAndNameIgnoreCase("ClusterX"))
+                .thenReturn(Optional.empty());
+        when(thermalClusterRefRepository.save(any()))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        // With provided pemmdb
-        ThermalClusterRef createdWithPemmdb = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "C1", "PEM1");
-        assertEquals("C1", createdWithPemmdb.getName());
-        assertEquals("PEM1", createdWithPemmdb.getNamePemmdb());
-        assertEquals("CCGT", createdWithPemmdb.getThermalTechnology().getName());
-
-        // With null pemmdb should default to NA (use a different name so it creates a new one)
-        ThermalClusterRef createdWithDefault = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "C2", null);
-        assertEquals("C2", createdWithDefault.getName());
-        assertEquals("NA", createdWithDefault.getNamePemmdb());
-
-        verify(thermalClusterRefRepository, atLeast(2)).save(any(ThermalClusterRef.class));
-    }
-
-    @Test
-    void findOrCreateThermalClusterRef_whenTechnologyIsNull_createsClusterWithoutTechnology() {
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef(null, "ClusterX", "PEM123");
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef(null, "ClusterX", "PEM-NULL");
 
         assertNotNull(result);
         assertEquals("ClusterX", result.getName());
-        assertEquals("PEM123", result.getNamePemmdb());
+        assertEquals("PEM-NULL", result.getNamePemmdb());
         assertNull(result.getThermalTechnology());
-        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
+
+        verify(thermalClusterRefRepository)
+                .findByThermalTechnologyIsNullAndNameIgnoreCase("ClusterX");
+        verifyNoInteractions(thermalTechnologyRepository);
     }
 
     @Test
-    void findOrCreateThermalClusterRef_whenNameIsNull_createsClusterWithNullName() {
-        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
-                .thenReturn(Optional.of(technology));
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+    void findOrCreateThermalClusterRef_withNullPemmdb_setsNA() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("nuclear").build();
 
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", null, "PEM123");
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("nuclear", "C2"))
+                .thenReturn(Optional.empty());
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("nuclear"))
+                .thenReturn(Optional.of(tech));
+        when(thermalClusterRefRepository.save(any()))
+                .thenAnswer(inv -> inv.getArgument(0));
 
-        assertNotNull(result);
-        assertNull(result.getName());
-        assertEquals("PEM123", result.getNamePemmdb());
-        assertEquals("CCGT", result.getThermalTechnology().getName());
-        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
-    }
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("nuclear", "C2", null);
 
-    @Test
-    void findOrCreateThermalClusterRef_whenPemmdbIsNull_defaultsToNA() {
-        ThermalTechnology technology = ThermalTechnology.builder().name("CCGT").build();
-        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("CCGT"))
-                .thenReturn(Optional.of(technology));
-        when(thermalClusterRefRepository.save(any(ThermalClusterRef.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        ThermalClusterRef result = thermalClusterRef.findOrCreateThermalClusterRef("CCGT", "ClusterZ", null);
-
-        assertNotNull(result);
-        assertEquals("ClusterZ", result.getName());
         assertEquals("NA", result.getNamePemmdb());
-        assertEquals("CCGT", result.getThermalTechnology().getName());
-        verify(thermalClusterRefRepository, times(1)).save(any(ThermalClusterRef.class));
     }
 
+    @Test
+    void findOrCreateThermalClusterRef_whenTechnologyDoesNotExist_throwsBusinessException() {
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("unknown", "C3"))
+                .thenReturn(Optional.empty());
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("unknown"))
+                .thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> thermalClusterRef.findOrCreateThermalClusterRef("unknown", "C3", "PEM-Z")
+        );
+
+        assertTrue(ex.getMessage().contains("Technology unknown does not exist"));
+        verify(thermalClusterRefRepository, never()).save(any());
+    }
+
+    @Test
+    void updatePemmdb_doesNotOverwriteWhenExistingIsAlreadySet() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("hydro").build();
+        ThermalClusterRef existing = ThermalClusterRef.builder()
+                .id(20)
+                .name("ClusterHydro")
+                .thermalTechnology(tech)
+                .namePemmdb("PEM-OLD")
+                .build();
+
+        when(thermalClusterRefRepository.findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("hydro", "ClusterHydro"))
+                .thenReturn(Optional.of(existing));
+
+        ThermalClusterRef result =
+                thermalClusterRef.findOrCreateThermalClusterRef("hydro", "ClusterHydro", "PEM-NEW");
+
+        assertSame(existing, result);
+        assertEquals("PEM-OLD", result.getNamePemmdb());
+
+        verify(thermalClusterRefRepository, never()).save(any());
+    }
+
+    @Test
+    void findOrCreateThermalClusterRef_trimsClusterNameBeforeLookup() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("biomass").build();
+
+        when(thermalClusterRefRepository
+                .findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("biomass", "C4"))
+                .thenReturn(Optional.empty());
+        when(thermalTechnologyRepository.findThermalTechnologyByNameIgnoreCase("biomass"))
+                .thenReturn(Optional.of(tech));
+        when(thermalClusterRefRepository.save(any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        thermalClusterRef.findOrCreateThermalClusterRef("biomass", "  C4  ", "PEM-BIO");
+
+        verify(thermalClusterRefRepository)
+                .findByThermalTechnology_NameIgnoreCaseAndNameIgnoreCase("biomass", "C4");
+    }
 }
