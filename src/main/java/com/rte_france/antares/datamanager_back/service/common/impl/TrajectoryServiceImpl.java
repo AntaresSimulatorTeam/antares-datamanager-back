@@ -96,6 +96,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String CAPACITY_PREFIX = "thermal_";
     private static final String ECONOMIC_COST_PREFIX = "costs_";
     private static final String ECONOMIC_PREFIX = "economic_param_";
+    private static final String STS_PREFIX = "cluster_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -458,7 +459,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
-                            || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType))
+                            || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, area))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -475,7 +476,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType) {
+    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String area) {
         String fileName = path.getFileName().toString().toLowerCase();
         return switch (trajectoryType) {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
@@ -484,6 +485,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
+            case STS -> fileName.startsWith( STS_PREFIX + Optional.ofNullable(area).orElse("").toLowerCase() );
             default -> true;
         };
     }

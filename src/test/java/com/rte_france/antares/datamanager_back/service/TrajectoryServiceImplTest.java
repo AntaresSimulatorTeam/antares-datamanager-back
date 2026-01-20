@@ -608,6 +608,28 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsFilesStartingByClusterAndTechnology(@TempDir Path tempDir) throws IOException {
+        // Given
+        String technology = "Battery";
+        Path thermalDir = tempDir.resolve("STS/" + technology + "/clusters");
+        Files.createDirectories(thermalDir);
+
+        Path testFile = thermalDir.resolve("cluster_battery_trajectorysts.xlsx");
+        Files.createFile(testFile);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.STS, technology, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("cluster_battery_trajectorysts.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
     void processLoadTrajectory_savesTrajectoryAndProcessesLoadFiles() throws IOException {
         String area = "FR";
         String trajectoryToUse = "testTrajectory";
