@@ -485,7 +485,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
-            case STS -> fileName.startsWith( STS_PREFIX + Optional.ofNullable(area).orElse("").toLowerCase() );
+            case STS -> fileName.startsWith( STS_PREFIX + Optional.ofNullable(area).filter(a -> !a.isBlank()).map(a -> a.toLowerCase() + "_").orElse(""));
             default -> true;
         };
     }
