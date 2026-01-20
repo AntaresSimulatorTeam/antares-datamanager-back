@@ -633,6 +633,7 @@ class TrajectoryServiceImplTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
+            "cluster_solar_trajectory.xlsx",
             "clusterbattery_trajectorysts.xlsx",
             "_battery_trajectorysts.xlsx",
             "battery_trajectorysts.xlsx",
