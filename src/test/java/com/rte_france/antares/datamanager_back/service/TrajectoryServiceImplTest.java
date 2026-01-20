@@ -22,6 +22,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -627,6 +629,34 @@ class TrajectoryServiceImplTest {
         // Then
         assertEquals(1, result.size());
         assertEquals("cluster_battery_trajectorysts.xlsx", result.getFirst().getFileName());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "clusterbattery_trajectorysts.xlsx",
+            "_battery_trajectorysts.xlsx",
+            "battery_trajectorysts.xlsx",
+            "_trajectorysts.xlsx",
+    })
+    void findTrajectoriesByType_notReturnFilesWithWrongPrefix(String fileName, @TempDir Path tempDir) throws IOException {
+
+        // Given
+        String technology = "Battery";
+        Path thermalDir = tempDir.resolve("STS/" + technology + "/clusters");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve(fileName));
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
+
+        // When
+        List<FsTrajectoryDTO> result =
+                trajectoryService.findTrajectoriesByType(TrajectoryType.STS, technology, null);
+
+        // Then
+        assertEquals(0, result.size());
     }
 
     @Test
