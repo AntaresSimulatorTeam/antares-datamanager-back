@@ -101,14 +101,15 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     }
 
     private AreaEntity findOrCreateAreaEntity(Row area) {
-        return areaRepository.findAreaByName(area.getCell(0).getStringCellValue())
-                .orElseGet(() -> areaRepository.save(AreaEntity.builder()
-                        .name(area.getCell(0).getStringCellValue())
-                        .x(area.getCell(3).getNumericCellValue())
-                        .y(area.getCell(4).getNumericCellValue())
-                        .r(area.getCell(5).getNumericCellValue())
-                        .g(area.getCell(6).getNumericCellValue())
-                        .b(area.getCell(7).getNumericCellValue())
-                        .build()));
+        String name = area.getCell(0).getStringCellValue();
+
+        AreaEntity entity = areaRepository.findAreaByName(name).orElseGet(() -> AreaEntity.builder().name(name).build()); 
+        entity.setX(area.getCell(3).getNumericCellValue()); 
+        entity.setY(area.getCell(4).getNumericCellValue()); 
+        entity.setR(area.getCell(5).getNumericCellValue()); 
+        entity.setG(area.getCell(6).getNumericCellValue()); 
+        entity.setB(area.getCell(7).getNumericCellValue()); 
+        
+        return areaRepository.save(entity);
     }
 }
