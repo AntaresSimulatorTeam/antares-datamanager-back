@@ -54,12 +54,12 @@ values (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-0
        (8, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
         '2025-2026', 'ES', 'technology4');
 
-insert into public.area_config(id, power_to_gas, short_term_storage, area_id, trajectory_id)
-values (1, 1, 1, 4, 1),
-       (2, 1, 1, 5, 2),
-       (3, 1, 1, 6, 3),
-       (4, 1, 1, 7, 4),
-       (5, 1, 1, 8, 8);
+insert into public.area_config(id, district, spilled_energy_cost, unsupplied_energy_cost, area_id, trajectory_id)
+values (1, 'district1', 1.2, 40.2, 4, 1),
+       (2, 'district1', 1.3, 50.2, 5, 2),
+       (3, 'district2', 10.23, 60.2, 6, 3),
+       (4, 'district2', 100.32, 71.2, 7, 4),
+       (5, 'district2', 103.2, 82.3, 8, 8);
 
 insert into public.scenario_tags (scenario_id, tag)
 values (3, 'config'),

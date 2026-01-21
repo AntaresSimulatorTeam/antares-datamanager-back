@@ -13,7 +13,7 @@ import java.util.List;
 public interface AreaConfigRepository extends JpaRepository<AreaConfigEntity, Integer> {
 
 
-        @Query("SELECT a.name, ac.powerToGas, ac.shortTermStorage " +
+        @Query("SELECT a.name, ac.spilledEnergyCost, ac.unsuppliedEnergyCost " +
                 "FROM AreaConfigEntity ac " +
                 "JOIN ac.area a " +
                 "WHERE ac.trajectory.id = :trajectoryId")
