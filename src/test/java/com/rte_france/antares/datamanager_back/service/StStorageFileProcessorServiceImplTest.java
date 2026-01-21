@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
 
@@ -78,9 +79,7 @@ class StStorageFileProcessorServiceImplTest {
     @Test
     void shouldThrowExceptionWhenSheetIsMissing() throws IOException {
         Path xlsx = createWorkbookWithoutSheet("2030");
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         assertThatThrownBy(() ->
                 service.processStStorageFile(
@@ -99,9 +98,7 @@ class StStorageFileProcessorServiceImplTest {
     @Test
     void shouldThrowExceptionWhenNoValidRowsFound() throws IOException {
         Path xlsx = createWorkbookWithHeaderOnly("2030");
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         assertThatThrownBy(() ->
                 service.processStStorageFile(
@@ -120,9 +117,7 @@ class StStorageFileProcessorServiceImplTest {
     @Test
     void shouldCreateTrajectoryAndEntitiesSuccessfully() throws IOException {
         Path xlsx = createValidWorkbook("2030", false);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         when(userService.getCurrentUserDetails())
                 .thenReturn(new UserInfoDto("nni123", null, null, null));
@@ -156,9 +151,7 @@ class StStorageFileProcessorServiceImplTest {
     @Test
     void shouldIncrementVersionWhenExistingTrajectoryFound() throws IOException {
         Path xlsx = createValidWorkbook("2030", false);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         TrajectoryEntity existing = new TrajectoryEntity();
         existing.setVersion(1);
@@ -194,9 +187,7 @@ class StStorageFileProcessorServiceImplTest {
         String clusterName = "cluster1";
 
         Path xlsx = createWorkbookWithSeriesTrue(horizon, area, clusterName);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
 
         // Create STS directory but WITHOUT required files
         Path stsDir = tempDir
@@ -235,9 +226,7 @@ class StStorageFileProcessorServiceImplTest {
         String clusterName = "cluster1";
 
         Path xlsx = createWorkbookWithSeriesTrue(horizon, area, clusterName);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
 
         // when / then
         assertThatThrownBy(() ->
@@ -255,16 +244,14 @@ class StStorageFileProcessorServiceImplTest {
     }
     @Test
     void shouldIgnoreRowWhenSeriesIsTrueAndStsDirectoryIsEmpty() throws IOException {
-   // given
+        // given
         String horizon = "2030";
         String technology = "battery";
         String area = "FR";
         String clusterName = "cluster1";
 
         Path xlsx = createWorkbookWithSeriesTrue(horizon, area, clusterName);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
 
         // Create empty STS directory
         Path stsDir = tempDir
@@ -294,15 +281,13 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-         void shouldSaveRowWhenSeriesIsTrueAndStsDirectoryIsPresentAndRequierdFilesArePresent() throws IOException {
+    void shouldSaveRowWhenSeriesIsTrueAndStsDirectoryIsPresentAndRequierdFilesArePresent() throws IOException {
         String horizon = "2030";
         String technology = "battery";
         String area = "FR";
         String clusterName = "cluster1";
         Path xlsx = createValidWorkbook("2030", true);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
 
         when(userService.getCurrentUserDetails())
                 .thenReturn(new UserInfoDto("nni123", null, null, null));
@@ -360,9 +345,7 @@ class StStorageFileProcessorServiceImplTest {
         String area = "FR";
         String clusterName = "cluster1";
         Path xlsx = createValidWorkbook("2030", true);
-
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any()))
-                .thenReturn(xlsx);
+        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
 
         when(userService.getCurrentUserDetails())
                 .thenReturn(new UserInfoDto("nni123", null, null, null));
@@ -385,8 +368,7 @@ class StStorageFileProcessorServiceImplTest {
                 .resolve(area);
 
         Files.createDirectories(stsDir);
-        // create required files
-
+        // create required files (one missing)
         Files.createFile(stsDir.resolve("inflows.xlsx"));
         Files.createFile(stsDir.resolve("lower_curve.xlsx"));
         Files.createFile(stsDir.resolve("Pmax_injection.xlsx"));
@@ -494,6 +476,17 @@ class StStorageFileProcessorServiceImplTest {
             wb.write(os);
         }
         return file;
+    }
+
+    private Path placeInClusters(Path source, String technology, String targetFileName) throws IOException {
+        Path clusters = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("clusters");
+        Files.createDirectories(clusters);
+        Path target = clusters.resolve(targetFileName);
+        return Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
 
 }
