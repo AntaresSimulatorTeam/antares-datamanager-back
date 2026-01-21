@@ -53,9 +53,9 @@ class AreaFileProcessorServiceImplTest {
             MockitoAnnotations.openMocks(this);
 
             tempFile = CreateExcelTestUtil.createExcelFile( tempDir,"TestFile.xlsx","2030-2031",
-                    List.of("areas", "Power To Gas", "Stockage court terme", "x", "y", "r", "g", "b"),
+                    List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
                     List.of(
-                            List.of("Area1", "False", "True", 3, 4, 1, 2, 3)
+                            List.of("Area1", "district1", 1.2, 30.2, 3, 4, 1, 2, 3)
                     )
             );
         }

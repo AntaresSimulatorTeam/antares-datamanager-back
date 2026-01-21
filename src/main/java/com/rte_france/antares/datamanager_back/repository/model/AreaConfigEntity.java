@@ -36,7 +36,8 @@ public class AreaConfigEntity {
     private TrajectoryEntity trajectory;
 
 
-    public AreaConfigEntity(Double spilledEnergyCost, Double unsuppliedEnergyCost, AreaEntity areaEntity) {
+    public AreaConfigEntity(String district, Double spilledEnergyCost, Double unsuppliedEnergyCost, AreaEntity areaEntity) {
+        this.district = district;
         this.spilledEnergyCost = spilledEnergyCost;
         this.unsuppliedEnergyCost = unsuppliedEnergyCost;
         this.area = areaEntity;

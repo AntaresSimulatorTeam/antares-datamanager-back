@@ -13,7 +13,7 @@ public class AreaTrajectoryDataDTO implements TrajectoryDataDTO{
 
     private String areaName;
 
-    private String powerToGas;
+    private String unsuppliedEnergyCost;
 
-    private String shortTermStorage;
+    private String spilledEnergyCost;
 }
