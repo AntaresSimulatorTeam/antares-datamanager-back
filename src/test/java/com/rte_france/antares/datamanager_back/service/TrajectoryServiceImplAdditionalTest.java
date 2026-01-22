@@ -359,7 +359,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("link");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER", null);
 
         // Then
         assertEquals(0, result.size());
@@ -379,7 +379,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null, null);
 
         // Then
         assertEquals(1, result.size());
@@ -392,7 +392,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, "area"));
+        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area"));
     }
 
     @Test
@@ -409,7 +409,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
 
-        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null,null);
 
         assertEquals(1, result.size());
         assertTrue(result.getFirst().getFileName().startsWith("common_param_"));
@@ -429,7 +429,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
 
-        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null);
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null,null);
 
         assertEquals(1, result.size());
         assertTrue(result.getFirst().getFileName().startsWith("specific_param_"));
@@ -451,7 +451,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // Then
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,"test");
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null,"test");
 
         assertEquals(1, result.size());
         assertEquals("areas_testFile.xlsx", result.getFirst().getFileName());
@@ -477,6 +477,7 @@ class TrajectoryServiceImplAdditionalTest {
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(
                 TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER,
                 tempDir.toString(),
+                null,
                 null
         );
 

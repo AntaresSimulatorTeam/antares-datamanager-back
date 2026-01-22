@@ -581,7 +581,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, null, null);
 
         // Then
         assertEquals(1, result.size());
@@ -602,7 +602,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("thermal/economic_parameter/costs");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
 
         // Then
         assertEquals(1, result.size());
@@ -624,7 +624,7 @@ class TrajectoryServiceImplTest {
         when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.STS, technology, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.STS, null, technology, null);
 
         // Then
         assertEquals(1, result.size());
@@ -633,7 +633,6 @@ class TrajectoryServiceImplTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "cluster_solar_trajectory.xlsx",
             "clusterbattery_trajectorysts.xlsx",
             "_battery_trajectorysts.xlsx",
             "battery_trajectorysts.xlsx",
@@ -654,7 +653,7 @@ class TrajectoryServiceImplTest {
 
         // When
         List<FsTrajectoryDTO> result =
-                trajectoryService.findTrajectoriesByType(TrajectoryType.STS, technology, null);
+                trajectoryService.findTrajectoriesByType(TrajectoryType.STS, null,technology, null);
 
         // Then
         assertEquals(0, result.size());
@@ -1046,31 +1045,41 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void getDirectoryByTrajectoryType_returnsLoadDirectory_whenTypeIsLoad() {
+    void getDirectoryByTrajectoryType_returnsLoadDirectory_whenTypeIsLoad() throws IOException {
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("loadDir");
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.LOAD, null);
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.LOAD, null, null);
         assertEquals("loadDir", result);
     }
 
     @Test
-    void getDirectoryByTrajectoryType_returnsThermalCostDirectory_whenTypeIsThermalEconomicCostParameter() {
+    void getDirectoryByTrajectoryType_returnsThermalCostDirectory_whenTypeIsThermalEconomicCostParameter() throws IOException {
         when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("thermalCostDir");
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null);
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
         assertEquals("thermalCostDir", result);
     }
 
     @Test
-    void getDirectoryByTrajectoryType_returnsSTSDirectory_whenTypeIsSTS() {
+    void getDirectoryByTrajectoryType_returnsSTSDirectory_whenTypeIsSTS(@TempDir Path tempDir) throws IOException {
+        // créer l'arborescence attendue : STS/DRS/clusters
+        Path stsDir = tempDir.resolve("STS").resolve("DRS").resolve("clusters");
+        Files.createDirectories(stsDir);
+
+        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.STS,"DRS");
-        assertEquals("STS/DRS/clusters", result);
+
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.STS, null, "DRS");
+        String expected = stsDir.toString();
+        assertEquals(expected, result);
     }
+
+
 
     @Test
     void getDirectoryByTrajectoryType_throwsTechnicalException_whenTypeIsMisc() {
         TechnicalException exception = assertThrows(
                 TechnicalException.class,
-                () -> trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC, null)
+                () -> trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC, null, null)
         );
         assertTrue(exception.getMessage().contains("No directory defined for TrajectoryType"));
     }

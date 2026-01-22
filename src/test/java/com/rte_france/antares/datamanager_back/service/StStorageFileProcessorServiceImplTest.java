@@ -50,7 +50,6 @@ class StStorageFileProcessorServiceImplTest {
 
         service = new StStorageFileProcessorServiceImpl(
                 properties,
-                trajectoryService,
                 trajectoryRepository,
                 userService
         );
@@ -300,6 +299,7 @@ class StStorageFileProcessorServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         // Create  STS directory
+      //  /tmp/junit13157801597627000385/trajectories/STS/tmp/series/test/cluster1/FR
         Path stsDir = tempDir
                 .resolve("trajectories")
                 .resolve("STS")
