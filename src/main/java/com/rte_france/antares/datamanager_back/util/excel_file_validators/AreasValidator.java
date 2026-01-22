@@ -66,44 +66,51 @@ public class AreasValidator {
         Set<String> negativeValueAreas = new LinkedHashSet<>();
         Set<String> negativeValueColumns = new LinkedHashSet<>();
 
+        // Pre-calculate column indices to avoid repeated lookups
+        List<Integer> columnIndices = numericalColumns.stream()
+                .map(columnName -> findColumnIndex(sheet, columnName, horizon, trajectoryType))
+                .toList();
+
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null || isRowEmpty(row)) continue;
 
             String areaName = row.getCell(0).getStringCellValue();
 
-            for (String columnName : numericalColumns) {
-                int colIndex = findColumnIndex(sheet, columnName, horizon, trajectoryType);
+            for (int i = 0; i < numericalColumns.size(); i++) {
+                String columnName = numericalColumns.get(i);
+                int colIndex = columnIndices.get(i);
                 Cell cell = row.getCell(colIndex);
 
-                boolean isNumeric = cell != null && cell.getCellType() == CellType.NUMERIC && !isInvalidOrUndefinedCell(cell);
-
-                if (!isNumeric) {
+                if (isCellNotNumeric(cell)) {
                     invalidAreas.add(areaName);
                     invalidColumns.add(columnName);
-                } else if (AreaColumns.SPILLED_ENERGY_COST.getDisplayName().equals(columnName)
-                        || AreaColumns.UNSUPPLIED_ENERGY_COST.getDisplayName().equals(columnName)) {
-                    double value = cell.getNumericCellValue();
-                    if (value < 0) {
-                        negativeValueAreas.add(areaName);
-                        negativeValueColumns.add(columnName);
-                    }
+                } else if (isNegativeValueNotAllowed(columnName, cell)) {
+                    negativeValueAreas.add(areaName);
+                    negativeValueColumns.add(columnName);
                 }
             }
         }
 
-        if (!invalidColumns.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Waiting for Numeric values in {0} columns for area(s) {1}")
-                    .errorMessageArguments(List.of(String.join(", ", invalidColumns), String.join(", ", invalidAreas)))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        throwExceptionIfErrors(invalidColumns, invalidAreas, "Waiting for Numeric values in {0} columns for area(s) {1}");
+        throwExceptionIfErrors(negativeValueColumns, negativeValueAreas, "Waiting for positive Numeric values in {0} columns for area(s) {1}");
+    }
 
-        if (!negativeValueColumns.isEmpty()) {
+    private static boolean isCellNotNumeric(Cell cell) {
+        return cell == null || cell.getCellType() != CellType.NUMERIC || isInvalidOrUndefinedCell(cell);
+    }
+
+    private static boolean isNegativeValueNotAllowed(String columnName, Cell cell) {
+        return (AreaColumns.SPILLED_ENERGY_COST.getDisplayName().equals(columnName)
+                || AreaColumns.UNSUPPLIED_ENERGY_COST.getDisplayName().equals(columnName))
+                && cell.getNumericCellValue() < 0;
+    }
+
+    private static void throwExceptionIfErrors(Set<String> columns, Set<String> areas, String message) {
+        if (!columns.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Waiting for positive Numeric values in {0} columns for area(s) {1}")
-                    .errorMessageArguments(List.of(String.join(", ", negativeValueColumns), String.join(", ", negativeValueAreas)))
+                    .message(message)
+                    .errorMessageArguments(List.of(String.join(", ", columns), String.join(", ", areas)))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

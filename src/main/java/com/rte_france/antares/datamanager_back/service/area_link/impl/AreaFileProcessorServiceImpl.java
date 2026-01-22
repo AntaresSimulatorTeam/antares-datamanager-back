@@ -31,7 +31,6 @@ import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.getBooleanCellValue;
 
 @Slf4j
 @Service
