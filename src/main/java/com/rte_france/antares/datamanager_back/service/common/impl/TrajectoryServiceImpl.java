@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
@@ -454,8 +455,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String fileNameContains) throws TechnicalException {
-        Path directory = normalizeAndValidateDirectory(trajectoryType, area);
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
+        Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
@@ -485,7 +486,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
-            case STS -> fileName.startsWith( STS_PREFIX + (area.toLowerCase() + "_") );
+            case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "[a-z0-9]+_.*");
             default -> true;
         };
     }
@@ -805,7 +806,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //build the file path
         Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, area))
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, area, null))
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {
@@ -839,11 +840,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area) {
+    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area, String technology) throws IOException {
         String basePath = antaressDataManagerProperties.getNasDirectory();
         String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
         Path baseDirectory = Path.of(basePath).resolve(subPath)
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, area))
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, area, technology))
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {
@@ -893,7 +894,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area) {
+    public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area, String technology) throws IOException {
         return switch (trajectoryType) {
             case AREA -> antaressDataManagerProperties.getAreaDirectory();
             case LINK -> antaressDataManagerProperties.getLinkDirectory();
@@ -910,7 +911,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
                     antaressDataManagerProperties.getThermalModulationParameterDirectory();
             case STS ->
-                    Path.of(antaressDataManagerProperties.getStsDirectory()).resolve(area).resolve("clusters").toString();
+                findChildDirectoryIgnoreCase(Path.of(antaressDataManagerProperties.getNasDirectory())
+                        .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                        .resolve(antaressDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();

@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -33,7 +31,6 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class StStorageFileProcessorServiceImpl implements StStorageFileProcessorService {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
-    private final TrajectoryServiceImpl trajectoryService;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
 
@@ -94,20 +91,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
     }
 
-    private Path findChildDirectoryIgnoreCase(Path parent, String childName) throws IOException {
-        try (Stream<Path> s = Files.list(parent)) {
-            Optional<Path> dir = s.filter(Files::isDirectory)
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(childName))
-                    .findFirst();
 
-            if (dir.isPresent()) {
-                return dir.get();
-            } else {
-                throw new java.nio.file.NoSuchFileException("Directory not found (case-insensitive) under " + parent.toString()
-                        + " for '" + childName + "'");
-            }
-        }
-    }
 
 
     private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology) throws IOException {
@@ -189,7 +173,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
                 .resolve(antaressDataManagerProperties.getStsDirectory())
-                .resolve(technology)
+                .resolve(technology) //get technology from path
                 .resolve("series")
                 .resolve(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()))
                 .resolve(clusterName)
