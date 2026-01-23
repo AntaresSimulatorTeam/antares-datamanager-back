@@ -389,6 +389,7 @@ public class Utils {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
+            case  STS ->  computeSheetChecksum(path.toString(), horizon.split("-")[1]);
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
