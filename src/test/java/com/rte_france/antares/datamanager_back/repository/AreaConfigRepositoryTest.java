@@ -54,8 +54,9 @@ class AreaConfigRepositoryTest {
 
         AreaConfigEntity areaConfig = new AreaConfigEntity();
         areaConfig.setArea(area);
-        areaConfig.setPowerToGas(true);
-        areaConfig.setShortTermStorage(false);
+        areaConfig.setDistrict("district");
+        areaConfig.setSpilledEnergyCost(12.3);
+        areaConfig.setUnsuppliedEnergyCost(2.3);
         areaConfig.setTrajectory(trajectory);
         entityManager.persist(areaConfig);
 
@@ -72,7 +73,7 @@ class AreaConfigRepositoryTest {
         assertThat(result).isNotEmpty();
         assertThat(result.get(0)).hasSize(3);
         assertThat(result.get(0)[0]).isEqualTo("TestArea");
-        assertThat(result.get(0)[1]).isEqualTo(true);
-        assertThat(result.get(0)[2]).isEqualTo(false);
+        assertThat(result.get(0)[1]).isEqualTo(12.3);
+        assertThat(result.get(0)[2]).isEqualTo(2.3);
     }
 }

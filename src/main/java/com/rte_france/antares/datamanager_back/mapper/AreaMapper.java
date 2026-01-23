@@ -30,8 +30,8 @@ public class AreaMapper {
     public static AreaTrajectoryDataDTO toAreaTrajectoryDataDTO(Object[] row) {
         return AreaTrajectoryDataDTO.builder()
                 .areaName((String) row[0])
-                .powerToGas(String.valueOf(row[1]))
-                .shortTermStorage(String.valueOf(row[2]))
+                .unsuppliedEnergyCost(String.valueOf(row[1]))
+                .spilledEnergyCost(String.valueOf(row[2]))
                 .build();
     }
 

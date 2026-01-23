@@ -238,8 +238,8 @@ class TrajectoryControllerTest {
     void getTrajectoryDataByTypeAndId() throws Exception {
         AreaTrajectoryDataDTO trajectoryDataDTO = AreaTrajectoryDataDTO.builder()
                 .areaName("AT")
-                .powerToGas("true")
-                .shortTermStorage("false")
+                .unsuppliedEnergyCost("23.0")
+                .spilledEnergyCost("32.0")
                 .build();
 
         when(trajectoryServiceImpl.getTrajectoryDataByTypeAndId(TrajectoryType.AREA, 1))
@@ -251,8 +251,8 @@ class TrajectoryControllerTest {
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].areaName").value("AT"))
-                .andExpect(jsonPath("$[0].powerToGas").value("true"))
-                .andExpect(jsonPath("$[0].shortTermStorage").value("false"));
+                .andExpect(jsonPath("$[0].unsuppliedEnergyCost").value("23.0"))
+                .andExpect(jsonPath("$[0].spilledEnergyCost").value("32.0"));
     }
 
     @Test

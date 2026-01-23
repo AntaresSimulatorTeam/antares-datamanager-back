@@ -475,7 +475,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                     ? ThermalCategoryEnum.POWER
                     : ThermalCategoryEnum.NUMBER;
 
-            double value = capacityValue(row, i, horizon, trajectoryName);
+            double value = capacityValue(row, i, horizon, trajectoryName, category);
 
             // Ajout des valeurs au checksum
             checksum.append(rowArea).append("|")
@@ -523,17 +523,20 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return missingAreas;
     }
 
-    private static double capacityValue(Row row, int i, String horizon, String trajectoryFileName) {
+    private static double capacityValue(Row row, int i, String horizon, String trajectoryFileName, ThermalCategoryEnum category) {
         Cell cell = row.getCell(i);
         if (cell == null || cell.getCellType() == CellType.BLANK) {
             throw BusinessException.builder()
                     .message("Null value not allowed for column " + i + " in THERMAL Installed Power trajectory " + trajectoryFileName)
                     .build();
-        } else if (cell.getCellType() == CellType.NUMERIC) {
-            return cell.getNumericCellValue();
+        }
+
+        double value;
+        if (cell.getCellType() == CellType.NUMERIC) {
+            value = cell.getNumericCellValue();
         } else {
             try {
-                return Double.parseDouble(cell.getStringCellValue());
+                value = Double.parseDouble(cell.getStringCellValue());
             } catch (NumberFormatException e) {
                 throw BusinessException.builder()
                         .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory  {1} must be numeric")
@@ -541,6 +544,14 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                         .build();
             }
         }
+
+        if (category == ThermalCategoryEnum.NUMBER && value <= 0) {
+            throw BusinessException.builder()
+                    .message("NUMBER values do not be <= 0 in THERMAL Installed Power trajectory " + trajectoryFileName)
+                    .build();
+        }
+
+        return value;
     }
 
     /**
@@ -554,7 +565,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private void validateHorizonColumnsPresent(Row header, String horizon, boolean isCivilYear, Path path) {
         log.info("Vérification de la présence des colonnes pour l'horizon : {}", horizon);
         List<String> expectedColumns = getExpectedColumns(horizon, isCivilYear);
-        // Vérifie la présence de chaque colonne attendue via isCellInHorizon
+
         List<String> actualColumns = new ArrayList<>();
         for (int i = 6; i < header.getLastCellNum(); i++) {
             String colName = header.getCell(i).getStringCellValue();

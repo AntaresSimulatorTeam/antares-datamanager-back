@@ -7,7 +7,7 @@ import java.util.*;
 
 @Getter
 public enum ExcelFileType {
-    AREAS(8, AreaColumns.class),
+    AREAS(9, AreaColumns.class),
     LINKS(13, LinksColumns.class);
 
     private final int columnCount;
@@ -27,20 +27,6 @@ public enum ExcelFileType {
                 .toList();
     }
 
-    /**
-     * @param actualColumns columns name from excel files
-     * @return columns that do not match ColumnsName enums values
-     */
-    public List<String> checkColumnNames(List<String> actualColumns) {
-        List<String> normalizedActual = actualColumns.stream()
-                .map(ExcelFileType::normalizeColumnName)
-                .toList();
-
-        Set<String> missingColumns = new HashSet<>(columnNames);
-        normalizedActual.forEach(missingColumns::remove);
-
-        return new ArrayList<>(missingColumns);
-    }
     public static String normalizeColumnName(String columnName) {
         if (columnName == null) return null;
 

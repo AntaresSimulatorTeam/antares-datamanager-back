@@ -19,9 +19,13 @@ public class AreaConfigEntity {
     @SequenceGenerator(name = "area_config_seq_gen", sequenceName = "area_config_sequence", allocationSize = 1)
     private Integer id;
 
-    private Boolean powerToGas;
+    private String district;
 
-    private Boolean shortTermStorage;
+    @Column(name = "spilled_energy_cost", nullable = false)
+    private Double spilledEnergyCost;
+
+    @Column(name = "unsupplied_energy_cost", nullable = false)
+    private Double unsuppliedEnergyCost;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "area_id")
@@ -32,9 +36,10 @@ public class AreaConfigEntity {
     private TrajectoryEntity trajectory;
 
 
-    public AreaConfigEntity(Boolean powerToGas, Boolean shortTermStorage, AreaEntity areaEntity) {
-        this.powerToGas = powerToGas;
-        this.shortTermStorage = shortTermStorage;
+    public AreaConfigEntity(String district, Double spilledEnergyCost, Double unsuppliedEnergyCost, AreaEntity areaEntity) {
+        this.district = district;
+        this.spilledEnergyCost = spilledEnergyCost;
+        this.unsuppliedEnergyCost = unsuppliedEnergyCost;
         this.area = areaEntity;
     }
 

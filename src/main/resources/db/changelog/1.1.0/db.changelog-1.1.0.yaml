@@ -58,5 +58,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V26-add-STS-tables.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V27-add_fuel_column_to_thermal_cluster_capacity_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V28-alter_area_config_table_add_energy_columns.sql
 
 
