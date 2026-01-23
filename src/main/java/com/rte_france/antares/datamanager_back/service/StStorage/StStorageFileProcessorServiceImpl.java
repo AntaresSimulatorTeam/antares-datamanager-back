@@ -37,7 +37,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     @Transactional
     @Override
     public TrajectoryEntity processStStorageFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String areaParam, String technology) throws IOException {
-        final String horizonYear = horizon.split("-")[1];
         final String stsTrajectoryPrefix = "cluster_" + technology.toLowerCase() + "_";
         if (!trajectoryToUse.toLowerCase().startsWith(stsTrajectoryPrefix)) {
             throw BusinessException.builder().message(" {0} Trajectory name must start with : {1} ")
@@ -47,14 +46,14 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse, technology);
 
-        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizonYear, trajectoryFilePath, areaParam, technology);
+        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1], trajectoryFilePath, areaParam, technology);
         if (stStorageEntityList.isEmpty()) {
             throw BusinessException.builder()
-                    .message("No ST Storage data found in the file for horizon: " + horizonYear)
+                    .message("No ST Storage data found in the file for horizon: " + horizon)
                     .build();
         }
 
-        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizonYear, areaParam, technology);
+        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology);
 
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
