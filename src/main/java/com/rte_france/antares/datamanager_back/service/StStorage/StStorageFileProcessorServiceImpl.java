@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -31,37 +31,67 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class StStorageFileProcessorServiceImpl implements StStorageFileProcessorService {
 
     private final AntaressDataManagerProperties antaressDataManagerProperties;
-    private final TrajectoryServiceImpl trajectoryService;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
 
     @Transactional
     @Override
     public TrajectoryEntity processStStorageFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String areaParam, String technology) throws IOException {
-        final String horizonYear = horizon.split("-")[1];
-        final String stsTrajectoryPrefix = "cluster_" + technology + "_";
-        if (!trajectoryToUse.startsWith(stsTrajectoryPrefix)) {
+        final String stsTrajectoryPrefix = "cluster_" + technology.toLowerCase() + "_";
+        if (!trajectoryToUse.toLowerCase().startsWith(stsTrajectoryPrefix)) {
             throw BusinessException.builder().message(" {0} Trajectory name must start with : {1} ")
                     .errorMessageArguments(List.of(trajectoryToUse, stsTrajectoryPrefix))
                     .build();
         }
 
-        Path trajectoryFilePath = trajectoryService.getTrajectoryFilePath(TrajectoryType.STS, trajectoryToUse, technology);
+        Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse, technology);
 
-        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizonYear, trajectoryFilePath, areaParam, technology);
+        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1], trajectoryFilePath, areaParam, technology);
         if (stStorageEntityList.isEmpty()) {
             throw BusinessException.builder()
-                    .message("No ST Storage data found in the file for horizon: " + horizonYear)
+                    .message("No ST Storage data found in the file for horizon: " + horizon)
                     .build();
         }
 
-        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizonYear, areaParam, technology);
+        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology);
 
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
-        trajectoryEntity.setStStorageEntities(stStorageEntityList);/**/
+        trajectoryEntity.setStStorageEntities(stStorageEntityList);
         trajectoryEntity.setHorizon(horizon);
         return trajectoryRepository.save(trajectoryEntity);
     }
+
+    private Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
+        Path root = Path.of(antaressDataManagerProperties.getNasDirectory())
+                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaressDataManagerProperties.getStsDirectory());
+
+        if (!Files.exists(root) || !Files.isDirectory(root)) {
+            throw new NoSuchFileException("STS root not found: " + root);
+        }
+
+        Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("clusters");
+
+        try (java.util.stream.Stream<Path> s = Files.list(techDir)) {
+            java.util.Optional<Path> file = s.filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String fn = p.getFileName().toString();
+                        String target = trajectoryFileName;
+                        return fn.equalsIgnoreCase(target) || fn.toLowerCase(Locale.ROOT).contains(target.toLowerCase(Locale.ROOT));
+                    })
+                    .findFirst();
+
+            if (file.isPresent()) {
+                return file.get();
+            } else {
+                throw new NoSuchFileException("Trajectory file not found in " + techDir.toString() +
+                        " for '" + trajectoryFileName + "'");
+            }
+        }
+    }
+
+
+
 
     private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology) throws IOException {
 
@@ -142,7 +172,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
                 .resolve(antaressDataManagerProperties.getStsDirectory())
-                .resolve(technology)
+                .resolve(technology) //get technology from path
                 .resolve("series")
                 .resolve(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()))
                 .resolve(clusterName)

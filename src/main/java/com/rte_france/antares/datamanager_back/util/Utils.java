@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -387,6 +389,7 @@ public class Utils {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
+            case  STS ->  computeSheetChecksum(path.toString(), horizon.split("-")[1]);
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
@@ -617,6 +620,20 @@ public class Utils {
             return files
                     .filter(p -> p.getFileName().toString().equals(target.getFileName().toString()))
                     .findFirst();
+        }
+    }
+
+    public static Path findChildDirectoryIgnoreCase(Path parent, String childName) throws IOException {
+        try (Stream<Path> s = Files.list(parent)) {
+            Optional<Path> dir = s.filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase(childName))
+                    .findFirst();
+
+            if (dir.isPresent()) {
+                return dir.get();
+            } else {
+                throw new NoSuchFileException("Directory not found (case-insensitive) under " + parent.toString() + " for '" + childName + "'");
+            }
         }
     }
 }
