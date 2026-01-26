@@ -107,7 +107,11 @@ class StudyGeneratorServiceImplTest {
 
         // Create AreaEntity and AreaConfigEntity
         AreaEntity areaEntity = AreaEntity.builder().name("DE").build();
-        AreaConfigEntity areaConfigEntity = AreaConfigEntity.builder().area(areaEntity).build();
+        AreaConfigEntity areaConfigEntity = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(1000.0)
+                .spilledEnergyCost(0.0)
+                .build();
 
         // Create TrajectoryEntity for areas
         TrajectoryEntity trajectoryEntityAreas = TrajectoryEntity.builder().type("AREA").areaConfigEntities(Collections.singletonList(areaConfigEntity)).build();
@@ -162,6 +166,11 @@ class StudyGeneratorServiceImplTest {
         });
         assertNotNull(areasMap);
         assertTrue(areasMap.containsKey("DE"));
+
+        Map<String, Object> deArea = objectMapper.convertValue(areasMap.get("DE"), new TypeReference<>() {});
+        Map<String, Object> properties = objectMapper.convertValue(deArea.get("properties"), new TypeReference<>() {});
+        assertEquals("1000.0", properties.get("energy_cost_unsupplied"));
+        assertEquals("0.0", properties.get("energy_cost_spilled"));
 
         Map<String, Object> linksMap = objectMapper.convertValue(studyMap.get("links"), new TypeReference<>() {
         });
@@ -352,7 +361,11 @@ class StudyGeneratorServiceImplTest {
     void buildJsonForStudyGeneration_shouldIncludeThermalsInAreas() throws Exception {
         // Given
         var areaEntity = AreaEntity.builder().name("FR").build();
-        var areaConfig = AreaConfigEntity.builder().area(areaEntity).build();
+        var areaConfig = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
         var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
 
         var study = StudyEntity.builder().id(1).name("studyTest").trajectories(Set.of(areaTrajectory)).build();
@@ -401,7 +414,11 @@ class StudyGeneratorServiceImplTest {
     void buildJsonForStudyGeneration_shouldIncludeThermalsDataCorrectly() throws Exception {
         // Given
         var areaEntity = AreaEntity.builder().name("FR").build();
-        var areaConfig = AreaConfigEntity.builder().area(areaEntity).build();
+        var areaConfig = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
         var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
 
         var study = StudyEntity.builder().id(1).name("studyTest").trajectories(Set.of(areaTrajectory)).build();
