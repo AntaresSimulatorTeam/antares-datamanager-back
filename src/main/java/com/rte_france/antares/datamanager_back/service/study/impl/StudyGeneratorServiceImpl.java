@@ -195,7 +195,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
 
         List<AreaDTO> areaDTOs = trajectory.getAreaConfigEntities().stream()
-                .map(AreaConfigEntity::getArea)
                 .map(AreaMapper::toAreaDto)
                 .toList();
 
@@ -209,6 +208,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
                         areaDTO -> areasMapGenerator(
+                                areaDTO,
                                 listArrowLoadFilesByArea.get(areaDTO.getName()),
                                 getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName())
                         )
@@ -258,12 +258,16 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps) {
+    private static Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps) {
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
         areaMap.put("ui", "AreaUI class as JSON");
-        areaMap.put(PROPERTIES, "AreaProperties as JSON");
+
+        Map<String, Object> areaProperties = new HashMap<>();
+        areaProperties.put("energy_cost_unsupplied", areaDTO.getUnsuppliedEnergyCost());
+        areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
+        areaMap.put(PROPERTIES, areaProperties);
 
         Map<String, Object> hydroMap = new HashMap<>();
         hydroMap.put(PROPERTIES, "HydroProperties as JSON");
