@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 
@@ -143,7 +144,7 @@ public class Utils {
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .area(area)
-                .technology(technology)
+                .technology(StringUtils.lowerCase(technology, Locale.ROOT))
                 .type(trajectoryType.name())
                 .build();
     }
