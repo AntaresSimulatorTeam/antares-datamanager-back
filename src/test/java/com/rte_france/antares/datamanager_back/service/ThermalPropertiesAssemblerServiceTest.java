@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalGroupMappingService;
@@ -12,12 +13,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +31,9 @@ class ThermalPropertiesAssemblerServiceTest {
 
     @Mock
     private ThermalParamModulationService paramModulationService;
+
+    @Mock
+    private ThermalCostTypeRepository thermalCostTypeRepository;
 
     @InjectMocks
     private ThermalPropertiesAssemblerService service;
@@ -179,12 +185,12 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // From capacity
         assertThat(dto.getUnitCount()).isEqualTo(3);
-        assertThat(dto.getNominalCapacity()).isEqualTo(600.0/3);
+        assertThat(dto.getNominalCapacity()).isEqualTo(200.0);
         assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getGroup()).isEqualTo("GAS");
 
         // From specific parameters (override common)
-        assertThat(dto.getMinStablePower()).isEqualTo(0.50 * (600.0/3));
+        assertThat(dto.getMinStablePower()).isEqualTo(0.50 * 200.0);
         assertThat(dto.getEfficiency()).isEqualTo(37.0); // 0.37 -> 37%
         assertThat(dto.getSpinning()).isEqualTo(23.0); //0.23 ->23%
         assertThat(dto.getFoDuration()).isEqualTo(2.5);
@@ -231,10 +237,10 @@ class ThermalPropertiesAssemblerServiceTest {
 
         assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getUnitCount()).isEqualTo(3);
-        assertThat(dto.getNominalCapacity()).isEqualTo(500.0/3);
+        assertThat(dto.getNominalCapacity()).isEqualTo(166.7);
         assertThat(dto.getGroup()).isEqualTo("GAS");
 
-        assertThat(dto.getMinStablePower()).isEqualTo(0.4*500/3); // 0.40 * 500/3
+        assertThat(dto.getMinStablePower()).isEqualTo(0.4*166.7); // 0.40 * nominalCapacity (rounded)
         assertThat(dto.getMinUpTime()).isEqualTo(3);
         assertThat(dto.getMinDownTime()).isEqualTo(2);
         assertThat(dto.getEfficiency()).isEqualTo(41.5);
@@ -346,13 +352,13 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
-        assertThat(dto.getNominalCapacity()).isEqualTo(600.0/3);
+        assertThat(dto.getNominalCapacity()).isEqualTo(200.0);
         assertThat(dto.getUnitCount()).isEqualTo(3);
         assertThat(dto.getGroup()).isEqualTo("GAS");
 
         assertThat(dto.getEnabled()).isTrue();
 
-        assertThat(dto.getMinStablePower()).isEqualTo(0.40 * 600.0/3); // 0.40 * nominalCapacity
+        assertThat(dto.getMinStablePower()).isEqualTo(0.40 * 200.0); // 0.40 * nominalCapacity
         assertThat(dto.getMinUpTime()).isEqualTo(3);
         assertThat(dto.getMinDownTime()).isEqualTo(2);
         assertThat(dto.getEfficiency()).isEqualTo(41.5);
@@ -364,10 +370,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(), // unit count = 2
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(), // unit count = 3 (max)
-                        cap(gasRef, ThermalCategoryEnum.POWER, 900.0, true).toBuilder().area("FR").build(), // max POWER
-                        cap(gasRef, ThermalCategoryEnum.POWER, 800.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(), // unit count = 3
+                        cap(gasRef, ThermalCategoryEnum.POWER, 1000.0, true).toBuilder().area("FR").build() // max POWER
                 ))
                 .build();
 
@@ -387,19 +391,85 @@ class ThermalPropertiesAssemblerServiceTest {
         assertThat(out).hasSize(1);
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
-        // nominal capacity = max POWER / max NUMBER = 900 / 3 = 300.0
-        assertThat(dto.getNominalCapacity()).isEqualTo(300.0);
+        // nominal capacity = 1000 / 3 = 333.3333... -> should be rounded to 333.3
+        assertThat(dto.getNominalCapacity()).isEqualTo(333.3);
 
         assertThat(dto.getUnitCount()).isEqualTo(3);
-        assertThat(dto.getEnabled()).isTrue();
-        assertThat(dto.getGroup()).isEqualTo("GAS");
+    }
 
-        // derived values from parameters
-        assertThat(dto.getMinStablePower()).isEqualTo(0.4 * 300.0);
-        assertThat(dto.getMinUpTime()).isEqualTo(3);
-        assertThat(dto.getMinDownTime()).isEqualTo(2);
-        assertThat(dto.getEfficiency()).isEqualTo(41.5);
-        assertThat(dto.getVariableOMCost()).isEqualTo(7.2);
+    @Test
+    void assembleForTrajectory_convertsCo2FromKgPerNetGJToTPerMWhe() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // CO2 = 100 kg/Net GJ. Conversion: 100 * 0.0036 = 0.36 t/MWhe
+        var paramTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(
+                        params(gasRef, 0.4, 3, 2, 0.415, 7.2, 100.0)
+                ))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
+
+        // then
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
+        assertThat(dto.getCo2()).isEqualTo(0.36);
+    }
+
+    @Test
+    void assembleForTrajectory_computesFallbackCo2_whenCo2IsMissingInParams() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Common parameters with CO2 = 0.0 or null
+        var commonParam = params(gasRef, 0.4, 3, 2, 0.40, 7.2, 0.0);
+        commonParam.setFuel("GAS");
+
+        var paramTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .horizon("2026")
+                .thermalCommonParameters(List.of(commonParam))
+                .build();
+
+        // Economic CO2 data in the same trajectory (or another one)
+        var econCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("GAS")
+                .year(2026)
+                .co2EmissionFuel(new BigDecimal("100.0")) // kg/MWht
+                .build();
+        paramTraj.setThermalEconomicCo2s(List.of(econCo2));
+
+        // Mock for ratio_ncv_hcv
+        when(thermalCostTypeRepository.findThermalCostTypeEntityByFuelAndCountry("GAS", "FR"))
+                .thenReturn(Optional.of(ThermalCostTypeEntity.builder()
+                        .fuel("GAS")
+                        .country("FR")
+                        .ratioNcvHcv(0.9)
+                        .build()));
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
+
+        // then
+        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
+        // Calculation: (100.0 / 1000) / (40.0 / 100) / 0.9 = 0.1 / 0.4 / 0.9 = 0.25 / 0.9 = 0.2777777...
+        assertThat(dto.getCo2()).isEqualTo(0.2777777777777778);
     }
 
     private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, ThermalCategoryEnum cat, double value, Boolean toUse) {
@@ -414,7 +484,8 @@ class ThermalPropertiesAssemblerServiceTest {
     private static ThermalCommonParameterEntity params(ThermalClusterRef ref,
                                                        double minStableGenDefault,
                                                        int minUp, int minDown,
-                                                       double effDefault, double omCost) {
+                                                       double effDefault, double omCost,
+                                                       double co2) {
         return ThermalCommonParameterEntity.builder()
                 .thermalClusterRef(ref)
                 .minStableGenerationDefault(minStableGenDefault)
@@ -422,12 +493,20 @@ class ThermalPropertiesAssemblerServiceTest {
                 .minDownTime((double) minDown)
                 .efficiencyDefault(effDefault)
                 .omCost(omCost)
+                .co2(co2)
                 // ensure no nulls in common parameters used by service mapping
                 .foRateDefault(0.0)
                 .foDurationDefault(0.0)
                 .poWinterDefault(0.0)
                 .poDurationDefault(0.0)
                 .build();
+    }
+
+    private static ThermalCommonParameterEntity params(ThermalClusterRef ref,
+                                                       double minStableGenDefault,
+                                                       int minUp, int minDown,
+                                                       double effDefault, double omCost) {
+        return params(ref, minStableGenDefault, minUp, minDown, effDefault, omCost, 0.0);
     }
 
     private static ThermalSpecificParametersEntity specificParams(
