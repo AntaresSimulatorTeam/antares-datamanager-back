@@ -2,12 +2,14 @@ package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,8 @@ public class ThermalPropertiesAssemblerService {
     private final ThermalGroupMappingService thermalGroupMappingService;
 
     private final ThermalParamModulationService thermalParamModulationService;
+
+    private final ThermalCostTypeRepository thermalCostTypeRepository;
 
     public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
     }
@@ -74,7 +78,7 @@ public class ThermalPropertiesAssemblerService {
                     : commonsByRef.getOrDefault(clusterName, List.of());
             List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
 
-            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef);
+            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(areaClusterRefKey, thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
 
             // modulation param ts files ts
             List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
@@ -143,14 +147,16 @@ public class ThermalPropertiesAssemblerService {
     }
 
     private ThermalClusterGenerationDto computeClusterProperties(
+            AreaClusterRefKey areaClusterRefKey,
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
             List<ThermalCommonParameterEntity> thermalCommonParameters,
-            List<ThermalSpecificParametersEntity> thermalSpecificParameters
+            List<ThermalSpecificParametersEntity> thermalSpecificParameters,
+            List<TrajectoryEntity> commonTrajectories
     ) {
         ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder thermalClusterGenerationDtoBuilder = ThermalClusterGenerationDto.builder();
 
         buildFromClusterCapacity(thermalClusterCapacities, thermalClusterGenerationDtoBuilder);
-        buildFromCommonParameters(thermalCommonParameters, thermalClusterGenerationDtoBuilder);
+        buildFromCommonParameters(areaClusterRefKey, thermalCommonParameters, thermalClusterGenerationDtoBuilder, commonTrajectories);
         buildFromSpecificParameters(thermalSpecificParameters, thermalClusterGenerationDtoBuilder);
 
         return thermalClusterGenerationDtoBuilder.build();
@@ -178,6 +184,7 @@ public class ThermalPropertiesAssemblerService {
                 nominalCapacity = maxPower / unitCountOpt.getAsDouble();
             }
 
+            nominalCapacity = Math.round(nominalCapacity * 10.0) / 10.0;
             builder.nominalCapacity(nominalCapacity);
         }
         // enabled
@@ -202,7 +209,7 @@ public class ThermalPropertiesAssemblerService {
                 .ifPresent(builder::group);
     }
 
-    private void buildFromCommonParameters(List<ThermalCommonParameterEntity> thermalCommonParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {
+    private void buildFromCommonParameters(AreaClusterRefKey areaClusterRefKey, List<ThermalCommonParameterEntity> thermalCommonParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder, List<TrajectoryEntity> commonTrajectories) {
         // min_stable_power
         var nominalCapacity = builder.build().getNominalCapacity();
         if (nominalCapacity != null) {
@@ -235,6 +242,16 @@ public class ThermalPropertiesAssemblerService {
                 .mapToDouble(ThermalCommonParameterEntity::getOmCost)
                 .findFirst()
                 .ifPresent(builder::variableOMCost);
+        //CO2
+        thermalCommonParameters.stream()
+                .findFirst()
+                .ifPresent(thermalCommonParameterEntity -> {
+                    if (thermalCommonParameterEntity.getCo2() != null && thermalCommonParameterEntity.getCo2() != 0.0) {
+                        builder.co2(thermalCommonParameterEntity.getCo2() * 0.0036);
+                    } else {
+                        computeFallbackCo2(areaClusterRefKey, thermalCommonParameterEntity, builder, commonTrajectories);
+                    }
+                });
 
         //FO rate
         thermalCommonParameters.stream()
@@ -260,6 +277,45 @@ public class ThermalPropertiesAssemblerService {
                 .ifPresent(builder::poCommonDuration);
 
 
+    }
+
+    private void computeFallbackCo2(AreaClusterRefKey areaClusterRefKey, ThermalCommonParameterEntity commonParam, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder, List<TrajectoryEntity> commonTrajectories) {
+        String fuel = commonParam.getFuel();
+        if (fuel == null) return;
+
+        Double efficiency = builder.build().getEfficiency();
+        if (efficiency == null || efficiency == 0.0) return;
+
+        for (TrajectoryEntity trajectory : commonTrajectories) {
+            String horizon = trajectory.getHorizon();
+            if (horizon == null) continue;
+
+            Integer horizonYear;
+            try {
+                horizonYear = Integer.parseInt(horizon);
+            } catch (NumberFormatException e) {
+                continue;
+            }
+
+            Optional<ThermalEconomicCo2Entity> economicCo2Opt = Optional.ofNullable(trajectory.getThermalEconomicCo2s())
+                    .orElseGet(List::of).stream()
+                    .filter(e -> fuel.equals(e.getFuel()) && horizonYear.equals(e.getYear()))
+                    .findFirst();
+
+            if (economicCo2Opt.isPresent()) {
+                BigDecimal co2EmissionFuel = economicCo2Opt.get().getCo2EmissionFuel();
+                if (co2EmissionFuel != null) {
+                    Optional<ThermalCostTypeEntity> costTypeOpt = thermalCostTypeRepository.findThermalCostTypeEntityByFuelAndCountry(fuel, areaClusterRefKey.area());
+                    if (costTypeOpt.isPresent() && costTypeOpt.get().getRatioNcvHcv() != null && costTypeOpt.get().getRatioNcvHcv() != 0.0) {
+                        double ratioNcvHcv = costTypeOpt.get().getRatioNcvHcv();
+                        // Formula: (co2EmissionFuel / 1000) / (efficiency / 100) / ratioNcvHcv
+                        double co2Value = (co2EmissionFuel.doubleValue() / 1000.0) / (efficiency / 100.0) / ratioNcvHcv;
+                        builder.co2(co2Value);
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     private void buildFromSpecificParameters(List<ThermalSpecificParametersEntity> thermalSpecificParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {
