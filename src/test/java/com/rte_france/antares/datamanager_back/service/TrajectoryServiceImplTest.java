@@ -455,7 +455,7 @@ class TrajectoryServiceImplTest {
 
         List<TrajectoryDataDTO> result = trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.STS, 10);
         assertEquals(1, result.size());
-        assertTrue(result.getFirst().toString().contains("AT - Battery - Battery residential"));
+        assertTrue(result.getFirst().toString().contains("AT - battery - battery_residential"));
         assertTrue(result.getFirst().toString().contains("TRUE"));
     }
 
