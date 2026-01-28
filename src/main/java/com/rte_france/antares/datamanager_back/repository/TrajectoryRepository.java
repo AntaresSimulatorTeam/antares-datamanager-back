@@ -46,7 +46,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                   AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
                   AND (
                       (:technology IS NULL AND t.technology IS NULL)
-                      OR (:technology IS NOT NULL AND t.technology = :technology)
+                      OR (:technology IS NOT NULL AND LOWER(t.technology) = LOWER(:technology))
                   )
                   AND t.version = (
                       SELECT MAX(t1.version)
@@ -57,7 +57,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                         AND (:area IS NULL OR TRIM(:area) = '' OR t1.area = :area)
                         AND (
                             (:technology IS NULL AND t1.technology IS NULL)
-                            OR (:technology IS NOT NULL AND t1.technology = :technology)
+                            OR (:technology IS NOT NULL AND LOWER(t1.technology) = LOWER(:technology))
                         )
                   )
                 ORDER BY t.creationDate DESC

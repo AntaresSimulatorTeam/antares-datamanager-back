@@ -16,6 +16,12 @@ public class AreaDTO {
     @JsonProperty("areaName")
     String name;
 
+    @JsonProperty("energy_cost_unsupplied")
+    String unsuppliedEnergyCost;
+
+    @JsonProperty("energy_cost_spilled")
+    String spilledEnergyCost;
+
     @JsonProperty(value = "last_modified_date", access = JsonProperty.Access.WRITE_ONLY)
     LocalDateTime lastModifiedDate;
 }
