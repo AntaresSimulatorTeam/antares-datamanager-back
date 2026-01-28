@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import lombok.*;
 
-@Entity
+@Entity(name = "StStorage")
 @Table(name = "st_storage")
 @Getter
 @Setter
