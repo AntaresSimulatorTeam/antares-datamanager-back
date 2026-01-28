@@ -88,7 +88,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return null;
     }
 
-    private Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
+    public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
         Path root = Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(antaressDataManagerProperties.getTrajectoryFilePath()).resolve(antaressDataManagerProperties.getStsDirectory());
 
         if (!Files.exists(root) || !Files.isDirectory(root)) {
@@ -199,18 +199,17 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
                 results.add(stStorageEntity);
             }
-
-
-            if (!foundStudyArea) {
-                throw BusinessException.builder().message("None of the areas of trajectory AREA are present in STS trajectory " + trajectoryFileName).build();
-            }
-
             // The selected area must be present in the file's 'node' column, except when area equals OTHERS
             Set<String> fileAreas = results.stream().map(StStorageEntity::getArea).collect(Collectors.toSet());
             if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
                 throw BusinessException.builder()
                         .message("Selected area " + areaParam + " is not present in the 'node' column of STS trajectory " + trajectoryFileName)
                         .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            if (!foundStudyArea) {
+                throw BusinessException.builder()
+                        .message("None of the areas of trajectory AREA are present in STS trajectory " + trajectoryFileName)
                         .build();
             }
 
