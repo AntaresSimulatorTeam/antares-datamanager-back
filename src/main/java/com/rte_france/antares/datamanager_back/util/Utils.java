@@ -141,7 +141,7 @@ public class Utils {
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
                 .checksum(checksum)
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
-                .horizon(horizon)
+                .horizon(civilToChevalHorizon(horizon))
                 .area(area)
                 .technology(technology)
                 .type(trajectoryType.name())
@@ -389,7 +389,7 @@ public class Utils {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
-            case  STS ->  computeSheetChecksum(path.toString(), horizon.split("-")[1]);
+            case  STS ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
@@ -636,4 +636,15 @@ public class Utils {
             }
         }
     }
+
+    public static String civilToChevalHorizon(String horizon) {
+        if (horizon == null) return null;
+        String s = horizon.trim();
+        if (s.length() == 4 && s.chars().allMatch(Character::isDigit)) {
+            int year = Integer.parseInt(s);
+            return String.format("%04d-%s", year - 1, s);
+        }
+        return s;
+    }
+
 }
