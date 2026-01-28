@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class StStorageTrajectoryDataDTO implements TrajectoryDataDTO {
 
-    private String name;
+    private String cluster;
     private String series;
 }

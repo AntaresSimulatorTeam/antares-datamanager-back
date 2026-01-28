@@ -256,7 +256,7 @@ class TrajectoryControllerTest {
     @Test
     void getTrajectoryDataByTypeAndId_returnSTSTypeData() throws Exception {
         StStorageTrajectoryDataDTO trajectoryDataDTO = StStorageTrajectoryDataDTO.builder()
-                .name("AT - DSR - dsr_shifting")
+                .cluster("AT - DSR - dsr_shifting")
                 .series("TRUE")
                 .build();
 
@@ -268,7 +268,7 @@ class TrajectoryControllerTest {
                         .param("trajectoryId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("AT - DSR - dsr_shifting"))
+                .andExpect(jsonPath("$[0].cluster").value("AT - DSR - dsr_shifting"))
                 .andExpect(jsonPath("$[0].series").value("TRUE"));
     }
 
