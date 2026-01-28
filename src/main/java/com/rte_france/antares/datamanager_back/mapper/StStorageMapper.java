@@ -3,12 +3,8 @@ package com.rte_france.antares.datamanager_back.mapper;
 import com.rte_france.antares.datamanager_back.dto.StStorageTrajectoryDataDTO;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.NoArgsConstructor;
-import lombok.Value;
 
-@Value
-@Builder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class StStorageMapper {
     public static StStorageTrajectoryDataDTO toStStorageTrajectoryDataDTO(StStorageEntity stsStorageEntity) {
