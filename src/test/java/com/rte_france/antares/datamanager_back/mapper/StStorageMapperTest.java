@@ -22,7 +22,7 @@ class StStorageMapperTest {
 
         // Then
         assertNotNull(dto);
-        assertEquals("BE - battery - battery_4", dto.getName());
+        assertEquals("BE - battery - battery_4", dto.getCluster());
         assertEquals("TRUE", dto.getSeries());
     }
 
@@ -42,9 +42,9 @@ class StStorageMapperTest {
         // Then
         assertNotNull(dtoList);
         assertEquals(2, dtoList.size());
-        assertEquals("BE - battery - battery_4", dtoList.get(0).getName());
+        assertEquals("BE - battery - battery_4", dtoList.get(0).getCluster());
         assertEquals("TRUE", dtoList.get(0).getSeries());
-        assertEquals("AT - dsr - dsr_shifting", dtoList.get(1).getName());
+        assertEquals("AT - dsr - dsr_shifting", dtoList.get(1).getCluster());
         assertEquals("TRUE", dtoList.get(1).getSeries());
     }
 }

@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 public class StStorageMapper {
     public static StStorageTrajectoryDataDTO toStStorageTrajectoryDataDTO(StStorageEntity stsStorageEntity) {
         return StStorageTrajectoryDataDTO.builder()
-                .name(String.format("%s - %s - %s", stsStorageEntity.getArea().toUpperCase(), stsStorageEntity.getGroupe(), stsStorageEntity.getName()))
+                .cluster(String.format("%s - %s - %s", stsStorageEntity.getArea().toUpperCase(), stsStorageEntity.getGroupe(), stsStorageEntity.getName()))
                 .series(String.valueOf(stsStorageEntity.getSeries()).toUpperCase())
                 .build();
     }
