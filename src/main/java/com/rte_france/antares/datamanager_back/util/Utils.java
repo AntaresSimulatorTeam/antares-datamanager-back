@@ -638,22 +638,4 @@ public class Utils {
         }
     }
 
-    public static String toTitleCase(String value) {
-        if (value == null || value.isBlank()) {
-            return value;
-        }
-        value = value.trim();
-        return value.substring(0, 1).toUpperCase() + value.substring(1).toLowerCase();
-    }
-
-    public static String formatLabel(String input) {
-        if (input == null || input.isEmpty()) {
-            return input;
-        }
-        
-        String result = input.replace("_", " ").toLowerCase();
-        
-        return toTitleCase(result);
-    }
-
 }

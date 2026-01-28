@@ -58,6 +58,8 @@ class TrajectoryServiceImplTest {
     @Mock
     private LinkRepository linkRepository;
     @Mock
+    private StStorageRepository stStorageRepository;
+    @Mock
     private AreaFileProcessorService areaFileProcessorService;
     @Mock
     private LinkFileProcessorService linkFileProcessorService;
@@ -414,7 +416,6 @@ class TrajectoryServiceImplTest {
 
         when(areaConfigRepository.findAreaConfigByTrajectoryId(any())).thenReturn(Collections.singletonList(mockedAreaConfigData));
 
-
         List<TrajectoryDataDTO> result = trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.AREA, 1);
 
         assertNotNull(result);
@@ -430,12 +431,32 @@ class TrajectoryServiceImplTest {
         when(linkRepository.findLinkEntitiesByTrajectoryIdIs(any())).thenReturn(Collections.singletonList(mockLinkEntity));
 
 
-        List<TrajectoryDataDTO> result = trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.LINK, 1);
+        List<TrajectoryDataDTO> result = (List<TrajectoryDataDTO>) trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.LINK, 1);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.getFirst().toString().contains("DE-SU"));
 
+    }
+    
+    @Test
+    void getTrajectoryDataByTypeAndId_returnAreaDTOForSTSType() throws Exception {
+        TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
+        trajectoryEntity.setId(10);
+        StStorageEntity ststorageEntity = StStorageEntity.builder()
+                .area("AT")
+                .name("battery_residential")
+                .groupe("battery")
+                .series(true)
+                .trajectory(trajectoryEntity)
+                .build();
+
+        when(stStorageRepository.findStStorageEntitiesByTrajectoryId(10)).thenReturn(List.of(ststorageEntity));
+
+        List<TrajectoryDataDTO> result = trajectoryService.getTrajectoryDataByTypeAndId(TrajectoryType.STS, 10);
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().toString().contains("AT - Battery - Battery residential"));
+        assertTrue(result.getFirst().toString().contains("TRUE"));
     }
 
     @Test
