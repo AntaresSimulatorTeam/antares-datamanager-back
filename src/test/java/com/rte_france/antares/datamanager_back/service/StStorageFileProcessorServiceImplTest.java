@@ -19,6 +19,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
@@ -33,6 +34,8 @@ import java.util.Optional;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -114,7 +117,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("None of the areas of trajectory AREA are present in STS trajectory");
+                .hasMessageContaining("Selected area FR is not present in the 'node' column of STS trajectory cluster_battery_test.xlsx");
     }
 
     @Test
@@ -215,7 +218,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "OTHERS_AREA", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("None of the areas of trajectory AREA are present in STS trajectory");
+                .hasMessageContaining("Selected area OTHERS_AREA is not present in the 'node' column of STS trajectory cluster_battery_test.xlsx");
     }
 
     @Test
@@ -280,6 +283,129 @@ class StStorageFileProcessorServiceImplTest {
         assertThat(warningOpt.get().getIsAck()).isFalse();
     }
 
+    @Test
+    void shouldThrowWhenNoStudyAreaIsPresentInStsFile() throws Exception {
+        // GIVEN
+        String horizon = "2025";
+        String areaParam = "IT";
+        String technology = "battery";
+
+        // study has FR and DE
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(
+                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                            setName("FR");
+                        }},
+                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                            setName("DE");
+                        }}
+                ));
+
+        // Create a fake STS Excel file in temp
+        Path tempFile = Files.createTempFile("sts_test", ".xlsx");
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(horizon);
+
+            // Header
+            Row header = sheet.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage",
+                    "Efficiency_injection", "Efficiency_withdrawal", "Initial_level",
+                    "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            // Row with ONLY area IT (not in study)
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue("IT"); // Area
+            row.createCell(1).setCellValue("Cluster1");
+            row.createCell(2).setCellValue("Group1");
+            for (int i = 3; i <= 8; i++) {
+                row.createCell(i).setCellValue(1.0);
+            }
+            row.createCell(9).setCellValue(true);
+            row.createCell(10).setCellValue(true);
+            row.createCell(11).setCellValue(false);
+            row.createCell(12).setCellValue(false);
+
+            try (OutputStream os = Files.newOutputStream(tempFile)) {
+                workbook.write(os);
+            }
+        }
+
+        // Spy service to bypass file search
+        StStorageFileProcessorServiceImpl serviceSpy = Mockito.spy(service);
+
+        doReturn(tempFile)
+                .when(serviceSpy)
+                .findTrajectoryFileCaseInsensitive(anyString(), anyString());
+
+        // WHEN / THEN
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> serviceSpy.processStStorageFile(
+                        "cluster_battery_test.xlsx",
+                        "horizon-2025",
+                        1,
+                        false,
+                        areaParam,
+                        technology
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present"));
+    }
+    @Test
+    void shouldThrowWhenMissingColumnsInStsFile() throws Exception {
+        String horizon = "2025";
+        String areaParam = "FR";
+        String technology = "battery";
+
+        // studyAreas peu importe ici, on ne va jamais jusque-là
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of());
+
+        // Création d’un Excel avec header incomplet
+        Path tempFile = Files.createTempFile("sts_missing_columns", ".xlsx");
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(horizon);
+
+            Row header = sheet.createRow(0);
+
+            // On met volontairement QUE 3 colonnes au lieu des 13 attendues
+            header.createCell(0).setCellValue("Area");
+            header.createCell(1).setCellValue("Name");
+            header.createCell(2).setCellValue("Group");
+            // Toutes les autres colonnes manquent
+
+            try (OutputStream os = Files.newOutputStream(tempFile)) {
+                workbook.write(os);
+            }
+        }
+
+        // Spy pour bypass la recherche NAS
+        StStorageFileProcessorServiceImpl serviceSpy = Mockito.spy(service);
+        doReturn(tempFile)
+                .when(serviceSpy)
+                .findTrajectoryFileCaseInsensitive(anyString(), anyString());
+
+        // WHEN / THEN
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> serviceSpy.processStStorageFile(
+                        "cluster_battery_test.xlsx",
+                        "horizon-2025",
+                        1,
+                        false,
+                        areaParam,
+                        technology
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("Missing columns"));
+    }
 
 
 
