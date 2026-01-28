@@ -41,9 +41,6 @@ class TrajectoryControllerTest {
     @MockBean
     TrajectoryServiceImpl trajectoryServiceImpl;
 
-    @MockBean 
-    TrajectoryService trajectoryService;
-
     @BeforeEach
     public void setup() {
         this.mockMvc = MockMvcBuilders
@@ -259,11 +256,11 @@ class TrajectoryControllerTest {
     @Test
     void getTrajectoryDataByTypeAndId_returnSTSTypeData() throws Exception {
         StStorageTrajectoryDataDTO trajectoryDataDTO = StStorageTrajectoryDataDTO.builder()
-                .name("AT - DSR - Dsr shifting")
+                .name("AT - DSR - dsr_shifting")
                 .series("TRUE")
                 .build();
 
-        when(trajectoryServiceImpl.getTrajectoryDataByTypeAndId(TrajectoryType.AREA, 1))
+        when(trajectoryServiceImpl.getTrajectoryDataByTypeAndId(TrajectoryType.STS, 1))
                 .thenReturn(List.of(trajectoryDataDTO));
 
         this.mockMvc.perform(get("/v1/trajectory/trajectoryData")
@@ -271,7 +268,7 @@ class TrajectoryControllerTest {
                         .param("trajectoryId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("AT - DSR - Dsr shifting"))
+                .andExpect(jsonPath("$[0].name").value("AT - DSR - dsr_shifting"))
                 .andExpect(jsonPath("$[0].series").value("TRUE"));
     }
 
