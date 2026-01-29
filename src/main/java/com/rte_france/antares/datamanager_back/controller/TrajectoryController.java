@@ -125,7 +125,7 @@ public class TrajectoryController {
 
     @Operation(summary = "Get trajectory data")
     @GetMapping(value = "/trajectoryData")
-    public ResponseEntity<List<TrajectoryDataDTO>> findTrajectoriesByTypeFromFileSystem(
+    public ResponseEntity<List<TrajectoryDataDTO>> getTrajectoryDataByTypeAndId(
             @RequestParam("trajectoryType") TrajectoryType trajectoryType,
             @RequestParam(value = "trajectoryId") Integer trajectoryId) {
 

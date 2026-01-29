@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
+import com.rte_france.antares.datamanager_back.mapper.StStorageMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -86,6 +87,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final LoadRepository loadRepository;
 
+    private final StStorageRepository stStorageRepository;
+
     private final ThermalParamModulationService thermalParamModulationService;
 
     private final DefaultConfigServiceImpl defaultConfigService;
@@ -155,6 +158,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
                     .stream()
                     .map(LinkMapper::toLinkTrajectoryDataDTO)
+                    .collect(Collectors.toList());
+            
+            case STS -> stStorageRepository.findStStorageEntitiesByTrajectoryId(trajectoryId)
+                    .stream()
+                    .map(StStorageMapper::toStStorageTrajectoryDataDTO)
                     .collect(Collectors.toList());
 
             default -> throw TechnicalException.builder()
