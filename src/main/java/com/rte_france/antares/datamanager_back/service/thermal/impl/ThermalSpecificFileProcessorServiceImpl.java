@@ -159,6 +159,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         String clusterName = castString(getCellValue(row, 4));
         String clusterPemmdb = castString(getCellValue(row, 3));
         String areaName = castString(getCellValue(row, 0));
+        log.info("Processing THERMAL Specific Param row for area: {}, cluster: {}", areaName, clusterName);
         ThermalSpecificParametersEntity entity = ThermalSpecificParametersEntity.builder()
                 .thermalClusterRef(thermalClusterRef.findOrCreateThermalClusterRef(null, clusterName, clusterPemmdb))
                 .node(areaName)
