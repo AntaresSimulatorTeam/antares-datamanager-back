@@ -144,7 +144,7 @@ public class Utils {
                 .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(horizon)
                 .area(area)
-                .technology(StringUtils.lowerCase(technology, Locale.ROOT))
+                .technology(Optional.ofNullable(technology).map(t -> StringUtils.lowerCase(t, Locale.ROOT)).orElse(null))
                 .type(trajectoryType.name())
                 .build();
     }
