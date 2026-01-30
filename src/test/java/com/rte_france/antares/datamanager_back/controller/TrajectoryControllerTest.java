@@ -1,17 +1,15 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 
-import com.rte_france.antares.datamanager_back.dto.AreaTrajectoryDataDTO;
-import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.common.impl.DefaultConfigServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -235,7 +233,7 @@ class TrajectoryControllerTest {
     }
 
     @Test
-    void getTrajectoryDataByTypeAndId() throws Exception {
+    void getTrajectoryDataByTypeAndId_returnAreaTypeData() throws Exception {
         AreaTrajectoryDataDTO trajectoryDataDTO = AreaTrajectoryDataDTO.builder()
                 .areaName("AT")
                 .unsuppliedEnergyCost("23.0")
@@ -256,6 +254,25 @@ class TrajectoryControllerTest {
     }
 
     @Test
+    void getTrajectoryDataByTypeAndId_returnSTSTypeData() throws Exception {
+        StStorageTrajectoryDataDTO trajectoryDataDTO = StStorageTrajectoryDataDTO.builder()
+                .cluster("AT - DSR - dsr_shifting")
+                .series("TRUE")
+                .build();
+
+        when(trajectoryServiceImpl.getTrajectoryDataByTypeAndId(TrajectoryType.STS, 1))
+                .thenReturn(List.of(trajectoryDataDTO));
+
+        this.mockMvc.perform(get("/v1/trajectory/trajectoryData")
+                        .param("trajectoryType", "STS")
+                        .param("trajectoryId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].cluster").value("AT - DSR - dsr_shifting"))
+                .andExpect(jsonPath("$[0].series").value("TRUE"));
+    }
+
+    @Test
     void uploadTrajectoryLoad_returnsCreatedTrajectory() throws Exception {
         when(trajectoryServiceImpl.processLoadTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
 
@@ -269,7 +286,7 @@ class TrajectoryControllerTest {
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).processLoadTrajectory(any(), any(), any(), any());
+        Mockito.verify(trajectoryServiceImpl, Mockito.times(1)).processLoadTrajectory(any(), any(), any(), any());
     }
 
     @Test
@@ -330,7 +347,7 @@ class TrajectoryControllerTest {
                 .httpStatus(HttpStatus.CONFLICT)
                 .build())
                 .when(trajectoryServiceImpl)
-                .unlinkBatchTrajectoriesFromStudy(eq(studyId), eq(List.of(1, 2, 3)));
+                .unlinkBatchTrajectoriesFromStudy(Mockito.eq(studyId), Mockito.eq(List.of(1, 2, 3)));
 
         this.mockMvc.perform(post("/v1/trajectory/detach/batch")
                         .param("studyId", studyId.toString())
