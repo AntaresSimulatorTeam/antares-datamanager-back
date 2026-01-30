@@ -7,6 +7,5 @@ import java.util.Optional;
 
 public interface ThermalCostTypeRepository extends JpaRepository<ThermalCostTypeEntity, Integer> {
 
-    Optional<ThermalCostTypeEntity> findThermalCostTypeEntityByFuelAndCountry(String fuel, String country);
-
+    Optional<ThermalCostTypeEntity> findByFuelIgnoreCase(String fuel);
 }

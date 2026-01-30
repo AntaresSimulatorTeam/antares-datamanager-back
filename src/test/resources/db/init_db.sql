@@ -15,12 +15,12 @@ values (1, 'etude1', 'mouad', '2024-07-25 10:07:21.000000', 'IN_PROGRESS', '2030
 insert into public.thermal_cost_type(id, country, fuel,  comment, unit, modulation, ratio_ncv_hcv)
 values (1, 'Morocco', 'GAS','comment1', 'MWh', 'modulation1', 1.1),
        (2, 'Morocco', 'OIL','comment2', 'MWh', 'modulation2', 1.2),
-       (3, 'Morocco', 'OIL','comment3', 'MWh', 'modulation3', 1.3),
-       (4, 'europe', 'OIL', 'comment4', 'MWh', 'modulation4', 1.4),
-       (5, 'europe', 'GAS', 'comment5', 'MWh', 'modulation5', 1.5),
-       (6, 'FRANCE', 'GAS', 'comment6', 'MWh', 'modulation6', 1.6),
-       (7, 'FRANCE', 'GAS','comment7', 'MWh', 'modulation7', 1.7),
-       (8, 'SPAIN', 'GAS', 'comment8', 'MWh', 'modulation8', 1.8);
+       (3, 'Morocco', 'Hard Coal','comment3', 'MWh', 'modulation3', 1.3),
+       (4, 'europe', 'Lignite', 'comment4', 'MWh', 'modulation4', 1.4),
+       (5, 'europe', 'Nuclear', 'comment5', 'MWh', 'modulation5', 1.5),
+       (6, 'FRANCE', 'CO2', 'comment6', 'MWh', 'modulation6', 1.6),
+       (7, 'FRANCE', 'Mixed fuel','comment7', 'MWh', 'modulation7', 1.7),
+       (8, 'SPAIN', 'Other', 'comment8', 'MWh', 'modulation8', 1.8);
 
 
 insert into public.area(id, name, x, y, r, g, b)

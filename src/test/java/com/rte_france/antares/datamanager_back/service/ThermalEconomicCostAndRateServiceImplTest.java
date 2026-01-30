@@ -267,8 +267,8 @@ class ThermalEconomicCostAndRateServiceImplTest {
                 .build();
 
         when(thermalCostTypeRepository
-                .findThermalCostTypeEntityByFuelAndCountry("Gas", "FR"))
-                .thenReturn(Optional.empty());
+                .findByFuelIgnoreCase("Gas"))
+                .thenReturn(Optional.of(costType));
         when(thermalCostTypeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

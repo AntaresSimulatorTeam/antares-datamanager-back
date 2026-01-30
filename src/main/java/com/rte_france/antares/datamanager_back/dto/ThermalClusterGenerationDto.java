@@ -3,13 +3,17 @@ package com.rte_france.antares.datamanager_back.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 @Getter
 @Setter
@@ -24,10 +28,10 @@ public class ThermalClusterGenerationDto {
         public interface Data {}
         public interface ParamModulation {}
     }
+
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("enabled")
     private Boolean enabled;
-
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("unit_count")
