@@ -80,7 +80,7 @@ public class ThermalPropertiesAssemblerService {
                     : commonsByRef.getOrDefault(clusterName, List.of());
             List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
 
-            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(areaClusterRefKey, thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
+            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
 
             // modulation param ts files ts
             List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
@@ -149,7 +149,6 @@ public class ThermalPropertiesAssemblerService {
     }
 
     private ThermalClusterGenerationDto computeClusterProperties(
-            AreaClusterRefKey areaClusterRefKey,
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
             List<ThermalCommonParameterEntity> thermalCommonParameters,
             List<ThermalSpecificParametersEntity> thermalSpecificParameters,
