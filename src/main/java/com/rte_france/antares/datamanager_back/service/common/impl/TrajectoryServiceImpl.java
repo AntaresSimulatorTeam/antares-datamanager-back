@@ -299,7 +299,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
 
-        TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null);
+        TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null, null);
 
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
                 trajectory.getFileName(),

@@ -57,16 +57,18 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         if (stStorageEntityList.isEmpty()) {
             throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
         }
+        
+        boolean hasSeries = stStorageEntityList.stream()
+                .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
+        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, hasSeries);
 
-        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology);
-
-
+        
         WarningMessageEntity warningMessageEntity = buildWarningMessageIfAreaStudyIsMissing(studyId, areaParam, stStorageEntityList, studyAreas, trajectoryFilePath, trajectoryEntity);
-
 
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
-        trajectoryEntity.setHorizon(horizon);
+        //trajectoryEntity.setHorizon(horizon);
+        //trajectoryEntity.setHasTS(hasSeries);
         if (warningMessageEntity != null) {
             trajectoryEntity.setWarningMessages(Set.of(warningMessageEntity));
         }
@@ -113,7 +115,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
 
-    private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology) throws IOException {
+    private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology, Boolean hasSeries) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()), TrajectoryType.STS.name(), horizon, areaParam, technology);
@@ -121,10 +123,10 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         TrajectoryEntity trajectory;
         if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon.split("-")[1], createdBy, TrajectoryType.STS, areaParam, technology);
+            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon.split("-")[1], createdBy, TrajectoryType.STS, areaParam, technology, hasSeries);
         } else {
             // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon.split("-")[1], createdBy, TrajectoryType.STS, areaParam, technology);
+            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon.split("-")[1], createdBy, TrajectoryType.STS, areaParam, technology, hasSeries);
         }
 
         return trajectory;

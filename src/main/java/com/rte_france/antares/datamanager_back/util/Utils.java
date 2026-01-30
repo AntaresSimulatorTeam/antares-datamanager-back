@@ -132,7 +132,7 @@ public class Utils {
      * @throws IOException if an I/O error occurs
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
-            createdBy, TrajectoryType trajectoryType, String area, String technology) throws IOException {
+            createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
         String checksum = computeChecksumByType(path, trajectoryType, horizon);
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
@@ -146,6 +146,7 @@ public class Utils {
                 .area(area)
                 .technology(Optional.ofNullable(technology).map(t -> StringUtils.lowerCase(t, Locale.ROOT)).orElse(null))
                 .type(trajectoryType.name())
+                .hasTimeSeries(Boolean.TRUE.equals(hasSeries))
                 .build();
     }
 

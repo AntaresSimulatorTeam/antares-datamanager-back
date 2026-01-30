@@ -90,10 +90,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         TrajectoryEntity trajectory;
         if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
+            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null, null);
         } else {
             // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null, null);
         }
         return saveThermalCommonTrajectory(trajectory, list, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
@@ -113,7 +113,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     @Override
     public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology), thermalClusterCapacityDto, type);
+        return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology, null), thermalClusterCapacityDto, type);
     }
 
     @Override
@@ -132,10 +132,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 throwAlreadyProcessedFileException(path);
             }
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(path, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+            trajectory = buildTrajectory(path, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
         } else {
             // No existing or different file -> new trajectory with version 1
-            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
         }
         trajectory.setChecksum(checksum);
         return thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(trajectory, thermalEconomicCosts, thermalEconomicRates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
