@@ -45,8 +45,14 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                   AND (:fileNameContains IS NULL OR t.fileName ILIKE CONCAT('%', CAST(:fileNameContains AS string), '%'))
                   AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
                   AND (
-                      (:technology IS NULL AND t.technology IS NULL)
-                      OR (:technology IS NOT NULL AND LOWER(t.technology) = LOWER(:technology))
+                      (
+                          (:technology IS NULL OR TRIM(:technology) = '')
+                          AND (t.technology IS NULL OR TRIM(t.technology) = '')
+                      )
+                      OR (
+                          TRIM(:technology) <> ''
+                          AND LOWER(t.technology) = LOWER(:technology)
+                      )
                   )
                   AND t.version = (
                       SELECT MAX(t1.version)
@@ -56,9 +62,15 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                         AND t1.horizon = :horizon
                         AND (:area IS NULL OR TRIM(:area) = '' OR t1.area = :area)
                         AND (
-                            (:technology IS NULL AND t1.technology IS NULL)
-                            OR (:technology IS NOT NULL AND LOWER(t1.technology) = LOWER(:technology))
-                        )
+                              (
+                                  (:technology IS NULL OR TRIM(:technology) = '')
+                                  AND (t.technology IS NULL OR TRIM(t.technology) = '')
+                              )
+                              OR (
+                                  TRIM(:technology) <> ''
+                                  AND LOWER(t.technology) = LOWER(:technology)
+                              )
+                          )
                   )
                 ORDER BY t.creationDate DESC
             """)
