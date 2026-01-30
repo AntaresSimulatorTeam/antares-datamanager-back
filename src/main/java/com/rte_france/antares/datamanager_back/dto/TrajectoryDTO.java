@@ -38,5 +38,8 @@ public class TrajectoryDTO {
 
     @JsonProperty("creationDate")
     LocalDateTime creationDate;
+    
+    @JsonProperty("hasTimeSeries")
+    Boolean hasTimeSeries;
 
 }

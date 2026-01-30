@@ -78,9 +78,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
         TrajectoryEntity trajectory;
         if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.LINK,null, null);
+            trajectory = buildTrajectory(path, trajectoryEntity.get().getVersion(), horizon, createdBy, TrajectoryType.LINK,null, null, null);
         } else {
-            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.LINK,null, null);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.LINK,null, null, null);
         }
 
         validateLinksAlphabeticalOrder(path, horizon, studyId, trajectory);

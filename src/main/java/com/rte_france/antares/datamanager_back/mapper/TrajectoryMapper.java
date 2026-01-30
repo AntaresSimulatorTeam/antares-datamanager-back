@@ -24,6 +24,7 @@ public class TrajectoryMapper {
                 .creationDate(entity.getCreationDate())
                 .area(entity.getArea())
                 .technology(entity.getTechnology())
+                .hasTimeSeries(entity.getHasTimeSeries())
                 .build();
     }
 
@@ -35,6 +36,7 @@ public class TrajectoryMapper {
         entity.setVersion(dto.getVersion());
         entity.setCreatedBy(dto.getCreatedBy());
         entity.setCreationDate(dto.getCreationDate());
+        entity.setHasTimeSeries(dto.getHasTimeSeries());
         return entity;
     }
 
