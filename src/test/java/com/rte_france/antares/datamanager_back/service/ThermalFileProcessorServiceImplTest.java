@@ -532,7 +532,7 @@ class ThermalFileProcessorServiceImplTest {
         assertEquals(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(), saved.getType());
         assertSame(saved, e.getTrajectory(), "Entity should be linked to saved trajectory");
         assertEquals(result.getType(), saved.getType());
-        assertEquals(horizon, saved.getHorizon());
+        assertEquals("2024-2025", saved.getHorizon());
         assertEquals(file.getFileName().toString().replaceFirst("\\.xlsx$", ""), saved.getFileName());
     }
 
