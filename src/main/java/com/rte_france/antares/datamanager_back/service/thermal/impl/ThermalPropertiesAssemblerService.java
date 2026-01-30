@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,10 @@ public class ThermalPropertiesAssemblerService {
     private final ThermalGroupMappingService thermalGroupMappingService;
 
     private final ThermalParamModulationService thermalParamModulationService;
+
+    private final ThermalCostTypeRepository thermalCostTypeRepository;
+
+    private final ThermalCostAssembler thermalCostAssembler;
 
     public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
     }
@@ -48,7 +53,8 @@ public class ThermalPropertiesAssemblerService {
 
         var commonTrajectories = trajectories.stream()
                 .filter(Objects::nonNull)
-                .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+                .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType()))
+                || THERMAL_ECONOMIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
                 .toList();
         var specificTrajectories = trajectories.stream()
                 .filter(Objects::nonNull)
@@ -74,7 +80,7 @@ public class ThermalPropertiesAssemblerService {
                     : commonsByRef.getOrDefault(clusterName, List.of());
             List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
 
-            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef);
+            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
 
             // modulation param ts files ts
             List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
@@ -145,7 +151,8 @@ public class ThermalPropertiesAssemblerService {
     private ThermalClusterGenerationDto computeClusterProperties(
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
             List<ThermalCommonParameterEntity> thermalCommonParameters,
-            List<ThermalSpecificParametersEntity> thermalSpecificParameters
+            List<ThermalSpecificParametersEntity> thermalSpecificParameters,
+            List<TrajectoryEntity> commonTrajectories
     ) {
         ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder thermalClusterGenerationDtoBuilder = ThermalClusterGenerationDto.builder();
 
@@ -153,7 +160,38 @@ public class ThermalPropertiesAssemblerService {
         buildFromCommonParameters(thermalCommonParameters, thermalClusterGenerationDtoBuilder);
         buildFromSpecificParameters(thermalSpecificParameters, thermalClusterGenerationDtoBuilder);
 
-        return thermalClusterGenerationDtoBuilder.build();
+        ThermalCommonParameterEntity commonParam = thermalCommonParameters.stream().findFirst().orElse(null);
+        String fuel = commonParam != null ? commonParam.getFuel() : null;
+
+        if (fuel == null) {
+            fuel = thermalClusterCapacities.stream()
+                    .map(ThermalClusterCapacityEntity::getFuel)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        Double ratioNcvHcv = null;
+        if (fuel != null) {
+            ratioNcvHcv = thermalCostTypeRepository.findByFuelIgnoreCase(fuel).stream()
+                    .map(ThermalCostTypeEntity::getRatioNcvHcv)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        ThermalClusterGenerationDto dto = thermalClusterGenerationDtoBuilder.build();
+        thermalSpecificParameters.stream().findFirst().ifPresent(specificParam -> {
+            if (specificParam.getMarginalCost() != null) {
+                dto.setMarginalCost(specificParam.getMarginalCost());
+            }
+        });
+
+        thermalCostAssembler.computeCo2(dto, commonParam, fuel, commonTrajectories, ratioNcvHcv);
+        thermalCostAssembler.computeStartupCost(dto, commonParam, fuel, thermalSpecificParameters, thermalClusterCapacities, commonTrajectories);
+        thermalCostAssembler.computeMarketBidCost(dto, commonParam, thermalSpecificParameters);
+
+        return dto;
     }
 
 
@@ -178,6 +216,7 @@ public class ThermalPropertiesAssemblerService {
                 nominalCapacity = maxPower / unitCountOpt.getAsDouble();
             }
 
+            nominalCapacity = Math.round(nominalCapacity * 10.0) / 10.0;
             builder.nominalCapacity(nominalCapacity);
         }
         // enabled
@@ -209,7 +248,7 @@ public class ThermalPropertiesAssemblerService {
             thermalCommonParameters.stream()
                     .mapToDouble(ThermalCommonParameterEntity::getMinStableGenerationDefault)
                     .findFirst()
-                    .ifPresent(minStableGen -> builder.minStablePower(minStableGen * nominalCapacity));
+                    .ifPresent(minStableGen -> builder.minStablePower(round(minStableGen * nominalCapacity)));
         }
 
         // min_up_time
@@ -228,36 +267,38 @@ public class ThermalPropertiesAssemblerService {
         thermalCommonParameters.stream()
                 .mapToDouble(thermalCommonParam -> thermalCommonParam.getEfficiencyDefault() * 100) // convert to percentage
                 .findFirst()
-                .ifPresent(builder::efficiency);
+                .ifPresent(efficiency -> builder.efficiency(round(efficiency)));
 
         // variable_o_m_cost
         thermalCommonParameters.stream()
                 .mapToDouble(ThermalCommonParameterEntity::getOmCost)
                 .findFirst()
-                .ifPresent(builder::variableOMCost);
+                .ifPresent(omCost -> builder.variableOMCost(round(omCost)));
+
+
 
         //FO rate
         thermalCommonParameters.stream()
                 .mapToDouble(ThermalCommonParameterEntity::getFoRateDefault)
                 .findFirst()
-                .ifPresent(builder::foCommonRate);
+                .ifPresent(foRate -> builder.foCommonRate(round(foRate)));
 
         //FO duration
         thermalCommonParameters.stream()
                 .mapToDouble(ThermalCommonParameterEntity::getFoDurationDefault)
                 .findFirst()
-                .ifPresent(builder::foCommonDuration);
+                .ifPresent(foDuration -> builder.foCommonDuration(round(foDuration)));
 
         //PO rate
         thermalCommonParameters.stream()
                 .mapToDouble(ThermalCommonParameterEntity::getPoWinterDefault)
                 .findFirst()
-                .ifPresent(builder::poCommonRate);
+                .ifPresent(poRate -> builder.poCommonRate(round(poRate)));
         //PO duration
         thermalCommonParameters.stream()
                 .mapToDouble(ThermalCommonParameterEntity::getPoDurationDefault)
                 .findFirst()
-                .ifPresent(builder::poCommonDuration);
+                .ifPresent(poDuration -> builder.poCommonDuration(round(poDuration)));
 
 
     }
@@ -267,85 +308,89 @@ public class ThermalPropertiesAssemblerService {
         var nominalCapacity = builder.build().getNominalCapacity();
         if (nominalCapacity != null) {
             thermalSpecificParameters.stream()
-                    .mapToDouble(ThermalSpecificParametersEntity::getMinStableGeneration)
+                    .map(ThermalSpecificParametersEntity::getMinStableGeneration)
+                    .filter(Objects::nonNull)
                     .findFirst()
-                    .ifPresent(minStableGen -> builder.minStablePower(minStableGen * nominalCapacity));
+                    .ifPresent(minStableGen -> builder.minStablePower(round(minStableGen * nominalCapacity)));
         }
         //spinning
         thermalSpecificParameters.stream()
-                .map(thermalSpecificParam -> thermalSpecificParam.getSpinning() * 100)
+                .map(ThermalSpecificParametersEntity::getSpinning)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .ifPresent(builder::spinning);
+                .ifPresent(spinning -> builder.spinning(round(spinning * 100)));
         //efficiency
         thermalSpecificParameters.stream()
-                .mapToDouble(thermalSpecificParam -> thermalSpecificParam.getEfficiency() * 100)
+                .map(ThermalSpecificParametersEntity::getEfficiency)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .ifPresent(builder::efficiency);
+                .ifPresent(efficiency -> builder.efficiency(round(efficiency * 100)));
 
         //FO duration
         thermalSpecificParameters.stream()
-                .mapToDouble(ThermalSpecificParametersEntity::getFoDuration)
+                .map(ThermalSpecificParametersEntity::getFoDuration)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .ifPresent(builder::foDuration);
+                .ifPresent(foDuration -> builder.foDuration(round(foDuration)));
 
         //PO duration
         thermalSpecificParameters.stream()
-                .mapToDouble(ThermalSpecificParametersEntity::getPoDuration)
+                .map(ThermalSpecificParametersEntity::getPoDuration)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .ifPresent(builder::poDuration);
+                .ifPresent(poDuration -> builder.poDuration(round(poDuration)));
         //FO Monthly rate
         thermalSpecificParameters.stream()
                 .findFirst()
                 .ifPresent(param -> {
-                    List<Double> forcedOutageMonthly = List.of(
-                            param.getF1(),
-                            param.getF2(),
-                            param.getF3(),
-                            param.getF4(),
-                            param.getF5(),
-                            param.getF6(),
-                            param.getF7(),
-                            param.getF8(),
-                            param.getF9(),
-                            param.getF10(),
-                            param.getF11(),
-                            param.getF12()
-                    );
-                    builder.foMonthlyRate(forcedOutageMonthly);
+                    if (param.getF1() != null) {
+                        List<Double> forcedOutageMonthly = Arrays.asList(
+                                round(param.getF1()), round(param.getF2()), round(param.getF3()), round(param.getF4()),
+                                round(param.getF5()), round(param.getF6()), round(param.getF7()), round(param.getF8()),
+                                round(param.getF9()), round(param.getF10()), round(param.getF11()), round(param.getF12())
+                        );
+                        builder.foMonthlyRate(forcedOutageMonthly);
+                    }
                 });
 
         //PO Monthly rate
         thermalSpecificParameters.stream()
                 .findFirst()
                 .ifPresent(param -> {
-                    List<Double> plannedOutageMonthly = List.of(
-                            param.getP1(),
-                            param.getP2(),
-                            param.getP3(),
-                            param.getP4(),
-                            param.getP5(),
-                            param.getP6(),
-                            param.getP7(),
-                            param.getP8(),
-                            param.getP9(),
-                            param.getP10(),
-                            param.getP11(),
-                            param.getP12()
-                    );
-                    builder.poMonthlyRate(plannedOutageMonthly);
+                    if (param.getP1() != null) {
+                        List<Double> plannedOutageMonthly = Arrays.asList(
+                                round(param.getP1()), round(param.getP2()), round(param.getP3()), round(param.getP4()),
+                                round(param.getP5()), round(param.getP6()), round(param.getP7()), round(param.getP8()),
+                                round(param.getP9()), round(param.getP10()), round(param.getP11()), round(param.getP12())
+                        );
+                        builder.poMonthlyRate(plannedOutageMonthly);
+                    }
                 });
         //NPO_MAX_winter
-        thermalSpecificParameters.stream().mapToDouble(ThermalSpecificParametersEntity::getNpoMaxWinter)
+        thermalSpecificParameters.stream()
+                .map(ThermalSpecificParametersEntity::getNpoMaxWinter)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .ifPresent(builder::npoMaxWinter);
+                .ifPresent(npoMaxWinter -> builder.npoMaxWinter(round(npoMaxWinter.doubleValue())));
         //NPO_MAX_summer
-        thermalSpecificParameters.stream().mapToDouble(ThermalSpecificParametersEntity::getNpoMaxSummer)
+        thermalSpecificParameters.stream()
+                .map(ThermalSpecificParametersEntity::getNpoMaxSummer)
+                .filter(Objects::nonNull)
                 .findFirst()
-                .ifPresent(builder::npoMaxSummer);
+                .ifPresent(npoMaxSummer -> builder.npoMaxSummer(round(npoMaxSummer.doubleValue())));
         //nb_unit
-        thermalSpecificParameters.stream().mapToInt(ThermalSpecificParametersEntity::getNbUnit)
+        thermalSpecificParameters.stream()
+                .map(ThermalSpecificParametersEntity::getNbUnit)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .ifPresent(builder::nbUnit);
 
+    }
+
+    private Double round(Double value) {
+        if (value == null) {
+            return null;
+        }
+        return java.math.BigDecimal.valueOf(value).setScale(3, java.math.RoundingMode.HALF_UP).doubleValue();
     }
 }
