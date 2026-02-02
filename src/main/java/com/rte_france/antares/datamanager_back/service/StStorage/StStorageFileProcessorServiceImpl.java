@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.StStorage;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -116,7 +117,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology, Boolean hasSeries) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()), TrajectoryType.STS.name(), horizon, areaParam, technology);
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()), TrajectoryType.STS.name(), horizon, areaParam, technology);
 
         TrajectoryEntity trajectory;
         if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
@@ -140,78 +141,82 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 throw BusinessException.builder().errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString())).message("Horizon {0} does not exist in the STS trajectory {1}").build();
             }
 
-            String[] expectedColumns = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
-            checkMissingColumns(sheet, expectedColumns, trajectoryFileName);
-            boolean firstRow = true;
-            boolean foundStudyArea = false;
+                String[] expectedColumns = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+                checkMissingColumns(sheet, expectedColumns, trajectoryFileName);
+                boolean firstRow = true;
+                boolean foundStudyArea = false;
 
-            for (Row row : sheet) {
-                if (firstRow) {
-                    firstRow = false;
-                    continue;
-                } // skip header
-                if (isRowEmpty(row)) continue;
+                for (Row row : sheet) {
+                    if (firstRow) {
+                        firstRow = false;
+                        continue;
+                    } // skip header
+                    if (isRowEmpty(row)) continue;
 
-                StStorageEntity stStorageEntity = new StStorageEntity();
-                String rowArea = row.getCell(0).getStringCellValue();
-                String clusterName = row.getCell(1).getStringCellValue();
+                    StStorageEntity stStorageEntity = new StStorageEntity();
+                    String rowArea = row.getCell(0).getStringCellValue();
+                    String clusterName = row.getCell(1).getStringCellValue();
 
-                if (rowArea == null || rowArea.isEmpty() || Objects.requireNonNull(clusterName).isEmpty()) continue;
+                    if (rowArea == null || rowArea.isEmpty() || Objects.requireNonNull(clusterName).isEmpty()) continue;
 
-                if (!rowArea.equals(areaParam) && !areaParam.equals(OTHERS_AREA)) {
-                    continue;
-                }
-
-                // marquer si cette ligne correspond à une area de l'étude
-                if (studyAreas.contains(rowArea.toUpperCase())) {
-                    foundStudyArea = true;
-                }
-
-
-                Boolean series = getBooleanCell(row, 11);
-                Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea, technology, clusterName);
-
-                if (isTsFileMissing(series, stsTs)) {
-                    throw BusinessException.builder()
-                            .errorMessageArguments(List.of(trajectoryFileName))
-                            .message("Can not import : Missing TS for trajectory {0}")
-                            .build();
-                };
-                for (int idx = 3; idx <= 8; idx++) {
-                    Cell numericCell = row.getCell(idx);
-                    if (!isNumericCell(numericCell)) {
-                        throw BusinessException.builder().errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName)).message("Values for node {0} / cluster  {1} are not numeric in STS trajectory {2}").build();
+                    if (!rowArea.equalsIgnoreCase(areaParam) && !areaParam.equals(OTHERS_AREA)) {
+                        continue;
                     }
-                }
-                stStorageEntity.setArea(rowArea);
-                stStorageEntity.setName(clusterName);
-                stStorageEntity.setGroupe(row.getCell(2).getStringCellValue());
-                stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
-                stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
-                stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
-                stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
-                stStorageEntity.setEfficiencyWithdrawal((int) (row.getCell(7).getNumericCellValue()));
-                stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
-                stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 9));
-                stStorageEntity.setEnabled(getBooleanCell(row, 10));
-                stStorageEntity.setSeries(series);
-                stStorageEntity.setConstraintsFlag(getBooleanCell(row, 12));
 
-                results.add(stStorageEntity);
-            }
-            // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-            Set<String> fileAreas = results.stream().map(StStorageEntity::getArea).collect(Collectors.toSet());
-            if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
-                throw BusinessException.builder()
-                        .message("Selected area " + areaParam + " is not present in the 'node' column of STS trajectory " + trajectoryFileName)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-            if (!foundStudyArea) {
-                throw BusinessException.builder()
-                        .message("None of the areas of trajectory AREA are present in STS trajectory " + trajectoryFileName)
-                        .build();
-            }
+                    // marquer si cette ligne correspond à une area de l'étude
+                    if (studyAreas.contains(rowArea.toUpperCase())) {
+                        foundStudyArea = true;
+                    }
+
+
+                    Boolean series = getBooleanCell(row, 11);
+                    if(Boolean.TRUE.equals(series)) {
+                        Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea.toUpperCase(), technology, clusterName);
+
+                        if (isTsFileMissing(stsTs)) {
+                            throw BusinessException.builder()
+                                    .errorMessageArguments(List.of(trajectoryFileName))
+                                    .message("Can not import : Missing TS for trajectory {0}")
+                                    .build();
+                        }
+                        ;
+                    }
+                    for (int idx = 3; idx <= 8; idx++) {
+                        Cell numericCell = row.getCell(idx);
+                        if (!isNumericCell(numericCell)) {
+                            throw BusinessException.builder().errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName)).message("Values for node {0} / cluster  {1} are not numeric in STS trajectory {2}").build();
+                        }
+                    }
+                    stStorageEntity.setArea(rowArea);
+                    stStorageEntity.setName(clusterName);
+                    stStorageEntity.setGroupe(row.getCell(2).getStringCellValue());
+                    stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
+                    stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
+                    stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
+                    stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
+                    stStorageEntity.setEfficiencyWithdrawal((int) (row.getCell(7).getNumericCellValue()));
+                    stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
+                    stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 9));
+                    stStorageEntity.setEnabled(getBooleanCell(row, 10));
+                    stStorageEntity.setSeries(series);
+                    stStorageEntity.setConstraintsFlag(getBooleanCell(row, 12));
+
+                    results.add(stStorageEntity);
+                }
+                // The selected area must be present in the file's 'node' column, except when area equals OTHERS
+                Set<String> fileAreas = results.stream().map(StStorageEntity::getArea).map(String::toUpperCase).collect(Collectors.toSet());
+                if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
+                    throw BusinessException.builder()
+                            .message("Selected area " + areaParam + " is not present in the 'node' column of STS trajectory " + trajectoryFileName)
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                if (!foundStudyArea) {
+                    throw BusinessException.builder()
+                            .message("None of the areas of trajectory AREA are present in STS trajectory " + trajectoryFileName)
+                            .build();
+                }
+
 
         }
         return results;
@@ -247,14 +252,22 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
 
-    private Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) {
-        // \\STS\<techno>\series\<trajectoire>\<nom du cluster>\<area>\
-        return Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(antaressDataManagerProperties.getTrajectoryFilePath()).resolve(antaressDataManagerProperties.getStsDirectory()).resolve(technology) //get technology from path
-                .resolve("series").resolve(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name())).resolve(clusterName).resolve(areaParam).normalize();
+    private Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
+        // \\STS\<techno>\series\<trajectoire>\<nom du cluster>\<area>\*
+
+        Path root = Path.of(antaressDataManagerProperties.getNasDirectory())
+                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaressDataManagerProperties.getStsDirectory());
+
+        Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("series");
+
+        Path trajectoryDir = findChildDirectoryIgnoreCase(techDir, getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()));
+        Path clusterSeriesDir = findChildDirectoryIgnoreCase(trajectoryDir, clusterName);
+
+        return clusterSeriesDir.resolve(areaParam).normalize();
     }
 
-    private static boolean isTsFileMissing(Boolean series, Path stsTs) {
-        if (Boolean.TRUE.equals(series)) {
+    private static boolean isTsFileMissing(Path stsTs) {
             if (!Files.exists(stsTs) || !Files.isDirectory(stsTs)) {
                 log.warn("ST Storage series directory not found: {}", stsTs);
                 return true;
@@ -278,7 +291,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 log.warn("ST Storage series directory missing required files: {}", stsTs);
                 return true;
             }
-        }
         return false;
     }
 
