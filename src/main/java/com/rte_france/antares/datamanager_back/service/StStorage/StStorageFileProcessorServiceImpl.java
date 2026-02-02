@@ -58,17 +58,15 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
         }
         
-        boolean hasSeries = stStorageEntityList.stream()
+        boolean isSeriesTrue = stStorageEntityList.stream()
                 .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
-        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, hasSeries);
-
+                
+        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, isSeriesTrue);
         
         WarningMessageEntity warningMessageEntity = buildWarningMessageIfAreaStudyIsMissing(studyId, areaParam, stStorageEntityList, studyAreas, trajectoryFilePath, trajectoryEntity);
 
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
-        //trajectoryEntity.setHorizon(horizon);
-        //trajectoryEntity.setHasTS(hasSeries);
         if (warningMessageEntity != null) {
             trajectoryEntity.setWarningMessages(Set.of(warningMessageEntity));
         }
