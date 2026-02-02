@@ -537,6 +537,22 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
+    void processThermalCommonParameterFile_whenTrajectoryExistsAndVersionIsValidWithOtherArea(@TempDir Path tempDir) throws Exception {
+        var horizon = "2024-2025";
+        var tempFile = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile(horizon));
+        TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        
+        ThermalCommonParameterEntity e = new ThermalCommonParameterEntity();
+        thermalFileProcessorService.processThermalCommonParameterFile(tempFile, horizon, List.of(e), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+
+        verify(trajectoryRepository, times(1)).save(any());
+    }
+
+    @Test
     void processThermalCommonParameterFile_shouldPropagateRepositoryException(@TempDir Path tempDir) throws Exception {
         String horizon = "2025";
         Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile(horizon));
