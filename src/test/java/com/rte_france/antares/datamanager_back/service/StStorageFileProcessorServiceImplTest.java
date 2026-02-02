@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
@@ -140,12 +141,38 @@ class StStorageFileProcessorServiceImplTest {
 
         assertThat(trajectory).isNotNull();
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        assertThat(trajectory.getHasTimeSeries()).isFalse();
 
         StStorageEntity entity = trajectory.getStStorageEntities().get(0);
         assertThat(entity.getArea()).isEqualTo("FR");
         assertThat(entity.getName()).isEqualTo("cluster1");
         assertThat(entity.getInjection()).isEqualByComparingTo(BigDecimal.valueOf(10));
         assertThat(entity.getSeries()).isFalse();
+    }
+
+    @Test
+    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws IOException {
+        Path xlsx = createValidWorkbook("2030", false);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        // stubs for repository/user
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        var trajectoryEntity = mock(TrajectoryEntity.class);
+        trajectoryEntity.setType(TrajectoryType.STS.name());
+        trajectoryEntity.setFileName(xlsx.toString());
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(
+                "cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery"
+        );
+
+        assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getHasTimeSeries()).isFalse();
     }
 
     @Test
