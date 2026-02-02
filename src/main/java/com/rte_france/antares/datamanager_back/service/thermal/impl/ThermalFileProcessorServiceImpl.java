@@ -219,9 +219,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             for (Row row : sheet) {
                 if (row.getRowNum() == 0) continue;
 
-                String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
+                Cell cell = row.getCell(1);
+                String rowArea = cell == null ? null : cell.getStringCellValue().toUpperCase();
 
-                if (rowArea.isEmpty()) continue;
+                if (rowArea == null || rowArea.isEmpty()) continue;
                 String trajectoryName = path.getFileName().toString();
 
                 if (!area.equals(OTHERS_AREA)) {
