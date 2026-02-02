@@ -21,6 +21,7 @@ class TrajectoryMapperTest {
         entity.setVersion(1);
         entity.setCreatedBy("testUser");
         entity.setCreationDate(LocalDateTime.now());
+        entity.setHasTimeSeries(true);
 
         TrajectoryDTO dto = TrajectoryMapper.toTrajectoryDTO(entity);
 
@@ -30,6 +31,7 @@ class TrajectoryMapperTest {
         assertEquals(entity.getVersion(), dto.getVersion());
         assertEquals(entity.getCreatedBy(), dto.getCreatedBy());
         assertEquals(entity.getCreationDate(), dto.getCreationDate());
+        assertEquals(entity.getHasTimeSeries(), dto.getHasTimeSeries());
     }
 
     @Test
@@ -41,6 +43,7 @@ class TrajectoryMapperTest {
                 .version(1)
                 .createdBy("testUser")
                 .creationDate(LocalDateTime.now())
+                .hasTimeSeries(false)
                 .build();
 
         TrajectoryEntity entity = TrajectoryMapper.toTrajectoryEntity(dto);
@@ -51,6 +54,7 @@ class TrajectoryMapperTest {
         assertEquals(dto.getVersion(), entity.getVersion());
         assertEquals(dto.getCreatedBy(), entity.getCreatedBy());
         assertEquals(dto.getCreationDate(), entity.getCreationDate());
+        assertEquals(dto.getHasTimeSeries(), entity.getHasTimeSeries());
     }
 
     @Test
@@ -62,6 +66,7 @@ class TrajectoryMapperTest {
         entity1.setVersion(1);
         entity1.setCreatedBy("testUser1");
         entity1.setCreationDate(LocalDateTime.now());
+        entity1.setHasTimeSeries(false);
 
         TrajectoryEntity entity2 = new TrajectoryEntity();
         entity2.setId(2);
@@ -70,6 +75,7 @@ class TrajectoryMapperTest {
         entity2.setVersion(2);
         entity2.setCreatedBy("testUser2");
         entity2.setCreationDate(LocalDateTime.now());
+        entity2.setHasTimeSeries(true);
 
         List<TrajectoryEntity> entities = Arrays.asList(entity1, entity2);
 
@@ -82,11 +88,13 @@ class TrajectoryMapperTest {
         assertEquals(entity1.getVersion(), dtos.get(0).getVersion());
         assertEquals(entity1.getCreatedBy(), dtos.get(0).getCreatedBy());
         assertEquals(entity1.getCreationDate(), dtos.get(0).getCreationDate());
+        assertEquals(entity1.getHasTimeSeries(), dtos.get(0).getHasTimeSeries());
         assertEquals(entity2.getId(), dtos.get(1).getId());
         assertEquals(entity2.getFileName(), dtos.get(1).getFileName());
         assertEquals(entity2.getType(), dtos.get(1).getType());
         assertEquals(entity2.getVersion(), dtos.get(1).getVersion());
         assertEquals(entity2.getCreatedBy(), dtos.get(1).getCreatedBy());
         assertEquals(entity2.getCreationDate(), dtos.get(1).getCreationDate());
+        assertEquals(entity2.getHasTimeSeries(), dtos.get(1).getHasTimeSeries());
     }
 }
