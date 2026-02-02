@@ -90,7 +90,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
                 .thenReturn(params);
 
         // No existing trajectory
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(Optional.empty());
 
         // Save returns the trajectory passed in
@@ -144,7 +144,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
                 .thenReturn(List.of(param("FR")));
 
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(Optional.empty());
 
         when(studyRepository.findById(5)).thenReturn(Optional.of(StudyEntity.builder().id(5).build()));
@@ -187,7 +187,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
                 .lastModificationContentDate(LocalDateTime.now().minusDays(1))
                 .build();
 
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(Optional.of(existing));
 
         when(studyRepository.findById(2)).thenReturn(Optional.of(StudyEntity.builder().id(2).build()));
@@ -222,7 +222,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
                 .thenReturn(List.of(param("FR")));
 
         // No existing trajectory
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(Optional.empty());
 
         // When / Then

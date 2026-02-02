@@ -301,7 +301,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null, null);
 
-        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 trajectory.getFileName(),
                 TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(),
                 horizon,
