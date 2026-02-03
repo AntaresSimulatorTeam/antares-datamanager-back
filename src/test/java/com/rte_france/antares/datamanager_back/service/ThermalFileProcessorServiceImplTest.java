@@ -238,7 +238,7 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void buildThermalClusterCapacityValuesList_shouldNotThrow_whenAllExpectedHorizonColumnsPresent_forChevalYear(@TempDir Path tempDir) throws Exception {
+    void buildThermalClusterCapacityValuesList_shouldNotThrow_whenAllExpectedHorizonColumnsPresent_forOverlapYear(@TempDir Path tempDir) throws Exception {
         // Arrange
         String horizon = "2025-2026";
         boolean isCivilYear = false;
