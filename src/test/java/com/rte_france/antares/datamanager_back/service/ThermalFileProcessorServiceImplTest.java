@@ -537,19 +537,81 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalCommonParameterFile_whenTrajectoryExistsAndVersionIsValidWithOtherArea(@TempDir Path tempDir) throws Exception {
-        var horizon = "2024-2025";
-        var tempFile = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile(horizon));
-        TrajectoryEntity trajectoryEntity = mock(TrajectoryEntity.class);
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(),any(), any())).thenReturn(Optional.of(trajectoryEntity));
-        when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
-        
-        ThermalCommonParameterEntity e = new ThermalCommonParameterEntity();
-        thermalFileProcessorService.processThermalCommonParameterFile(tempFile, horizon, List.of(e), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
+    void processThermalCommonParameterFile_shouldBuildFromExistingVersion(@TempDir Path tempDir) throws Exception {
+        String horizon = "2025";
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> generateCommonParametersExcelFile(horizon));
 
-        verify(trajectoryRepository, times(1)).save(any());
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+
+        TrajectoryEntity existing = new TrajectoryEntity();
+        existing.setVersion(2);
+        existing.setFileName("thermal_common_parameters_test");
+        existing.setHorizon(horizon);
+        existing.setType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                eq("thermal_common_parameters_test"),
+                eq(horizon),
+                eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+        )).thenReturn(Optional.of(existing));
+
+        TrajectoryEntity built = new TrajectoryEntity();
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(
+                            anyString(),
+                            eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())))
+                    .thenReturn("thermal_common_parameters_test");
+
+            utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(file), eq(existing)))
+                    .thenReturn(true);
+
+            utilsMock.when(() -> Utils.buildTrajectory(
+                            eq(file),
+                            eq(existing.getVersion()),
+                            eq(horizon),
+                            eq("CF001"),
+                            eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER),
+                            isNull(),
+                            isNull(),
+                            isNull()
+                    ))
+                    .thenReturn(built);
+
+            ThermalCommonParameterEntity e = new ThermalCommonParameterEntity();
+
+            thermalFileProcessorService.processThermalCommonParameterFile(
+                    file,
+                    horizon,
+                    List.of(e),
+                    TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER
+            );
+
+            utilsMock.verify(() -> Utils.buildTrajectory(
+                    eq(file),
+                    eq(existing.getVersion()),
+                    eq(horizon),
+                    eq("CF001"),
+                    eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER),
+                    isNull(),
+                    isNull(),
+                    isNull()
+            ), times(1));
+
+            utilsMock.verify(() -> Utils.buildTrajectory(
+                    eq(file),
+                    eq(0),
+                    anyString(),
+                    anyString(),
+                    any(),
+                    any(),
+                    any(),
+                    any()
+            ), never());
+
+            verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+        }
     }
 
     @Test
