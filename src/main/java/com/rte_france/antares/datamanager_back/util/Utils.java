@@ -103,7 +103,7 @@ public class Utils {
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.txt")) {
             for (Path file : stream) {
-                String fileName = file.getFileName().toString();
+                String fileName = file.getFileName().toString().toLowerCase();
                 Matcher matcher = pattern.matcher(fileName);
                 if (matcher.matches()) {
                     String areaFromFile = matcher.group(1);
