@@ -25,6 +25,7 @@ import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +40,8 @@ import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpStatus;
+
 import static org.mockito.Mockito.*;
 
 class ThermalFileProcessorServiceImplTest {
@@ -232,6 +235,52 @@ class ThermalFileProcessorServiceImplTest {
             assertThrows(TechnicalException.class, () ->
                     thermalFileProcessorService.buildThermalClusterCapacityValuesList(mockPath, horizon, true, area, technology,1));
         }
+    }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldNotThrow_whenAllExpectedHorizonColumnsPresent_forChevalYear(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        String horizon = "2025-2026";
+        boolean isCivilYear = false;
+
+        Path file = tempDir.resolve("thermal_capacity_ok_columns.xlsx");
+        try (var wb = new XSSFWorkbook()) {
+            var sheet = wb.createSheet("ThermalClusterCapacity");
+            var header = sheet.createRow(0);
+
+            String[] baseHeaders = {"ToUse", "Area", "Fuel", "Technology", "Cluster", "Category"};
+            for (int i = 0; i < baseHeaders.length; i++) {
+                header.createCell(i).setCellValue(baseHeaders[i]);
+            }
+
+            // Toutes les colonnes attendues en année à cheval :
+            // 2025_07..2025_12 + 2026_01..2026_06
+            int col = baseHeaders.length;
+            for (int m = 7; m <= 12; m++) {
+                header.createCell(col++).setCellValue(String.format("%04d_%02d", 2025, m));
+            }
+            for (int m = 1; m <= 6; m++) {
+                header.createCell(col++).setCellValue(String.format("%04d_%02d", 2026, m));
+            }
+
+            // IMPORTANT : aucune ligne de données -> la boucle "for (Row row : sheet)" ne traite rien (rowNum==0 skip),
+            // ce qui évite d'avoir à construire des cellules et limite le test à la validation des colonnes.
+            try (var fos = new FileOutputStream(file.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        // Stubs minimaux
+        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(
+                AreaEntity.builder().id(1).name("FR").build()
+        ));
+
+        // Act + Assert
+        assertDoesNotThrow(() ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(
+                        file, horizon, isCivilYear, "FR", "CCGT", 1
+                )
+        );
     }
 
 
@@ -959,8 +1008,56 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
+    void processThermalEconomicCostsAndRatesFile_shouldThrowAlreadyProcessedFileException_whenSameChecksumAsLastVersion() throws IOException {
+        // Arrange
+        Path path = Paths.get("thermal_costs_rates_existing.xlsx");
+        String horizon = "2030";
+
+        List<ThermalCostTypeEntity> costs = Collections.emptyList();
+        List<ThermalCostsRateEntity> rates = Collections.emptyList();
+
+        String mockedChecksum = "SAME_CHECKSUM";
+
+        TrajectoryEntity existing = TrajectoryEntity.builder()
+                .fileName("thermal_costs_rates_existing")
+                .version(3)
+                .checksum(mockedChecksum)
+                .build();
+
+        try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+                    .thenReturn("thermal_costs_rates_existing");
+
+            utilsMock.when(() -> Utils.calculateThermalCostTrajectoryChecksum(eq(costs), eq(rates)))
+                    .thenReturn(mockedChecksum);
+
+            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                    eq("thermal_costs_rates_existing"),
+                    eq(horizon),
+                    eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+            )).thenReturn(Optional.of(existing));
+
+            // Act
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> thermalFileProcessorService.processThermalEconomicCostsAndRatesFile(
+                            path, horizon, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER
+                    )
+            );
+
+            // Assert
+            assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+            assertEquals("File already processed with same content {0}", ex.getMessage());
+            assertTrue(ex.getErrorMessageArguments().contains(path.getFileName().toString()));
+
+            verify(thermalEconomicCostAndRateService, never())
+                    .saveThermalEconomicCostAndRateTrajectory(any(), anyList(), anyList(), any());
+        }
+    }
+
+    @Test
     void getTechnologiesFromCostsAndCo2_shouldReturnDistinctTechnologies() {
-when(trajectoryRepository.findByTypeAndStudyId(any(),any())).thenReturn(List.of(TrajectoryEntity.builder()
+        when(trajectoryRepository.findByTypeAndStudyId(any(),any())).thenReturn(List.of(TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
                 .thermalEconomicCo2s(List.of(
                         ThermalEconomicCo2Entity.builder().fuel("CCGT").build(),
@@ -971,6 +1068,27 @@ when(trajectoryRepository.findByTypeAndStudyId(any(),any())).thenReturn(List.of(
         Set<String> result = thermalFileProcessorService.getTechnologiesFromCostsAndCo2(1);
         assertEquals(3, result.size());
 
+    }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldThrowTechnicalException_whenIOExceptionOccurs() {
+        // Arrange
+        Path mockPath = mock(Path.class);
+        String horizon = "2025";
+        Integer studyId = 1;
+
+        try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+            filesMock.when(() -> Files.newInputStream(mockPath))
+                    .thenThrow(new IOException("File read error"));
+
+            // Act + Assert
+            assertThrows(TechnicalException.class, () ->
+                    thermalFileProcessorService.buildThermalCommonParameterValuesList(mockPath, horizon, studyId)
+            );
+
+            // Optionnel : s'assurer qu'on n'essaie pas de contrôler des clusters si on n'a même pas pu lire le fichier
+            verifyNoInteractions(thermalControlesService);
+        }
     }
 
 }
