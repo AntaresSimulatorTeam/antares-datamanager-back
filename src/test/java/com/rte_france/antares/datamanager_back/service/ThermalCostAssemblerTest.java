@@ -1,7 +1,8 @@
-package com.rte_france.antares.datamanager_back.service.thermal.impl;
+package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalCostAssembler;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -36,12 +37,6 @@ class ThermalCostAssemblerTest {
         thermalCostAssembler.computeStartupCost(dto, commonParam, fuel, List.of(), List.of(), List.of(trajectory));
 
         // then
-        // If findFuelCost worked, marginalCost should not be null (it will be calculated because marginalCostValue is null initially)
-        // marginalCostValue = (fuelCost / (efficiency / 100.0)) + (co2Cost * co2) + omCost
-        // Since we don't have CO2 cost, it might still be null if co2Cost is null.
-        // Wait, let's look at the formula: if (fuelCost != null && co2Cost != null)
-
-        // Let's add CO2 cost too to be sure
         ThermalCostTypeEntity co2Type = new ThermalCostTypeEntity();
         co2Type.setFuel("CO2");
         ThermalCostEntity co2CostEntity = new ThermalCostEntity();

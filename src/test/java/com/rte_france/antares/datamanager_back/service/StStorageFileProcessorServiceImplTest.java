@@ -11,7 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
-import com.rte_france.antares.datamanager_back.service.StStorage.StStorageFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
