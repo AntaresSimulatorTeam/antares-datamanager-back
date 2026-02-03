@@ -14,10 +14,8 @@ import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcess
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
-import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +29,6 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -438,7 +435,7 @@ class TrajectoryServiceImplTest {
         assertTrue(result.getFirst().toString().contains("DE-SU"));
 
     }
-    
+
     @Test
     void getTrajectoryDataByTypeAndId_returnAreaDTOForSTSType() throws Exception {
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
@@ -446,7 +443,7 @@ class TrajectoryServiceImplTest {
         StStorageEntity ststorageEntity = StStorageEntity.builder()
                 .area("AT")
                 .name("battery_residential")
-                .groupe("battery")
+                .group("battery")
                 .series(true)
                 .trajectory(trajectoryEntity)
                 .build();

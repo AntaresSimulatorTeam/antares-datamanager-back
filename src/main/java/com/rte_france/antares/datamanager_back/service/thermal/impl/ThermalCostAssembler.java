@@ -15,7 +15,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ThermalCostAssembler {
 
-    private static final Double COFF_GW_TO_MWH = 3.6;
+    private static final Double COFF_GJ_TO_MWH = 3.6;
 
     private Double round(Double value) {
         if (value == null) {
@@ -26,7 +26,7 @@ public class ThermalCostAssembler {
 
     public void computeCo2(ThermalClusterGenerationDto dto, ThermalCommonParameterEntity thermalCommonParameterEntity, String fuel, List<TrajectoryEntity> commonTrajectories, Double ratioNcvHcv) {
         if (thermalCommonParameterEntity != null && thermalCommonParameterEntity.getCo2() != null && thermalCommonParameterEntity.getCo2() != 0.0) {
-            dto.setCo2(round(thermalCommonParameterEntity.getCo2() * COFF_GW_TO_MWH/1000));
+            dto.setCo2(round(thermalCommonParameterEntity.getCo2() * COFF_GJ_TO_MWH/1000));
         } else if (fuel != null) {
             computeFallbackCo2(dto, fuel, commonTrajectories, ratioNcvHcv);
         }

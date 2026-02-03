@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -13,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.service.StStorage.StsPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
@@ -78,6 +80,9 @@ class StudyGeneratorServiceImplTest {
     @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
+    @Mock
+    private StsPropertiesAssemblerService stPropertiesAssemblerService;
+
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
     private StudyEntity studyEntity;
@@ -125,6 +130,8 @@ class StudyGeneratorServiceImplTest {
 
         // Mock studyRepository behavior
         lenient().when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
+        // Default STS assembler returns empty map to avoid NPE in tests not focused on STS
+        lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
     }
 
     @Test
@@ -158,7 +165,7 @@ class StudyGeneratorServiceImplTest {
         assertTrue(studyMap.containsKey("version"));
         assertTrue(studyMap.containsKey("areas"));
         assertTrue(studyMap.containsKey("links"));
-        assertEquals("880", studyMap.get("version"));
+        assertEquals("9.3", studyMap.get("version"));
         assertEquals("will be refactored so we'll put nothing for the moment", studyMap.get("settings"));
 
 
@@ -480,6 +487,61 @@ class StudyGeneratorServiceImplTest {
         // Check example values
         assertThat(data.get("fo_duration")).isEqualTo(0.15);
         assertThat(data.get("nb_unit")).isEqualTo(3);
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeStsInAreas() throws Exception {
+        // Given: one area DE, and STS props for DE and another area to ensure filtering
+        var deDto = StsGenerationDTO.builder()
+                .enabled(true)
+                .group("G1")
+                .injection(10)
+                .withdrawal(5.5)
+                .storage(100.0)
+                .efficiencyInjection(0.9)
+                .efficiencyWithdrawal(80.0)
+                .initialLevel(0.5)
+                .initialLevelOptim(true)
+                .build();
+        var frDto = StsGenerationDTO.builder().enabled(false).group("IGN").build();
+        Map<String, StsGenerationDTO> stsProps = new LinkedHashMap<>();
+        stsProps.put("DE_Storage1", deDto);
+        stsProps.put("FR_Ignore", frDto);
+        when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(stsProps);
+        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        // When
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then
+        var json = captureGeneratedJson(1);
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(json, new TypeReference<>() {});
+        Map<String, Object> study = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areas = mapper.convertValue(study.get("areas"), new TypeReference<>() {});
+        Map<String, Object> de = mapper.convertValue(areas.get("DE"), new TypeReference<>() {});
+
+        assertThat(de).containsKey("sts");
+        Map<String, Object> sts = mapper.convertValue(de.get("sts"), new TypeReference<>() {});
+        assertThat(sts).containsKey("DE_Storage1");
+        assertThat(sts).doesNotContainKey("FR_Ignore");
+
+        Map<String, Object> cluster = mapper.convertValue(sts.get("DE_Storage1"), new TypeReference<>() {});
+        assertThat(cluster).containsKey("properties");
+        Map<String, Object> props = mapper.convertValue(cluster.get("properties"), new TypeReference<>() {});
+        assertThat(props)
+                .containsEntry("enabled", true)
+                .containsEntry("group", "G1")
+                .containsEntry("injection_nominal_capacity", 10)
+                .containsEntry("withdrawal_nominal_capacity", 5.5)
+                .containsEntry("reservoir_capacity", 100.0)
+                .containsEntry("efficiency", 0.9)
+                .containsEntry("efficiency_withdrawal", 80.0)
+                .containsEntry("initial_level", 0.5)
+                .containsEntry("initial_level_optim", true);
+
+        // series placeholder must exist
+        assertThat(cluster).containsKey("series");
     }
 
 }

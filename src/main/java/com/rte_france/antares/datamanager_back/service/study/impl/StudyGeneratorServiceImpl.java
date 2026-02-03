@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
+import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -11,13 +12,11 @@ import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.StStorage.StsPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,10 +25,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -52,6 +48,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
+    private final StsPropertiesAssemblerService stPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String DATA = "data";
@@ -101,12 +98,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER,
                          THERMAL_TECHNICAL_SPECIFIC_PARAMETER , THERMAL_TECHNICAL_MODULATION_PARAMETER->
                             log.warn("Thermal trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
-                    default -> throw TechnicalException.builder().message("Unhandled type: " + trajectoryType).build();
+                    case STS->
+                            log.warn("STS trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
+                    default -> throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
                 }
             }
 
             Map<String, Object> innerGeneratorMap = new TreeMap<>();
-            innerGeneratorMap.put("version", "880");
+            innerGeneratorMap.put("version", "9.3");
             innerGeneratorMap.put("settings", "will be refactored so we'll put nothing for the moment");
             // TODO: get input for random generation flag and number of years, maybe also move them somewhere else
             innerGeneratorMap.put("enable_random_ts", true);
@@ -204,13 +203,16 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         // Get thermal cluster generation DTOs for all trajectories in the study
         var areaClusterRefThermalClusterGenerationDtoMap = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity);
 
+        var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);
+
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
                         areaDTO -> areasMapGenerator(
                                 areaDTO,
                                 listArrowLoadFilesByArea.get(areaDTO.getName()),
-                                getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName())
+                                getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
+                                areaStsClusterGenerationDtoMap
                         )
                 ));
 
@@ -258,7 +260,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps) {
+    private static Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps, Map<String, StsGenerationDTO> stsClusterProps) {
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
@@ -275,9 +277,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, Object> thermalsMap = thermalsMapGenerator(clusterProps);
 
+        Map<String, Object> stsMap = stsMapGenerator(areaDTO.getName(), stsClusterProps);
+
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
+        areaMap.put("sts", stsMap);
 
         return areaMap;
     }
@@ -319,6 +324,40 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         });
 
         return clusterMap;
+    }
+
+
+    private static Map<String, Object> stsMapGenerator(String areaName, Map<String, StsGenerationDTO> stsClusterProps) {
+        if (stsClusterProps == null || stsClusterProps.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> stsClusterName = new LinkedHashMap<>();
+
+        stsClusterProps.entrySet().stream()
+                .filter(e -> e.getKey().startsWith(areaName.toUpperCase() + "_"))
+                .forEach(e -> {
+                    String clusterName = e.getKey();
+                    StsGenerationDTO dto = e.getValue();
+                    Map<String, Object> propertiesMap = new LinkedHashMap<>();
+                    propertiesMap.put("enabled", dto.getEnabled());
+                    propertiesMap.put("group", dto.getGroup());
+                    propertiesMap.put("injection_nominal_capacity", dto.getInjection());
+                    propertiesMap.put("withdrawal_nominal_capacity", dto.getWithdrawal());
+                    propertiesMap.put("reservoir_capacity", dto.getStorage());
+                    propertiesMap.put("efficiency", dto.getEfficiencyInjection());
+                    propertiesMap.put("efficiency_withdrawal", dto.getEfficiencyWithdrawal());
+                    propertiesMap.put("initial_level", dto.getInitialLevel());
+                    propertiesMap.put("initial_level_optim", dto.getInitialLevelOptim());
+
+                    Map<String, Object> clusterData = new LinkedHashMap<>();
+                    clusterData.put(PROPERTIES, propertiesMap);
+                    clusterData.put("series", MATRIX_HASH);
+
+                    stsClusterName.put(clusterName, clusterData);
+                });
+
+        return stsClusterName;
     }
 
 
