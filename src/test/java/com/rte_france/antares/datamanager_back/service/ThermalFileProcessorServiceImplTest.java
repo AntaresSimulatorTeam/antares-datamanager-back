@@ -262,8 +262,7 @@ class ThermalFileProcessorServiceImplTest {
             for (int m = 1; m <= 6; m++) {
                 header.createCell(col++).setCellValue(String.format("%04d_%02d", 2026, m));
             }
-
-            // IMPORTANT : aucune ligne de données -> la boucle "for (Row row : sheet)" ne traite rien (rowNum==0 skip),
+            
             // ce qui évite d'avoir à construire des cellules et limite le test à la validation des colonnes.
             try (var fos = new FileOutputStream(file.toFile())) {
                 wb.write(fos);
@@ -599,9 +598,9 @@ class ThermalFileProcessorServiceImplTest {
         existing.setType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                eq("thermal_common_parameters_test"),
-                eq(horizon),
-                eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                "thermal_common_parameters_test",
+                horizon,
+                TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()
         )).thenReturn(Optional.of(existing));
 
         TrajectoryEntity built = new TrajectoryEntity();
@@ -1008,7 +1007,7 @@ class ThermalFileProcessorServiceImplTest {
     }
 
     @Test
-    void processThermalEconomicCostsAndRatesFile_shouldThrowAlreadyProcessedFileException_whenSameChecksumAsLastVersion() throws IOException {
+    void processThermalEconomicCostsAndRatesFile_shouldThrowAlreadyProcessedFileException_whenSameChecksumAsLastVersion() {
         // Arrange
         Path path = Paths.get("thermal_costs_rates_existing.xlsx");
         String horizon = "2030";
@@ -1032,9 +1031,9 @@ class ThermalFileProcessorServiceImplTest {
                     .thenReturn(mockedChecksum);
 
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                    eq("thermal_costs_rates_existing"),
-                    eq(horizon),
-                    eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                    "thermal_costs_rates_existing",
+                    horizon,
+                    TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name()
             )).thenReturn(Optional.of(existing));
 
             // Act
