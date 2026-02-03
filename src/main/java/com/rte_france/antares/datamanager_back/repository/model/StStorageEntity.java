@@ -57,6 +57,9 @@ public class StStorageEntity {
     @Column(name = "st_constraints")
     private Boolean constraintsFlag;
 
+    @Column(name="ts_path")
+    String tsPath;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;

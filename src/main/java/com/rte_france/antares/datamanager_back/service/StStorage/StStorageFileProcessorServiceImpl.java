@@ -179,7 +179,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                     .message("Can not import : Missing TS for trajectory {0}")
                                     .build();
                         }
-                        ;
+                        stStorageEntity.setTsPath(stsTs.toString());
                     }
                     for (int idx = 3; idx <= 8; idx++) {
                         Cell numericCell = row.getCell(idx);
