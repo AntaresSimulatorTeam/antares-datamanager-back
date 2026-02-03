@@ -130,7 +130,7 @@ class StStorageFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
             setNni("TESTNNI");
         }});
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
@@ -162,7 +162,7 @@ class StStorageFileProcessorServiceImplTest {
         var trajectoryEntity = mock(TrajectoryEntity.class);
         trajectoryEntity.setType(TrajectoryType.STS.name());
         trajectoryEntity.setFileName(xlsx.toString());
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(Optional.of(trajectoryEntity));
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
@@ -191,7 +191,7 @@ class StStorageFileProcessorServiceImplTest {
                 .resolve("STS")
                 .resolve(technology)
                 .resolve("series")
-                .resolve("cluster_battery_test")
+                .resolve("test")
                 .resolve(clusterName)
                 .resolve(area);
 
@@ -265,7 +265,7 @@ class StStorageFileProcessorServiceImplTest {
         Path xlsx = createValidWorkbook("2030", false);
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
@@ -296,7 +296,7 @@ class StStorageFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
             setNni("TESTNNI");
         }});
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
@@ -481,7 +481,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(8).setCellValue(50); // initial level
             r.createCell(9).setCellValue("true");
             r.createCell(10).setCellValue("false");
-            r.createCell(11).setCellValue(series ? "true" : "false");
+            r.createCell(11).setCellValue(series);
             r.createCell(12).setCellValue("false");
 
             try (OutputStream os = Files.newOutputStream(file)) {

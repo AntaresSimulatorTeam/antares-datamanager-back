@@ -25,7 +25,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
 
     Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(String fileName, String horizon, String area);
 
-    Optional<TrajectoryEntity> findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(String fileName, String type, String horizon, String area, String technology);
+    Optional<TrajectoryEntity> findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(String fileName, String type, String horizon, String area, String technology);
 
     @Query("""
                 SELECT t FROM Trajectory t

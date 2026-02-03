@@ -9,7 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -99,8 +98,8 @@ class TrajectoryRepositoryTest {
     }
 
     @Test
-    void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc_returnsTrajectoryEntity() {
-        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+    void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc_returnsTrajectoryEntity() {
+        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 "testFile.txt", "AREA", "2023-2024", "FR", "technology1");
 
         assertThat(foundEntity).isPresent();
@@ -112,8 +111,8 @@ class TrajectoryRepositoryTest {
     }
 
     @Test
-    void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc_returnsEmptyOptionalForNonExistentFile() {
-        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc(
+    void findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyOrderByVersionDesc_returnsEmptyOptionalForNonExistentFileIgnoreCase() {
+        Optional<TrajectoryEntity> foundEntity = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 "nonExistentFile.txt", "AREA", "2023-2024", "FR", "technology1");
 
         assertThat(foundEntity).isNotPresent();
