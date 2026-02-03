@@ -28,7 +28,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+ import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
@@ -69,7 +69,7 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                 if (row == null) continue;
                 String fuel = castString(getCellValue(row, 1));
                 if (fuel == null || fuel.isBlank()) continue;
-                ThermalCostTypeEntity type = buildThermalEconomicCostType(row, header);
+                ThermalCostTypeEntity type = findOrCreateThermalEconomicCostType(row, header);
 
                 Double costValue = castDouble(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
                 Integer yearValue = parseYear(horizon);
@@ -150,18 +150,27 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
             for (ThermalCostTypeEntity inputType : thermalCostTypeEntities) {
                 if (inputType == null) continue;
 
+                // Normaliser les clés de recherche
+                String country = trimOrNull(inputType.getCountry());
+                String fuel = trimOrNull(inputType.getFuel());
+                String comment = trimOrNull(inputType.getComment());
+                String unit = trimOrNull(inputType.getUnit());
+                String modulation = trimOrNull(inputType.getModulation());
+                Double ratio = inputType.getRatioNcvHcv();
 
-                ThermalCostTypeEntity typeEntity = thermalCostTypeRepository.save(
-                        ThermalCostTypeEntity.builder()
-                                .fuel(inputType.getFuel())
-                                .country(inputType.getCountry())
-                                .comment(inputType.getComment())
-                                .unit(inputType.getUnit())
-                                .modulation(inputType.getModulation())
-                                .ratioNcvHcv(inputType.getRatioNcvHcv())
-                                .build()
-                );
-
+                // Rechercher une entité existante ; si absente, créer puis sauvegarder
+                ThermalCostTypeEntity typeEntity = thermalCostTypeRepository
+                        .findByCountryAndFuelAndCommentAndUnitAndModulationAndRatioNcvHcv(country, fuel, comment, unit, modulation, ratio)
+                        .orElseGet(() -> thermalCostTypeRepository.save(
+                                ThermalCostTypeEntity.builder()
+                                        .fuel(fuel)
+                                        .country(country)
+                                        .comment(comment)
+                                        .unit(unit)
+                                        .modulation(modulation)
+                                        .ratioNcvHcv(ratio)
+                                        .build()
+                        ));
 
                 List<ThermalCostEntity> costs = inputType.getThermalCostEntities();
                 if (costs != null) {
@@ -191,15 +200,30 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
     }
 
 
-    private ThermalCostTypeEntity buildThermalEconomicCostType(Row row, Row header) {
-        return ThermalCostTypeEntity.builder()
-                .country(castString(getCellValue(row, 0)))
-                .fuel(castString(getCellValue(row, 1)))
-                .comment(castString(getCellValue(row, 2)))
-                .unit(castString(getCellValue(row, 3)))
-                .modulation(castString(getCellValue(row, 4)))
-                .ratioNcvHcv(castDouble(getCellValue(row, 5), header.getCell(5).getStringCellValue(), row.getRowNum()))
-                .build();
+
+    ThermalCostTypeEntity findOrCreateThermalEconomicCostType(Row row, Row header) {
+        String country = trimOrNull(castString(getCellValue(row, 0)));
+        String fuel = trimOrNull(castString(getCellValue(row, 1)));
+        String comment = trimOrNull(castString(getCellValue(row, 2)));
+        String unit = trimOrNull(castString(getCellValue(row, 3)));
+        String modulation = trimOrNull(castString(getCellValue(row, 4)));
+        Double ratio = castDouble(getCellValue(row, 5), header.getCell(5).getStringCellValue(), row.getRowNum());
+
+        return thermalCostTypeRepository
+                .findByCountryAndFuelAndCommentAndUnitAndModulationAndRatioNcvHcv(country, fuel, comment, unit, modulation, ratio)
+                .orElse(ThermalCostTypeEntity.builder()
+                        .country(country)
+                        .fuel(fuel)
+                        .comment(comment)
+                        .unit(unit)
+                        .modulation(modulation)
+                        .ratioNcvHcv(ratio)
+                        .build());
+    }
+
+
+    private static String trimOrNull(String s) {
+        return s == null ? null : s.trim();
     }
 
     private static Integer parseYear(String horizon) {
@@ -210,12 +234,3 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
         }
     }
 }
-
-
-
-
-
-
-
-
-
