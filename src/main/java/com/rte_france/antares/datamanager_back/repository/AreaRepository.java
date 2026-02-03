@@ -11,10 +11,8 @@ import java.util.Optional;
 
 @Repository
 public interface AreaRepository extends JpaRepository<AreaEntity, String> {
-
-    @Query("SELECT a FROM Area a " +
-            "WHERE LOWER(a.name) = LOWER(:name)")
-    Optional<AreaEntity> findAreaByName(String name);
+    
+    Optional<AreaEntity> findAreaByNameIgnoreCase(String name);
 
     @Query("SELECT a FROM Area a " +
             "LEFT OUTER JOIN AreaConfigEntity ac ON ac.area.id = a.id " +

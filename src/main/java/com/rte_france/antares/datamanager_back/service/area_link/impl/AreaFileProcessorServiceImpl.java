@@ -107,7 +107,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     private AreaEntity findOrCreateAreaEntity(Row area) {
         String name = area.getCell(0).getStringCellValue().toLowerCase();
 
-        AreaEntity entity = areaRepository.findAreaByName(name).orElseGet(() -> AreaEntity.builder().name(name).build());
+        AreaEntity entity = areaRepository.findAreaByNameIgnoreCase(name).orElseGet(() -> AreaEntity.builder().name(name).build());
         entity.setX(area.getCell(4).getNumericCellValue());
         entity.setY(area.getCell(5).getNumericCellValue());
         entity.setR(area.getCell(6).getNumericCellValue());
