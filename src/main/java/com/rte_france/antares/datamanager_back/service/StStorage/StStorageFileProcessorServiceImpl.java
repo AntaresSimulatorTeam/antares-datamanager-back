@@ -58,12 +58,12 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         if (stStorageEntityList.isEmpty()) {
             throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
         }
-        
+
         boolean isSeriesTrue = stStorageEntityList.stream()
                 .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
-                
+
         TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, isSeriesTrue);
-        
+
         WarningMessageEntity warningMessageEntity = buildWarningMessageIfAreaStudyIsMissing(studyId, areaParam, stStorageEntityList, studyAreas, trajectoryFilePath, trajectoryEntity);
 
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
@@ -188,7 +188,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                     }
                     stStorageEntity.setArea(rowArea);
                     stStorageEntity.setName(clusterName);
-                    stStorageEntity.setGroupe(row.getCell(2).getStringCellValue());
+                    stStorageEntity.setGroup(row.getCell(2).getStringCellValue());
                     stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
                     stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
                     stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
