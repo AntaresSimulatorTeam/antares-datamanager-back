@@ -634,7 +634,7 @@ public class Utils {
             if (dir.isPresent()) {
                 return dir.get();
             } else {
-                throw  TechnicalException.builder().message("Directory not found (case-insensitive) under " + parent.toString() + " for '" + childName + "'").build();
+                throw  TechnicalException.builder().message("Directory not found under " + parent.toString() + " for '" + childName + "'").build();
             }
         }
     }

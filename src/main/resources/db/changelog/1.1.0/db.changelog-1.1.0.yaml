@@ -64,5 +64,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V29-add_has_time_series_to_trajectory_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V30-alter_fuel_length_to_thermal_cost_type_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V30-add_sts_path_ts_column_table.sql
 
 
