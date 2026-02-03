@@ -252,7 +252,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
 
-    private Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
+    public Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
         // \\STS\<techno>\series\<trajectoire>\<nom du cluster>\<area>\*
 
         Path root = Path.of(antaressDataManagerProperties.getNasDirectory())
