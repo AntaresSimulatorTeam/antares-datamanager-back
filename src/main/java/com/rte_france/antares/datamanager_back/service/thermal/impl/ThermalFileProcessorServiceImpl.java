@@ -35,6 +35,7 @@ import static com.rte_france.antares.datamanager_back.repository.model.WarningCo
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
 
 @Slf4j
 @Service
@@ -217,7 +218,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             validateHorizonColumnsPresent(header, horizon, isCivilYear, path);
 
             for (Row row : sheet) {
-                if (row.getRowNum() == 0) continue;
+                if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
 
                 String rowArea = row.getCell(1).getStringCellValue().toUpperCase();
 
