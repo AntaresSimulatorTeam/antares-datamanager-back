@@ -25,7 +25,7 @@ class AreaRepositoryTest {
     void findAreaByName_returnsEntityWhenExists() {
         String name = "area8";
 
-        Optional<AreaEntity> result = areaRepository.findAreaByName(name);
+        Optional<AreaEntity> result = areaRepository.findAreaByNameIgnoreCase(name);
 
         assertThat(result).isNotEmpty();
         assertThat(result.get().getName()).isEqualTo(name);
@@ -35,7 +35,7 @@ class AreaRepositoryTest {
     void findAreaByName_returnsEmptyWhenDoesNotExist() {
         String name = "nonExistentArea";
 
-        Optional<AreaEntity> result = areaRepository.findAreaByName(name);
+        Optional<AreaEntity> result = areaRepository.findAreaByNameIgnoreCase(name);
 
         assertThat(result).isEmpty();
     }
