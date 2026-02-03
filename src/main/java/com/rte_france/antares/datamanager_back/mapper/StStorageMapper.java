@@ -25,7 +25,7 @@ public class StStorageMapper {
                 .efficiencyInjection(entity.getEfficiencyInjection() != null ? entity.getEfficiencyInjection().doubleValue() : 0.0)
                 .efficiencyWithdrawal(entity.getEfficiencyWithdrawal() != null ? entity.getEfficiencyWithdrawal().doubleValue() : 0.0)
                 .initialLevel(entity.getInitialLevel() != null ? entity.getInitialLevel().doubleValue() : 0.0)
-                .initialLevelOptim(entity.getInitialLevelOptim() != null ? entity.getInitialLevelOptim() : false)
+                .initialLevelOptim(entity.getInitialLevelOptim())
                 .build();
     }
 }

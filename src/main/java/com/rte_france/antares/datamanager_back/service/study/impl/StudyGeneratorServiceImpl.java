@@ -12,7 +12,7 @@ import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.StStorage.StsPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.sts.StsPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;

@@ -1,12 +1,10 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.service.StStorage.StStorageFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorService;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,10 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.util.Map;
-
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;

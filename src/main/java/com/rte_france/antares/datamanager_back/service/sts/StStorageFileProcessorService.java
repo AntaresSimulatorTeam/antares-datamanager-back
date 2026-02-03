@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.StStorage;
+package com.rte_france.antares.datamanager_back.service.sts;
 
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;

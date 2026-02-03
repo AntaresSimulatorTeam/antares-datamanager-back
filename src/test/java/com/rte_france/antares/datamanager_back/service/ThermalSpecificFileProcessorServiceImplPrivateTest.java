@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.impl;
+package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalSpecificFileProcessorServiceImpl;
 import org.junit.jupiter.api.Test;

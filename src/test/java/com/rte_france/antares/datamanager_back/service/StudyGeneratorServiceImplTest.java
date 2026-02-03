@@ -14,14 +14,10 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.service.StStorage.StsPropertiesAssemblerService;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
-import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
+import com.rte_france.antares.datamanager_back.service.sts.StsPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -29,8 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
