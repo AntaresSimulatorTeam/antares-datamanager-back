@@ -634,7 +634,7 @@ public class Utils {
             if (dir.isPresent()) {
                 return dir.get();
             } else {
-                throw new NoSuchFileException("Directory not found (case-insensitive) under " + parent.toString() + " for '" + childName + "'");
+                throw  TechnicalException.builder().message("Directory not found (case-insensitive) under " + parent.toString() + " for '" + childName + "'").build();
             }
         }
     }
