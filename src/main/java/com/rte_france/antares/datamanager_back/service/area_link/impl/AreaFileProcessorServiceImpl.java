@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
@@ -104,7 +105,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     }
 
     private AreaEntity findOrCreateAreaEntity(Row area) {
-        String name = area.getCell(0).getStringCellValue();
+        String name = area.getCell(0).getStringCellValue().toLowerCase();
 
         AreaEntity entity = areaRepository.findAreaByName(name).orElseGet(() -> AreaEntity.builder().name(name).build());
         entity.setX(area.getCell(4).getNumericCellValue());
