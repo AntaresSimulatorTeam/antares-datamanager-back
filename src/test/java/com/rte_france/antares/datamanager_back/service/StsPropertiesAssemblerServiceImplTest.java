@@ -31,7 +31,7 @@ class StsPropertiesAssemblerServiceImplTest {
         StStorageEntity stStorage1 = StStorageEntity.builder()
                 .area("FR")
                 .name("Storage1")
-                .group("Group1")
+                .groupe("Group1")
                 .injection(new BigDecimal("10.5"))
                 .withdrawal(new BigDecimal("5.2"))
                 .storage(new BigDecimal("100.0"))
@@ -59,7 +59,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertTrue(result.containsKey("FR_Storage1"));
         StsGenerationDTO dto = result.get("FR_Storage1");
         assertEquals(true, dto.getEnabled());
-        assertEquals("Group1", dto.getGroup());
+        assertEquals("Group1", dto.getGroupe());
         assertEquals(10, dto.getInjection());
         assertEquals(5.2, dto.getWithdrawal());
         assertEquals(100.0, dto.getStorage());
@@ -152,7 +152,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(false, dto.getEnabled());
         assertEquals(0, dto.getInjection());
         assertEquals(0.0, dto.getWithdrawal());
-        assertEquals(false, dto.getInitialLevelOptim());
+        assertEquals(null, dto.getInitialLevelOptim());
     }
 
     @Test

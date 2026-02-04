@@ -15,7 +15,7 @@ class StStorageMapperTest {
     @Test
     void toStStorageTrajectoryDataDTO_SingleEntity_ShouldMapCorrectly() {
         // Given
-        StStorageEntity stStorageEntity1 = StStorageEntity.builder().area("BE").name("battery_4").group("battery").series(true).build();
+        StStorageEntity stStorageEntity1 = StStorageEntity.builder().area("BE").name("battery_4").groupe("battery").series(true).build();
 
         // When
         StStorageTrajectoryDataDTO dto = StStorageMapper.toStStorageTrajectoryDataDTO(stStorageEntity1);
@@ -29,8 +29,8 @@ class StStorageMapperTest {
     @Test
     void toStStorageTrajectoryDataDTO_List_ShouldMapAllElements() {
         // Given
-        StStorageEntity stStorageEntity1 = StStorageEntity.builder().area("BE").name("battery_4").group("battery").series(true).build();
-        StStorageEntity stStorageEntity2 = StStorageEntity.builder().area("AT").name("dsr_shifting").group("dsr").series(true).build();
+        StStorageEntity stStorageEntity1 = StStorageEntity.builder().area("BE").name("battery_4").groupe("battery").series(true).build();
+        StStorageEntity stStorageEntity2 = StStorageEntity.builder().area("AT").name("dsr_shifting").groupe("dsr").series(true).build();
 
         List<StStorageEntity> stStorageEntities = List.of(stStorageEntity1, stStorageEntity2);
 
@@ -53,7 +53,7 @@ class StStorageMapperTest {
         StStorageEntity entity = StStorageEntity.builder()
                 .area("FR")
                 .name("Storage1")
-                .group("Group1")
+                .groupe("Group1")
                 .enabled(true)
                 .injection(new java.math.BigDecimal("10.5"))
                 .withdrawal(new java.math.BigDecimal("5.2"))
@@ -70,7 +70,7 @@ class StStorageMapperTest {
         // Then
         assertNotNull(dto);
         assertEquals(true, dto.getEnabled());
-        assertEquals("Group1", dto.getGroup());
+        assertEquals("Group1", dto.getGroupe());
         assertEquals(10, dto.getInjection());
         assertEquals(5.2, dto.getWithdrawal());
         assertEquals(100.0, dto.getStorage());

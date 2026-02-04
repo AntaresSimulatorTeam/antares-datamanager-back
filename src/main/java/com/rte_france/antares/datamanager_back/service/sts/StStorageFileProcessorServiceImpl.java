@@ -188,7 +188,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                     }
                     stStorageEntity.setArea(rowArea);
                     stStorageEntity.setName(clusterName);
-                    stStorageEntity.setGroup(row.getCell(2).getStringCellValue());
+                    stStorageEntity.setGroupe(row.getCell(2).getStringCellValue());
                     stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
                     stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
                     stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
