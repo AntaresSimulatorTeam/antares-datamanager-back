@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
@@ -148,6 +149,21 @@ public class ThermalPropertiesAssemblerService {
                 ));
     }
 
+    /**
+     * Renvoie le premier Double non-null de la collection, converti en double.
+     * NPE-safe (collection null, éléments null, valeur mappée null).
+     */
+    private static <T> OptionalDouble firstNonNullDouble(Collection<T> source, Function<T, Double> mapper) {
+        if (source == null || source.isEmpty()) return OptionalDouble.empty();
+
+        return source.stream()
+                .filter(Objects::nonNull)
+                .map(mapper)                  // Stream<Double>
+                .filter(Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .findFirst();
+    }
+
     private ThermalClusterGenerationDto computeClusterProperties(
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
             List<ThermalCommonParameterEntity> thermalCommonParameters,
@@ -199,14 +215,22 @@ public class ThermalPropertiesAssemblerService {
 
         // max POWER capacity
         OptionalDouble maxPowerOpt = thermalClusterCapacities.stream()
+                .filter(Objects::nonNull)
                 .filter(cap -> cap.getCategory() == ThermalCategoryEnum.POWER)
-                .mapToDouble(ThermalClusterCapacityEntity::getValue)
+                .map(ThermalClusterCapacityEntity::getValue)
+                .filter(Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
                 .max();
-        //max unit count
+
+        // max unit count
         OptionalDouble unitCountOpt = thermalClusterCapacities.stream()
+                .filter(Objects::nonNull)
                 .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
-                .mapToDouble(ThermalClusterCapacityEntity::getValue)
+                .map(ThermalClusterCapacityEntity::getValue) 
+                .filter(Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
                 .max();
+                
         // nominal capacity (max POWER / unitCount) ---
         if (maxPowerOpt.isPresent()) {
             double maxPower = maxPowerOpt.getAsDouble();
@@ -245,62 +269,42 @@ public class ThermalPropertiesAssemblerService {
         // min_stable_power
         var nominalCapacity = builder.build().getNominalCapacity();
         if (nominalCapacity != null) {
-            thermalCommonParameters.stream()
-                    .mapToDouble(ThermalCommonParameterEntity::getMinStableGenerationDefault)
-                    .findFirst()
+            firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getMinStableGenerationDefault)
                     .ifPresent(minStableGen -> builder.minStablePower(round(minStableGen * nominalCapacity)));
         }
 
         // min_up_time
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getMinUpTime)
-                .findFirst()
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getMinUpTime)
                 .ifPresent(minUpTime -> builder.minUpTime((int) minUpTime));
 
         // min_down_time
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getMinDownTime)
-                .findFirst()
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getMinDownTime)
                 .ifPresent(minDownTime -> builder.minDownTime((int) minDownTime));
 
-        // efficiency
-        thermalCommonParameters.stream()
-                .mapToDouble(thermalCommonParam -> thermalCommonParam.getEfficiencyDefault() * 100) // convert to percentage
-                .findFirst()
-                .ifPresent(efficiency -> builder.efficiency(round(efficiency)));
+        // efficiency (convert to percentage)
+        firstNonNullDouble(thermalCommonParameters, p ->
+                p.getEfficiencyDefault() == null ? null : p.getEfficiencyDefault() * 100
+        ).ifPresent(efficiency -> builder.efficiency(round(efficiency)));
 
         // variable_o_m_cost
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getOmCost)
-                .findFirst()
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getOmCost)
                 .ifPresent(omCost -> builder.variableOMCost(round(omCost)));
 
-
-
-        //FO rate
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getFoRateDefault)
-                .findFirst()
+        // FO rate
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getFoRateDefault)
                 .ifPresent(foRate -> builder.foCommonRate(round(foRate)));
 
-        //FO duration
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getFoDurationDefault)
-                .findFirst()
+        // FO duration
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getFoDurationDefault)
                 .ifPresent(foDuration -> builder.foCommonDuration(round(foDuration)));
 
-        //PO rate
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getPoWinterDefault)
-                .findFirst()
+        // PO rate
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getPoWinterDefault)
                 .ifPresent(poRate -> builder.poCommonRate(round(poRate)));
-        //PO duration
-        thermalCommonParameters.stream()
-                .mapToDouble(ThermalCommonParameterEntity::getPoDurationDefault)
-                .findFirst()
+
+        // PO duration
+        firstNonNullDouble(thermalCommonParameters, ThermalCommonParameterEntity::getPoDurationDefault)
                 .ifPresent(poDuration -> builder.poCommonDuration(round(poDuration)));
-
-
     }
 
     private void buildFromSpecificParameters(List<ThermalSpecificParametersEntity> thermalSpecificParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {
