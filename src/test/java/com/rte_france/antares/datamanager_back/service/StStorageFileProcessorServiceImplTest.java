@@ -105,7 +105,7 @@ class StStorageFileProcessorServiceImplTest {
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         assertThatThrownBy(() ->
-                service.processStStorageFile("cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery")
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
                 .hasMessageContaining("does not exist in the STS trajectory");
     }
@@ -116,7 +116,7 @@ class StStorageFileProcessorServiceImplTest {
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         assertThatThrownBy(() ->
-                service.processStStorageFile("cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery")
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Selected area FR is not present in the 'node' column of STS trajectory cluster_battery_test.xlsx");
     }
@@ -136,7 +136,7 @@ class StStorageFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
 
         TrajectoryEntity trajectory = service.processStStorageFile(
-                "cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery"
+                "cluster_battery_test", "2029-2030", 1, false, "FR", "battery"
         );
 
         assertThat(trajectory).isNotNull();
@@ -168,7 +168,7 @@ class StStorageFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
 
         TrajectoryEntity trajectory = service.processStStorageFile(
-                "cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery"
+                "cluster_battery_test", "2029-2030", 1, false, "FR", "battery"
         );
 
         assertThat(trajectory).isNotNull();
@@ -199,7 +199,7 @@ class StStorageFileProcessorServiceImplTest {
 
         // no required files -> row ignored and therefore no valid rows -> exception
         assertThatThrownBy(() ->
-                service.processStStorageFile("cluster_battery_test.xlsx", horizon, 1, false, area, technology)
+                service.processStStorageFile("cluster_battery_test", horizon, 1, false, area, technology)
         ).isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Can not import : Missing TS for trajectory");
     }
@@ -210,7 +210,7 @@ class StStorageFileProcessorServiceImplTest {
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
         assertThatThrownBy(() ->
-                service.processStStorageFile("cluster_battery_test.xlsx", "2029-2030", 1, false, "FR", "battery")
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Values for node");
     }
@@ -302,7 +302,7 @@ class StStorageFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
         when(studyRepository.findById(anyInt())).thenReturn(Optional.of(new com.rte_france.antares.datamanager_back.repository.model.StudyEntity()));
 
-        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test.xlsx", "2029-2030", 1, false, OTHERS_AREA, "battery");
+        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, OTHERS_AREA, "battery");
 
         Optional<WarningMessageEntity> warningOpt = trajectory.getWarningMessages().stream().findFirst();
         assertThat(warningOpt).isPresent();
@@ -473,7 +473,7 @@ class StStorageFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
         // no required files -> row ignored and therefore no valid rows -> exception
 
-        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test.xlsx", horizon, 1, false, area, technology);
+        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test", horizon, 1, false, area, technology);
         assertThat(trajectory).isNotNull();
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
         assertThat(trajectory.getStStorageEntities().getFirst().getTsPath()).isNotNull();

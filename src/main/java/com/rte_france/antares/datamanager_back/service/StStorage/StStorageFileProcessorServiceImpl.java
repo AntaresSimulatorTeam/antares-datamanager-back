@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.service.StStorage;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -26,6 +25,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -98,11 +98,10 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("clusters");
 
-        try (java.util.stream.Stream<Path> s = Files.list(techDir)) {
+        try (Stream<Path> s = Files.list(techDir)) {
             java.util.Optional<Path> file = s.filter(Files::isRegularFile).filter(p -> {
                 String fn = p.getFileName().toString();
-                String target = trajectoryFileName;
-                return fn.equalsIgnoreCase(target) || fn.toLowerCase(Locale.ROOT).contains(target.toLowerCase(Locale.ROOT));
+                return fn.equalsIgnoreCase(trajectoryFileName+".xlsx") || fn.equalsIgnoreCase(trajectoryFileName+".xls");
             }).findFirst();
 
             if (file.isPresent()) {
