@@ -28,7 +28,7 @@ class AreaRepositoryTest {
         Optional<AreaEntity> result = areaRepository.findAreaByNameIgnoreCase(name);
 
         assertThat(result).isNotEmpty();
-        assertThat(result.get().getName()).isEqualTo(name);
+        assertThat(result.get().getName()).isEqualTo(name.toUpperCase());
     }
 
     @Test
@@ -48,7 +48,7 @@ class AreaRepositoryTest {
         Optional<AreaEntity> result = areaRepository.findAreaByNameAndStudyId(areaName, studyId);
 
         assertThat(result).isNotEmpty();
-        assertThat(result.get().getName()).isEqualTo(areaName);
+        assertThat(result.get().getName()).isEqualTo(areaName.toUpperCase());
     }
 
     @Test
