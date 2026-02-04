@@ -443,7 +443,7 @@ class TrajectoryServiceImplTest {
         StStorageEntity ststorageEntity = StStorageEntity.builder()
                 .area("AT")
                 .name("battery_residential")
-                .group("battery")
+                .groupe("battery")
                 .series(true)
                 .trajectory(trajectoryEntity)
                 .build();

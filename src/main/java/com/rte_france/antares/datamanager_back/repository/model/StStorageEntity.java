@@ -24,8 +24,8 @@ public class StStorageEntity {
     @Column(name = "name", length = 40)
     private String name;
 
-    @Column(name = "group", length = 40)
-    private String group;
+    @Column(name = "groupe", length = 40)
+    private String groupe;
 
     @Column(name = "injection")
     private BigDecimal injection;

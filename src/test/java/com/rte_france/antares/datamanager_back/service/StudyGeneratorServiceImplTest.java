@@ -488,7 +488,7 @@ class StudyGeneratorServiceImplTest {
         // Given: one area DE, and STS props for DE and another area to ensure filtering
         var deDto = StsGenerationDTO.builder()
                 .enabled(true)
-                .group("G1")
+                .groupe("G1")
                 .injection(10)
                 .withdrawal(5.5)
                 .storage(100.0)
@@ -497,7 +497,7 @@ class StudyGeneratorServiceImplTest {
                 .initialLevel(0.5)
                 .initialLevelOptim(true)
                 .build();
-        var frDto = StsGenerationDTO.builder().enabled(false).group("IGN").build();
+        var frDto = StsGenerationDTO.builder().enabled(false).groupe("IGN").build();
         Map<String, StsGenerationDTO> stsProps = new LinkedHashMap<>();
         stsProps.put("DE_Storage1", deDto);
         stsProps.put("FR_Ignore", frDto);

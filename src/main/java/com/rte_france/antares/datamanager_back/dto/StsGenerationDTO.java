@@ -16,7 +16,7 @@ public class StsGenerationDTO {
     private Boolean enabled;
 
     @JsonProperty("group")
-    private String group;
+    private String groupe;
 
     @JsonProperty("injection_nominal_capacity")
     private Integer injection;

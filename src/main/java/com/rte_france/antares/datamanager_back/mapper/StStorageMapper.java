@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 public class StStorageMapper {
     public static StStorageTrajectoryDataDTO toStStorageTrajectoryDataDTO(StStorageEntity stsStorageEntity) {
         return StStorageTrajectoryDataDTO.builder()
-                .cluster(String.format("%s - %s - %s", stsStorageEntity.getArea().toUpperCase(), stsStorageEntity.getGroup(), stsStorageEntity.getName()))
+                .cluster(String.format("%s - %s - %s", stsStorageEntity.getArea().toUpperCase(), stsStorageEntity.getGroupe(), stsStorageEntity.getName()))
                 .series(String.valueOf(stsStorageEntity.getSeries()).toUpperCase())
                 .build();
     }
@@ -18,7 +18,7 @@ public class StStorageMapper {
     public static StsGenerationDTO mapToStsGenerationDTO(StStorageEntity entity) {
         return StsGenerationDTO.builder()
                 .enabled(entity.getEnabled() != null ? entity.getEnabled() : false)
-                .group(entity.getGroup())
+                .groupe(entity.getGroupe())
                 .injection(entity.getInjection() != null ? entity.getInjection().intValue() : 0)
                 .withdrawal(entity.getWithdrawal() != null ? entity.getWithdrawal().doubleValue() : 0.0)
                 .storage(entity.getStorage() != null ? entity.getStorage().doubleValue() : 0.0)

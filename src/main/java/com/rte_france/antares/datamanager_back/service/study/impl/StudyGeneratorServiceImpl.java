@@ -341,7 +341,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     StsGenerationDTO dto = e.getValue();
                     Map<String, Object> propertiesMap = new LinkedHashMap<>();
                     propertiesMap.put("enabled", dto.getEnabled());
-                    propertiesMap.put("group", dto.getGroup());
+                    propertiesMap.put("group", dto.getGroupe());
                     propertiesMap.put("injection_nominal_capacity", dto.getInjection());
                     propertiesMap.put("withdrawal_nominal_capacity", dto.getWithdrawal());
                     propertiesMap.put("reservoir_capacity", dto.getStorage());
