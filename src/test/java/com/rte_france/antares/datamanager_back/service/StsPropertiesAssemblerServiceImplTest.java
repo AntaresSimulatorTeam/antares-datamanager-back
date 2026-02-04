@@ -1,28 +1,61 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.sts.StsPropertiesAssemblerServiceImpl;
+import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
+
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
 class StsPropertiesAssemblerServiceImplTest {
 
+    @Mock
+    private AntaressDataManagerProperties antaressDataManagerProperties;
+    @Mock
+    private NasFileService nasFileService;
+    @TempDir
+    Path tempDir;
+
+    @InjectMocks
     private StsPropertiesAssemblerServiceImpl stsPropertiesAssemblerService;
 
     @BeforeEach
     void setUp() {
-        stsPropertiesAssemblerService = new StsPropertiesAssemblerServiceImpl();
+        MockitoAnnotations.openMocks(this);
+        antaressDataManagerProperties = Mockito.mock(AntaressDataManagerProperties.class);
+        nasFileService = Mockito.mock(NasFileService.class);
+        ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaressDataManagerProperties", antaressDataManagerProperties);
+        ReflectionTestUtils.setField(stsPropertiesAssemblerService, "nasFileService", nasFileService);
     }
 
     @Test
@@ -40,6 +73,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .initialLevel(new BigDecimal("0.5"))
                 .initialLevelOptim(true)
                 .enabled(true)
+                .tsPath(null)
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -77,6 +111,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .name("S1")
                 .enabled(true)
                 .injection(BigDecimal.ONE)
+                .tsPath("")
                 .build();
         TrajectoryEntity traj1 = TrajectoryEntity.builder()
                 .type(TrajectoryType.STS.name())
@@ -88,6 +123,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .name("S2")
                 .enabled(false)
                 .withdrawal(BigDecimal.ONE)
+                .tsPath("")
                 .build();
         TrajectoryEntity traj2 = TrajectoryEntity.builder()
                 .type(TrajectoryType.STS.name())
@@ -135,6 +171,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .area("FR")
                 .name("S1")
                 .storage(BigDecimal.TEN)
+                .tsPath(null)
                 .build();
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.STS.name())
@@ -152,7 +189,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(false, dto.getEnabled());
         assertEquals(0, dto.getInjection());
         assertEquals(0.0, dto.getWithdrawal());
-        assertEquals(null, dto.getInitialLevelOptim());
+        assertEquals(false, dto.getInitialLevelOptim());
     }
 
     @Test
@@ -164,6 +201,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .injection(BigDecimal.ZERO)
                 .withdrawal(BigDecimal.ZERO)
                 .storage(BigDecimal.ZERO)
+                .tsPath("")
                 .build();
 
         StStorageEntity stStoragePartial = StStorageEntity.builder()
@@ -172,6 +210,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .injection(BigDecimal.ZERO)
                 .withdrawal(new BigDecimal("1.0"))
                 .storage(BigDecimal.ZERO)
+                .tsPath("")
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -191,4 +230,139 @@ class StsPropertiesAssemblerServiceImplTest {
         assertTrue(result.containsKey("FR_PartialCapacity"));
         assertFalse(result.containsKey("FR_ZeroCapacity"));
     }
+
+    @Test
+    void shouldReturnEmptyListWhenEntityIsNull() {
+        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(null, "2030");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenTsPathIsBlank() {
+        StStorageEntity entity = new StStorageEntity();
+        entity.setTsPath("   ");
+
+        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldSaveAllFilesWhenAllRequiredFilesExist() throws Exception {
+        // given
+        StStorageEntity entity = new StStorageEntity();
+        entity.setTsPath(tempDir.toString());
+        String horizon = "2030";
+
+        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+                .thenReturn("/output");
+
+        // create all required files
+        for (StsTsFile file : StsTsFile.values()) {
+            Files.createFile(file.resolve(tempDir));
+            when(nasFileService.saveMatrixToNas(file.resolve(tempDir), "/output", horizon))
+                    .thenReturn(file.fileName());
+        }
+
+        // when
+        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon);
+
+        // then
+        assertTrue((result.size() == 5));
+
+
+    }
+
+    @Test
+    void shouldThrowBusinessExceptionWhenARequiredFileIsMissing() throws Exception {
+        // given
+        StStorageEntity entity = new StStorageEntity();
+        entity.setTsPath(tempDir.toString());
+
+        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+                .thenReturn("/output");
+
+        // create all files except one
+        StsTsFile missing = StsTsFile.INFLOWS;
+
+        for (StsTsFile file : StsTsFile.values()) {
+            if (file != missing) {
+                Files.createFile(file.resolve(tempDir));
+            }
+        }
+
+        // when / then
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
+        );
+
+        assertTrue(ex.getMessage().contains("Required STS series file not found"));
+        assertTrue(ex.getErrorMessageArguments().contains(missing.resolve(tempDir).toString()));
+
+        verifyNoInteractions(nasFileService);
+    }
+
+    @Test
+    void shouldThrowTechnicalExceptionOnIOException() throws Exception {
+        // given
+        StStorageEntity entity = new StStorageEntity();
+        entity.setTsPath(tempDir.toString());
+
+        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+                .thenReturn("/output");
+
+        for (StsTsFile file : StsTsFile.values()) {
+            Files.createFile(file.resolve(tempDir));
+        }
+
+        when(nasFileService.saveMatrixToNas(any(), any(), any()))
+                .thenThrow(new IOException("NAS error"));
+
+        // when / then
+        TechnicalException ex = assertThrows(
+                TechnicalException.class,
+                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
+        );
+
+        assertTrue(ex.getMessage().contains("NAS error"));
+
+    }
+
+    @Test
+    void shouldPropagateBusinessExceptionWhenSheetNotFound() throws Exception {
+        // given
+        StStorageEntity entity = new StStorageEntity();
+        entity.setTsPath(tempDir.toString());
+        String horizon = "2030";
+
+        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+                .thenReturn("/output");
+
+        for (StsTsFile file : StsTsFile.values()) {
+            Files.createFile(file.resolve(tempDir));
+        }
+
+        BusinessException originalEx = BusinessException.builder()
+                .message("Horizon {0} does not exist in file: {1}")
+                .errorMessageArguments(List.of(horizon, "inflows.xlsx"))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+
+        when(nasFileService.saveMatrixToNas(any(), any(), eq(horizon)))
+                .thenThrow(originalEx);
+
+        // when / then
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
+        assertEquals(2, ex.getErrorMessageArguments().size());
+        assertEquals(horizon, ex.getErrorMessageArguments().get(0));
+    }
+
+
 }

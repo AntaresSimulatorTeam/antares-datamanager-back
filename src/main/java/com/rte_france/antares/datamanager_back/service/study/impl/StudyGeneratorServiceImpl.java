@@ -12,7 +12,7 @@ import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.sts.StsPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
@@ -48,7 +48,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final AntaressDataManagerProperties antaressDataManagerProperties;
 
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
-    private final StsPropertiesAssemblerService stPropertiesAssemblerService;
+    private final StsGenerationAssemblerService stPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String DATA = "data";
@@ -318,7 +318,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put(DATA, dataMap);
             clusterData.put("modulation", dto.getParamModulationTsList());
-          //  clusterData.put(PARAM_MODULATION, paramModulation);
 
             clusterMap.put(clusterName, clusterData);
         });
@@ -352,7 +351,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
                     Map<String, Object> clusterData = new LinkedHashMap<>();
                     clusterData.put(PROPERTIES, propertiesMap);
-                    clusterData.put("series", MATRIX_HASH);
+                    clusterData.put("series", dto.getStsTsList());
 
                     stsClusterName.put(clusterName, clusterData);
                 });
