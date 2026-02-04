@@ -1016,4 +1016,64 @@ class ThermalPropertiesAssemblerServiceTest {
         // market_bid_cost = marginal_cost (100.0) - om_cost (0.0) = 100.0
         assertThat(dto.getMarketBidCost()).isEqualTo(100.0);
     }
+
+    @Test
+    void assembleForTrajectories_doesNotThrow_andKeepsCommonFieldsNull_whenCommonPropertiesAreNull() {
+        // given
+        // Capacity trajectory: ensures nominalCapacity is computed (POWER max / NUMBER max)
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 200.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Common parameters: all fields used by buildFromCommonParameters are null
+        var commonAllNull = ThermalCommonParameterEntity.builder()
+                .thermalClusterRef(gasRef)
+                .minStableGenerationDefault(null)
+                .minUpTime(null)
+                .minDownTime(null)
+                .efficiencyDefault(null)
+                .omCost(null)
+                .foRateDefault(null)
+                .foDurationDefault(null)
+                .poWinterDefault(null)
+                .poDurationDefault(null)
+                .build();
+
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(commonAllNull))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(
+                StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build()
+        );
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef);
+        assertThat(out).containsKey(key);
+
+        var dto = out.get(key);
+
+        // capacity-derived values exist
+        assertThat(dto.getNominalCapacity()).isNotNull();
+        assertThat(dto.getEnabled()).isTrue();
+
+        // common-parameter-derived values remain null (because inputs were null and should not NPE)
+        assertThat(dto.getMinStablePower()).isNull();
+        assertThat(dto.getMinUpTime()).isNull();
+        assertThat(dto.getMinDownTime()).isNull();
+        assertThat(dto.getEfficiency()).isNull();
+        assertThat(dto.getVariableOMCost()).isNull();
+        assertThat(dto.getFoCommonRate()).isNull();
+        assertThat(dto.getFoCommonDuration()).isNull();
+        assertThat(dto.getPoCommonRate()).isNull();
+        assertThat(dto.getPoCommonDuration()).isNull();
+    }
 }
