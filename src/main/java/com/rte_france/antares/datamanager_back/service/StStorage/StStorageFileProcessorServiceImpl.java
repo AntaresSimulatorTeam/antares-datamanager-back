@@ -305,7 +305,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private Boolean getBooleanCell(Row row, int idx) {
         Cell cell = row.getCell(idx);
         if (cell == null) return null;
-        if (cell.getCellType() == CellType.BOOLEAN) return cell.getBooleanCellValue();
+        if (cell.getCellType() == CellType.BOOLEAN || cell.getCellType() == CellType.FORMULA) return cell.getBooleanCellValue();
         String s = cell.toString().trim().toLowerCase(Locale.ROOT);
         if (s.isEmpty()) return null;
         return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);

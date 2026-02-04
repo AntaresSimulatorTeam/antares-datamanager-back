@@ -634,9 +634,16 @@ public class Utils {
             if (dir.isPresent()) {
                 return dir.get();
             } else {
-                throw  TechnicalException.builder().message("Directory not found under " + parent.toString() + " for '" + childName + "'").build();
+                throw  BusinessException.builder().message("Directory not found under " + extractStsPathFromErrorMessage(parent.toString()) + " for '" + childName + "'").build();
             }
         }
+    }
+    // java
+    public static String extractStsPathFromErrorMessage(String errorMessage) {
+        if (errorMessage == null) return null;
+        Pattern p = Pattern.compile("(?i)INPUT/([^\\s']+)(?:\\sfor|$)");
+        Matcher m = p.matcher(errorMessage);
+        return m.find() ? m.group(1) : errorMessage;
     }
 
     public static String civilToChevalHorizon(String horizon) {
