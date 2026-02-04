@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,6 +22,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/v1/trajectory")
 @RequiredArgsConstructor
 public class StStorageController {
@@ -29,7 +31,7 @@ public class StStorageController {
 
     @Operation(summary = "import sts trajectory to database ")
     @PostMapping("/st-storage")
-    public ResponseEntity<TrajectoryDTO> uploadThermalCapacityTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
+    public ResponseEntity<TrajectoryDTO> uploadStStorageTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
                                                                          @RequestParam(value = "technology") String technology,
                                                                          @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
                                                                          @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") @Parameter(description = "example of horizon : 2020-2021") String horizon,
