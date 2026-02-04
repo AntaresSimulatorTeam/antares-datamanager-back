@@ -383,6 +383,7 @@ class StStorageFileProcessorServiceImplTest {
 
         assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present"));
     }
+
     @Test
     void shouldThrowWhenMissingColumnsInStsFile() throws Exception {
         String horizon = "2025";
@@ -434,6 +435,49 @@ class StStorageFileProcessorServiceImplTest {
         assertTrue(ex.getMessage().contains("Missing columns"));
     }
 
+    @Test
+    void shouldiSaveRowWhenSeriesIsTrueAndTsFilesExists() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "battery";
+        String area = "FR";
+        String clusterName = "cluster1";
+
+        Path xlsx = createWorkbookWithSeriesTrue("2030", area, clusterName);
+        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
+
+        // Create STS directory but WITHOUT required files
+        Path stsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("series")
+                .resolve("test")
+                .resolve(clusterName)
+                .resolve(area);
+
+        Files.createDirectories(stsDir);
+        //create required files
+        Files.createFile(stsDir.resolve("inflows.xlsx"));
+        Files.createFile(stsDir.resolve("lower_curve.xlsx"));
+        Files.createFile(stsDir.resolve("Pmax_injection.xlsx"));
+        Files.createFile(stsDir.resolve("Pmax_soutirage.xlsx"));
+        Files.createFile(stsDir.resolve("upper_curve.xlsx"));
+
+        // stubs for repository/user
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+        // no required files -> row ignored and therefore no valid rows -> exception
+
+        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test.xlsx", horizon, 1, false, area, technology);
+        assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        assertThat(trajectory.getStStorageEntities().getFirst().getTsPath()).isNotNull();
+    }
 
 
     private Path createWorkbookWithoutSheet() throws IOException {
