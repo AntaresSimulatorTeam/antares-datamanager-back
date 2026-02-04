@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Locale;
+
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
@@ -30,5 +32,24 @@ public class AreaEntity {
     private Double g;
 
     private Double b;
+
+    public void setName(String name) {
+        this.name = (name == null) ? null : name.toUpperCase(Locale.ROOT);
+    }
+
+    @PostLoad
+    private void normalizeAfterLoad() {
+        if (name != null) {
+            name = name.toUpperCase(Locale.ROOT);
+        }
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalizeName() {
+        if (name != null) {
+            name = name.toUpperCase(Locale.ROOT);
+        }
+    }
 
 }
