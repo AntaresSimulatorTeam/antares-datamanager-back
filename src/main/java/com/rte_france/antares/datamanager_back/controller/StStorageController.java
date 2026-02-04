@@ -21,7 +21,6 @@ import java.io.IOException;
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 
 @Slf4j
-@Validated
 @RestController
 @Validated
 @RequestMapping("/v1/trajectory")
