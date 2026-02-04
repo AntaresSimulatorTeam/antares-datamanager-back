@@ -6,6 +6,8 @@ import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.util.Optional;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class StStorageMapper {
     public static StStorageTrajectoryDataDTO toStStorageTrajectoryDataDTO(StStorageEntity stsStorageEntity) {
@@ -17,15 +19,15 @@ public class StStorageMapper {
 
     public static StsGenerationDTO mapToStsGenerationDTO(StStorageEntity entity) {
         return StsGenerationDTO.builder()
-                .enabled(entity.getEnabled() != null ? entity.getEnabled() : false)
+                .enabled(Optional.ofNullable(entity.getEnabled()).orElse(false))
                 .groupe(entity.getGroupe())
-                .injection(entity.getInjection() != null ? entity.getInjection().intValue() : 0)
-                .withdrawal(entity.getWithdrawal() != null ? entity.getWithdrawal().doubleValue() : 0.0)
-                .storage(entity.getStorage() != null ? entity.getStorage().doubleValue() : 0.0)
-                .efficiencyInjection(entity.getEfficiencyInjection() != null ? entity.getEfficiencyInjection().doubleValue() : 0.0)
-                .efficiencyWithdrawal(entity.getEfficiencyWithdrawal() != null ? entity.getEfficiencyWithdrawal().doubleValue() : 0.0)
-                .initialLevel(entity.getInitialLevel() != null ? entity.getInitialLevel().doubleValue() : 0.0)
-                .initialLevelOptim(entity.getInitialLevelOptim())
+                .injection(Optional.ofNullable(entity.getInjection()).map(Number::intValue).orElse(0))
+                .withdrawal(Optional.ofNullable(entity.getWithdrawal()).map(Number::doubleValue).orElse(0.0))
+                .storage(Optional.ofNullable(entity.getStorage()).map(Number::doubleValue).orElse(0.0))
+                .efficiencyInjection(Optional.ofNullable(entity.getEfficiencyInjection()).map(Number::doubleValue).orElse(0.0))
+                .efficiencyWithdrawal(Optional.ofNullable(entity.getEfficiencyWithdrawal()).map(Number::doubleValue).orElse(0.0))
+                .initialLevel(Optional.ofNullable(entity.getInitialLevel()).map(Number::doubleValue).orElse(0.0))
+                .initialLevelOptim(Optional.ofNullable(entity.getInitialLevelOptim()).orElse(false))
                 .build();
     }
 }

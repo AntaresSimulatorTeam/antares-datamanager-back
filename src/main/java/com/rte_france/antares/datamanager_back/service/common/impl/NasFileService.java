@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.common.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -98,16 +99,38 @@ public class NasFileService {
     /**
      * Saves a time series matrix read from the given path to NAS with a unique filename.
      *
-     * @param inputPath Path to input .txt file
+     * @param inputPath Path to input .txt or .xlsx file
+     * @param outputDir Output directory relative to NAS root
+     * @param sheetName Optional sheet name (for Excel files)
      * @return Saved filename
      * @throws IOException on read/write failure
      */
-    public String saveMatrixToNas(Path inputPath, String outputDir) throws IOException {
-        var matrix = reader.readFromTxt(inputPath);
+    public String saveMatrixToNas(Path inputPath, String outputDir, String sheetName) throws IOException {
+        Objects.requireNonNull(inputPath, "inputPath must not be null");
+        var name = inputPath.getFileName().toString().toLowerCase();
+        TimeSeriesMatrix matrix;
+        try {
+            if (name.endsWith(".txt")) {
+                matrix = reader.readFromTxt(inputPath);
+            } else if (name.endsWith(".xlsx")) {
+                matrix = reader.readFromXlsx(inputPath, sheetName);
+            } else {
+                throw TechnicalException.builder().message("Unsupported input format: " + name).build();
+            }
+        } catch (BusinessException | IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            if (e instanceof IOException ioException) throw ioException;
+            throw new IOException(e);
+        }
         var outputFileName = generateUniqueFileName(inputPath);
         saveMatrix(outputFileName, matrix, outputDir);
         setFilePermissions(inputPath);
         return outputFileName;
+    }
+
+    public String saveMatrixToNas(Path inputPath, String outputDir) throws IOException {
+        return saveMatrixToNas(inputPath, outputDir, null);
     }
 
     private String generateUniqueFileName(Path inputPath) {

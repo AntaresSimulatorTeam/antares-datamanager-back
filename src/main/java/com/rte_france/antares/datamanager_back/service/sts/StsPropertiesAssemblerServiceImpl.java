@@ -1,24 +1,36 @@
 package com.rte_france.antares.datamanager_back.service.sts;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StStorageMapper;
+import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
 
-import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class StsPropertiesAssemblerServiceImpl implements StsPropertiesAssemblerService {
+public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssemblerService {
+
+
+    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final NasFileService nasFileService;
+
 
     @Override
     public Map<String, StsGenerationDTO> assembleStsProperties(StudyEntity studyEntity) {
@@ -36,8 +48,59 @@ public class StsPropertiesAssemblerServiceImpl implements StsPropertiesAssembler
                 })
                 .collect(Collectors.toMap(
                         sts -> sts.getArea().toUpperCase() + "_" + sts.getName(),
-                        StStorageMapper::mapToStsGenerationDTO,
+                        sts -> {
+                            StsGenerationDTO dto = StStorageMapper.mapToStsGenerationDTO(sts);
+                            // Ensure sts_ts is populated from created matrices (could be empty)
+                            dto.setStsTsList(createMatrixStsTsFiles(sts, studyEntity.getHorizon()));
+                            return dto;
+                        },
                         (existing, replacement) -> existing
                 ));
     }
+
+    @Override
+    public List<String> createMatrixStsTsFiles(StStorageEntity stsEntity, String horizon) {
+        if (stsEntity == null || stsEntity.getTsPath() == null || stsEntity.getTsPath().isBlank()) {
+            return Collections.emptyList();
+        }
+        Path tsDir = Path.of(stsEntity.getTsPath());
+
+        try {
+            String outputDir = antaressDataManagerProperties.getStsTsOutputDirectory();
+            List<String> saved = new ArrayList<>();
+
+            for (StsTsFile stsTsFile : StsTsFile.values()) {
+                Path inputPath = stsTsFile.resolve(tsDir);
+
+                if (!java.nio.file.Files.exists(inputPath)) {
+                    throw BusinessException.builder()
+                            .message("Required STS series file not found: {0}")
+                            .errorMessageArguments(List.of(inputPath.toString()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+
+                try {
+                    saved.add(nasFileService.saveMatrixToNas(inputPath, outputDir, horizon));
+                } catch (BusinessException e) {
+                    throw e;
+                } catch (IllegalArgumentException e) {
+                    throw BusinessException.builder()
+                            .message(e.getMessage())
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+            return saved;
+
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .message(e.getMessage())
+                    .cause(e)
+                    .build();
+        }
+    }
+
+
 }

@@ -79,4 +79,37 @@ class StStorageMapperTest {
         assertEquals(0.5, dto.getInitialLevel());
         assertEquals(true, dto.getInitialLevelOptim());
     }
+
+    @Test
+    void mapToStsGenerationDTO_WithNullValues_ShouldHandleCorrectly() {
+        // Given
+        StStorageEntity entity = StStorageEntity.builder()
+                .area("FR")
+                .name("Storage1")
+                .groupe("Group1")
+                .enabled(null)
+                .injection(null)
+                .withdrawal(null)
+                .storage(null)
+                .efficiencyInjection(null)
+                .efficiencyWithdrawal(null)
+                .initialLevel(null)
+                .initialLevelOptim(null)
+                .build();
+
+        // When
+        var dto = StStorageMapper.mapToStsGenerationDTO(entity);
+
+        // Then
+        assertNotNull(dto);
+        assertEquals(false, dto.getEnabled());
+        assertEquals("Group1", dto.getGroupe());
+        assertEquals(0, dto.getInjection());
+        assertEquals(0.0, dto.getWithdrawal());
+        assertEquals(0.0, dto.getStorage());
+        assertEquals(0.0, dto.getEfficiencyInjection());
+        assertEquals(0.0, dto.getEfficiencyWithdrawal());
+        assertEquals(0.0, dto.getInitialLevel());
+        assertEquals(false, dto.getInitialLevelOptim());
+    }
 }

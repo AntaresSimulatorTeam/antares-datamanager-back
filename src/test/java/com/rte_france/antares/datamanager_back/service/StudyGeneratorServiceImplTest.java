@@ -14,7 +14,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.service.sts.StsPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -75,7 +75,7 @@ class StudyGeneratorServiceImplTest {
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
-    private StsPropertiesAssemblerService stPropertiesAssemblerService;
+    private StsGenerationAssemblerService stPropertiesAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
