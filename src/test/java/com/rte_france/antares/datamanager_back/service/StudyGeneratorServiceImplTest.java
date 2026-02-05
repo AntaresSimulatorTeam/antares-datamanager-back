@@ -517,8 +517,9 @@ class StudyGeneratorServiceImplTest {
 
         assertThat(de).containsKey("sts");
         Map<String, Object> sts = mapper.convertValue(de.get("sts"), new TypeReference<>() {});
-        assertThat(sts).containsKey("DE_Storage1");
-        assertThat(sts).doesNotContainKey("FR_Ignore");
+        assertThat(sts)
+                .containsKey("DE_Storage1")
+                        .doesNotContainKey("FR_Ignore");
 
         Map<String, Object> cluster = mapper.convertValue(sts.get("DE_Storage1"), new TypeReference<>() {});
         assertThat(cluster).containsKey("properties");
