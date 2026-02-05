@@ -795,7 +795,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             loadEntities.add(loadEntity);
         }
         loadTrajectory.setLoadEntities(loadEntities);
-        loadTrajectory.setArea(area.toUpperCase());
+        loadTrajectory.setArea(area);
         loadTrajectory.setWarningMessages(warningMessageEntities);
         return trajectoryRepository.save(loadTrajectory);
     }
