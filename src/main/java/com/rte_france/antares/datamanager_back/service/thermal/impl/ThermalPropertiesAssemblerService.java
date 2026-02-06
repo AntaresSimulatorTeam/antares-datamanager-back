@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -43,57 +44,68 @@ public class ThermalPropertiesAssemblerService {
      */
 
 
-    public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleForTrajectories(StudyEntity study)  {
+    public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleForTrajectories(StudyEntity study) {
+        Integer studyId = study != null ? study.getId() : null;
+        MDC.put("studyId", Objects.toString(studyId, "null"));
+        log.info("Start assembling thermal properties for studyId={}", studyId);
+
         Set<TrajectoryEntity> trajectories = study.getTrajectories();
         Objects.requireNonNull(trajectories);
 
-        var capacityTrajectories = trajectories.stream()
-                .filter(Objects::nonNull)
-                .filter(t -> THERMAL_CAPACITY.equals(TrajectoryType.valueOf(t.getType())))
-                .toList();
+        Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterGenerationOutput = new LinkedHashMap<>();
 
-        var commonTrajectories = trajectories.stream()
-                .filter(Objects::nonNull)
-                .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType()))
-                || THERMAL_ECONOMIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
-                .toList();
-        var specificTrajectories = trajectories.stream()
-                .filter(Objects::nonNull)
-                .filter(t -> THERMAL_TECHNICAL_SPECIFIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
-                .toList();
+        try {
+            var capacityTrajectories = trajectories.stream()
+                    .filter(Objects::nonNull)
+                    .filter(t -> THERMAL_CAPACITY.equals(TrajectoryType.valueOf(t.getType())))
+                    .toList();
 
-       List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
+            var commonTrajectories = trajectories.stream()
+                    .filter(Objects::nonNull)
+                    .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType()))
+                            || THERMAL_ECONOMIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+                    .toList();
+            var specificTrajectories = trajectories.stream()
+                    .filter(Objects::nonNull)
+                    .filter(t -> THERMAL_TECHNICAL_SPECIFIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+                    .toList();
 
-        var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories);
-        var commonsByRef = extractCommonParamsByClusterRef(commonTrajectories);
-        var specificsByRef = extractSpecificParamsByClusterRef(specificTrajectories);
+            List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
 
-        var thermalClusterGenerationOutput = new LinkedHashMap<AreaClusterRefKey, ThermalClusterGenerationDto>();
+            var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories);
+            var commonsByRef = extractCommonParamsByClusterRef(commonTrajectories);
+            var specificsByRef = extractSpecificParamsByClusterRef(specificTrajectories);
 
-        for (var entry : capacitiesByAreaRef.entrySet()) {
-            AreaClusterRefKey areaClusterRefKey = entry.getKey();
-            List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
+            for (var entry : capacitiesByAreaRef.entrySet()) {
+                AreaClusterRefKey areaClusterRefKey = entry.getKey();
+                List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
 
-            ThermalClusterRef thermalClusterRef = areaClusterRefKey.thermalClusterRef();
-            String clusterName = thermalClusterRef != null ? thermalClusterRef.getName() : null;
-            List<ThermalCommonParameterEntity> commonsForRef = clusterName == null
-                    ? List.of()
-                    : commonsByRef.getOrDefault(clusterName, List.of());
-            List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
+                ThermalClusterRef thermalClusterRef = areaClusterRefKey.thermalClusterRef();
+                String clusterName = thermalClusterRef != null ? thermalClusterRef.getName() : null;
+                List<ThermalCommonParameterEntity> commonsForRef = clusterName == null
+                        ? List.of()
+                        : commonsByRef.getOrDefault(clusterName, List.of());
+                List<ThermalSpecificParametersEntity> specificForRef = specificsByRef.getOrDefault(thermalClusterRef, List.of());
 
-            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
+                ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
 
-            // modulation param ts files ts
-            List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
-            thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
+                // modulation param ts files ts
+                List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
+                thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
 
-            thermalClusterGenerationOutput.put(areaClusterRefKey, thermalClusterGenerationDto);
+                thermalClusterGenerationOutput.put(areaClusterRefKey, thermalClusterGenerationDto);
+
+                log.info("Assembled cluster '{}' for area '{}' (studyId={})", clusterName, areaClusterRefKey.area(), studyId);
+            }
+        } finally {
+            log.info("Finished assembling {} thermal cluster(s) for studyId={}", thermalClusterGenerationOutput.size(), studyId);
+            MDC.remove("studyId");
         }
 
         return thermalClusterGenerationOutput;
     }
 
-    public static List<String>  extractModulationParamTsFilesByAreaClusterRefKey(List<String> splitedTsFileNameList, AreaClusterRefKey areaClusterRefKey) {
+    public static List<String> extractModulationParamTsFilesByAreaClusterRefKey(List<String> splitedTsFileNameList, AreaClusterRefKey areaClusterRefKey) {
 
         //example file name : MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Other Gas conventional old 2.csv.6401800f-8425-49d5-a42b-e89cb1e8a293.arrow
         //area : BE
@@ -117,6 +129,7 @@ public class ThermalPropertiesAssemblerService {
     }
 
     private static LinkedHashMap<String, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajectories) {
+        log.info("Extracting common parameters by cluster ref from {} trajectories", parameterTrajectories.size());
         return parameterTrajectories.stream()
                 .flatMap(t -> Optional.ofNullable(t.getThermalCommonParameters()).orElseGet(List::of).stream())
                 // Only for common parameters: skip entries whose cluster ref has name_pemmdb == "NA"
@@ -135,6 +148,7 @@ public class ThermalPropertiesAssemblerService {
     }
 
     public static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> extractThermalCapacitiesByAreaClusterRef(List<TrajectoryEntity> capacityTrajs) {
+        log.info("Extracting thermal capacities by area and cluster ref from {} trajectories", capacityTrajs.size());
         return capacityTrajs.stream()
                 .flatMap(t -> Optional.ofNullable(t.getThermalClusterCapacities())
                         .orElseGet(List::of).stream()
@@ -212,7 +226,7 @@ public class ThermalPropertiesAssemblerService {
 
 
     private void buildFromClusterCapacity(List<ThermalClusterCapacityEntity> thermalClusterCapacities, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {
-
+        log.info("Building cluster properties from {} thermal capacities", thermalClusterCapacities.size());
         // max POWER capacity
         OptionalDouble maxPowerOpt = thermalClusterCapacities.stream()
                 .filter(Objects::nonNull)
@@ -226,11 +240,11 @@ public class ThermalPropertiesAssemblerService {
         OptionalDouble unitCountOpt = thermalClusterCapacities.stream()
                 .filter(Objects::nonNull)
                 .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
-                .map(ThermalClusterCapacityEntity::getValue) 
+                .map(ThermalClusterCapacityEntity::getValue)
                 .filter(Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
                 .max();
-                
+
         // nominal capacity (max POWER / unitCount) ---
         if (maxPowerOpt.isPresent()) {
             double maxPower = maxPowerOpt.getAsDouble();
@@ -266,6 +280,8 @@ public class ThermalPropertiesAssemblerService {
     }
 
     private void buildFromCommonParameters(List<ThermalCommonParameterEntity> thermalCommonParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {
+
+        log.info("Building cluster properties from {} common parameter entries", thermalCommonParameters.size());
         // min_stable_power
         var nominalCapacity = builder.build().getNominalCapacity();
         if (nominalCapacity != null) {
@@ -308,6 +324,8 @@ public class ThermalPropertiesAssemblerService {
     }
 
     private void buildFromSpecificParameters(List<ThermalSpecificParametersEntity> thermalSpecificParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {
+
+        log.info("Building cluster properties from {} specific parameter entries", thermalSpecificParameters.size());
         // min_stable_power
         var nominalCapacity = builder.build().getNominalCapacity();
         if (nominalCapacity != null) {
