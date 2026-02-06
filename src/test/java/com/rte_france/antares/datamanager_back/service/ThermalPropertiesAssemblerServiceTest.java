@@ -1076,4 +1076,63 @@ class ThermalPropertiesAssemblerServiceTest {
         assertThat(dto.getPoCommonRate()).isNull();
         assertThat(dto.getPoCommonDuration()).isNull();
     }
+
+    @Test
+    void assembleForTrajectories_prioritizesNASpecificParameters() {
+        // given
+        // 1. Standard Ref
+        var standardRef = ThermalClusterRef.builder()
+                .id(101)
+                .name("ClusterX")
+                .namePemmdb("SomePemmdb")
+                .thermalTechnology(new ThermalTechnology())
+                .build();
+
+        // 2. NA Ref with same name
+        var naRef = ThermalClusterRef.builder()
+                .id(102)
+                .name("ClusterX")
+                .namePemmdb("NA")
+                .thermalTechnology(null)
+                .build();
+
+        // Capacity Trajectory for standard ref
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(standardRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Specific Trajectory containing both standard and NA parameters
+        var standardParams = ThermalSpecificParametersEntity.builder()
+                .thermalClusterRef(standardRef)
+                .efficiency(0.5) // 50%
+                .area("FR")
+                .build();
+
+        var naParams = ThermalSpecificParametersEntity.builder()
+                .thermalClusterRef(naRef)
+                .efficiency(0.8) // 80% - this should be prioritized
+                .area("FR")
+                .build();
+
+        var specificTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
+                .thermalSpecificParameters(List.of(standardParams, naParams))
+                .build();
+
+        when(groupMappingService.toGroup("ClusterX")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, specificTraj)).build());
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", standardRef);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+
+        // Efficiency should be 80.0 (from NA params) not 50.0 (from standard params)
+        assertThat(dto.getEfficiency()).isEqualTo(80.0);
+    }
 }
