@@ -44,12 +44,6 @@ class StudyServiceImplTest {
     @InjectMocks
     private StudyServiceImpl studyServiceImpl;
 
-    @InjectMocks
-    private TrajectoryServiceImpl trajectoryServiceImpl;
-
-    @InjectMocks
-    private UserService userService;
-
     @Test
     void findStudiesByCriteria_returnsFilteredStudiesWhenSearchIsNotNull() {
         Pageable pageable = PageRequest.of(0, 10);
