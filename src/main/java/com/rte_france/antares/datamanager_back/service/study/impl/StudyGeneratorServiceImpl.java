@@ -439,18 +439,30 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                             log.info("Study {} has been successfully generated", studyId);
                             return resp.bodyToMono(String.class);
                         } else {
-                            log.error("Error while generating study {{}}", studyId);
-                            return resp.createException().flatMap(Mono::error);
-                        }
+                            return resp.bodyToMono(String.class)
+                                    .defaultIfEmpty("(empty response body)")
+                                    .flatMap(body -> {
 
+                                        String msg = String.format("Error while generating study %d: %s", studyId, body);
+                                        //remove ({\"detail\":\"Internal Error:) and (\"}) from msg
+                                        msg = msg.replaceAll("\\{\"detail\":\"Internal Error: ?", "")
+                                                .replaceAll("\"}", "")
+                                                .trim();
+                                        log.error(msg);
+                                        return Mono.error(TechnicalException.builder().message(msg).build());
+                                    });
+                        }
                     })
                     .block();
+        } catch (TechnicalException te) {
+            throw te;
         } catch (RuntimeException ex) {
             log.error("Erreur lors de l'appel au générateur pour l'étude {} : {}", studyId, ex.getMessage());
             throw TechnicalException.builder()
                     .message("Error while call Generate study from generator " + studyId + ": " + ex.getMessage())
-                    .cause(ex.getCause())
+                    .cause(ex)
                     .build();
         }
     }
+
 }
