@@ -201,7 +201,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", horizon, 1, false, area, technology)
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Can not import : Missing TS for trajectory");
+                .hasMessageContaining("None of the areas of trajectory AREA are present");
     }
 
     @Test
