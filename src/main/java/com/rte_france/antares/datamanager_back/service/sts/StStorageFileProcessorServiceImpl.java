@@ -221,8 +221,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea, technology, clusterName);
             if (isTsFileMissing(stsTs)) {
                 throw BusinessException.builder()
+                        .message("None of the areas of trajectory AREA are present in STS trajectory {0}")
                         .errorMessageArguments(List.of(trajectoryFileName))
-                        .message("Can not import : Missing TS for trajectory {0}")
                         .build();
             }
             stStorageEntity.setTsPath(stsTs.toString());
@@ -282,7 +282,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
-            throw BusinessException.builder().message("Missing columns " + missingList + " STS trajectory " + trajectoryName).build();
+            throw BusinessException.builder().message("Missing columns " + missingList + " in STS trajectory " + trajectoryName).build();
         }
     }
 
