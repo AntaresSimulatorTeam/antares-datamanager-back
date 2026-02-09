@@ -148,7 +148,31 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
                 String rowArea = getStringCellValue(row, 0);
                 String clusterName = getStringCellValue(row, 1);
-                if (rowArea == null || rowArea.isEmpty() || clusterName == null || clusterName.isEmpty()) continue;
+                String groupName = getStringCellValue(row, 2);
+
+                // Zone must be present
+                if (rowArea == null || rowArea.isEmpty()) {
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
+                            .message("Area is missing in STS trajectory " + trajectoryFileName + " for row: " + r)
+                            .build();
+                }
+
+                // Cluster name is mandatory
+                if (clusterName == null || clusterName.isEmpty()) {
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
+                            .message("No valid cluster name found in the trajectory {0} for area {1} and horizon {2}")
+                            .build();
+                }
+
+                // Group name is mandatory
+                if (groupName == null || groupName.isEmpty()) {
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
+                            .message("No valid cluster group found in the trajectory {0} for area {1} and horizon {2}")
+                            .build();
+                }
 
                 if (studyAreas.contains(rowArea.toUpperCase())) {
                     foundStudyArea = true;
@@ -284,7 +308,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
 
     public Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
-        // \\STS\<techno>\series\<trajectoire>\<nom du cluster>\<area>\*
+        // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
 
         Path root = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
