@@ -64,29 +64,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, isSeriesTrue);
 
-        WarningMessageEntity warningMessageEntity = buildWarningMessageIfAreaStudyIsMissing(studyId, areaParam, stStorageEntityList, studyAreas, trajectoryFilePath, trajectoryEntity);
-
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
-        if (warningMessageEntity != null) {
-            trajectoryEntity.setWarningMessages(Set.of(warningMessageEntity));
-        }
         return trajectoryRepository.save(trajectoryEntity);
-    }
-
-    private WarningMessageEntity buildWarningMessageIfAreaStudyIsMissing(Integer studyId, String areaParam, List<StStorageEntity> stStorageEntityList, List<String> studyAreas, Path trajectoryFilePath, TrajectoryEntity trajectoryEntity) {
-        // si OTHERS_AREA : lister les areas de l'étude absentes et créer un warning (pas d'exception)
-        if (areaParam.equals(OTHERS_AREA)) {
-            List<String> stsAreas = stStorageEntityList.stream().map(StStorageEntity::getArea).map(String::toUpperCase).distinct().toList();
-            String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
-
-            List<String> missingAreas = studyAreas.stream().filter(sa -> !stsAreas.contains(sa)).toList();
-            if (!missingAreas.isEmpty()) {
-                String message = " Area(s) " + missingAreas + " in AREA trajectory is not present in STS trajectory " + trajectoryFilePath.getFileName().toString();
-                return WarningMessageEntity.builder().warningContent(message).warningLevel(WarningLevel.WARNING_LEVEL).warningCode(WarningCode.STS_MISSING_AREAS).study(studyRepository.findById(studyId).orElseThrow(() -> BusinessException.builder().message("Study not found with id: " + studyId).httpStatus(HttpStatus.NOT_FOUND).build())).creationDate(LocalDateTime.now()).createdBy(createdBy).isAck(false).trajectory(trajectoryEntity).build();
-            }
-        }
-        return null;
     }
 
     public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
