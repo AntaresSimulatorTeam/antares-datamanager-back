@@ -110,18 +110,19 @@ public class NasFileService {
         var name = inputPath.getFileName().toString().toLowerCase();
         TimeSeriesMatrix matrix;
         try {
-            if (name.endsWith(".txt")) {
+            if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 matrix = reader.readFromTxt(inputPath);
             } else if (name.endsWith(".xlsx")) {
                 matrix = reader.readFromXlsx(inputPath, sheetName);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
-        } catch (BusinessException | IllegalArgumentException e) {
-            throw e;
         } catch (Exception e) {
-            if (e instanceof IOException ioException) throw ioException;
-            throw new IOException(e);
+            throw TechnicalException.builder()
+                    .message("Failed to read time series matrix from file: " + inputPath.getFileName())
+                    .cause(e)
+                    .build();
+
         }
         var outputFileName = generateUniqueFileName(inputPath);
         saveMatrix(outputFileName, matrix, outputDir);
