@@ -59,7 +59,7 @@ class StStorageMapperTest {
                 .withdrawal(new java.math.BigDecimal("5.2"))
                 .storage(new java.math.BigDecimal("100.0"))
                 .efficiencyInjection(new java.math.BigDecimal("0.9"))
-                .efficiencyWithdrawal(80)
+                .efficiencyWithdrawal(new java.math.BigDecimal("0.8"))
                 .initialLevel(new java.math.BigDecimal("0.5"))
                 .initialLevelOptim(true)
                 .build();
@@ -75,7 +75,7 @@ class StStorageMapperTest {
         assertEquals(5.2, dto.getWithdrawal());
         assertEquals(100.0, dto.getStorage());
         assertEquals(0.9, dto.getEfficiencyInjection());
-        assertEquals(80.0, dto.getEfficiencyWithdrawal());
+        assertEquals(0.8, dto.getEfficiencyWithdrawal());
         assertEquals(0.5, dto.getInitialLevel());
         assertEquals(true, dto.getInitialLevelOptim());
     }

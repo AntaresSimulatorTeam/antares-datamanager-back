@@ -69,7 +69,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .withdrawal(new BigDecimal("5.2"))
                 .storage(new BigDecimal("100.0"))
                 .efficiencyInjection(new BigDecimal("0.9"))
-                .efficiencyWithdrawal(80) // StStorageEntity has Integer for efficiencyWithdrawal
+                .efficiencyWithdrawal(new java.math.BigDecimal("0.2")) // StStorageEntity has Integer for efficiencyWithdrawal
                 .initialLevel(new BigDecimal("0.5"))
                 .initialLevelOptim(true)
                 .enabled(true)
@@ -98,7 +98,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(5.2, dto.getWithdrawal());
         assertEquals(100.0, dto.getStorage());
         assertEquals(0.9, dto.getEfficiencyInjection());
-        assertEquals(80.0, dto.getEfficiencyWithdrawal());
+        assertEquals(0.2, dto.getEfficiencyWithdrawal());
         assertEquals(0.5, dto.getInitialLevel());
         assertEquals(true, dto.getInitialLevelOptim());
     }
