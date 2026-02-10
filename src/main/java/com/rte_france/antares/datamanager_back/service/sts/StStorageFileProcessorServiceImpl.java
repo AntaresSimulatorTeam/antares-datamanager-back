@@ -218,7 +218,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         // Series/TS files handling
         Boolean series = getBooleanCell(row, 11);
         if (Boolean.TRUE.equals(series)) {
-            Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea.toUpperCase(), technology, clusterName);
+            Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea, technology, clusterName);
             if (isTsFileMissing(stsTs)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName))
