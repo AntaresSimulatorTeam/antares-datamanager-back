@@ -64,29 +64,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, isSeriesTrue);
 
-        WarningMessageEntity warningMessageEntity = buildWarningMessageIfAreaStudyIsMissing(studyId, areaParam, stStorageEntityList, studyAreas, trajectoryFilePath, trajectoryEntity);
-
         stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
-        if (warningMessageEntity != null) {
-            trajectoryEntity.setWarningMessages(Set.of(warningMessageEntity));
-        }
         return trajectoryRepository.save(trajectoryEntity);
-    }
-
-    private WarningMessageEntity buildWarningMessageIfAreaStudyIsMissing(Integer studyId, String areaParam, List<StStorageEntity> stStorageEntityList, List<String> studyAreas, Path trajectoryFilePath, TrajectoryEntity trajectoryEntity) {
-        // si OTHERS_AREA : lister les areas de l'étude absentes et créer un warning (pas d'exception)
-        if (areaParam.equals(OTHERS_AREA)) {
-            List<String> stsAreas = stStorageEntityList.stream().map(StStorageEntity::getArea).map(String::toUpperCase).distinct().toList();
-            String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
-
-            List<String> missingAreas = studyAreas.stream().filter(sa -> !stsAreas.contains(sa)).toList();
-            if (!missingAreas.isEmpty()) {
-                String message = " Area(s) " + missingAreas + " in AREA trajectory is not present in STS trajectory " + trajectoryFilePath.getFileName().toString();
-                return WarningMessageEntity.builder().warningContent(message).warningLevel(WarningLevel.WARNING_LEVEL).warningCode(WarningCode.STS_MISSING_AREAS).study(studyRepository.findById(studyId).orElseThrow(() -> BusinessException.builder().message("Study not found with id: " + studyId).httpStatus(HttpStatus.NOT_FOUND).build())).creationDate(LocalDateTime.now()).createdBy(createdBy).isAck(false).trajectory(trajectoryEntity).build();
-            }
-        }
-        return null;
     }
 
     public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
@@ -148,7 +128,31 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
                 String rowArea = getStringCellValue(row, 0);
                 String clusterName = getStringCellValue(row, 1);
-                if (rowArea == null || rowArea.isEmpty() || clusterName == null || clusterName.isEmpty()) continue;
+                String groupName = getStringCellValue(row, 2);
+
+                // Zone must be present
+                if (rowArea == null || rowArea.isEmpty()) {
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
+                            .message("Area is missing in STS trajectory " + trajectoryFileName + " for row: " + r)
+                            .build();
+                }
+
+                // Cluster name is mandatory
+                if (clusterName == null || clusterName.isEmpty()) {
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
+                            .message("No valid cluster name found in the trajectory {0} for area {1} and horizon {2}")
+                            .build();
+                }
+
+                // Group name is mandatory
+                if (groupName == null || groupName.isEmpty()) {
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
+                            .message("No valid cluster group found in the trajectory {0} for area {1} and horizon {2}")
+                            .build();
+                }
 
                 if (studyAreas.contains(rowArea.toUpperCase())) {
                     foundStudyArea = true;
@@ -214,7 +218,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         // Series/TS files handling
         Boolean series = getBooleanCell(row, 11);
         if (Boolean.TRUE.equals(series)) {
-            Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea.toUpperCase(), technology, clusterName);
+            Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea, technology, clusterName);
             if (isTsFileMissing(stsTs)) {
                 throw BusinessException.builder()
                         .message("None of the areas of trajectory AREA are present in STS trajectory {0}")
@@ -284,7 +288,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
 
     public Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
-        // \\STS\<techno>\series\<trajectoire>\<nom du cluster>\<area>\*
+        // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
 
         Path root = Path.of(antaressDataManagerProperties.getNasDirectory())
                 .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
