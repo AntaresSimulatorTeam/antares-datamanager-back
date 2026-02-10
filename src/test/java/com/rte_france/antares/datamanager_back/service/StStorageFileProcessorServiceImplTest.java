@@ -201,7 +201,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", horizon, 1, false, area, technology)
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Can not import : Missing TS for trajectory");
+                .hasMessageContaining("None of the areas of trajectory AREA are present");
     }
 
     @Test
@@ -245,7 +245,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "OTHERS_AREA", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Selected area OTHERS_AREA is not present in the 'node' column of STS trajectory cluster_battery_test.xlsx");
+                .hasMessageContaining("No valid cluster group found in the trajectory");
     }
 
     @Test
@@ -274,40 +274,6 @@ class StStorageFileProcessorServiceImplTest {
         TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery");
         assertThat(trajectory).isNotNull();
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
-    }
-
-    @Test
-    void shouldCreateWarningWhenSomeStudyAreasAreMissing() throws IOException {
-        // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
-                .thenReturn(List.of(
-                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                            setName("FR");
-                        }},
-                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                            setName("DE");
-                        }}
-                ));
-
-        // file contains only FR
-        Path xlsx = createValidWorkbook("2030", false);
-        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
-
-        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
-        }});
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
-        when(studyRepository.findById(anyInt())).thenReturn(Optional.of(new com.rte_france.antares.datamanager_back.repository.model.StudyEntity()));
-
-        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, OTHERS_AREA, "battery");
-
-        Optional<WarningMessageEntity> warningOpt = trajectory.getWarningMessages().stream().findFirst();
-        assertThat(warningOpt).isPresent();
-        assertThat(warningOpt.get().getCreatedBy()).isEqualTo("TESTNNI");
-        assertThat(warningOpt.get().getIsAck()).isFalse();
     }
 
     @Test
@@ -610,4 +576,100 @@ class StStorageFileProcessorServiceImplTest {
         return Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
 
+    @Test
+    void shouldThrowWhenClusterNameIsMissing() throws IOException {
+        // create workbook with missing cluster name but group present
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue("FR");
+            r.createCell(1).setCellValue(""); // missing cluster name
+            r.createCell(2).setCellValue("g1");
+            r.createCell(3).setCellValue(10);
+            r.createCell(4).setCellValue(20);
+            r.createCell(5).setCellValue(30);
+            r.createCell(6).setCellValue(0.9);
+            r.createCell(7).setCellValue(5);
+            r.createCell(8).setCellValue(50);
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInClusters(file, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("No valid cluster name found");
+    }
+
+    @Test
+    void shouldThrowWhenGroupNameIsMissing() throws IOException {
+        // create workbook with missing group name but cluster present
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue("FR");
+            r.createCell(1).setCellValue("cluster1");
+            r.createCell(2).setCellValue(""); // missing group name
+            r.createCell(3).setCellValue(10);
+            r.createCell(4).setCellValue(20);
+            r.createCell(5).setCellValue(30);
+            r.createCell(6).setCellValue(0.9);
+            r.createCell(7).setCellValue(5);
+            r.createCell(8).setCellValue(50);
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInClusters(file, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("No valid cluster group found");
+    }
+
+    @Test
+    void shouldThrowWhenAreaIsMissing() throws IOException {
+        // create workbook with missing area but cluster and group present
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue(""); // missing area
+            r.createCell(1).setCellValue("cluster1");
+            r.createCell(2).setCellValue("g1");
+            r.createCell(3).setCellValue(10);
+            r.createCell(4).setCellValue(20);
+            r.createCell(5).setCellValue(30);
+            r.createCell(6).setCellValue(0.9);
+            r.createCell(7).setCellValue(5);
+            r.createCell(8).setCellValue(50);
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInClusters(file, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Area is missing in STS trajectory cluster_battery_test.xlsx");
+
+    }
 }

@@ -17,11 +17,14 @@ public class HttpLoggingFilter extends OncePerRequestFilter {
 
     private static final String HTTP_REQUEST_METHOD_KEY = "http.request.method";
     private static final String HTTP_REQUEST_URI = "http.request.uri";
+    private static final String SERVICE_NAME_CUSTOM_FIELD = "application";
+
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        MDC.put(SERVICE_NAME_CUSTOM_FIELD, "pegase-back");
         MDC.put(HTTP_REQUEST_METHOD_KEY, request.getMethod());
         MDC.put(HTTP_REQUEST_URI, request.getRequestURI());
         try {
