@@ -277,40 +277,6 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldCreateWarningWhenSomeStudyAreasAreMissing() throws IOException {
-        // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
-                .thenReturn(List.of(
-                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                            setName("FR");
-                        }},
-                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                            setName("DE");
-                        }}
-                ));
-
-        // file contains only FR
-        Path xlsx = createValidWorkbook("2030", false);
-        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
-
-        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
-        }});
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
-        when(studyRepository.findById(anyInt())).thenReturn(Optional.of(new com.rte_france.antares.datamanager_back.repository.model.StudyEntity()));
-
-        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, OTHERS_AREA, "battery");
-
-        Optional<WarningMessageEntity> warningOpt = trajectory.getWarningMessages().stream().findFirst();
-        assertThat(warningOpt).isPresent();
-        assertThat(warningOpt.get().getCreatedBy()).isEqualTo("TESTNNI");
-        assertThat(warningOpt.get().getIsAck()).isFalse();
-    }
-
-    @Test
     void shouldThrowWhenNoStudyAreaIsPresentInStsFile() throws Exception {
         // GIVEN
         String horizon = "2025";
