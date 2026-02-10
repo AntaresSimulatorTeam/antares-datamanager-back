@@ -73,15 +73,22 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
             List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
 
+            Set<String> studyAreasSet = new HashSet<>(studyAreas);
+
+            boolean isOthers = OTHERS_AREA.equalsIgnoreCase(area);
+            String selectedAreaUpper = area == null ? null : area.trim().toUpperCase(Locale.ROOT);
+
             for (Row row : sheet) {
-                if (row.getRowNum() <= 2) continue; // skip headers/metadata lines (data from line 4)
+                if (row.getRowNum() <= 2) continue;
 
                 String rowArea = castString(getCellValue(row, 0));
-                rowArea = rowArea == null ? null : rowArea.trim();
-                if (rowArea == null || rowArea.isBlank() || (!area.equals(OTHERS_AREA) && !rowArea.equals(area)) || !studyAreas.contains(rowArea.toUpperCase())) {
-                    continue; // ignore empty lines
-                }
-                String rowAreaUpper = rowArea.toUpperCase();
+                if (rowArea == null) continue;
+
+                String rowAreaUpper = rowArea.trim().toUpperCase(Locale.ROOT);
+                if (rowAreaUpper.isBlank()) continue;
+
+                if (!isOthers && !rowAreaUpper.equals(selectedAreaUpper)) continue;
+                if (!studyAreasSet.contains(rowAreaUpper)) continue;
 
                 otherAreas.add(rowAreaUpper);
 
@@ -89,7 +96,6 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
                 checkNumericColumns(row, header, rowArea, clusterName, trajectoryName);
                 processThermalSpecificRow(row, header, specificParams, trajectoryName);
-
             }
 
             if (specificParams.isEmpty()) {
@@ -285,7 +291,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
         if (!missingNames.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Missing columns " + String.join(", ", missingNames) + " THERMAL Specific Param trajectory " + trajectoryName)
+                    .message("Missing columns " + String.join(", ", missingNames) + " in THERMAL Specific Param trajectory " + trajectoryName)
                     .build();
         }
     }
