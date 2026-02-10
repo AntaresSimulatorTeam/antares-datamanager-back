@@ -40,7 +40,7 @@ public class StStorageEntity {
     private BigDecimal efficiencyInjection;
 
     @Column(name = "efficiency_withdrawal")
-    private Integer efficiencyWithdrawal;
+    private BigDecimal efficiencyWithdrawal;
 
     @Column(name = "initial_level")
     private BigDecimal initialLevel;

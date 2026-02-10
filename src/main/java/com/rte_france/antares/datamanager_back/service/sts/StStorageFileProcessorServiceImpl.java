@@ -130,8 +130,11 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 String clusterName = getStringCellValue(row, 1);
                 String groupName = getStringCellValue(row, 2);
 
+                if (!shouldIncludeRow(rowArea, areaParam)) {
+                    continue;
+                }
                 // Zone must be present
-                if (rowArea == null || rowArea.isEmpty()) {
+                if (rowArea.isEmpty()) {
                     throw BusinessException.builder()
                             .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
                             .message("Area is missing in STS trajectory " + trajectoryFileName + " for row: " + r)
@@ -156,10 +159,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
                 if (studyAreas.contains(rowArea.toUpperCase())) {
                     foundStudyArea = true;
-                }
-
-                if (!shouldIncludeRow(rowArea, areaParam)) {
-                    continue;
                 }
 
                 validateNumericRange(row, 3, 8, rowArea, clusterName, trajectoryFileName);
@@ -221,8 +220,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea, technology, clusterName);
             if (isTsFileMissing(stsTs)) {
                 throw BusinessException.builder()
-                        .message("None of the areas of trajectory AREA are present in STS trajectory {0}")
                         .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Can not import : Missing TS for trajectory {0}")
                         .build();
             }
             stStorageEntity.setTsPath(stsTs.toString());
@@ -235,7 +234,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
         stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
         stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
-        stStorageEntity.setEfficiencyWithdrawal((int) (row.getCell(7).getNumericCellValue()));
+        stStorageEntity.setEfficiencyWithdrawal(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
         stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
         stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 9));
         stStorageEntity.setEnabled(getBooleanCell(row, 10));
