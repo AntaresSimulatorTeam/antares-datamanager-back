@@ -6,7 +6,8 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,6 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -81,7 +81,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         try (Stream<Path> s = Files.list(techDir)) {
             java.util.Optional<Path> file = s.filter(Files::isRegularFile).filter(p -> {
                 String fn = p.getFileName().toString();
-                return fn.equalsIgnoreCase(trajectoryFileName+".xlsx") || fn.equalsIgnoreCase(trajectoryFileName+".xls");
+                return fn.equalsIgnoreCase(trajectoryFileName + ".xlsx") || fn.equalsIgnoreCase(trajectoryFileName + ".xls");
             }).findFirst();
 
             if (file.isPresent()) {
@@ -129,16 +129,21 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 String rowArea = getStringCellValue(row, 0);
                 String clusterName = getStringCellValue(row, 1);
                 String groupName = getStringCellValue(row, 2);
-
-                if (!shouldIncludeRow(rowArea, areaParam)) {
-                    continue;
-                }
                 // Zone must be present
-                if (rowArea.isEmpty()) {
+                if (rowArea == null || rowArea.isEmpty()) {
                     throw BusinessException.builder()
                             .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
                             .message("Area is missing in STS trajectory " + trajectoryFileName + " for row: " + r)
                             .build();
+                }
+
+                if (!shouldIncludeRow(rowArea, areaParam) && !studyAreas.contains(rowArea.toUpperCase())) {
+                    continue;
+                }
+                if (studyAreas.contains(rowArea.toUpperCase())) {
+                    foundStudyArea = true;
+                } else {
+                    continue;
                 }
 
                 // Cluster name is mandatory
@@ -157,9 +162,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                             .build();
                 }
 
-                if (studyAreas.contains(rowArea.toUpperCase())) {
-                    foundStudyArea = true;
-                }
 
                 validateNumericRange(row, 3, 8, rowArea, clusterName, trajectoryFileName);
 
