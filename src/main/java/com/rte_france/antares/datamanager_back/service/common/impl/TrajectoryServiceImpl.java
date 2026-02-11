@@ -468,7 +468,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
-                            || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, area))
+                            || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -485,7 +485,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String area) {
+    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology) {
         String fileName = path.getFileName().toString().toLowerCase();
         return switch (trajectoryType) {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
@@ -494,7 +494,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
-            case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "[a-z0-9]+_.*");
+            case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             default -> true;
         };
     }

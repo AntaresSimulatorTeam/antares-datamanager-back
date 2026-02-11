@@ -347,7 +347,7 @@ class StStorageFileProcessorServiceImplTest {
                 )
         );
 
-        assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present"));
+        assertTrue(ex.getMessage().contains("Selected area " + areaParam));
     }
 
     @Test
