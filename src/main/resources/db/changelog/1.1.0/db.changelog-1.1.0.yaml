@@ -68,5 +68,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V30-add_sts_path_ts_column_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V31-alter_column_efficiency_with_drawal_sts_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V32-create-dsr-tables.sql
 
 
