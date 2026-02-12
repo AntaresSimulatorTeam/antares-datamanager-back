@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.dto.AreaDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
@@ -100,7 +101,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Map<String, Object> linksMap = new TreeMap<>();
 
             if (trajectories == null || trajectories.isEmpty()) {
-                throw com.rte_france.antares.datamanager_back.exception.BusinessException.builder()
+                throw BusinessException.builder()
                         .message("No trajectories found for study id=" + studyId + "; cannot build areas/links")
                         .build();
             } else {

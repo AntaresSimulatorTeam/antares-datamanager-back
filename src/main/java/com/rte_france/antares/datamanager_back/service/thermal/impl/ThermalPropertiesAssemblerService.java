@@ -69,52 +69,42 @@ public class ThermalPropertiesAssemblerService {
                     .filter(t -> THERMAL_TECHNICAL_SPECIFIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
                     .toList();
 
-            List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
+            //clusterRef IP  : name , NA, 1
+            var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories); //by  area_cluster_ref (area + cluster ref)
+            //clusterRef common : name , namePEMMDB, null
+            var commonsParamByClusterName = extractCommonParamsByClusterRef(commonTrajectories); // by cluster name
+            //clusterRef specific  : name , namePEMMDB| NA :(FR) , null
+            var specificsByClusterRef = extractSpecificParamsByClusterRef(specificTrajectories); //by cluster ref
 
-            var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories);
-            var commonsByRef = extractCommonParamsByClusterRef(commonTrajectories);
-            var specificsByRef = extractSpecificParamsByClusterRef(specificTrajectories);
 
+            for (var entry : capacitiesByAreaRef.entrySet()) {
+                AreaClusterRefKey areaClusterRefKey = entry.getKey();
+                ThermalClusterRef thermalClusterRef = areaClusterRefKey.thermalClusterRef();
+                String capacityClusterName = thermalClusterRef != null ? thermalClusterRef.getName() : null;
 
-        for (var entry : capacitiesByAreaRef.entrySet()) {
-            AreaClusterRefKey areaClusterRefKey = entry.getKey();
-            List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
+                List<ThermalCommonParameterEntity> commonsForRef = capacityClusterName == null ? List.of() : commonsParamByClusterName.getOrDefault(capacityClusterName, List.of());
+                //get list of specific param for the cluster ref : by matching name and technology is null
+                List<ThermalSpecificParametersEntity> specificForRef = specificTrajectories.stream()
+                        .flatMap(t -> Optional.ofNullable(t.getThermalSpecificParameters()).orElseGet(List::of).stream())
+                        .filter(specific -> specific.getThermalClusterRef() != null
+                                && Objects.equals(specific.getThermalClusterRef().getName(), capacityClusterName)
+                                && specific.getThermalClusterRef().getThermalTechnology() == null
+                                && (specific.getArea() == null || specific.getArea().isBlank() || specific.getArea().equalsIgnoreCase(areaClusterRefKey.area()))
+                        )
+                        .toList();
 
-            ThermalClusterRef thermalClusterRef = areaClusterRefKey.thermalClusterRef();
-            String clusterName = thermalClusterRef != null ? thermalClusterRef.getName() : null;
-            List<ThermalCommonParameterEntity> commonsForRef = clusterName == null
-                    ? List.of()
-                    : commonsByRef.getOrDefault(clusterName, List.of());
-            String refName = thermalClusterRef.getName();
+                List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
 
-            List<ThermalSpecificParametersEntity> specificForRef = clusterName == null ? List.of() : specificsByRef.getOrDefault(thermalClusterRef, List.of());
+                ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
 
-            List<ThermalSpecificParametersEntity> filteredSpecifics =
-                    specificsByRef.values().stream()
-                            .flatMap(List::stream)
-                            .filter(s -> {
-                                ThermalClusterRef ref = s.getThermalClusterRef();
-                                return ref != null
-                                        && ref.getName() != null
-                                        && refName != null
-                                        && ref.getName().equalsIgnoreCase(refName)
-                                        && ref.getNamePemmdb() != null
-                                        && "NA".equalsIgnoreCase(ref.getNamePemmdb())
-                                        && ref.getThermalTechnology() == null;
-                            })
-                            .toList();
-
-            List<ThermalSpecificParametersEntity> finalSpecifics = filteredSpecifics.isEmpty() ? specificForRef : filteredSpecifics;
-
-            ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, finalSpecifics, commonTrajectories);
-
-            // modulation param ts files ts
-            List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
-            thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
+                // modulation param ts files ts
+                List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
+                List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
+                thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
 
                 thermalClusterGenerationOutput.put(areaClusterRefKey, thermalClusterGenerationDto);
 
-                log.info("Assembled cluster '{}' for area '{}' (studyId={})", clusterName, areaClusterRefKey.area(), studyId);
+                log.info("Assembled cluster '{}' for area '{}' (studyId={})", capacityClusterName, areaClusterRefKey.area(), studyId);
             }
         } finally {
             log.info("Finished assembling {} thermal cluster(s) for studyId={}", thermalClusterGenerationOutput.size(), studyId);
@@ -151,12 +141,11 @@ public class ThermalPropertiesAssemblerService {
         log.info("Extracting common parameters by cluster ref from {} trajectories", parameterTrajectories.size());
         return parameterTrajectories.stream()
                 .flatMap(t -> Optional.ofNullable(t.getThermalCommonParameters()).orElseGet(List::of).stream())
-                // Only for common parameters: skip entries whose cluster ref has name_pemmdb == "NA"
                 .filter(common -> {
                     ThermalClusterRef ref = common.getThermalClusterRef();
                     if (ref == null) return false;
                     String namePemmdb = ref.getNamePemmdb();
-                    return namePemmdb == null || !"NA".equalsIgnoreCase(namePemmdb.trim());
+                    return (namePemmdb == null || !"NA".equalsIgnoreCase(namePemmdb.trim())) && ref.getThermalTechnology() == null;
                 })
                 .filter(common -> common.getThermalClusterRef().getName() != null)
                 .collect(Collectors.groupingBy(
@@ -171,10 +160,7 @@ public class ThermalPropertiesAssemblerService {
         return capacityTrajs.stream()
                 .flatMap(t -> Optional.ofNullable(t.getThermalClusterCapacities())
                         .orElseGet(List::of).stream()
-                        .map(cap -> Map.entry(
-                                new AreaClusterRefKey(cap.getArea(), cap.getThermalClusterRef()),
-                                cap
-                        )))
+                        .map(cap -> Map.entry(new AreaClusterRefKey(cap.getArea(), cap.getThermalClusterRef()), cap)))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         LinkedHashMap::new,
