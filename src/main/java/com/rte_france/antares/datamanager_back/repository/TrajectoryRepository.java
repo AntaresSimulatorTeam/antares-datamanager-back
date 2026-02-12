@@ -64,11 +64,11 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                         AND (
                               (
                                   (:technology IS NULL OR TRIM(:technology) = '')
-                                  AND (t.technology IS NULL OR TRIM(t.technology) = '')
+                                  AND (t1.technology IS NULL OR TRIM(t1.technology) = '')
                               )
                               OR (
                                   TRIM(:technology) <> ''
-                                  AND LOWER(t.technology) = LOWER(:technology)
+                                  AND LOWER(t1.technology) = LOWER(:technology)
                               )
                           )
                   )
@@ -93,4 +93,3 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
 
 
 }
-
