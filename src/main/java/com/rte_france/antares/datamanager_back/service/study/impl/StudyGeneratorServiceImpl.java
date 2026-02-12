@@ -10,14 +10,14 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
-import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
-import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.study.LinksToJson;
+import com.rte_france.antares.datamanager_back.service.study.LoadToJson;
+import com.rte_france.antares.datamanager_back.service.study.StsToJson;
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
@@ -30,11 +30,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 
 @Slf4j
 @Service
@@ -43,10 +41,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final NasFileService nasFileService;
 
-
+    private final LoadToJson loadToJson;
+    private final LinksToJson linksToJson;
+    private final StsToJson stsToJson;
     private final StudyRepository studyRepository;
-
-    private final LoadRepository loadRepository;
 
     private final WebClient webClient;
 
@@ -111,7 +109,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
                     switch (trajectoryType) {
                         case AREA -> buildAreasDataMap(study, trajectory, areasMap);
-                        case LINK -> buildLinksDataMap(trajectory, linksMap);
+                        case LINK -> linksToJson.buildLinksDataMap(trajectory, linksMap);
                         case LOAD ->
                                 log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                         case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
@@ -148,89 +146,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
-    public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
-        log.info("Récupération des fichiers LOAD par zone pour l'étude id={}", studyEntity.getId());
-        Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
-        Map<String, List<String>> result = studyEntity.getTrajectories().stream()
-                .filter(this::isLoadTrajectoryWithEntities)
-                .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern))
-                .collect(Collectors.groupingBy(
-                        Map.Entry::getKey,
-                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
-                ));
-        log.info("Résultat LOAD files par zone: {} entrées", result.size());
-        return result;
-    }
-
-    private boolean isLoadTrajectoryWithEntities(TrajectoryEntity trajectory) {
-        return "LOAD".equals(trajectory.getType())
-                && trajectory.getLoadEntities() != null
-                && !trajectory.getLoadEntities().isEmpty();
-    }
-
-    private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
-        log.info("Traitement des loads pour trajectory={} area={}", trajectory.getFileName(), trajectory.getArea());
-        if ("OTHERS".equals(trajectory.getArea())) {
-            return trajectory.getLoadEntities().stream()
-                    .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
-                    .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
-        } else {
-            return trajectory.getLoadEntities().stream()
-                    .map(loadEntity -> {
-                        processLoadEntityWithPattern(loadEntity, trajectory, pattern);
-                        return Map.entry(trajectory.getArea().toUpperCase(), loadEntity.getOutPutFileName());
-                    });
-
-        }
-    }
-
-    private Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern) {
-        if (loadEntity.getOutPutFileName() == null) {
-            log.info("Aucun outPutFileName pour load {} - génération en cours", loadEntity.getFileName());
-            String outputFileName = generateAndSaveOutputFileName(loadEntity, trajectory);
-            loadEntity.setOutPutFileName(outputFileName);
-            loadRepository.save(loadEntity);
-            log.info("OutPutFileName généré et sauvegardé pour load {} : {}", loadEntity.getFileName(), outputFileName);
-        } else {
-            log.info("OutPutFileName existant pour load {} : {}", loadEntity.getFileName(), loadEntity.getOutPutFileName());
-        }
-        String area = extractAreaFromFileName(loadEntity.getOutPutFileName(), pattern);
-        return Map.entry(area, loadEntity.getOutPutFileName());
-    }
-
-    private String generateAndSaveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory) {
-        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
-        var inputTxtFilePath = Paths.get(
-                antaressDataManagerProperties.getNasDirectory(),
-                antaressDataManagerProperties.getTrajectoryFilePath(),
-                antaressDataManagerProperties.getLoadDirectory(),
-                trajectory.getFileName(),
-                loadEntity.getFileName()
-        ).normalize();
-
-        try {
-            String saved = nasFileService.saveMatrixToNas(inputTxtFilePath, outputLoadDir);
-            log.info("Matrix saved to NAS for input {} -> {}", inputTxtFilePath, saved);
-            return saved;
-        } catch (IOException e) {
-            log.error("Erreur lors de la sauvegarde du matrix pour {} : {}", inputTxtFilePath, e.getMessage());
-            throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
-        }
-    }
-
-    private String extractAreaFromFileName(String fileName, Pattern pattern) {
-        var matcher = pattern.matcher(fileName);
-        String area = matcher.find() ? matcher.group(1).toUpperCase() : "OTHERS";
-        log.info("Extraction de la zone à partir du nom de fichier '{}': {}", fileName, area);
-        return area;
-    }
-
-    private boolean isLoadLinkedToStudy(LoadEntity loadEntity, int studyId) {
-        return loadEntity.getTrajectoryEntities().stream()
-                .flatMap(traj -> traj.getScenarioEntities().stream())
-                .anyMatch(study -> study.getId().equals(studyId));
-    }
-
     private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
         log.info("Construction des areas data pour trajectory={} area={}", trajectory.getFileName(), trajectory.getArea());
 
@@ -239,7 +154,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .toList();
 
         // Get LOAD files by area from all study trajectories
-        Map<String, List<String>> listArrowLoadFilesByArea = getListArrowLoadFilesByAreaFromStudy(studyEntity);
+        Map<String, List<String>> listArrowLoadFilesByArea = loadToJson.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Nombre de zones LOAD trouvées: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
 
         // Get thermal cluster generation DTOs for all trajectories in the study
@@ -275,38 +190,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 ));
     }
 
-    private void buildLinksDataMap(TrajectoryEntity trajectory, Map<String, Object> linksMap) {
-        log.info("Construction des links data pour trajectory={} liensCount={}", trajectory.getFileName(), trajectory.getLinkEntities() != null ? trajectory.getLinkEntities().size() : 0);
-        List<LinkEntity> linkEntityList = trajectory.getLinkEntities();
-
-        Map<String, Map<String, Object>> linksDataMap = linkEntityList.stream()
-                .collect(Collectors.toMap(
-                        linkEntity -> linkEntity.getName().replace("-", "/"),
-                        linkEntity -> {
-                            Map<String, Object> linkMap = linksMapGenerator();
-                            linkMap.put("winterHpDirectMw", linkEntity.getWinterHpDirectMw());
-                            linkMap.put("winterHpIndirectMw", linkEntity.getWinterHpIndirectMw());
-                            linkMap.put("winterHcDirectMw", linkEntity.getWinterHcDirectMw());
-                            linkMap.put("winterHcIndirectMw", linkEntity.getWinterHcIndirectMw());
-                            linkMap.put("summerHpDirectMw", linkEntity.getSummerHpDirectMw());
-                            linkMap.put("summerHpIndirectMw", linkEntity.getSummerHpIndirectMw());
-                            linkMap.put("summerHcDirectMw", linkEntity.getSummerHcDirectMw());
-                            linkMap.put("summerHcIndirectMw", linkEntity.getSummerHcIndirectMw());
-                            linkMap.put("hurdleCost", linkEntity.getHurdleCost());
-                            return linkMap;
-                        },
-                        (existing, replacement) -> existing
-                ));
-
-        linksMap.putAll(linksDataMap);
-        log.info("Links data map construite avec {} entrées", linksDataMap.size());
-    }
 
     /**
      * This method should be enriched or simplified when we'll have
      * all configurations for area from input files
      */
-    private static Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps, Map<String, StsGenerationDTO> stsClusterProps) {
+    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps, Map<String, StsGenerationDTO> stsClusterProps) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
@@ -324,7 +213,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, Object> thermalsMap = thermalsMapGenerator(clusterProps);
 
-        Map<String, Object> stsMap = stsMapGenerator(areaDTO.getName(), stsClusterProps);
+        Map<String, Object> stsMap = stsToJson.stsMapGenerator(areaDTO.getName(), stsClusterProps);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
@@ -378,54 +267,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return clusterMap;
     }
 
-
-    private static Map<String, Object> stsMapGenerator(String areaName, Map<String, StsGenerationDTO> stsClusterProps) {
-        if (stsClusterProps == null || stsClusterProps.isEmpty()) {
-            log.info("stsMapGenerator: pas de stsClusterProps pour area={}", areaName);
-            return Collections.emptyMap();
-        }
-
-        Map<String, Object> stsClusterName = new LinkedHashMap<>();
-
-        stsClusterProps.entrySet().stream()
-                .filter(e -> e.getKey().startsWith(areaName.toUpperCase() + "_"))
-                .forEach(e -> {
-                    String clusterName = e.getKey();
-                    StsGenerationDTO dto = e.getValue();
-                    Map<String, Object> propertiesMap = new LinkedHashMap<>();
-                    propertiesMap.put("enabled", dto.getEnabled());
-                    propertiesMap.put("group", dto.getGroupe());
-                    propertiesMap.put("injection_nominal_capacity", dto.getInjection());
-                    propertiesMap.put("withdrawal_nominal_capacity", dto.getWithdrawal());
-                    propertiesMap.put("reservoir_capacity", dto.getStorage());
-                    propertiesMap.put("efficiency", dto.getEfficiencyInjection());
-                    propertiesMap.put("efficiency_withdrawal", dto.getEfficiencyWithdrawal());
-                    propertiesMap.put("initial_level", dto.getInitialLevel());
-                    propertiesMap.put("initial_level_optim", dto.getInitialLevelOptim());
-
-                    Map<String, Object> clusterData = new LinkedHashMap<>();
-                    clusterData.put(PROPERTIES, propertiesMap);
-                    clusterData.put("series", dto.getStsTsList());
-
-                    stsClusterName.put(clusterName, clusterData);
-                    log.info("Ajout STS cluster {} pour area {} (enabled={})", clusterName, areaName, dto.getEnabled());
-                });
-
-        log.info("stsMapGenerator: {} clusters STS générés pour area {}", stsClusterName.size(), areaName);
-        return stsClusterName;
-    }
-
-
-    private static Map<String, Object> linksMapGenerator() {
-        Map<String, Object> linkMap = new HashMap<>();
-        linkMap.put(PROPERTIES, "LinkProperties as JSON");
-        linkMap.put("ui", "LinkUi class as JSON");
-        linkMap.put("parameters", MATRIX_HASH);
-        linkMap.put("capacity_direct", MATRIX_HASH);
-        linkMap.put("capacity_indirect", MATRIX_HASH);
-
-        return linkMap;
-    }
 
     @ExecutionTime
     public void callGenerateStudyService(Integer studyId) {
