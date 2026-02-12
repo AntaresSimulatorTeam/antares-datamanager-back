@@ -137,14 +137,10 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                             .build();
                 }
 
-                if (!shouldIncludeRow(rowArea, areaParam) && !studyAreas.contains(rowArea.toUpperCase())) {
+                if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
                     continue;
                 }
-                if (studyAreas.contains(rowArea.toUpperCase())) {
-                    foundStudyArea = true;
-                } else {
-                    continue;
-                }
+                foundStudyArea = true;
 
                 // Cluster name is mandatory
                 if (clusterName == null || clusterName.isEmpty()) {
