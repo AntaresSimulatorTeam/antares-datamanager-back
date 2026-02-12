@@ -11,6 +11,9 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.service.study.LinksToJson;
+import com.rte_france.antares.datamanager_back.service.study.LoadToJson;
+import com.rte_france.antares.datamanager_back.service.study.StsToJson;
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -70,7 +73,14 @@ class StudyGeneratorServiceImplTest {
     @InjectMocks
     private StudyGeneratorServiceImpl studyGeneratorService;
 
+    @Mock
+    private LoadToJson loadToJson;
 
+    @Mock
+    private LinksToJson linksToJson;
+
+    @Mock
+    private StsToJson stsToJson;
     @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
@@ -126,6 +136,15 @@ class StudyGeneratorServiceImplTest {
         lenient().when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
         // Default STS assembler returns empty map to avoid NPE in tests not focused on STS
         lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
+        // Delegate links building to real implementation by default
+        lenient().doAnswer(inv -> {
+            new LinksToJson().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1));
+            return null;
+        }).when(linksToJson).buildLinksDataMap(any(), any());
+
+        // Delegate STS building to real implementation by default
+        lenient().doAnswer(inv -> new StsToJson().stsMapGenerator(inv.getArgument(0), inv.getArgument(1)))
+                .when(stsToJson).stsMapGenerator(anyString(), anyMap());
     }
 
     @Test
@@ -136,6 +155,8 @@ class StudyGeneratorServiceImplTest {
 
         // When
         when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        when(loadToJson.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Collections.emptyMap());
 
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
 
@@ -261,6 +282,11 @@ class StudyGeneratorServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
 
+        when(loadToJson.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
+                "FR", List.of("load_fr_2030-2031.txt"),
+                "DE", List.of("load_de_2030-2031.txt")
+        ));
+
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
         ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
@@ -294,6 +320,9 @@ class StudyGeneratorServiceImplTest {
         studyEntity.setTrajectories(new HashSet<>(Arrays.asList(loadTrajectory, areaTrajectory)));
         when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
+        when(loadToJson.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
+                "FR", List.of("load_fr_2030-2031.txt")
+        ));
 
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
@@ -332,8 +361,13 @@ class StudyGeneratorServiceImplTest {
         when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/nas");
         when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
+        when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("outload");
         when(loadRepository.save(any())).thenReturn(load);
         doReturn("generated.arrow").when(nasFileService).saveMatrixToNas(any(), any());
+        // Delegate the mocked service call to real logic to trigger arrow generation
+        doAnswer(inv -> new LoadToJson(loadRepository, nasFileService, antaressDataManagerProperties)
+                .getListArrowLoadFilesByAreaFromStudy(inv.getArgument(0)))
+                .when(loadToJson).getListArrowLoadFilesByAreaFromStudy(any());
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
