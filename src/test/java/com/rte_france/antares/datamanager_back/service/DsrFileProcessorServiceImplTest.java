@@ -154,11 +154,12 @@ class DsrFileProcessorServiceImplTest {
 
         var trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setType(TrajectoryType.DSR.name());
-        trajectoryEntity.setFileName(xlsx.getFileName().toString());
+        trajectoryEntity.setFileName("test");
         trajectoryEntity.setVersion(1);
+        trajectoryEntity.setHorizon("2029-2030");
         trajectoryEntity.setChecksum("ABC123");
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
+                any(), any(), any(), any(), any()))
                 .thenReturn(Optional.of(trajectoryEntity));
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
 
@@ -167,6 +168,7 @@ class DsrFileProcessorServiceImplTest {
         );
 
         assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getVersion()).isEqualTo(2);
     }
 
     @Test
