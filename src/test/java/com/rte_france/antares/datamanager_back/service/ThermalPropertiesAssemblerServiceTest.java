@@ -1078,6 +1078,108 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     @Test
+    void assembleForTrajectory_buildsOneCluster_withSpecificParametersFallbackToCommon() {
+        // given
+        var capacityTrajectory = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Common parameters with durations
+        var commonParam = params(gasRef, 0.30, 1, 1, 0.33, 1.0);
+        commonParam.setFoDurationDefault(10.0);
+        commonParam.setPoDurationDefault(20.0);
+
+        var commonTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(commonParam))
+                .build();
+
+        // Specific parameters with NULL durations
+        var specificParam = ThermalSpecificParametersEntity.builder()
+                .thermalClusterRef(gasRef)
+                .foDuration(null)
+                .poDuration(null)
+                .build();
+
+        var specificTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
+                .thermalSpecificParameters(List.of(specificParam))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory)).build();
+        var out = service.assembleForTrajectories(study);
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+
+        // Fallback to common duration values
+        assertThat(dto.getFoDuration()).isEqualTo(10.0);
+        assertThat(dto.getPoDuration()).isEqualTo(20.0);
+
+        // Common duration fields should also be populated as before
+        assertThat(dto.getFoCommonDuration()).isEqualTo(10.0);
+        assertThat(dto.getPoCommonDuration()).isEqualTo(20.0);
+    }
+
+    @Test
+    void assembleForTrajectory_buildsOneCluster_withSpecificMonthlyRatesFallbackToCommon() {
+        // given
+        var capacityTrajectory = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY")
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // Common parameters with default rates
+        var commonParam = params(gasRef, 0.30, 1, 1, 0.33, 1.0);
+        commonParam.setFoRateDefault(0.05);
+        commonParam.setPoWinterDefault(0.15);
+
+        var commonTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(commonParam))
+                .build();
+
+        // Specific parameters with NULL monthly rates (f1 and p1 are null)
+        var specificParam = ThermalSpecificParametersEntity.builder()
+                .thermalClusterRef(gasRef)
+                .f1(null).f2(null).f3(null).f4(null).f5(null).f6(null).f7(null).f8(null).f9(null).f10(null).f11(null).f12(null)
+                .p1(null).p2(null).p3(null).p4(null).p5(null).p6(null).p7(null).p8(null).p9(null).p10(null).p11(null).p12(null)
+                .build();
+
+        var specificTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
+                .thermalSpecificParameters(List.of(specificParam))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory)).build();
+        var out = service.assembleForTrajectories(study);
+
+        // then
+        var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+
+        // Fallback to common rate values for all 12 months
+        assertThat(dto.getFoMonthlyRate()).hasSize(12).allSatisfy(rate -> assertThat(rate).isEqualTo(0.05));
+        assertThat(dto.getPoMonthlyRate()).hasSize(12).allSatisfy(rate -> assertThat(rate).isEqualTo(0.15));
+    }
+
+    @Test
     void assembleForTrajectories_prioritizesNASpecificParameters() {
         // given
         // 1. Standard Ref
