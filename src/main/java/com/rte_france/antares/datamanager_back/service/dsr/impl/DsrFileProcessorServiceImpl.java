@@ -19,6 +19,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -289,8 +290,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
         return null;
     }
-
-
+    
     private void validateBooleanValue(Row row, int idx, String rowArea, String clusterName, String trajectoryFileName) {
             if (getBooleanCell(row, idx) == null) {
                 throw BusinessException.builder()
@@ -309,8 +309,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             
             checkMissingColumns(sheet, trajectoryFileName);
 
-            boolean isAreaInStudyAreasList = false;
-            boolean onlyHeader = true;
+            List<String> fileAreas = new ArrayList<>();
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
@@ -321,10 +320,11 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 // Zone must be present
                 validateRow(rowArea, trajectoryFileName, r);
 
+                fileAreas.add(rowArea);
+
                 if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
                     continue;
                 }
-                isAreaInStudyAreasList = true;
 
                 String clusterName = getStringCellValue(row, 2);
 
@@ -341,25 +341,18 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
-                onlyHeader = false;
             }
 
-            // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-            validateSelectedAreaPresence(areaParam, results, trajectoryFileName);
-            
-            if (!isAreaInStudyAreasList) {
+            boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
+            if (hasNoAreaOfTrajectoryAreaInFile) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName))
                         .message("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}")
                         .build();
             }
 
-            if (onlyHeader) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName, horizon))
-                        .message("No data in DSR Cluster trajectory {0} for horizon {1}")
-                        .build();
-            }
+            // The selected area must be present in the file's 'node' column, except when area equals OTHERS
+            validateSelectedAreaPresence(areaParam, results, trajectoryFileName);
         }
         return results;
     }

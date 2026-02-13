@@ -113,17 +113,6 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenNoValidRowsFound() throws IOException {
-        Path xlsx = createWorkbookWithHeaderOnly("2030");
-        placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
-
-        assertThatThrownBy(() ->
-                service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
-        ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Selected area {0} is not present in the 'node' column of DSR cluster trajectory {1}");
-    }
-
-    @Test
     void shouldCreateTrajectoryAndEntitiesSuccessfully() throws IOException {
         Path xlsx = createValidWorkbook("2030", false);
         placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
@@ -198,6 +187,28 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
+    void shouldThrowWhenNonBooleanValueInBooleanColumn() throws IOException {
+        Path xlsx = createWorkbookWithNonBoolean("2030");
+        placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
+
+        assertThatThrownBy(() ->
+                service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Modulation for node {0} / cluster {1} are not boolean in DSR trajectory {2}");
+    }
+
+    @Test
+    void shouldThrowWhenClusterNameValueExceedsMaxNbCharacters() throws IOException {
+        Path xlsx = createWorkbookWithClusterNameTooLong("2030");
+        placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
+
+        assertThatThrownBy(() ->
+                service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Value {0} too long in DSR Cluster trajectory {1} for area {2} and horizon {3}");
+    }
+
+    @Test
     void shouldThrowWhenOTHERSAreaNonePresent() throws IOException {
         // study areas contain only FR (set in setUp), file contains area XX -> no study area found -> exception
         Path file = tempDir.resolve("test.xlsx");
@@ -229,7 +240,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "OTHERS_AREA")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Selected area {0} is not present in the 'node' column of DSR cluster trajectory {1}");
+                .hasMessageContaining("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}");
     }
 
     @Test
@@ -304,6 +315,91 @@ class DsrFileProcessorServiceImplTest {
             row.createCell(9).setCellValue(0.8);
             row.createCell(10).setCellValue(1);
             row.createCell(11).setCellValue("TRUE");
+
+            try (OutputStream os = Files.newOutputStream(tempFile)) {
+                workbook.write(os);
+            }
+        }
+
+        // Spy service to bypass file search
+        DsrFileProcessorServiceImpl serviceSpy = spy(service);
+
+        doReturn(tempFile)
+                .when(serviceSpy)
+                .getTrajectoryFilePath(anyString());
+
+        // WHEN / THEN
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> serviceSpy.processDsrClusterFile(
+                        FILE_NAME_DSR_CLUSTER,
+                        "horizon-2025",
+                        1,
+                        false,
+                        areaParam
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}"));
+    }
+
+    @Test
+    void shouldThrowWhenSelectedAreaIsNotPresentInDsrFile() throws Exception {
+        // GIVEN
+        String horizon = "2025";
+        String areaParam = "IT";
+
+        // study has FR and DE
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(
+                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                            setName("FR");
+                        }},
+                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                            setName("DE");
+                        }}
+                ));
+
+        // Create a fake DSR Excel file in temp
+        Path tempFile = Files.createTempFile("cluster_DSR_", ".xlsx");
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(horizon);
+
+            // Header
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            // Row with ONLY area IT (not in study)
+            Row row0 = sheet.createRow(1);
+            row0.createCell(0).setCellValue(1);
+            row0.createCell(1).setCellValue("IT"); // Area
+            row0.createCell(2).setCellValue("DSR_industries");
+            row0.createCell(3).setCellValue(2000);
+            row0.createCell(4).setCellValue(0.5);
+            row0.createCell(5).setCellValue(12);
+            row0.createCell(6).setCellValue(8);
+            row0.createCell(7).setCellValue(200);
+            row0.createCell(8).setCellValue(80);
+            row0.createCell(9).setCellValue(0.8);
+            row0.createCell(10).setCellValue(1);
+            row0.createCell(11).setCellValue("TRUE");
+
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue(1);
+            row1.createCell(1).setCellValue("DE");
+            row1.createCell(2).setCellValue("DSR_tertiaire");
+            row1.createCell(3).setCellValue(2000);
+            row1.createCell(4).setCellValue(0.5);
+            row1.createCell(5).setCellValue(12);
+            row1.createCell(6).setCellValue(8);
+            row1.createCell(7).setCellValue(200);
+            row1.createCell(8).setCellValue(80);
+            row1.createCell(9).setCellValue(0.8);
+            row1.createCell(10).setCellValue(1);
+            row1.createCell(11).setCellValue("TRUE");
 
             try (OutputStream os = Files.newOutputStream(tempFile)) {
                 workbook.write(os);
@@ -481,6 +577,62 @@ class DsrFileProcessorServiceImplTest {
             row.createCell(9).setCellValue(0.8);
             row.createCell(10).setCellValue("pas_integer");
             row.createCell(11).setCellValue("FALSE");
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
+    }
+
+    private Path createWorkbookWithNonBoolean(String horizon) throws IOException {
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet(horizon);
+            Row header = s.createRow(0);
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row row = s.createRow(1);
+            row.createCell(0).setCellValue(1);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("DSR_industries");
+            row.createCell(3).setCellValue(2000);
+            row.createCell(4).setCellValue(0.5);
+            row.createCell(5).setCellValue(12);
+            row.createCell(6).setCellValue(8);
+            row.createCell(7).setCellValue(200);
+            row.createCell(8).setCellValue(80);
+            row.createCell(9).setCellValue(0.8);
+            row.createCell(10).setCellValue(1);
+            row.createCell(11).setCellValue("pas_boolean");
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
+    }
+
+    private Path createWorkbookWithClusterNameTooLong(String horizon) throws IOException {
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet(horizon);
+            Row header = s.createRow(0);
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row row = s.createRow(1);
+            row.createCell(0).setCellValue(1);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("DSR_industries_is_very_too_long_very_too_long_very_too_long");
+            row.createCell(3).setCellValue(2000);
+            row.createCell(4).setCellValue(0.5);
+            row.createCell(5).setCellValue(12);
+            row.createCell(6).setCellValue(8);
+            row.createCell(7).setCellValue(200);
+            row.createCell(8).setCellValue(80);
+            row.createCell(9).setCellValue(0.8);
+            row.createCell(10).setCellValue(1);
+            row.createCell(11).setCellValue("TRUE");
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);

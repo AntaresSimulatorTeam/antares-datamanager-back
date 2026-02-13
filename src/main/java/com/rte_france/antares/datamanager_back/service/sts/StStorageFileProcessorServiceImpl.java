@@ -282,7 +282,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
     }
 
-
     public Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
         // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
 
