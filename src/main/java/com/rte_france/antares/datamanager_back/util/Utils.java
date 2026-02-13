@@ -52,6 +52,7 @@ public class Utils {
     private static final String THERMAL_ECONOMIC_PREFIX = "economic_param_";
     private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
     private static final String STS_PREFIX = "cluster_";
+    private static final String DSR_PREFIX = "cluster_DSR_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -233,6 +234,8 @@ public class Utils {
             prefix = THERMAL_ECONOMIC_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.toString())) {
             prefix = THERMAL_ECONOMIC_COST_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.DSR.toString())) {
+            prefix = DSR_PREFIX;
         } else {
             prefix = "";
         }
@@ -391,7 +394,7 @@ public class Utils {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
-            case  STS ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case STS, DSR ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
