@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.nimbusds.jwt.util.DateUtils;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -388,6 +389,64 @@ class UtilsTest {
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalCommonParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
         String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_ALF34.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
         assertEquals("ALF34", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalEconomicCostParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("costs_ALF34.xlsx", TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name());
+        assertEquals("ALF34", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalDsrClusterType_stripsPrefixAndExtensionAndKeepsInnerDots() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_DSR_ALF34.xlsx", TrajectoryType.DSR.name());
+        assertEquals("ALF34", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_shouldTechnicalException_fileNameIsBlank() {
+        assertThrows(NullPointerException.class, () -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(null, TrajectoryType.DSR.name()));
+    }
+
+    @Test void testValidDateFormat() { 
+        assertTrue(Utils.hasValidDateFormat("2024-01-15T12:30:45")); 
+    } 
+    
+    @Test void testInvalidDateFormat() { 
+        assertFalse(Utils.hasValidDateFormat("2024/01/15 12:30:45")); 
+    } 
+    
+    @Test void testInvalidValue() { 
+        assertFalse(Utils.hasValidDateFormat("not-a-date")); 
+    }
+
+    @Test
+    void testExtractValidStsPath() {
+        String msg = "Error: INPUT/ABC12345 for something failed";
+        assertEquals("ABC12345", Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testExtractValidStsPathAtEnd() {
+        String msg = "Failure at INPUT/XYZ789";
+        assertEquals("XYZ789", Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testCaseInsensitive() {
+        String msg = "warning: input/PathToFile for processing";
+        assertEquals("PathToFile", Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testNoMatchReturnsOriginalMessage() {
+        String msg = "No INPUT path found here";
+        assertEquals(msg, Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testNullReturnsNull() {
+        assertNull(Utils.extractStsPathFromErrorMessage(null));
     }
 
     @Test
