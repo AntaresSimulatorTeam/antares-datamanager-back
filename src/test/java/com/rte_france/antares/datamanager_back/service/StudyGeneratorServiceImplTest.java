@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.study.LinksToJson;
 import com.rte_france.antares.datamanager_back.service.study.LoadToJson;
 import com.rte_france.antares.datamanager_back.service.study.StsToJson;
+import com.rte_france.antares.datamanager_back.service.study.ThermalToJson;
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -81,6 +82,10 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private StsToJson stsToJson;
+
+    @Mock
+    private ThermalToJson thermalToJson;
+
     @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
@@ -145,6 +150,11 @@ class StudyGeneratorServiceImplTest {
         // Delegate STS building to real implementation by default
         lenient().doAnswer(inv -> new StsToJson().stsMapGenerator(inv.getArgument(0), inv.getArgument(1)))
                 .when(stsToJson).stsMapGenerator(anyString(), anyMap());
+        // Delegate Thermal building to real implementation by default
+        lenient().doAnswer(inv -> new ThermalToJson().getClusterPropsForArea(inv.getArgument(0), inv.getArgument(1)))
+                .when(thermalToJson).getClusterPropsForArea(anyMap(), anyString());
+        lenient().doAnswer(inv -> new ThermalToJson().thermalsMapGenerator(inv.getArgument(0)))
+                .when(thermalToJson).thermalsMapGenerator(anyMap());
     }
 
     @Test
