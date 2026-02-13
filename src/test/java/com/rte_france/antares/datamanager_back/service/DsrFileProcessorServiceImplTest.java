@@ -6,10 +6,10 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.dsr.impl.DsrFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -17,6 +17,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
@@ -24,14 +25,15 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -143,15 +145,18 @@ class DsrFileProcessorServiceImplTest {
     @Test
     void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws IOException {
         Path xlsx = createValidWorkbook("2030", false);
-        placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
+        placeInCluster(xlsx, "cluster_DSR_test.xlsx");
 
         // stubs for repository/user
-        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
-        }});
-        var trajectoryEntity = mock(TrajectoryEntity.class);
-        trajectoryEntity.setType(TrajectoryType.STS.name());
-        trajectoryEntity.setFileName(xlsx.toString());
+        UserInfoDto user = new UserInfoDto();
+        user.setNni("TESTNNI");
+        when(userService.getCurrentUserDetails()).thenReturn(user);
+
+        var trajectoryEntity = new TrajectoryEntity();
+        trajectoryEntity.setType(TrajectoryType.DSR.name());
+        trajectoryEntity.setFileName(xlsx.getFileName().toString());
+        trajectoryEntity.setVersion(1);
+        trajectoryEntity.setChecksum("ABC123");
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(Optional.of(trajectoryEntity));
@@ -502,7 +507,7 @@ class DsrFileProcessorServiceImplTest {
     }
 
     private Path createValidWorkbook(String horizon, boolean series) throws IOException {
-        Path file = tempDir.resolve("test.xlsx");
+        Path file = tempDir.resolve("cluster_DSR_test.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
