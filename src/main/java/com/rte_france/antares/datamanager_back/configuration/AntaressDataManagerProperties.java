@@ -43,9 +43,6 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.dsr.cluster.directory}")
     public String dsrDirectory;
 
-    @Value("${antares.datamanager.dsr.cluster.directory}")
-    public String dsrDirectory;
-
     @Value("${antares.datamanager.dsr.capacity.modulation.directory}")
     public String dsrCapacityDirectory;
 
