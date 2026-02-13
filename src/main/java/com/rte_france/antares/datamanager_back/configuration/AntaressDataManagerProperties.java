@@ -39,6 +39,9 @@ public class  AntaressDataManagerProperties {
 
     @Value("${antares.datamanager.sts.directory}")
     public String stsDirectory;
+    
+    @Value("${antares.datamanager.dsr.cluster.directory}")
+    public String dsrDirectory;
 
     @Value("${antares.datamanager.dsr.cluster.directory}")
     public String dsrDirectory;
