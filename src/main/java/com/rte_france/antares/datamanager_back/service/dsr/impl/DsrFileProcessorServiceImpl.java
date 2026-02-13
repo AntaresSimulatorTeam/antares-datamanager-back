@@ -100,11 +100,11 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         return trajectoryFilePath;
     }
 
-    public static boolean startsWithIgnoreCase(String nom, String prefix) {
-        if (nom == null) {
+    public static boolean startsWithIgnoreCase(String name, String prefix) {
+        if (name == null) {
             return false;
         }
-        return nom.regionMatches(true, 0, prefix, 0, prefix.length());
+        return name.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
 
@@ -213,12 +213,12 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
     }
 
     private void validateNumericRange(Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
-        for (int idx = indexes[0]; idx <= indexes.length - 1; idx++) {
+        for (int idx = indexes[0]; idx <= indexes[1]; idx++) {
             Cell numericCell = row.getCell(idx);
             if (!isNumericCell(numericCell)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                        .message("Values for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}")
+                        .message("Values for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}")
                         .build();
             }
         }
@@ -230,18 +230,14 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 double num = cell.getNumericCellValue();
                 yield num % 1 == 0;
             }
-            case STRING -> {
-                String s = cell.getStringCellValue().trim();
-                yield s.matches("^-?\\d+$");
-            }
             default -> false;
         };
     }
 
     private void validateIntegerRange(Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
-        for (int idx = indexes[0]; idx <= indexes.length - 1; idx++) {
-            Cell numericCell = row.getCell(idx);
-            if (!isInteger(numericCell)) {
+        for (int idx = indexes[0]; idx <= indexes[1]; idx++) {
+            Cell cell = row.getCell(idx);
+            if (!isInteger(cell)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
                         .message("Values for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}")

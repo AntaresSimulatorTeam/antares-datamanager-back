@@ -242,7 +242,7 @@ public class Utils {
 
         if (Objects.equals(trajectoryType, TrajectoryType.STS.toString())) {
             fileName = removeClusterPrefix(fileName);
-        } else if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {
+        } else if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix.toLowerCase())) {
             fileName = fileName.substring(prefix.length());
         }
 

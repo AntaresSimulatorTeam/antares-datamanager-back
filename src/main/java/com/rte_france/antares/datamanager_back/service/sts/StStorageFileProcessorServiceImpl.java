@@ -39,7 +39,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
-    private final StudyRepository studyRepository;
 
 
     @Transactional
