@@ -42,7 +42,7 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                 FROM Trajectory t
                 WHERE t.type = :type
                   AND t.horizon = :horizon
-                  AND (:fileNameContains IS NULL OR t.fileName ILIKE CONCAT('%', CAST(:fileNameContains AS string), '%'))
+                  AND (:fileNameContains IS NULL OR :fileNameContains = '' OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
                   AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
                   AND (
                       (
