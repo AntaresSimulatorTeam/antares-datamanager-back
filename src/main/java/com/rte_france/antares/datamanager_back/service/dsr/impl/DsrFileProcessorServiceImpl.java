@@ -305,6 +305,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
+                onlyHeader = false;
                 if (row == null || isRowEmpty(row)) continue;
 
                 String rowArea = getStringCellValue(row, 1);
@@ -333,8 +334,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
-
-                onlyHeader = false;
             }
 
             if (onlyHeader) {
