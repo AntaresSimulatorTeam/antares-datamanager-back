@@ -702,12 +702,13 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, expected, "T1")
+                () -> Utils.checkMissingColumns(sheet, expected, "T1", "STS")
         );
 
         assertTrue(ex.getMessage().contains("A"));
         assertTrue(ex.getMessage().contains("B"));
         assertTrue(ex.getMessage().contains("C"));
+        assertTrue(ex.getMessage().contains("STS"));
     }
 
     @Test
@@ -731,7 +732,7 @@ class UtilsTest {
         when(c3.toString()).thenReturn("C");
 
         assertDoesNotThrow(() ->
-                Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1")
+                Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", "STS")
         );
     }
 
@@ -754,7 +755,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1")
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", "DSR")
         );
 
         assertTrue(ex.getMessage().contains("C"));
@@ -778,7 +779,7 @@ class UtilsTest {
         when(c2.toString()).thenReturn("B ");
 
         assertDoesNotThrow(() ->
-                Utils.checkMissingColumns(sheet, new String[]{"A", "b"}, "T1")
+                Utils.checkMissingColumns(sheet, new String[]{"A", "b"}, "T1", "STS")
         );
     }
 
@@ -804,7 +805,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1")
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", "STS")
         );
 
         assertTrue(ex.getMessage().contains("B"));
@@ -827,7 +828,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1")
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", "DSR")
         );
 
         assertTrue(ex.getMessage().contains("B"));
