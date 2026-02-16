@@ -339,7 +339,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             if (onlyHeader) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName, areaParam, horizon))
-                        .message("No valid DSR cluster found in the trajectory {0} for area: {1} and horizon: {2}")
+                        .message("No data in DSR Cluster trajectory {0} for horizon: {2}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
