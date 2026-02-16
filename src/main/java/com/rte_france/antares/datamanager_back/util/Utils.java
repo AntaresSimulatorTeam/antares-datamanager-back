@@ -659,4 +659,52 @@ public class Utils {
         return s;
     }
 
+    public boolean isNumericCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.NUMERIC) return true;
+        if (t == CellType.FORMULA) {
+            CellType resType = cell.getCachedFormulaResultType();
+            return resType == CellType.NUMERIC;
+        }
+        if (t == CellType.STRING) {
+            String s = cell.getStringCellValue().trim();
+            if (s.isEmpty()) return false;
+            try {
+                Double.parseDouble(s);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    public static void checkMissingColumns(Sheet sheet, String[] expectedColumns, String trajectoryName, String type) {
+        Row headerRow = sheet.getRow(0);
+        List<String> missingColumns = new ArrayList<>();
+        if (headerRow == null) {
+            missingColumns.addAll(Arrays.asList(expectedColumns));
+        } else {
+            int lastCell = headerRow.getLastCellNum() < 0 ? 0 : headerRow.getLastCellNum();
+            Set<String> headerNames = new HashSet<>();
+            for (int i = 0; i < lastCell; i++) {
+                Cell c = headerRow.getCell(i);
+                if (c != null) {
+                    String val = c.toString().trim().toLowerCase(Locale.ROOT);
+                    if (!val.isEmpty()) headerNames.add(val);
+                }
+            }
+            for (String expected : expectedColumns) {
+                String norm = expected.trim().toLowerCase(Locale.ROOT);
+                if (!headerNames.contains(norm)) {
+                    missingColumns.add(expected);
+                }
+            }
+        }
+        if (!missingColumns.isEmpty()) {
+            String missingList = String.join(", ", missingColumns);
+            throw BusinessException.builder().message("Missing columns " + missingList + " in "+ type + "trajectory " + trajectoryName).build();
+        }
+    }
 }
