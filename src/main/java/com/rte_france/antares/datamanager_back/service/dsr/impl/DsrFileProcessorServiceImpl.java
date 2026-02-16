@@ -110,37 +110,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         return sheet;
     }
 
-    private static void checkMissingColumns(Sheet sheet, String trajectoryName) {
-        Row headerRow = sheet.getRow(0);
-        List<String> missingColumns = new ArrayList<>();
-        if (headerRow == null) {
-            missingColumns.addAll(Arrays.asList(REQUIRED_CLUSTER_COLUMNS));
-        } else {
-            int lastCell = headerRow.getLastCellNum() < 0 ? 0 : headerRow.getLastCellNum();
-            Set<String> headerNames = new HashSet<>();
-            for (int i = 0; i < lastCell; i++) {
-                Cell c = headerRow.getCell(i);
-                if (c != null) {
-                    String val = c.toString().trim().toLowerCase(Locale.ROOT);
-                    if (!val.isEmpty()) headerNames.add(val);
-                }
-            }
-            for (String expected : REQUIRED_CLUSTER_COLUMNS) {
-                String norm = expected.trim().toLowerCase(Locale.ROOT);
-                if (!headerNames.contains(norm)) {
-                    missingColumns.add(expected);
-                }
-            }
-        }
-        if (!missingColumns.isEmpty()) {
-            String missingList = String.join(", ", missingColumns);
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(missingList, trajectoryName))
-                    .message("Missing columns {0} in DSR cluster trajectory {1}")
-                    .build();
-        }
-    }
-
     private String getStringCellValue(Row row, int idx) {
         Cell cell = row.getCell(idx);
         return cell == null ? null : cell.getStringCellValue();
@@ -180,27 +149,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                     .message("Value {0} too long in DSR Cluster trajectory {1} for area {2} and horizon {3}")
                     .build();
         }
-    }
-
-    private boolean isNumericCell(Cell cell) {
-        if (cell == null) return false;
-        CellType t = cell.getCellType();
-        if (t == CellType.NUMERIC) return true;
-        if (t == CellType.FORMULA) {
-            CellType resType = cell.getCachedFormulaResultType();
-            return resType == CellType.NUMERIC;
-        }
-        if (t == CellType.STRING) {
-            String s = cell.getStringCellValue().trim();
-            if (s.isEmpty()) return false;
-            try {
-                Double.parseDouble(s);
-                return true;
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        }
-        return false;
     }
 
     private void validateNumericRange(Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
@@ -294,19 +242,20 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         List<DsrClusterEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
 
+        boolean onlyHeader = true;
+
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
 
-            checkMissingColumns(sheet, trajectoryFileName);
+            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName);
 
             List<String> fileAreas = new ArrayList<>();
 
-            boolean onlyHeader = true;
-
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
-                onlyHeader = false;
+                
                 if (row == null || isRowEmpty(row)) continue;
+                onlyHeader = false;
 
                 String rowArea = getStringCellValue(row, 1);
 
