@@ -704,7 +704,7 @@ public class Utils {
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
-            throw BusinessException.builder().message("Missing columns " + missingList + " in "+ type + "trajectory " + trajectoryName).build();
+            throw BusinessException.builder().message("Missing columns " + missingList + " in " + type + " trajectory " + trajectoryName).build();
         }
     }
 }
