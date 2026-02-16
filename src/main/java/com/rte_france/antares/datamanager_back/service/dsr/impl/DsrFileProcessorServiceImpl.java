@@ -182,27 +182,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         }
     }
 
-    private boolean isNumericCell(Cell cell) {
-        if (cell == null) return false;
-        CellType t = cell.getCellType();
-        if (t == CellType.NUMERIC) return true;
-        if (t == CellType.FORMULA) {
-            CellType resType = cell.getCachedFormulaResultType();
-            return resType == CellType.NUMERIC;
-        }
-        if (t == CellType.STRING) {
-            String s = cell.getStringCellValue().trim();
-            if (s.isEmpty()) return false;
-            try {
-                Double.parseDouble(s);
-                return true;
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        }
-        return false;
-    }
-
     private void validateNumericRange(Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
         for (int idx = indexes[0]; idx <= indexes[1]; idx++) {
             Cell numericCell = row.getCell(idx);
@@ -299,11 +278,9 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
 
-            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName, TrajectoryType.DSR.name());
+            checkMissingColumns(sheet, trajectoryFileName);
 
             List<String> fileAreas = new ArrayList<>();
-
-            boolean onlyHeader = true;
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
