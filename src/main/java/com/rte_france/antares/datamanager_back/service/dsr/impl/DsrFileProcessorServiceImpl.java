@@ -306,9 +306,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
-                
-                if (row == null || isRowEmpty(row)) continue;
                 onlyHeader = false;
+                if (row == null || isRowEmpty(row)) continue;
 
                 String rowArea = getStringCellValue(row, 1);
 
