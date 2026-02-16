@@ -304,6 +304,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             List<String> fileAreas = new ArrayList<>();
 
+            boolean onlyHeader = true;
+
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 
@@ -342,6 +344,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
+
+                onlyHeader = false;
             }
 
             if (onlyHeader) {
