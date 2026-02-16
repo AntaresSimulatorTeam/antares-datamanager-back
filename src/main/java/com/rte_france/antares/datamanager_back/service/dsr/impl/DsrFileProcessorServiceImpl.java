@@ -295,8 +295,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         List<DsrClusterEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
 
-        boolean onlyHeader = true;
-
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
 
@@ -344,8 +342,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
-
-                onlyHeader = false;
             }
 
             if (onlyHeader) {
