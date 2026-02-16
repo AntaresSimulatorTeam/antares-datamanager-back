@@ -44,7 +44,7 @@ public class TrajectoryEntity {
     private String area;
 
     private String technology;
-    
+
     private Boolean hasTimeSeries;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
