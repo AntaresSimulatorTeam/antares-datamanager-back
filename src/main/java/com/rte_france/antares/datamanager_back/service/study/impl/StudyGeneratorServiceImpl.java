@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.AreaDTO;
@@ -38,10 +37,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final NasFileService nasFileService;
 
-    private final LoadToJson loadToJson;
-    private final LinksToJson linksToJson;
-    private final StsToJson stsToJson;
-    private final ThermalToJson thermalToJson;
+    private final LoadToJsonService loadToJsonService;
+    private final LinksToJsonService linksToJsonService;
+    private final StsToJsonService stsToJsonService;
+    private final ThermalToJsonService thermalToJsonService;
     private final StudyRepository studyRepository;
 
     private final WebClient webClient;
@@ -107,7 +106,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
                     switch (trajectoryType) {
                         case AREA -> buildAreasDataMap(study, trajectory, areasMap);
-                        case LINK -> linksToJson.buildLinksDataMap(trajectory, linksMap);
+                        case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap);
                         case LOAD ->
                                 log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                         case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
@@ -154,7 +153,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .toList();
 
         // Get LOAD files by area from all study trajectories
-        Map<String, List<String>> listArrowLoadFilesByArea = loadToJson.getListArrowLoadFilesByAreaFromStudy(studyEntity);
+        Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Nombre de zones LOAD trouvées: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
 
         // Get thermal cluster generation DTOs for all trajectories in the study
@@ -170,7 +169,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                         areaDTO -> areasMapGenerator(
                                 areaDTO,
                                 listArrowLoadFilesByArea.get(areaDTO.getName()),
-                                thermalToJson.getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
+                                thermalToJsonService.getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
                                 areaStsClusterGenerationDtoMap
                         )
                 ));
@@ -196,9 +195,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         hydroMap.put(PROPERTIES, "HydroProperties as JSON");
         hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
-        Map<String, Object> thermalsMap = thermalToJson.thermalsMapGenerator(clusterProps);
+        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(clusterProps);
 
-        Map<String, Object> stsMap = stsToJson.stsMapGenerator(areaDTO.getName(), stsClusterProps);
+        Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), stsClusterProps);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");

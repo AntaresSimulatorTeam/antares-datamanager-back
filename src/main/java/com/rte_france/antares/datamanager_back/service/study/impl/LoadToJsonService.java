@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.study;
+package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class LoadToJson {
+public class LoadToJsonService {
 
     private final LoadRepository loadRepository;
 

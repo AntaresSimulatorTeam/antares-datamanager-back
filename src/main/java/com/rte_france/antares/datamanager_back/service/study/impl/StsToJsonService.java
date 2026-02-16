@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.study;
+package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +12,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class StsToJson {
+public class StsToJsonService {
 
     private static final String PROPERTIES = "properties";
     public Map<String, Object> stsMapGenerator(String areaName, Map<String, StsGenerationDTO> stsClusterProps) {

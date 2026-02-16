@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.study;
+package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 @Slf4j
 @Service
-public class LinksToJson {
+public class LinksToJsonService {
 
 
     private static final String PROPERTIES = "properties";

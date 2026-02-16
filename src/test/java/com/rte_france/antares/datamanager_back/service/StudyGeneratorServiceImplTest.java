@@ -11,10 +11,10 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
-import com.rte_france.antares.datamanager_back.service.study.LinksToJson;
-import com.rte_france.antares.datamanager_back.service.study.LoadToJson;
-import com.rte_france.antares.datamanager_back.service.study.StsToJson;
-import com.rte_france.antares.datamanager_back.service.study.ThermalToJson;
+import com.rte_france.antares.datamanager_back.service.study.impl.LinksToJsonService;
+import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
+import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
+import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -75,16 +75,16 @@ class StudyGeneratorServiceImplTest {
     private StudyGeneratorServiceImpl studyGeneratorService;
 
     @Mock
-    private LoadToJson loadToJson;
+    private LoadToJsonService loadToJsonService;
 
     @Mock
-    private LinksToJson linksToJson;
+    private LinksToJsonService linksToJsonService;
 
     @Mock
-    private StsToJson stsToJson;
+    private StsToJsonService stsToJsonService;
 
     @Mock
-    private ThermalToJson thermalToJson;
+    private ThermalToJsonService thermalToJsonService;
 
     @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
@@ -143,18 +143,18 @@ class StudyGeneratorServiceImplTest {
         lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
-            new LinksToJson().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1));
+            new LinksToJsonService().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1));
             return null;
-        }).when(linksToJson).buildLinksDataMap(any(), any());
+        }).when(linksToJsonService).buildLinksDataMap(any(), any());
 
         // Delegate STS building to real implementation by default
-        lenient().doAnswer(inv -> new StsToJson().stsMapGenerator(inv.getArgument(0), inv.getArgument(1)))
-                .when(stsToJson).stsMapGenerator(anyString(), anyMap());
+        lenient().doAnswer(inv -> new StsToJsonService().stsMapGenerator(inv.getArgument(0), inv.getArgument(1)))
+                .when(stsToJsonService).stsMapGenerator(anyString(), anyMap());
         // Delegate Thermal building to real implementation by default
-        lenient().doAnswer(inv -> new ThermalToJson().getClusterPropsForArea(inv.getArgument(0), inv.getArgument(1)))
-                .when(thermalToJson).getClusterPropsForArea(anyMap(), anyString());
-        lenient().doAnswer(inv -> new ThermalToJson().thermalsMapGenerator(inv.getArgument(0)))
-                .when(thermalToJson).thermalsMapGenerator(anyMap());
+        lenient().doAnswer(inv -> new ThermalToJsonService().getClusterPropsForArea(inv.getArgument(0), inv.getArgument(1)))
+                .when(thermalToJsonService).getClusterPropsForArea(anyMap(), anyString());
+        lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMapGenerator(inv.getArgument(0)))
+                .when(thermalToJsonService).thermalsMapGenerator(anyMap());
     }
 
     @Test
@@ -166,7 +166,7 @@ class StudyGeneratorServiceImplTest {
         // When
         when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
-        when(loadToJson.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Collections.emptyMap());
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Collections.emptyMap());
 
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
 
@@ -292,7 +292,7 @@ class StudyGeneratorServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
 
-        when(loadToJson.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
                 "FR", List.of("load_fr_2030-2031.txt"),
                 "DE", List.of("load_de_2030-2031.txt")
         ));
@@ -330,7 +330,7 @@ class StudyGeneratorServiceImplTest {
         studyEntity.setTrajectories(new HashSet<>(Arrays.asList(loadTrajectory, areaTrajectory)));
         when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
-        when(loadToJson.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
                 "FR", List.of("load_fr_2030-2031.txt")
         ));
 
@@ -375,9 +375,9 @@ class StudyGeneratorServiceImplTest {
         when(loadRepository.save(any())).thenReturn(load);
         doReturn("generated.arrow").when(nasFileService).saveMatrixToNas(any(), any());
         // Delegate the mocked service call to real logic to trigger arrow generation
-        doAnswer(inv -> new LoadToJson(loadRepository, nasFileService, antaressDataManagerProperties)
+        doAnswer(inv -> new LoadToJsonService(loadRepository, nasFileService, antaressDataManagerProperties)
                 .getListArrowLoadFilesByAreaFromStudy(inv.getArgument(0)))
-                .when(loadToJson).getListArrowLoadFilesByAreaFromStudy(any());
+                .when(loadToJsonService).getListArrowLoadFilesByAreaFromStudy(any());
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
