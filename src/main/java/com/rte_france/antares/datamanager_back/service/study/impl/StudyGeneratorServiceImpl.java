@@ -2,10 +2,7 @@ package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.dto.AreaDTO;
-import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
-import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
@@ -13,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
@@ -40,6 +38,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final LoadToJsonService loadToJsonService;
     private final LinksToJsonService linksToJsonService;
     private final StsToJsonService stsToJsonService;
+    private final DsrToJsonService dsrToJsonService;
     private final ThermalToJsonService thermalToJsonService;
     private final StudyRepository studyRepository;
 
@@ -49,9 +48,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
+    private final DsrGenerationAssemblerService dsrPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
-    private static final String DATA = "data";
     private static final String MATRIX_HASH = "matrix hash";
 
 
@@ -154,14 +153,17 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         // Get LOAD files by area from all study trajectories
         Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
-        log.info("Nombre de zones LOAD trouvées: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
+        log.info("Number of zones LOAD found: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
 
         // Get thermal cluster generation DTOs for all trajectories in the study
         var areaClusterRefThermalClusterGenerationDtoMap = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity);
-        log.info("Thermal cluster props pour l'étude: {} entrées", areaClusterRefThermalClusterGenerationDtoMap != null ? areaClusterRefThermalClusterGenerationDtoMap.size() : 0);
+        log.info("Thermal cluster props found: {}", areaClusterRefThermalClusterGenerationDtoMap != null ? areaClusterRefThermalClusterGenerationDtoMap.size() : 0);
 
         var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);
         log.info("STS cluster props pour l'étude: {} entrées", areaStsClusterGenerationDtoMap != null ? areaStsClusterGenerationDtoMap.size() : 0);
+
+        var areaDsrClusterGenerationDtoMap = dsrPropertiesAssemblerService.assembleDsrProperties(studyEntity);
+        log.info("STS cluster props pour l'étude: {} entrées", areaDsrClusterGenerationDtoMap != null ? areaDsrClusterGenerationDtoMap.size() : 0);
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
@@ -170,16 +172,19 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 areaDTO,
                                 listArrowLoadFilesByArea.get(areaDTO.getName()),
                                 thermalToJsonService.getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
-                                areaStsClusterGenerationDtoMap
+                                areaStsClusterGenerationDtoMap,
+                                areaDsrClusterGenerationDtoMap
+
                         )
                 ));
 
         areasMap.putAll(areasDataMap);
-        log.info("Areas data map construite avec {} entrées", areasDataMap.size());
+        log.info("Areas data with {} entries", areasDataMap.size());
     }
 
     //TODO simplify with all rules
-    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps, Map<String, StsGenerationDTO> stsClusterProps) {
+    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps,
+                                                  Map<String, StsGenerationDTO> stsClusterProps, Map<String, DsrGenerationDTO> dsrClusterProps) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
@@ -198,6 +203,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(clusterProps);
 
         Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), stsClusterProps);
+        Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), dsrClusterProps);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
