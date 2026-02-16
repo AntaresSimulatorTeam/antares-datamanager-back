@@ -212,6 +212,17 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
+    void shouldThrowExceptionWhenNoValidRowsFound() throws IOException {
+        Path xlsx = createWorkbookWithHeaderOnly("2030");
+        placeInCluster(xlsx, "cluster_DSR_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("No data in DSR Cluster trajectory {0} for horizon: {2}");
+    }
+
+    @Test
     void shouldThrowWhenOTHERSAreaNonePresent() throws IOException {
         // study areas contain only FR (set in setUp), file contains area XX -> no study area found -> exception
         Path file = tempDir.resolve("test.xlsx");
