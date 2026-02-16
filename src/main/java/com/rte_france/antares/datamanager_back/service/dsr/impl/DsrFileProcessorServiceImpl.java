@@ -337,8 +337,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
-
-                onlyHeader = false;
             }
 
             if (onlyHeader) {
