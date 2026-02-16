@@ -680,7 +680,7 @@ public class Utils {
         return false;
     }
 
-    public static void checkMissingColumns(Sheet sheet, String[] expectedColumns, String trajectoryName) {
+    public static void checkMissingColumns(Sheet sheet, String[] expectedColumns, String trajectoryName, String type) {
         Row headerRow = sheet.getRow(0);
         List<String> missingColumns = new ArrayList<>();
         if (headerRow == null) {
@@ -704,7 +704,7 @@ public class Utils {
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
-            throw BusinessException.builder().message("Missing columns " + missingList + " in STS trajectory " + trajectoryName).build();
+            throw BusinessException.builder().message("Missing columns " + missingList + " in "+ type + "trajectory " + trajectoryName).build();
         }
     }
 }
