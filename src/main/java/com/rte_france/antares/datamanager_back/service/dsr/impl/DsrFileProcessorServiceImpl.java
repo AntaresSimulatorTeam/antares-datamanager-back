@@ -61,14 +61,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
         var dsrClusterEntities = buildDsrClusterEntities(horizon.split("-")[1], trajectoryFilePath, area, studyAreas);
-        
-        if (CollectionUtils.isEmpty(dsrClusterEntities)) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse, area, horizon))
-                    .message("No valid DSR cluster found in the trajectory {0} for area: {1} and horizon: {2}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
 
         boolean isSeriesTrue = dsrClusterEntities.stream()
                 .anyMatch(entity -> Boolean.TRUE.equals(entity.getModulation()));
@@ -309,6 +301,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             checkMissingColumns(sheet, trajectoryFileName);
 
             List<String> fileAreas = new ArrayList<>();
+            
+            boolean onlyHeader = true;
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
@@ -340,6 +334,16 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
+
+                onlyHeader = false;
+            }
+
+            if (onlyHeader) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(trajectoryFileName, areaParam, horizon))
+                        .message("No valid DSR cluster found in the trajectory {0} for area: {1} and horizon: {2}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
             boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
