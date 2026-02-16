@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.study;
+package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class ThermalToJson {
+public class ThermalToJsonService {
 
     private static final String PROPERTIES = "properties";
     private static final String DATA = "data";

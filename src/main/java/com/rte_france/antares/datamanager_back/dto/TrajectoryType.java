@@ -13,7 +13,5 @@ public enum TrajectoryType {
     STS,
     DSR,
     DSR_CAPACITY_MODULATION,
-    MISC,
-    DSR
-
+    MISC
 }
