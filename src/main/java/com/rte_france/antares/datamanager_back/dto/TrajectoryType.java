@@ -11,6 +11,8 @@ public enum TrajectoryType {
     THERMAL_ECONOMIC_PARAMETER,
     THERMAL_ECONOMIC_COST_PARAMETER,
     STS,
+    DSR,
+    DSR_CAPACITY_MODULATION,
     MISC,
     DSR
 }
