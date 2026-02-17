@@ -318,8 +318,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             if (onlyHeader) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName, areaParam, horizon))
-                        .message("No data in DSR Cluster trajectory {0} for horizon: {2}")
+                        .errorMessageArguments(List.of(trajectoryFileName, horizon))
+                        .message("No data in DSR Cluster trajectory {0} for horizon: {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

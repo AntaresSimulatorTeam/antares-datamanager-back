@@ -707,4 +707,22 @@ public class Utils {
             throw BusinessException.builder().message("Missing columns " + missingList + " in " + type + " trajectory " + trajectoryName).build();
         }
     }
+
+    public static boolean startsWithIgnoreCase(String name, String prefix) {
+        if (name == null) {
+            return false;
+        }
+        return name.regionMatches(true, 0, prefix, 0, prefix.length());
+    }
+
+    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
+        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
+        if (sheet == null) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
+                    .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
+                    .build();
+        }
+        return sheet;
+    }
 }
