@@ -175,7 +175,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Values for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}");
+                .hasMessageContaining("Values Capacity, Reliability, price, FO_rate for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}");
     }
 
     @Test
@@ -186,7 +186,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Values for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}");
+                .hasMessageContaining("Values nb_hour_per_day, max_hour_per_day, nb_units, FO_duration for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}");
     }
 
     @Test
