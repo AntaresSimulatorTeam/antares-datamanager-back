@@ -172,7 +172,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         for (int idx : indexes) {
             Cell cell = row.getCell(idx);
 
-            if (!isNumericCell(cell)) {
+            if (!isInteger(cell)) {
                 Cell headerCell = header.getCell(idx);
                 String headerName = headerCell != null
                         ? headerCell.getStringCellValue()
