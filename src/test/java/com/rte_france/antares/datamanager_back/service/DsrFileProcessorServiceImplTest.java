@@ -219,7 +219,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("No data in DSR Cluster trajectory {0} for horizon: {2}");
+                .hasMessageContaining("No data in DSR Cluster trajectory {0} for horizon: {1}");
     }
 
     @Test
