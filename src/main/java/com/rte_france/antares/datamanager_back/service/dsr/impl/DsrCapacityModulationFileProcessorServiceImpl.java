@@ -21,10 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -67,21 +65,25 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         return trajectoryRepository.save(trajectoryEntity);
     }
 
-    private List<DsrCapacityModulationEntity> buildDsrCapacityModulationEntity(String horizon, Path trajectoryFilePath, List<String> dsrClusters) throws IOException {
+    public List<DsrCapacityModulationEntity> buildDsrCapacityModulationEntity(String horizon, Path trajectoryFilePath, List<String> dsrClusters) throws IOException {
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         List<DsrCapacityModulationEntity> results = new ArrayList<>();
+        Set<String> dsrClusterNames;
 
         boolean onlyHeader = true;
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
             
             List<String> headers = getClusterName(sheet);
-            boolean allPresent = new HashSet<>(dsrClusters).containsAll(headers);
+            boolean allPresent = new HashSet<>(headers).containsAll(dsrClusters);
+            dsrClusterNames = dsrClusters.stream()
+                    .filter(cluster -> !headers.contains(cluster))
+                    .collect(Collectors.toSet());
 
             if (!allPresent) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName, horizon))
-                        .message("Missing Areas/Clusters in Capacity modulation file for trajectory {0} for horizon {1}")
+                        .message("Missing Areas/Clusters " + String.join(", ", dsrClusterNames) + " in Capacity modulation file for trajectory {0} for horizon {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -96,7 +98,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         if (onlyHeader) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryFileName, horizon))
-                    .message("No data in DSR Cluster trajectory {0} for horizon: {1}")
+                    .message("No data in DSR Capacity Modulation trajectory {0} for horizon: {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -127,7 +129,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         return trajectoryFilePath;
     }
 
-    private TrajectoryEntity buildDsrCapacityModulationTrajectory(Path trajectoryFilePath, String horizon) throws IOException {
+    public TrajectoryEntity buildDsrCapacityModulationTrajectory(Path trajectoryFilePath, String horizon) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR_CAPACITY_MODULATION.name());
