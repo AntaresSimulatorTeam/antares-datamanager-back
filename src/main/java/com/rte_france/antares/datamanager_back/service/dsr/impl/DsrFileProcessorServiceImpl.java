@@ -297,8 +297,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
-
-            checkMissingColumns(sheet, trajectoryFileName);
+            Row header = sheet.getRow(0);
+            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName, TrajectoryType.DSR.name());
 
             List<String> fileAreas = new ArrayList<>();
 
