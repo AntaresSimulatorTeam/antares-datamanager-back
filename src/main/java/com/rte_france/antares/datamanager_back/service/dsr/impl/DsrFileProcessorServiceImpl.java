@@ -91,25 +91,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         return trajectoryFilePath;
     }
 
-    public static boolean startsWithIgnoreCase(String name, String prefix) {
-        if (name == null) {
-            return false;
-        }
-        return name.regionMatches(true, 0, prefix, 0, prefix.length());
-    }
-
-
-    private Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
-        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
-        if (sheet == null) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
-                    .build();
-        }
-        return sheet;
-    }
-
     private String getStringCellValue(Row row, int idx) {
         Cell cell = row.getCell(idx);
         return cell == null ? null : cell.getStringCellValue();
@@ -287,8 +268,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             if (onlyHeader) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName, areaParam, horizon))
-                        .message("No data in DSR Cluster trajectory {0} for horizon: {2}")
+                        .errorMessageArguments(List.of(trajectoryFileName, horizon))
+                        .message("No data in DSR Cluster trajectory {0} for horizon: {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
