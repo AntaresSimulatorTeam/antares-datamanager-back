@@ -91,8 +91,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalParamModulationService thermalParamModulationService;
 
-    private final DefaultConfigServiceImpl defaultConfigService;
-
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
@@ -101,6 +99,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String ECONOMIC_COST_PREFIX = "costs_";
     private static final String ECONOMIC_PREFIX = "economic_param_";
     private static final String STS_PREFIX = "cluster_";
+    private static final String DSR_PREFIX = "cluster_dsr_";
+    private static final String DSR_CAPACITY_PREFIX = "cm_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -494,6 +494,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
+            case DSR -> fileName.startsWith(DSR_PREFIX);
+            case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             default -> true;
         };
@@ -918,6 +920,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_ECONOMIC_PARAMETER -> antaressDataManagerProperties.getThermalEconomicDirectory();
             case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
                     antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            case DSR -> antaressDataManagerProperties.getDsrDirectory();
+            case DSR_CAPACITY_MODULATION -> antaressDataManagerProperties.getDsrCapacityDirectory();
             case STS ->
                 findChildDirectoryIgnoreCase(Path.of(antaressDataManagerProperties.getNasDirectory())
                         .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
