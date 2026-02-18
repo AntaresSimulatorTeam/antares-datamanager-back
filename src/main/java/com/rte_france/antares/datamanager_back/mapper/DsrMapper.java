@@ -18,10 +18,13 @@ public class DsrMapper {
         return DsrGenerationDTO.builder()
                 .enabled(Optional.ofNullable(dsrEntity.getToUse()).orElse(false))
                 .group(GROUP)
-                .capacity(Optional.ofNullable(dsrEntity.getCapacity()).map(Number::doubleValue).orElse(0.0))
+                .nominalCapacity(Optional.ofNullable(dsrEntity.getCapacity()).map(Number::doubleValue).orElse(0.0))
                 .unitCount(Optional.ofNullable(dsrEntity.getNbUnits()).map(Number::intValue).orElse(0))
                 .marginalCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
                 .marketBidCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
+                .foDuration(Optional.ofNullable(dsrEntity.getFoDuration()).map(Number::doubleValue).orElse(0.0))
+                .foRate(Optional.ofNullable(dsrEntity.getFoRate()).map(Number::doubleValue).orElse(0.0))
+                .reliability(Optional.ofNullable(dsrEntity.getReliability()).map(Number::doubleValue).orElse(0.0))
                 .build();
 
     }

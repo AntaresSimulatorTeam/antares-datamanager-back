@@ -1,11 +1,14 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -13,7 +16,8 @@ public class DsrToJsonService {
 
 
     private static final String PROPERTIES = "properties";
-    private static final String MATRIX_HASH = "matrix hash";
+    private static final String DATA = "data";
+    private static final String MODULATION = "modulation";
 
 
     public Map<String, Object> buildDsrDataMap(String areaName, Map<String, DsrGenerationDTO> dsrClusterProps) {
@@ -22,38 +26,43 @@ public class DsrToJsonService {
             return Collections.emptyMap();
         }
 
-        Map<String, Object> dsrClusterName = new LinkedHashMap<>();
+        Map<String, Object> dsrClusterMap = new LinkedHashMap<>();
 
         dsrClusterProps.entrySet().stream()
                 .filter(e -> e.getKey().startsWith(areaName.toUpperCase() + "_"))
                 .forEach(e -> {
                     String clusterName = e.getKey();
                     DsrGenerationDTO dto = e.getValue();
-                    Map<String, Object> propertiesMap = getDsrPropertiesMap(dto);
 
+                    Map<String, Object> propertiesMap = PROPERTIES_MAPPER.convertValue(dto, new TypeReference<>() {
+                    });
+
+                    Map<String, Object> dataMap = DATA_MAPPER.convertValue(dto, new TypeReference<>() {
+                    });
+
+                    Map<String, Object> modulationMap = MODULATION_MAPPER.convertValue(dto, new TypeReference<>() {
+                    });
 
                     Map<String, Object> clusterData = new LinkedHashMap<>();
                     clusterData.put(PROPERTIES, propertiesMap);
-                    clusterData.put("series", dto.getDsrTsList());
+                    clusterData.put(DATA, dataMap);
+                    clusterData.put(MODULATION, modulationMap.get(MODULATION));
 
-                    dsrClusterName.put(clusterName, clusterData);
+                    dsrClusterMap.put(clusterName, clusterData);
                     log.info("DSR cluster added {} for area {} (enabled={})", clusterName, areaName, dto.getEnabled());
                 });
 
-        log.info("dsrMapGenerator: {} DSR created for area {}", dsrClusterName.size(), areaName);
-        return dsrClusterName;
+        log.info("dsrMapGenerator: {} DSR created for area {}", dsrClusterMap.size(), areaName);
+        return dsrClusterMap;
     }
 
-    private static @NonNull Map<String, Object> getDsrPropertiesMap(DsrGenerationDTO dto) {
-        Map<String, Object> propertiesMap = new LinkedHashMap<>();
-        propertiesMap.put("enabled", dto.getEnabled());
-        propertiesMap.put("group", dto.getGroup());
-        propertiesMap.put("nominal_capacity", dto.getNominalCapacity());
-        propertiesMap.put("unit_count", dto.getUnitCount());
-        propertiesMap.put("marginal_cost", dto.getMarginalCost());
-        propertiesMap.put("market_bid_cost", dto.getMarketBidCost());
-        return propertiesMap;
-    }
+    private static final ObjectMapper PROPERTIES_MAPPER = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(DsrGenerationDTO.DsrClustersViews.Properties.class));
 
+    private static final ObjectMapper DATA_MAPPER = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(DsrGenerationDTO.DsrClustersViews.Data.class));
+
+    private static final ObjectMapper MODULATION_MAPPER = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(DsrGenerationDTO.DsrClustersViews.Modulation.class));
 
 }

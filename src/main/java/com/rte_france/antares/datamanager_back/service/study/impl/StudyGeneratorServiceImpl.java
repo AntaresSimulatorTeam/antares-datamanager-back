@@ -114,7 +114,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 log.warn("Thermal trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                         case STS ->
                                 log.warn("STS trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
-                        case DSR ->
+                        case DSR, DSR_CAPACITY_MODULATION ->
                                 log.warn("DSR trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                         default -> {
                             log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
@@ -134,7 +134,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             innerGeneratorMap.put("links", linksMap);
 
             jsonForGenerator.put(study.getName(), innerGeneratorMap);
-            log.info("Construction terminée pour l'étude {} : {} areas, {} links", study.getName(), areasMap.size(), linksMap.size());
+            log.info("Generation JSON assembled for study {} : {} areas, {} links", study.getName(), areasMap.size(), linksMap.size());
         } else {
             log.error("Study not found with ID: {}", studyId);
             throw TechnicalException.builder().message("Study not found with ID: " + studyId).build();
@@ -160,10 +160,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         log.info("Thermal cluster props found: {}", areaClusterRefThermalClusterGenerationDtoMap != null ? areaClusterRefThermalClusterGenerationDtoMap.size() : 0);
 
         var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);
-        log.info("STS cluster props pour l'étude: {} entrées", areaStsClusterGenerationDtoMap != null ? areaStsClusterGenerationDtoMap.size() : 0);
+        log.info("STS cluster props {} entries", areaStsClusterGenerationDtoMap != null ? areaStsClusterGenerationDtoMap.size() : 0);
 
         var areaDsrClusterGenerationDtoMap = dsrPropertiesAssemblerService.assembleDsrProperties(studyEntity);
-        log.info("STS cluster props pour l'étude: {} entrées", areaDsrClusterGenerationDtoMap != null ? areaDsrClusterGenerationDtoMap.size() : 0);
+        log.info("DSR cluster props {} entries", areaDsrClusterGenerationDtoMap != null ? areaDsrClusterGenerationDtoMap.size() : 0);
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
@@ -209,6 +209,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
         areaMap.put("sts", stsMap);
+        areaMap.put("dsr", dsrMap);
 
         return areaMap;
     }
