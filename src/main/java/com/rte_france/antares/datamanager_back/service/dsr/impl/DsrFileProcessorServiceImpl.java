@@ -25,6 +25,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
+import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castInt;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
 
@@ -151,15 +152,26 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         }
     }
 
-    private void validateNumericRange(Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
-        for (int idx = indexes[0]; idx <= indexes[1]; idx++) {
-            Cell numericCell = row.getCell(idx);
-            if (!isNumericCell(numericCell)) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                        .message("Values for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}")
-                        .build();
+    private void validateNumericRange(Row header, Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
+        List<String> wrongColumns = new ArrayList<>();
+
+        for (int idx : indexes) {
+            Cell cell = row.getCell(idx);
+
+            if (!isNumericCell(cell)) {
+                Cell headerCell = header.getCell(idx);
+                String headerName = headerCell != null
+                        ? headerCell.getStringCellValue()
+                        : null;
+                if(headerName!= null) wrongColumns.add(headerName);
             }
+        }
+
+        if (!wrongColumns.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
+                    .message("Values "+ String.join(", ", wrongColumns) + " for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}")
+                    .build();
         }
     }
 
@@ -173,15 +185,25 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         };
     }
 
-    private void validateIntegerRange(Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
-        for (int idx = indexes[0]; idx <= indexes[1]; idx++) {
+    private void validateIntegerRange(Row header, Row row, int[] indexes, String rowArea, String clusterName, String trajectoryFileName) {
+        List<String> wrongColumns = new ArrayList<>();
+
+        for (int idx : indexes) {
             Cell cell = row.getCell(idx);
+
             if (!isInteger(cell)) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                        .message("Values for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}")
-                        .build();
+                Cell headerCell = header.getCell(idx);
+                String headerName = headerCell != null
+                        ? headerCell.getStringCellValue()
+                        : null;
+                if(headerName!= null) wrongColumns.add(headerName);
             }
+        }
+        if (!wrongColumns.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
+                    .message("Values " + String.join(", ", wrongColumns) + " for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}")
+                    .build();
         }
     }
 
@@ -242,20 +264,19 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         List<DsrClusterEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
 
-        boolean onlyHeader = true;
-
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
-
+            Row header = sheet.getRow(0);
             checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName, TrajectoryType.DSR.name());
 
             List<String> fileAreas = new ArrayList<>();
+            boolean onlyHeader = true;
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 
-                if (row == null || isRowEmpty(row)) continue;
                 onlyHeader = false;
+                if (row == null || isRowEmpty(row)) continue;
 
                 String rowArea = getStringCellValue(row, 1);
 
@@ -268,16 +289,23 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                     continue;
                 }
 
+                Object value = getCellValue(row, 0);
+                Integer intValue = (value != null) ? castInt(value) : null;
+
+                if (intValue == null || intValue == 0) {
+                    continue;
+                }
+                
                 String clusterName = getStringCellValue(row, 2);
 
                 // Cluster name should not exceed 40 characters
                 validateClusterNameLength(clusterName, trajectoryFileName, rowArea, horizon);
 
                 int[] numericColumnIndexes = {3, 4, 7, 9};
-                validateNumericRange(row, numericColumnIndexes, rowArea, clusterName, trajectoryFileName);
+                validateNumericRange(header, row, numericColumnIndexes, rowArea, clusterName, trajectoryFileName);
 
                 int[] integerColumnIndexes = {5, 6, 8, 10};
-                validateIntegerRange(row, integerColumnIndexes, rowArea, clusterName, trajectoryFileName);
+                validateIntegerRange(header, row, integerColumnIndexes, rowArea, clusterName, trajectoryFileName);
 
                 validateBooleanValue(row, 11, rowArea, clusterName, trajectoryFileName);
 
@@ -287,8 +315,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             if (onlyHeader) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName, areaParam, horizon))
-                        .message("No data in DSR Cluster trajectory {0} for horizon: {2}")
+                        .errorMessageArguments(List.of(trajectoryFileName, horizon))
+                        .message("No data in DSR Cluster trajectory {0} for horizon: {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

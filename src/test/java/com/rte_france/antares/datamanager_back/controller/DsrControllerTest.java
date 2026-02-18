@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,9 @@ class DsrControllerTest {
 
     @MockBean
     private DsrFileProcessorService dsrFileProcessorService;
+
+    @MockBean
+    private DsrCapacityModulationFileProcessorService dsrCapacityModulationFileProcessorService;
 
     @BeforeEach
     void setup() {
@@ -106,5 +110,66 @@ class DsrControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(dsrFileProcessorService, times(0)).processDsrClusterFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString());
+    }
+
+    @Test
+    void processDsrCapacityModulationFile_postValidRequest_should_returnCreated_and_callService() throws Exception {
+        // Given
+        String trajectoryToUse = "CM_test.xls";
+        String horizon = "2025-2026";
+        String studyId = "1";
+
+        TrajectoryEntity fakeEntity = Mockito.mock(TrajectoryEntity.class);
+        when(dsrCapacityModulationFileProcessorService.processDsrCapacityModulationFile(anyString(), anyString(), anyInt()))
+                .thenReturn(fakeEntity);
+
+
+        // When / Then
+        mockMvc.perform(post("/v1/trajectory/dsr-capacity-modulation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("trajectoryToUse", trajectoryToUse)
+                        .param("horizon", horizon)
+                        .param("studyId", studyId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated());
+
+        verify(dsrCapacityModulationFileProcessorService, times(1))
+                .processDsrCapacityModulationFile(anyString(), anyString(), anyInt())
+        ;
+
+    }
+
+    @Test
+    void processDsrCapacityModulationFile_postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
+        // trajectoryToUse > 40 chars
+        String trajectoryToUse = "CM_" + "a".repeat(35) + ".xls";
+        String horizon = "2025-2026";
+
+        mockMvc.perform(post("/v1/trajectory/dsr-capacity-modulation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("trajectoryToUse", trajectoryToUse)
+                        .param("horizon", horizon)
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        // service should not be called
+        verify(dsrCapacityModulationFileProcessorService, times(0)).processDsrCapacityModulationFile(anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    void processDsrCapacityModulationFile_postWithInvalidHorizon_should_returnBadRequest() throws Exception {
+        String trajectoryToUse = "CM_test.xls";
+        String invalidHorizon = "20252026"; // does not match ^\\d{4}-\\d{4}$
+
+        mockMvc.perform(post("/v1/trajectory/dsr-capacity-modulation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("trajectoryToUse", trajectoryToUse)
+                        .param("horizon", invalidHorizon)
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(dsrCapacityModulationFileProcessorService, times(0)).processDsrCapacityModulationFile(anyString(), anyString(), anyInt());
     }
 }

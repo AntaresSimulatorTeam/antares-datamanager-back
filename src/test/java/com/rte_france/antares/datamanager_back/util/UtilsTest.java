@@ -4,10 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -832,6 +829,95 @@ class UtilsTest {
         );
 
         assertTrue(ex.getMessage().contains("B"));
+    }
+
+    @Test
+    void getRequiredSheet_shouldReturnSheet_whenSheetExists() {
+        Workbook workbook = mock(Workbook.class);
+        Sheet sheet = mock(Sheet.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(sheet);
+
+        Sheet result = Utils.getRequiredSheet(workbook, "H1", path);
+
+        assertSame(sheet, result);
+    }
+
+    @Test
+    void getRequiredSheet_shouldThrowBusinessException_whenSheetDoesNotExist() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path)
+        );
+
+        assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
+    }
+
+    @Test
+    void getRequiredSheet_shouldThrowBusinessException_whenWorkbookIsEmpty() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(0);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path)
+        );
+
+        assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
+    }
+
+    @Test
+    void getRequiredSheet_shouldIncludeArgumentsInException() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path)
+        );
+
+        assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
+    }
+
+    @Test
+    void getRequiredSheet_shouldThrow_whenHorizonIsEmpty() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("")).thenReturn(null);
+
+        assertThrows(BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "", path));
+    }
+
+    @Test
+    void getRequiredSheet_shouldUseFileNameInErrorMessage() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("/tmp/trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path)
+        );
+
+        assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
     }
 
 }
