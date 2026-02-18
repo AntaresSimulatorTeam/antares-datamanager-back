@@ -114,7 +114,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         TrajectoryEntity existing = new TrajectoryEntity();
         existing.setType(TrajectoryType.DSR_CAPACITY_MODULATION.name());
-        existing.setFileName("cm_capacity_test");
+        existing.setFileName("capacity_test");
         existing.setVersion(1);
         existing.setHorizon("2029-2030");
         existing.setChecksum("ABC123");
