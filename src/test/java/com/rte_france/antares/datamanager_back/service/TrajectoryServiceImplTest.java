@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -61,7 +61,7 @@ class TrajectoryServiceImplTest {
     @Mock
     private LinkFileProcessorService linkFileProcessorService;
     @Mock
-    private AntaressDataManagerProperties antaressDataManagerProperties;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
     @Mock
     private ThermalFileProcessorService thermalFileProcessorService;
     @Mock
@@ -92,9 +92,9 @@ class TrajectoryServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
     }
 
 
@@ -102,9 +102,9 @@ class TrajectoryServiceImplTest {
     void processTrajectory_returnsEntityWhenTrajectoryTYpeIsAREA() throws IOException {
         Path path = mock(Path.class);
         Mockito.when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
 
         trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1);
 
@@ -115,9 +115,9 @@ class TrajectoryServiceImplTest {
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsLINK() throws IOException {
         Path path = mock(Path.class);
         Mockito.when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("/links");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getLinkDirectory()).thenReturn("/links");
 
         trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024", 1);
 
@@ -158,9 +158,9 @@ class TrajectoryServiceImplTest {
         String area = "BE";
         String technology = "CCGT";
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-        when(antaressDataManagerProperties.getThermalCapacityDirectory()).thenReturn("thermal_capacity");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getThermalCapacityDirectory()).thenReturn("thermal_capacity");
         when(thermalFileProcessorService.buildThermalClusterCapacityValuesList(
                 any(Path.class), eq(horizon), eq(isCivilYear), eq(area), eq(technology), eq(studyId))
         ).thenReturn(ThermalClusterCapacityDto.builder().thermalClusterCapacities(Collections.emptyList()).build());
@@ -401,8 +401,8 @@ class TrajectoryServiceImplTest {
     void processTrajectory_throwsExceptionWhenTrajectoryTypeIsUnsupported() {
         var path = mock(Path.class);
         Mockito.when(path.toString()).thenReturn("src/test/resources/unsupported/testFile.xlsx");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
         assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC, "testFile", "2023-2024", 1));
     }
@@ -594,9 +594,9 @@ class TrajectoryServiceImplTest {
         Path testFile = areaDir.resolve("areas_test1.xlsx");
         Files.createFile(testFile);
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, null, null);
@@ -615,9 +615,9 @@ class TrajectoryServiceImplTest {
         Path testFile = thermalDir.resolve("costs_test1.xlsx");
         Files.createFile(testFile);
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("thermal/economic_parameter/costs");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalCostDirectory()).thenReturn("thermal/economic_parameter/costs");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
@@ -637,9 +637,9 @@ class TrajectoryServiceImplTest {
         Path testFile = thermalDir.resolve("cluster_battery_trajectorysts.xlsx");
         Files.createFile(testFile);
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getStsDirectory()).thenReturn("STS");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.STS, null, technology, null);
@@ -665,9 +665,9 @@ class TrajectoryServiceImplTest {
 
         Files.createFile(thermalDir.resolve(fileName));
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getStsDirectory()).thenReturn("STS");
 
         // When
         List<FsTrajectoryDTO> result =
@@ -689,9 +689,9 @@ class TrajectoryServiceImplTest {
                 .build();
 
         when(areaRepository.findAllByStudyId(any())).thenReturn(Collections.singletonList(AreaEntity.builder().name("FR").build()));
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
-        when(antaressDataManagerProperties.getLoadDirectory())
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
+        when(antaresDataManagerProperties.getLoadDirectory())
                 .thenReturn(Paths.get("src/test/resources/load").toAbsolutePath().toString());
 
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
@@ -755,9 +755,9 @@ class TrajectoryServiceImplTest {
 
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
 
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("src/test/resources/load");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("src/test/resources/load");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
         doThrow(BusinessException.class).when(loadFileProcessorService)
                 .checkForMissingLoadFiles(any(), any(), any(), any(), any());
@@ -775,9 +775,9 @@ class TrajectoryServiceImplTest {
         Path trajectoryPath = Path.of("/tmp/testTrajectory");
         TrajectoryEntity newTrajectory = TrajectoryEntity.builder().fileName(trajectoryToUse).build();
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("");
         when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of());
         when(loadFileProcessorService.checkForMissingLoadFiles(any(), any(), any(), any(), any()))
                 .thenReturn(Set.of());
@@ -979,9 +979,9 @@ class TrajectoryServiceImplTest {
         Files.createFile(trajectoryPath.resolve("load_de_2030-2031.txt"));
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("");
 
         var area1 = AreaEntity.builder().name("FR").build();
         var area2 = AreaEntity.builder().name("DE").build();
@@ -1064,14 +1064,14 @@ class TrajectoryServiceImplTest {
 
     @Test
     void getDirectoryByTrajectoryType_returnsLoadDirectory_whenTypeIsLoad() throws IOException {
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("loadDir");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("loadDir");
         String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.LOAD, null, null);
         assertEquals("loadDir", result);
     }
 
     @Test
     void getDirectoryByTrajectoryType_returnsThermalCostDirectory_whenTypeIsThermalEconomicCostParameter() throws IOException {
-        when(antaressDataManagerProperties.getThermalCostDirectory()).thenReturn("thermalCostDir");
+        when(antaresDataManagerProperties.getThermalCostDirectory()).thenReturn("thermalCostDir");
         String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
         assertEquals("thermalCostDir", result);
     }
@@ -1082,9 +1082,9 @@ class TrajectoryServiceImplTest {
         Path stsDir = tempDir.resolve("STS").resolve("DRS").resolve("clusters");
         Files.createDirectories(stsDir);
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getStsDirectory()).thenReturn("STS");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getStsDirectory()).thenReturn("STS");
 
         String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.STS, null, "DRS");
         String expected = stsDir.toString();
@@ -1149,9 +1149,9 @@ class TrajectoryServiceImplTest {
         Files.createDirectories(trajectoryPath);
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId));
@@ -1176,9 +1176,9 @@ class TrajectoryServiceImplTest {
         Files.createFile(trajectoryPath.resolve(mrFileName));
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId));
@@ -1203,9 +1203,9 @@ class TrajectoryServiceImplTest {
         Files.createFile(trajectoryPath.resolve(mrFileName));
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.processThermalModulationParameterTrajectory(trajectoryToUse, horizon, studyId));
@@ -1240,9 +1240,9 @@ class TrajectoryServiceImplTest {
 
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(paramModulationDir);
 
         when(thermalSpecificProcessorService.getListClusterByAreaForSpecificParam(any(), any(), eq(false))).thenReturn(Set.of("fr_cluster1", "fr_cluster2"));
 
@@ -1258,9 +1258,9 @@ class TrajectoryServiceImplTest {
         String horizon = "2023-2024";
         Integer studyId = 1;
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
         when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(Collections.emptyList());
         // Création du fichier .xlsx minimal attendu par la méthode sous test
@@ -1277,9 +1277,9 @@ class TrajectoryServiceImplTest {
         String horizon = "2023-2024";
         Integer studyId = 1;
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
 
         when(thermalEconomicService.buildThermalEconomicCo2ParameterValuesList(any(), any(), any(), any()))
                 .thenReturn(List.of(ThermalEconomicCo2Entity.builder().id(1).build()));
@@ -1300,9 +1300,9 @@ class TrajectoryServiceImplTest {
         String horizon = "2023-2024";
         Integer studyId = 1;
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalEconomicDirectory()).thenReturn("economic");
 
         // Création du fichier .xlsx minimal attendu par la méthode sous test
         generateExcelFile(tempDir, trajectoryToUse);

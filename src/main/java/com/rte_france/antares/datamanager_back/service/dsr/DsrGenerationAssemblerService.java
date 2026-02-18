@@ -11,5 +11,5 @@ public interface DsrGenerationAssemblerService {
 
     Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity);
 
-    List<String> createMatrixDsrTsFiles(DsrClusterEntity dsrClusterEntity, String horizon);
+    List<String> createMatrixDsrTsFiles(StudyEntity studyEntity);
 }

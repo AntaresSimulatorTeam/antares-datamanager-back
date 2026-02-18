@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -29,7 +29,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,7 +38,7 @@ import static org.mockito.Mockito.*;
 
 class StStorageFileProcessorServiceImplTest {
 
-    private AntaressDataManagerProperties properties;
+    private AntaresDataManagerProperties properties;
     private TrajectoryRepository trajectoryRepository;
     private UserService userService;
     private AreaRepository areaRepository;
@@ -51,7 +50,7 @@ class StStorageFileProcessorServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        properties = mock(AntaressDataManagerProperties.class);
+        properties = mock(AntaresDataManagerProperties.class);
         trajectoryRepository = mock(TrajectoryRepository.class);
         userService = mock(UserService.class);
         areaRepository = mock(AreaRepository.class);

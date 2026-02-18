@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.sts;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
@@ -34,7 +34,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class StStorageFileProcessorServiceImpl implements StStorageFileProcessorService {
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
@@ -68,7 +68,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
     public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
-        Path root = Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(antaressDataManagerProperties.getTrajectoryFilePath()).resolve(antaressDataManagerProperties.getStsDirectory());
+        Path root = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath()).resolve(antaresDataManagerProperties.getStsDirectory());
 
         if (!Files.exists(root) || !Files.isDirectory(root)) {
             throw new NoSuchFileException("STS root not found: " + root);
@@ -255,9 +255,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     public Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
         // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
 
-        Path root = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaressDataManagerProperties.getStsDirectory());
+        Path root = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getStsDirectory());
 
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("series");
 
@@ -311,5 +311,5 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         if (s.isEmpty()) return null;
         return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);
     }
-    
+
 }

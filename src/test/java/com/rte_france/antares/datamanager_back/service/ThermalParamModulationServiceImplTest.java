@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -16,8 +16,6 @@ import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -53,7 +51,7 @@ class ThermalParamModulationServiceImplTest {
     private NasFileService nasFileService;
 
     @Mock
-    private AntaressDataManagerProperties antaressDataManagerProperties;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
 
     @InjectMocks
     private ThermalParamModulationServiceImpl thermalParamModulationService;
@@ -212,9 +210,9 @@ class ThermalParamModulationServiceImplTest {
         when(t2.getThermalModulationParameters()).thenReturn(List.of(p2));
 
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn("thermal_modulation");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn("thermal_modulation");
 
         Path base = tempDir.resolve("trajectories").resolve("thermal_modulation");
         Files.createDirectories(base);
@@ -503,8 +501,8 @@ class ThermalParamModulationServiceImplTest {
         List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
         Path file = trajectoryFilePath;
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(thermalSpecificFileProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true))
                 .thenReturn(Set.of("clustera", "clusterb"));
 
@@ -530,8 +528,8 @@ class ThermalParamModulationServiceImplTest {
         List<ThermalModulationParameterEntity> thermalModulationParameters = new ArrayList<>();
         Path file = trajectoryFilePath;
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(thermalSpecificFileProcessorService.getListClusterByAreaForSpecificParam(horizon, studyId, true))
                 .thenReturn(Set.of("clustera", "clusterb"));
 

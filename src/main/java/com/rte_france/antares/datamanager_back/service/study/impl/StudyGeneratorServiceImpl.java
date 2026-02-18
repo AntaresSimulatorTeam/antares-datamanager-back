@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -44,7 +44,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final WebClient webClient;
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
@@ -64,7 +64,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             String generatorJson = objectMapper.writeValueAsString(jsonStudyDataForGeneration);
-            String studyJsonDir = antaressDataManagerProperties.getStudyJsonOutputDirectory();
+            String studyJsonDir = antaresDataManagerProperties.getStudyJsonOutputDirectory();
             log.info("Sauvegarde du JSON de génération pour l'étude {} dans {}", studyId, studyJsonDir);
             nasFileService.saveFile(studyId + ".json", generatorJson.getBytes(), studyJsonDir);
             log.info("JSON pour l'étude {} sauvegardé avec succès", studyId);
@@ -182,7 +182,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         log.info("Areas data with {} entries", areasDataMap.size());
     }
 
-    //TODO simplify with all rules
     private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps,
                                                   Map<String, StsGenerationDTO> stsClusterProps, Map<String, DsrGenerationDTO> dsrClusterProps) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
@@ -218,7 +217,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     @ExecutionTime
     public void callGenerateStudyService(Integer studyId) {
         log.info("Appel du service de génération pour l'étude id={}", studyId);
-        String url = antaressDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
+        String url = antaresDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
 
         try {
             webClient.post()

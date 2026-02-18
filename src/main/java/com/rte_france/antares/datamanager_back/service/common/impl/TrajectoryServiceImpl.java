@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.common.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -54,7 +54,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final LinkFileProcessorService linkFileProcessorService;
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final TrajectoryRepository trajectoryRepository;
 
@@ -159,7 +159,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .stream()
                     .map(LinkMapper::toLinkTrajectoryDataDTO)
                     .collect(Collectors.toList());
-            
+
             case STS -> stStorageRepository.findStStorageEntitiesByTrajectoryId(trajectoryId)
                     .stream()
                     .map(StStorageMapper::toStStorageTrajectoryDataDTO)
@@ -709,13 +709,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     // Utility method to build a trajectory path with checks
     public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType type) throws IOException {
-        String nasDir = antaressDataManagerProperties.getNasDirectory();
-        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
+        String nasDir = antaresDataManagerProperties.getNasDirectory();
+        String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
         String directoryByType = "";
         if (TrajectoryType.LOAD.equals(type)) {
-            directoryByType = antaressDataManagerProperties.getLoadDirectory();
+            directoryByType = antaresDataManagerProperties.getLoadDirectory();
         } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
-            directoryByType = antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            directoryByType = antaresDataManagerProperties.getThermalModulationParameterDirectory();
         }
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {
@@ -815,8 +815,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     public Path getTrajectoryFilePath(TrajectoryType trajectoryType, String trajectoryToUse, String area) throws IOException {
         //build the file path
-        Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+        Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                 .resolve(getDirectoryByTrajectoryType(trajectoryType, area, null))
                 .normalize();
 
@@ -852,8 +852,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area, String technology) throws IOException {
-        String basePath = antaressDataManagerProperties.getNasDirectory();
-        String subPath = antaressDataManagerProperties.getTrajectoryFilePath();
+        String basePath = antaresDataManagerProperties.getNasDirectory();
+        String subPath = antaresDataManagerProperties.getTrajectoryFilePath();
         Path baseDirectory = Path.of(basePath).resolve(subPath)
                 .resolve(getDirectoryByTrajectoryType(trajectoryType, area, technology))
                 .normalize();
@@ -907,26 +907,26 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area, String technology) throws IOException {
         return switch (trajectoryType) {
-            case AREA -> antaressDataManagerProperties.getAreaDirectory();
-            case LINK -> antaressDataManagerProperties.getLinkDirectory();
-            case LOAD -> antaressDataManagerProperties.getLoadDirectory();
+            case AREA -> antaresDataManagerProperties.getAreaDirectory();
+            case LINK -> antaresDataManagerProperties.getLinkDirectory();
+            case LOAD -> antaresDataManagerProperties.getLoadDirectory();
             case THERMAL_CAPACITY ->
-                    area.equals("FR") ? Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
+                    area.equals("FR") ? Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
                             .resolve(area)
-                            .toString() : Path.of(antaressDataManagerProperties.getThermalCapacityDirectory())
+                            .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
                             .toString();
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
-                    antaressDataManagerProperties.getThermalParameterDirectory();
-            case THERMAL_ECONOMIC_COST_PARAMETER -> antaressDataManagerProperties.getThermalCostDirectory();
-            case THERMAL_ECONOMIC_PARAMETER -> antaressDataManagerProperties.getThermalEconomicDirectory();
+                    antaresDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_ECONOMIC_COST_PARAMETER -> antaresDataManagerProperties.getThermalCostDirectory();
+            case THERMAL_ECONOMIC_PARAMETER -> antaresDataManagerProperties.getThermalEconomicDirectory();
             case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
-                    antaressDataManagerProperties.getThermalModulationParameterDirectory();
-            case DSR -> antaressDataManagerProperties.getDsrDirectory();
-            case DSR_CAPACITY_MODULATION -> antaressDataManagerProperties.getDsrCapacityDirectory();
+                    antaresDataManagerProperties.getThermalModulationParameterDirectory();
+            case DSR -> antaresDataManagerProperties.getDsrDirectory();
+            case DSR_CAPACITY_MODULATION -> antaresDataManagerProperties.getDsrCapacityDirectory();
             case STS ->
-                findChildDirectoryIgnoreCase(Path.of(antaressDataManagerProperties.getNasDirectory())
-                        .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                        .resolve(antaressDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
+                findChildDirectoryIgnoreCase(Path.of(antaresDataManagerProperties.getNasDirectory())
+                        .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                        .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
             case MISC ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();

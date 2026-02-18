@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class FileControllerTest {
   private NasFileService nasFileService;
 
   @Mock
-  private AntaressDataManagerProperties properties;
+  private AntaresDataManagerProperties properties;
 
   @BeforeEach
   void setUp() {

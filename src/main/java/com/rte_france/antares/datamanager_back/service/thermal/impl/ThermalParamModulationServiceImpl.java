@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.ColumnSplitWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -46,7 +46,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
 
     private final UserService userService;
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final ThermalSpecificFileProcessorService thermalSpecificFileProcessorService;
 
@@ -97,7 +97,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         return createSplitCmAndMrParamFiles(study).stream()
                 .map(path -> {
                     try {
-                        String outputDir = antaressDataManagerProperties.getParamModulationOutputDirectory();
+                        String outputDir = antaresDataManagerProperties.getParamModulationOutputDirectory();
                         return nasFileService.saveMatrixToNas(path, outputDir);
                     } catch (IOException e) {
                         throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
@@ -131,8 +131,8 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
     }
 
     private Path buildParamModulationFilePath(Path trajectoryFilePath) {
-        Path allowedBaseDir = Paths.get(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
+        Path allowedBaseDir = Paths.get(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                 .normalize();
         Path normalizedPath = trajectoryFilePath.normalize();
 
@@ -305,18 +305,11 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
             String areaCluster = columns[i].trim();
             if (areaCluster.isEmpty()) continue;
 
-            String areaKey = areaCluster.toLowerCase();
-            // n'autoriser la création que si la colonne est dans la liste des clusters spécifiques
-            if (!listSpecificParamClusters.contains(areaKey)) continue;
-            Path out = targetDir.resolve(baseName + "_" + areaCluster + ".csv");
-
-            BufferedWriter bw = Files.newBufferedWriter(out,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
-
+            //Helper to handle lowercase check and writer creation (exact match)
+            BufferedWriter bw = ColumnSplitWriter
+                    .openWriterIfAllowed(areaCluster, baseName, targetDir, listSpecificParamClusters, generatedFiles, false);
+            if (bw == null) continue;
             writers.put(i, bw);
-            generatedFiles.add(out);
         }
 
         return writers;
@@ -370,13 +363,13 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
     }
 
     public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType type) throws IOException {
-        String nasDir = antaressDataManagerProperties.getNasDirectory();
-        String trajFilePath = antaressDataManagerProperties.getTrajectoryFilePath();
+        String nasDir = antaresDataManagerProperties.getNasDirectory();
+        String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
         String directoryByType = "";
         if (TrajectoryType.LOAD.equals(type)) {
-            directoryByType = antaressDataManagerProperties.getLoadDirectory();
+            directoryByType = antaresDataManagerProperties.getLoadDirectory();
         } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
-            directoryByType = antaressDataManagerProperties.getThermalModulationParameterDirectory();
+            directoryByType = antaresDataManagerProperties.getThermalModulationParameterDirectory();
         }
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {

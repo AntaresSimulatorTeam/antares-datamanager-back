@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.sts;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssemblerService {
 
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final NasFileService nasFileService;
 
 
@@ -65,7 +65,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         Path tsDir = Path.of(stsEntity.getTsPath());
 
         try {
-            String outputDir = antaressDataManagerProperties.getStsTsOutputDirectory();
+            String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
             List<String> saved = new ArrayList<>();
 
             for (StsTsFile stsTsFile : StsTsFile.values()) {

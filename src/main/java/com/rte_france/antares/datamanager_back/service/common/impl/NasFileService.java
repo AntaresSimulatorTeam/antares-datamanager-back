@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.common.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
-import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -31,7 +30,7 @@ public class NasFileService {
     private final TimeSeriesWriter writer;
 
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     /**
      * Loads a file as a resource.
@@ -41,7 +40,7 @@ public class NasFileService {
      * @throws FileNotFoundException if the file is not found or is not readable
      */
     public Resource loadFile(String filename) throws FileNotFoundException {
-        Path filePath = Path.of(antaressDataManagerProperties.getNasDirectory()).resolve(filename);
+        Path filePath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(filename);
         Resource resource = UrlResource.from(filePath.toUri());
 
         if (resource.exists() || resource.isReadable()) {
@@ -68,7 +67,7 @@ public class NasFileService {
                     .build();
         }
 
-        String nasDir = antaressDataManagerProperties.getNasDirectory();
+        String nasDir = antaresDataManagerProperties.getNasDirectory();
 
         Path nasPath = Path.of(nasDir).toAbsolutePath().normalize();
 

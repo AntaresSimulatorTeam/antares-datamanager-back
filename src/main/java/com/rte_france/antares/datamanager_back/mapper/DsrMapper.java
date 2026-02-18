@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 
+import java.util.Collections;
 import java.util.Optional;
 @Value
 @Builder(toBuilder = true)
@@ -23,7 +24,7 @@ public class DsrMapper {
                 .marginalCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
                 .marketBidCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
                 .foDuration(Optional.ofNullable(dsrEntity.getFoDuration()).map(Number::doubleValue).orElse(0.0))
-                .foRate(Optional.ofNullable(dsrEntity.getFoRate()).map(Number::doubleValue).orElse(0.0))
+                .foMonthlyRate(Collections.nCopies(12, Optional.ofNullable(dsrEntity.getFoRate()).map(Number::doubleValue).orElse(0.0)))
                 .reliability(Optional.ofNullable(dsrEntity.getReliability()).map(Number::doubleValue).orElse(0.0))
                 .build();
 

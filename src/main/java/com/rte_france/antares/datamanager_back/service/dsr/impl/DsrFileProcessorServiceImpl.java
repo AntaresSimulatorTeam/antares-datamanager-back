@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.dsr.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
@@ -34,7 +34,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 @RequiredArgsConstructor
 public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
@@ -75,9 +75,9 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
     public Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
         //build the file path
-        Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaressDataManagerProperties.getDsrDirectory())
+        Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getDsrDirectory())
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {
@@ -268,7 +268,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
-                
+
                 onlyHeader = false;
                 if (row == null || isRowEmpty(row)) continue;
 
@@ -289,7 +289,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 if (intValue == null || intValue == 0) {
                     continue;
                 }
-                
+
                 String clusterName = getStringCellValue(row, 2);
 
                 // Cluster name should not exceed 40 characters

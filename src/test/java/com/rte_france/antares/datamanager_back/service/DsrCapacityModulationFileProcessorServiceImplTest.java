@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -48,7 +48,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
     @BeforeEach
     void setup() {
-        AntaressDataManagerProperties properties = mock(AntaressDataManagerProperties.class);
+        AntaresDataManagerProperties properties = mock(AntaresDataManagerProperties.class);
 
         service = spy(new DsrCapacityModulationFileProcessorServiceImpl(
                 properties,

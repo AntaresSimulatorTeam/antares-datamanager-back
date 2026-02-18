@@ -53,8 +53,8 @@ public class DsrGenerationDTO {
     private Double foDuration;
 
     @JsonView(DsrClustersViews.Data.class)
-    @JsonProperty("fo_rate")
-    private Double foRate;
+    @JsonProperty("fo_monthly_rate")
+    private List<Double> foMonthlyRate;
 
     @JsonView(DsrClustersViews.Data.class)
     @JsonProperty("reliability")
