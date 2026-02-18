@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,6 +28,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @RequiredArgsConstructor
 public class DsrController {
     private final DsrFileProcessorService dsrFileProcessorService;
+    private final DsrCapacityModulationFileProcessorService dsrCapacityModulationFileProcessorService;
 
     @Operation(summary = "import DSR cluster trajectory to database ")
     @PostMapping("/dsr-cluster")
@@ -39,6 +41,18 @@ public class DsrController {
 
         return new ResponseEntity<>(toTrajectoryDTO(
                 dsrFileProcessorService.processDsrClusterFile(trajectoryToUse, horizon, studyId, isCivilYear, area)
+        ), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import DSR capacity modulation trajectory to database ")
+    @PostMapping("/dsr-capacity-modulation")
+    public ResponseEntity<TrajectoryDTO> uploadDsrCapacityModulationTrajectory(
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "example of horizon : 2020-2021") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+        return new ResponseEntity<>(toTrajectoryDTO(
+                dsrCapacityModulationFileProcessorService.processDsrCapacityModulationFile(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);
     }
 }
