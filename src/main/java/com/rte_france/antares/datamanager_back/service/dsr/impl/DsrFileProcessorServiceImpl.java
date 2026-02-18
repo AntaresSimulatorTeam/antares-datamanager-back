@@ -92,56 +92,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         return trajectoryFilePath;
     }
 
-    public static boolean startsWithIgnoreCase(String name, String prefix) {
-        if (name == null) {
-            return false;
-        }
-        return name.regionMatches(true, 0, prefix, 0, prefix.length());
-    }
-
-
-    private Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
-        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
-        if (sheet == null) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
-                    .build();
-        }
-        return sheet;
-    }
-
-    private static void checkMissingColumns(Sheet sheet, String trajectoryName) {
-        Row headerRow = sheet.getRow(0);
-        List<String> missingColumns = new ArrayList<>();
-        if (headerRow == null) {
-            missingColumns.addAll(Arrays.asList(REQUIRED_CLUSTER_COLUMNS));
-        } else {
-            int lastCell = headerRow.getLastCellNum() < 0 ? 0 : headerRow.getLastCellNum();
-            Set<String> headerNames = new HashSet<>();
-            for (int i = 0; i < lastCell; i++) {
-                Cell c = headerRow.getCell(i);
-                if (c != null) {
-                    String val = c.toString().trim().toLowerCase(Locale.ROOT);
-                    if (!val.isEmpty()) headerNames.add(val);
-                }
-            }
-            for (String expected : REQUIRED_CLUSTER_COLUMNS) {
-                String norm = expected.trim().toLowerCase(Locale.ROOT);
-                if (!headerNames.contains(norm)) {
-                    missingColumns.add(expected);
-                }
-            }
-        }
-        if (!missingColumns.isEmpty()) {
-            String missingList = String.join(", ", missingColumns);
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(missingList, trajectoryName))
-                    .message("Missing columns {0} in DSR cluster trajectory {1}")
-                    .build();
-        }
-    }
-
     private String getStringCellValue(Row row, int idx) {
         Cell cell = row.getCell(idx);
         return cell == null ? null : cell.getStringCellValue();
@@ -299,8 +249,8 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
-
-            checkMissingColumns(sheet, trajectoryFileName);
+            Row header = sheet.getRow(0);
+            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName, TrajectoryType.DSR.name());
 
             List<String> fileAreas = new ArrayList<>();
 
