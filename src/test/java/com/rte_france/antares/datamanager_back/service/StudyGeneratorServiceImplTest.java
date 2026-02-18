@@ -2,7 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -60,7 +60,7 @@ class StudyGeneratorServiceImplTest {
     private WebClient.ResponseSpec responseSpec;
 
     @Mock
-    private AntaressDataManagerProperties antaressDataManagerProperties;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
 
     @Mock
     private StudyRepository studyRepository;
@@ -173,7 +173,7 @@ class StudyGeneratorServiceImplTest {
         Integer studyId = 1;
 
         // When
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Collections.emptyMap());
 
@@ -223,7 +223,7 @@ class StudyGeneratorServiceImplTest {
     void testBuildLinksDataMap() throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
         Integer studyId = 1;
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
@@ -268,7 +268,7 @@ class StudyGeneratorServiceImplTest {
     void testBuildJsonForStudyGenerationThrowsExceptionWhenIOExceptionOccurs() throws IOException {
         // Given
         Integer studyId = 1;
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         doThrow(IOException.class).when(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), anyString());
 
@@ -297,7 +297,7 @@ class StudyGeneratorServiceImplTest {
 
         studyEntity.addTrajectoryEntity(loadTrajectory);
         studyEntity.addTrajectoryEntity(areaTrajectory);
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
 
@@ -337,7 +337,7 @@ class StudyGeneratorServiceImplTest {
         TrajectoryEntity areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfigFR)).build();
 
         studyEntity.setTrajectories(new HashSet<>(Arrays.asList(loadTrajectory, areaTrajectory)));
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
         when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
                 "FR", List.of("load_fr_2030-2031.txt")
@@ -377,14 +377,14 @@ class StudyGeneratorServiceImplTest {
         study.addTrajectoryEntity(areaTrajectory);
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/nas");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
-        when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("outload");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("load");
+        when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("outload");
         when(loadRepository.save(any())).thenReturn(load);
         doReturn("generated.arrow").when(nasFileService).saveMatrixToNas(any(), any());
         // Delegate the mocked service call to real logic to trigger arrow generation
-        doAnswer(inv -> new LoadToJsonService(loadRepository, nasFileService, antaressDataManagerProperties)
+        doAnswer(inv -> new LoadToJsonService(loadRepository, nasFileService, antaresDataManagerProperties)
                 .getListArrowLoadFilesByAreaFromStudy(inv.getArgument(0)))
                 .when(loadToJsonService).getListArrowLoadFilesByAreaFromStudy(any());
 
@@ -401,7 +401,7 @@ class StudyGeneratorServiceImplTest {
         // Arrange
         int studyId = 42;
         String url = "http://localhost/generate_study/?study_id=42";
-        when(antaressDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
         WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
 
         when(webClient.post()).thenReturn(bodyUriSpec);
@@ -429,7 +429,7 @@ class StudyGeneratorServiceImplTest {
         var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
         var ref = ThermalClusterRef.builder().name("Gas1").build();
         when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", ref), dto));
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
@@ -489,7 +489,7 @@ class StudyGeneratorServiceImplTest {
         var ref = ThermalClusterRef.builder().name("Gas1").build();
 
         when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", ref), dto));
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);
@@ -555,7 +555,7 @@ class StudyGeneratorServiceImplTest {
         stsProps.put("DE_Storage1", deDto);
         stsProps.put("FR_Ignore", frDto);
         when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(stsProps);
-        when(antaressDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
         studyGeneratorService.buildJsonForStudyGeneration(1);

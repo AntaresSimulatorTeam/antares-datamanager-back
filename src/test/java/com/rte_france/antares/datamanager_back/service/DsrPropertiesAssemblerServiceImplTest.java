@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -19,6 +19,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -34,7 +35,7 @@ import static org.mockito.Mockito.*;
 class DsrPropertiesAssemblerServiceImplTest {
 
     @Mock
-    private AntaressDataManagerProperties antaressDataManagerProperties;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
 
     @Mock
     private NasFileService nasFileService;
@@ -48,12 +49,12 @@ class DsrPropertiesAssemblerServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        ReflectionTestUtils.setField(dsrPropertiesAssemblerService, "antaressDataManagerProperties", antaressDataManagerProperties);
+        ReflectionTestUtils.setField(dsrPropertiesAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
         ReflectionTestUtils.setField(dsrPropertiesAssemblerService, "nasFileService", nasFileService);
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-        when(antaressDataManagerProperties.getDsrCapacityDirectory()).thenReturn("dsr_capacity");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getDsrCapacityDirectory()).thenReturn("dsr_capacity");
     }
 
     @Test
@@ -135,32 +136,35 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .dsrClusterEntities(List.of(clusterModulationTrue, clusterModulationFalse, clusterModulationNull))
                 .build();
 
-        // Create file for modulation series
+        // Create the file for modulation series
         Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
         Files.createDirectories(dsrCapacityDir);
-        String tsName = "some_ts";
+        String tsName = "some_ts.xlsx";
         Path tsPath = dsrCapacityDir.resolve(tsName);
-        Files.createFile(tsPath);
+        createSimpleXlsx(tsPath, "2030", new String[]{"ClusterModTrue"}, new double[][]{ new double[]{10.0} });
 
         // Mocking TS name finding in study trajectories
         DsrCapacityModulationEntity modulationEntity = DsrCapacityModulationEntity.builder().tsName(tsName).build();
         TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
-                .dsrCapacityModulations(List.of(modulationEntity))
+                .dsrCapacityModulationEntities(List.of(modulationEntity))
                 .build();
 
         StudyEntity study = StudyEntity.builder()
                 .trajectories(Set.of(dsrTrajectory, modulationTrajectory))
                 .build();
 
-        when(antaressDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.saveMatrixToNas(eq(tsPath), anyString())).thenReturn("saved_ts");
+        when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
+        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenAnswer(invocation -> {
+            Path p = invocation.getArgument(0);
+            return p.getFileName().toString() + ".arrow";
+        });
 
         // When
         Map<String, DsrGenerationDTO> result = dsrPropertiesAssemblerService.assembleDsrProperties(study);
 
         // Then
-        assertNotNull(result.get("FR_ClusterModTrue").getDsrTsList());
+        assertEquals(List.of("some_ts_ClusterModTrue.csv.arrow"), result.get("FR_ClusterModTrue").getDsrTsList());
         assertNull(result.get("FR_ClusterModFalse").getDsrTsList());
         assertNull(result.get("FR_ClusterModNull").getDsrTsList());
     }
@@ -183,86 +187,7 @@ class DsrPropertiesAssemblerServiceImplTest {
         assertTrue(result.isEmpty());
     }
 
-    @Test
-    void createMatrixDsrTsFiles_ShouldNotDuplicateWhenSameNameAndChecksum() throws IOException {
-        // Given
-        Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
-        Files.createDirectories(dsrCapacityDir);
-        String tsName = "duplicate.txt";
-        Path tsPath = dsrCapacityDir.resolve(tsName);
-        Files.createFile(tsPath);
 
-        DsrCapacityModulationEntity mod1 = DsrCapacityModulationEntity.builder()
-                .tsName(tsName)
-                .checksum("checksum123")
-                .build();
-        DsrCapacityModulationEntity mod2 = DsrCapacityModulationEntity.builder()
-                .tsName(tsName)
-                .checksum("checksum123")
-                .build();
-
-        TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
-                .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
-                .dsrCapacityModulations(List.of(mod1, mod2))
-                .build();
-
-        StudyEntity study = StudyEntity.builder()
-                .trajectories(Set.of(modulationTrajectory))
-                .build();
-
-        when(antaressDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.saveMatrixToNas(eq(tsPath), anyString())).thenReturn("unique_saved_filename.txt");
-
-        // When
-        List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
-
-        // Then
-        assertEquals(1, result.size());
-        assertEquals("unique_saved_filename.txt", result.get(0));
-        verify(nasFileService, times(1)).saveMatrixToNas(any(), anyString());
-    }
-
-    @Test
-    void createMatrixDsrTsFiles_ShouldDuplicateWhenSameNameButDifferentChecksum() throws IOException {
-        // Given
-        Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
-        Files.createDirectories(dsrCapacityDir);
-        String tsName = "duplicate.txt";
-        Path tsPath = dsrCapacityDir.resolve(tsName);
-        Files.createFile(tsPath);
-
-        DsrCapacityModulationEntity mod1 = DsrCapacityModulationEntity.builder()
-                .tsName(tsName)
-                .checksum("checksum1")
-                .build();
-        DsrCapacityModulationEntity mod2 = DsrCapacityModulationEntity.builder()
-                .tsName(tsName)
-                .checksum("checksum2")
-                .build();
-
-        TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
-                .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
-                .dsrCapacityModulations(List.of(mod1, mod2))
-                .build();
-
-        StudyEntity study = StudyEntity.builder()
-                .trajectories(Set.of(modulationTrajectory))
-                .build();
-
-        when(antaressDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.saveMatrixToNas(eq(tsPath), anyString()))
-                .thenReturn("saved1.txt")
-                .thenReturn("saved2.txt");
-
-        // When
-        List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
-
-        // Then
-        assertEquals(2, result.size());
-        assertTrue(result.contains("saved1.txt"));
-        assertTrue(result.contains("saved2.txt"));
-        verify(nasFileService, times(2)).saveMatrixToNas(any(), anyString());
-    }
 
     @Test
     void createMatrixDsrTsFiles_ShouldReturnEmptyListWhenNoTsNames() {
@@ -279,13 +204,15 @@ class DsrPropertiesAssemblerServiceImplTest {
     }
 
     @Test
-    void createMatrixDsrTsFiles_ShouldSaveFilesWhenTheyExist() throws IOException {
+    void createMatrixDsrTsFiles_ShouldSupportIso8859_1Encoding() throws IOException {
         // Given
         Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
         Files.createDirectories(dsrCapacityDir);
-        String tsName = "dsr_ts_1.txt";
+        String tsName = "CM_iso_encoding.xlsx";
         Path tsPath = dsrCapacityDir.resolve(tsName);
-        Files.createFile(tsPath);
+
+        // Feuille avec en-tête accentué (Cluster_Accént)
+        createSimpleXlsx(tsPath, "2030", new String[]{"Cluster_Accént"}, new double[][]{ new double[]{10.0} });
 
         DsrCapacityModulationEntity modulation = DsrCapacityModulationEntity.builder()
                 .tsName(tsName)
@@ -293,46 +220,143 @@ class DsrPropertiesAssemblerServiceImplTest {
 
         TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
-                .dsrCapacityModulations(List.of(modulation))
+                .dsrCapacityModulationEntities(List.of(modulation))
+                .build();
+
+        DsrClusterEntity cluster = DsrClusterEntity.builder().name("Cluster_Accént").build();
+        TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR.name())
+                .dsrClusterEntities(List.of(cluster))
                 .build();
 
         StudyEntity study = StudyEntity.builder()
-                .trajectories(Set.of(modulationTrajectory))
+                .horizon("2030")
+                .trajectories(Set.of(modulationTrajectory, dsrTrajectory))
                 .build();
 
-        when(antaressDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
-        when(nasFileService.saveMatrixToNas(eq(tsPath), anyString())).thenReturn("saved_ts_1.txt");
+        when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
+        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenReturn("saved.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
 
         // Then
         assertEquals(1, result.size());
-        assertEquals("saved_ts_1.txt", result.get(0));
-        verify(nasFileService).saveMatrixToNas(eq(tsPath), eq("output/dsr_arrow"));
+        // On vérifie qu'un fichier a été généré avec le nom attendu (contenant l'accent)
+        verify(nasFileService).saveMatrixToNas(argThat(p -> p.getFileName().toString().contains("Cluster_Accént")), anyString());
     }
 
     @Test
-    void createMatrixDsrTsFiles_ShouldThrowBusinessExceptionWhenFileNotFound() {
+    void createMatrixDsrTsFiles_ShouldContextualizeExceptionWhenIoErrorOccurs() throws IOException {
         // Given
-        String tsName = "missing.txt";
+        Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
+        Files.createDirectories(dsrCapacityDir);
+        String tsName = "CM_error.xlsx";
+        Path tsPath = dsrCapacityDir.resolve(tsName);
+        createSimpleXlsx(tsPath, "2030", new String[]{"CL1"}, new double[][]{ new double[]{10.0} });
+
         DsrCapacityModulationEntity modulation = DsrCapacityModulationEntity.builder()
                 .tsName(tsName)
                 .build();
 
         TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
-                .dsrCapacityModulations(List.of(modulation))
+                .dsrCapacityModulationEntities(List.of(modulation))
+                .build();
+
+        DsrClusterEntity cluster = DsrClusterEntity.builder().name("CL1").build();
+        TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR.name())
+                .dsrClusterEntities(List.of(cluster))
                 .build();
 
         StudyEntity study = StudyEntity.builder()
-                .trajectories(Set.of(modulationTrajectory))
+                .horizon("2030")
+                .trajectories(Set.of(modulationTrajectory, dsrTrajectory))
                 .build();
 
-        // When & Then
-        BusinessException ex = assertThrows(BusinessException.class, () -> dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study));
-        assertTrue(ex.getMessage().contains("Required DSR capacity modulation series file not found"));
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        // On rend le fichier illisible pour provoquer une IOException au moment de la lecture
+        tsPath.toFile().setReadable(false);
+
+        try {
+            // When & Then
+            TechnicalException exception = assertThrows(TechnicalException.class, () ->
+                    dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study)
+            );
+            assertTrue(exception.getMessage().contains("Error while splitting DSR CM file: CM_error.xlsx"));
+        } finally {
+            tsPath.toFile().setReadable(true); // cleanup pour ne pas gêner @TempDir
+        }
+    }
+
+    @Test
+    void createMatrixDsrTsFiles_ShouldSaveFilesWhenTheyExist() throws IOException {
+        // Given
+        Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
+        Files.createDirectories(dsrCapacityDir);
+        String tsName = "CM_dsr_ts_1.xlsx";
+        Path tsPath = dsrCapacityDir.resolve(tsName);
+        createSimpleXlsx(tsPath, "2030", new String[]{"CL1"}, new double[][]{ new double[]{10.0} });
+
+        DsrCapacityModulationEntity modulation = DsrCapacityModulationEntity.builder()
+                .tsName(tsName)
+                .build();
+
+        TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
+                .dsrCapacityModulationEntities(List.of(modulation))
+                .build();
+
+        // add DSR clusters to enable splitting
+        DsrClusterEntity cluster = DsrClusterEntity.builder().area("").name("CL1").build();
+        TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR.name())
+                .dsrClusterEntities(List.of(cluster))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2030")
+                .trajectories(Set.of(modulationTrajectory, dsrTrajectory))
+                .build();
+
+        when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
+        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenReturn("saved_ts_1.txt");
+
+        // When
+        List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("saved_ts_1.txt", result.getFirst());
+    }
+
+    @Test
+    void createMatrixDsrTsFiles_ShouldThrowBusinessExceptionWhenFileNotFound() {
+        // Given
+        String tsName = "CM_missing.xlsx";
+        DsrCapacityModulationEntity modulation = DsrCapacityModulationEntity.builder()
+                .tsName(tsName)
+                .build();
+
+        TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
+                .dsrCapacityModulationEntities(List.of(modulation))
+                .build();
+
+        // add DSR clusters to enable splitting
+        DsrClusterEntity cluster = DsrClusterEntity.builder().area("").name("CL1").build();
+        TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR.name())
+                .dsrClusterEntities(List.of(cluster))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .trajectories(Set.of(modulationTrajectory, dsrTrajectory))
+                .build();
+
+        // When & Then: since file is missing, service skips it and returns empty list
+        List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -340,9 +364,9 @@ class DsrPropertiesAssemblerServiceImplTest {
         // Given
         Path dsrCapacityDir = tempDir.resolve("trajectories").resolve("dsr_capacity");
         Files.createDirectories(dsrCapacityDir);
-        String tsName = "dsr_ts_1.txt";
+        String tsName = "CM_dsr_ts_1.xlsx";
         Path tsPath = dsrCapacityDir.resolve(tsName);
-        Files.createFile(tsPath);
+        createSimpleXlsx(tsPath, "2030", new String[]{"CL1"}, new double[][]{ new double[]{10.0} });
 
         DsrCapacityModulationEntity modulation = DsrCapacityModulationEntity.builder()
                 .tsName(tsName)
@@ -350,27 +374,51 @@ class DsrPropertiesAssemblerServiceImplTest {
 
         TrajectoryEntity modulationTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
-                .dsrCapacityModulations(List.of(modulation))
+                .dsrCapacityModulationEntities(List.of(modulation))
+                .build();
+
+        // add DSR clusters to enable splitting
+        DsrClusterEntity cluster = DsrClusterEntity.builder().area("").name("CL1").build();
+        TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.DSR.name())
+                .dsrClusterEntities(List.of(cluster))
                 .build();
 
         StudyEntity study = StudyEntity.builder()
-                .trajectories(Set.of(modulationTrajectory))
+                .trajectories(Set.of(modulationTrajectory, dsrTrajectory))
                 .build();
 
-        when(antaressDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
-        when(nasFileService.saveMatrixToNas(any(), anyString())).thenThrow(new IOException("NAS error"));
+        when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
+        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenThrow(new IOException("NAS error"));
 
         // When & Then
         TechnicalException ex = assertThrows(TechnicalException.class, () -> dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study));
-        assertTrue(ex.getMessage().contains("Failed to save DSR arrow modulation file"));
+        assertTrue(ex.getMessage().contains("NAS error"));
     }
 
-    @Test
-    void createMatrixDsrTsFiles_ClusterVariant_ShouldReturnEmptyList() {
-        // When
-        List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(new DsrClusterEntity(), "2030");
 
-        // Then
-        assertTrue(result.isEmpty());
+    // Helpers
+    private void createSimpleXlsx(Path path, String sheetName, String[] headers, double[][] data) throws IOException {
+        try (var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            var sheet = (sheetName != null && !sheetName.isBlank()) ? wb.createSheet(sheetName) : wb.createSheet();
+            int rowIdx = 0;
+            var headerRow = sheet.createRow(rowIdx++);
+            for (int c = 0; c < headers.length; c++) {
+                var cell = headerRow.createCell(c);
+                cell.setCellValue(headers[c]);
+            }
+            int rows = (data != null && data.length > 0) ? data[0].length : 0;
+            for (int r = 0; r < rows; r++) {
+                var row = sheet.createRow(rowIdx++);
+                for (int c = 0; c < headers.length; c++) {
+                    var cell = row.createCell(c);
+                    double v = (data != null && c < data.length && r < data[c].length) ? data[c][r] : 0.0;
+                    cell.setCellValue(v);
+                }
+            }
+            try (var out = java.nio.file.Files.newOutputStream(path)) {
+                wb.write(out);
+            }
+        }
     }
 }

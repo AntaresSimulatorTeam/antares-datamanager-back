@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -10,13 +10,13 @@ import java.util.function.Function;
 
 @Component
 public class PathSecurityUtil {
-    private final AntaressDataManagerProperties properties;
+    private final AntaresDataManagerProperties properties;
 
-    public PathSecurityUtil(AntaressDataManagerProperties properties) {
+    public PathSecurityUtil(AntaresDataManagerProperties properties) {
         this.properties = Objects.requireNonNull(properties);
     }
 
-    public void validatePathFromBaseDir(String fileName, Function<AntaressDataManagerProperties, String> pathGetter) throws IOException {
+    public void validatePathFromBaseDir(String fileName, Function<AntaresDataManagerProperties, String> pathGetter) throws IOException {
         var baseDir = new File(pathGetter.apply(properties));
         var targetFile = new File(baseDir, fileName);
         var canonicalBase = baseDir.getCanonicalPath() + File.separator;

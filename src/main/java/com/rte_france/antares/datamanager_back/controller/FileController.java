@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +23,7 @@ import java.util.Objects;
 public class FileController {
 
     private final NasFileService nasFileService;
-    private final AntaressDataManagerProperties properties;
+    private final AntaresDataManagerProperties properties;
 
     @Operation(summary = "Retrieves a file as a downloadable resource")
     @GetMapping("/{filename}")

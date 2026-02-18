@@ -1,9 +1,8 @@
 package com.rte_france.antares.datamanager_back.service.dsr.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.DsrMapper;
 import com.rte_france.antares.datamanager_back.repository.model.DsrCapacityModulationEntity;
@@ -12,17 +11,23 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.util.ColumnSplitWriter;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -30,8 +35,10 @@ import java.util.stream.Collectors;
 public class DsrPropertiesAssemblerServiceImpl implements DsrGenerationAssemblerService {
 
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final NasFileService nasFileService;
+    private final TimeSeriesReader timeSeriesReader;
+    private static final String INTERMEDIARY_PREFIX = ".csv";
 
 @Override
 public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
@@ -52,11 +59,14 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                             dsr.getCapacity().compareTo(BigDecimal.ZERO) != 0
             )
             .collect(Collectors.toMap(
-                    dsr -> buildDsrKey(dsr),
+                    this::buildDsrKey,
                     dsr -> {
                         DsrGenerationDTO dto = DsrMapper.mapToDsrGenerationDTO(dsr);
                         if (Boolean.TRUE.equals(dsr.getModulation())) {
-                            dto.setDsrTsList(modulationFiles);
+                            String clusterKey = this.buildDsrKey(dsr);
+                            String nameKey = dsr.getName();
+                            List<String> clusterModulationFiles = getClusterModulationFiles(modulationFiles, clusterKey, nameKey);
+                            dto.setDsrTsList(clusterModulationFiles);
                         }
                         return dto;
                     },
@@ -64,93 +74,172 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
             ));
 }
 
+    private static @NonNull List<String> getClusterModulationFiles(List<String> modulationFiles, String clusterKey, String nameKey) {
+        List<String> clusterModulationFiles = modulationFiles.stream()
+                .filter(fileName -> {
+                    int csvIndex = fileName.indexOf(INTERMEDIARY_PREFIX);
+                    if (csvIndex == -1) return false;
+                    String baseFileName = fileName.substring(0, csvIndex + 4);
+                    return baseFileName
+                            .endsWith("_" + clusterKey + INTERMEDIARY_PREFIX) || (nameKey != null && baseFileName.endsWith("_" + nameKey + INTERMEDIARY_PREFIX));
+                })
+                .toList();
+        return clusterModulationFiles;
+    }
+
+
+    /**
+     * Builds key from uppercase area and name
+     */
     private String buildDsrKey(DsrClusterEntity dsr) {
         String area = dsr.getArea() != null ? dsr.getArea().toUpperCase() : "";
         String name = dsr.getName() != null ? dsr.getName() : "";
         return area + "_" + name;
     }
-
+    @Override
     public List<String> createMatrixDsrTsFiles(StudyEntity studyEntity) {
+        List<Path> splitFiles = createSplitCmDsrFiles(studyEntity);
+        try {
+            return splitFiles.stream()
+                    .map(path -> {
+                        try {
+                            String outputDir = antaresDataManagerProperties.getDsrModulationTsOutputDirectory();
+                            return nasFileService.saveMatrixToNas(path, outputDir);
+                        } catch (IOException e) {
+                            throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
+                        }
+                    })
+                    .toList();
+        } finally {
+            // Delete temporary files
+            for (Path path : splitFiles) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    log.warn("Could not delete temporary file: {}", path, e);
+                }
+            }
+        }
+    }
 
-        List<DsrCapacityModulationEntity> modulations =
-                studyEntity.getTrajectories().stream()
-                        .filter(Objects::nonNull)
-                        .filter(t -> TrajectoryType.DSR_CAPACITY_MODULATION.name().equals(t.getType()))
-                        .map(TrajectoryEntity::getDsrCapacityModulationEntities)
-                        .filter(Objects::nonNull)
-                        .flatMap(Collection::stream)
-                        .filter(Objects::nonNull)
-                        .toList();
+    private List<Path> createSplitCmDsrFiles(StudyEntity study) {
+        List<Path> cmDsrModulationTsFiles = getDsrModulationTsFiles(study.getTrajectories());
 
-        if (modulations.isEmpty()) {
+        Set<String> dsrClusters = study.getTrajectories().stream()
+                .filter(Objects::nonNull)
+                .filter(t -> TrajectoryType.DSR.name().equals(t.getType()))
+                .map(TrajectoryEntity::getDsrClusterEntities)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .filter(Objects::nonNull)
+                .flatMap(dsr -> Stream.of(
+                        this.buildDsrKey(dsr),
+                        dsr.getName()
+                ))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (dsrClusters.isEmpty()) {
             return Collections.emptyList();
         }
 
-        Path dsrCapacityDir = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaressDataManagerProperties.getDsrCapacityDirectory());
+        String horizon = study.getHorizon();
 
-        String outputDir = antaressDataManagerProperties.getDsrModulationTsOutputDirectory();
+        return cmDsrModulationTsFiles.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .flatMap(path -> {
+                    try {
+                        List<Path> parts = splitDsrCmFiles(path, dsrClusters, horizon);
+                        return parts.stream();
+                    } catch (IOException e) {
+                        throw TechnicalException.builder()
+                                .message("Error while splitting DSR CM file: " + path.getFileName())
+                                .cause(e)
+                                .build();
+                    }
+                })
+                .toList();
+    }
 
-        Set<String> savedFiles = new LinkedHashSet<>();
+    private List<Path> getDsrModulationTsFiles(Collection<TrajectoryEntity> trajectories) {
+        Path dsrCapacityDir = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getDsrCapacityDirectory());
 
-        // Avoid reprocessing same tsName + checksum
-        Map<String, String> processedTs = new HashMap<>();
+        return trajectories.stream()
+                .filter(Objects::nonNull)
+                .filter(t -> TrajectoryType.DSR_CAPACITY_MODULATION.name().equals(t.getType()))
+                .map(TrajectoryEntity::getDsrCapacityModulationEntities)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .filter(Objects::nonNull)
+                .filter(e -> e.getTsName() != null)
+                .map(DsrCapacityModulationEntity::getTsName)
+                .map(dsrCapacityDir::resolve)
+                .filter(Files::exists)
+                .toList();
+    }
 
-        for (DsrCapacityModulationEntity modulation : modulations) {
+    private List<Path> splitDsrCmFiles(Path file, Set<String> dsrClusters, String horizon) throws IOException {
+        Set<String> allowedClusters = dsrClusters.stream()
+                .map(s -> s.trim().toLowerCase())
+                .collect(Collectors.toSet());
 
-            String tsName = modulation.getTsName();
-            if (tsName == null || tsName.isBlank()) {
-                continue;
-            }
+        List<Path> generatedFiles = new ArrayList<>();
+        String fileName = file.getFileName().toString().toLowerCase();
 
-            String checksum = Optional.ofNullable(modulation.getChecksum()).orElse("");
-            String cacheKey = tsName + "_" + checksum;
+        TimeSeriesMatrix matrix;
+        var localReader = (this.timeSeriesReader != null)
+                ? this.timeSeriesReader
+                : new TimeSeriesReader();
+        if (!fileName.endsWith(".xlsx")) {
+            return generatedFiles;
+        }
+        try {
+            matrix = localReader.readFromXlsx(file, horizon);
+        } catch (Exception ex) {
+                throw new IOException(ex);
+        }
 
-            // Already processed → reuse
-            if (processedTs.containsKey(cacheKey)) {
-                savedFiles.add(processedTs.get(cacheKey));
-                continue;
-            }
+        if (matrix.columns().isEmpty()) {
+            return generatedFiles;
+        }
 
-            Path inputPath = dsrCapacityDir.resolve(tsName);
+        Path tmpDir = Files.createTempDirectory("dsr_param_modulation_split_",
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rwx------"))
+        );
+        if (!Files.exists(tmpDir)) {
+            Files.createDirectories(tmpDir);
+        }
+        String baseName = getBaseName(file);
 
-            if (!Files.exists(inputPath)) {
-                throw BusinessException.builder()
-                        .message("Required DSR capacity modulation series file not found: {0}")
-                        .errorMessageArguments(List.of(inputPath.toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+        for (var column : matrix.columns()) {
+            String clusterName = column.name() != null ? column.name().trim() : "";
+            if (clusterName.isEmpty()) continue;
 
-            try {
-                String savedFilename = nasFileService.saveMatrixToNas(inputPath, outputDir);
-                processedTs.put(cacheKey, savedFilename);
-                savedFiles.add(savedFilename);
+            // Use a common helper with flexible suffix matching for DSR
+            BufferedWriter bw = ColumnSplitWriter
+                    .openWriterIfAllowed(clusterName, baseName, tmpDir, allowedClusters, generatedFiles, true);
+            if (bw == null) continue;
 
-            } catch (IOException e) {
-                throw TechnicalException.builder()
-                        .message("Failed to save DSR arrow modulation file: " + tsName)
-                        .cause(e)
-                        .build();
-
-            } catch (IllegalArgumentException e) {
-                throw BusinessException.builder()
-                        .message(e.getMessage())
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+            try (bw) {
+                for (double value : column.values()) {
+                    bw.write(String.valueOf(value));
+                    bw.newLine();
+                }
             }
         }
 
-        return new ArrayList<>(savedFiles);
+        return generatedFiles;
     }
 
 
-    @Override
-    public List<String> createMatrixDsrTsFiles(DsrClusterEntity dsrClusterEntity, String horizon) {
-        // No series for the cluster returns an empty list
-        return Collections.emptyList();
+    private String getBaseName(Path file) {
+        String name = file.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        return (dot > 0) ? name.substring(0, dot) : name;
     }
-
 
 }

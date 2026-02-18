@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
@@ -28,7 +28,7 @@ public class LoadToJsonService {
 
     private final NasFileService nasFileService;
 
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     public  Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         log.info("Retrieve LOAD files for study = {}", studyEntity.getId());
@@ -87,11 +87,11 @@ public class LoadToJsonService {
     }
 
     private  String generateAndSaveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory) {
-        String outputLoadDir = antaressDataManagerProperties.getOutputLoadDirectory();
+        String outputLoadDir = antaresDataManagerProperties.getOutputLoadDirectory();
         var inputTxtFilePath = Paths.get(
-                antaressDataManagerProperties.getNasDirectory(),
-                antaressDataManagerProperties.getTrajectoryFilePath(),
-                antaressDataManagerProperties.getLoadDirectory(),
+                antaresDataManagerProperties.getNasDirectory(),
+                antaresDataManagerProperties.getTrajectoryFilePath(),
+                antaresDataManagerProperties.getLoadDirectory(),
                 trajectory.getFileName(),
                 loadEntity.getFileName()
         ).normalize();

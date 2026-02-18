@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
@@ -36,7 +36,7 @@ class NasFileServiceTest {
   private NasFileService nasFileService;
 
   @Mock
-  private AntaressDataManagerProperties antaressDataManagerProperties;
+  private AntaresDataManagerProperties antaresDataManagerProperties;
 
   private static final String OUTPUT_DIRECTORY = "output";
 
@@ -46,14 +46,14 @@ class NasFileServiceTest {
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
-    when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
   }
 
   @Test
   void loadFile_fileExists() throws IOException {
     var filename = "testFile.txt";
     var filePath = Path.of("/nas").resolve(filename);
-    when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/nas");
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
 
     var resource = mock(UrlResource.class);
     when(resource.exists()).thenReturn(true);
@@ -73,7 +73,7 @@ class NasFileServiceTest {
   @Test
   void loadFile_fileDoesNotExist() {
     var filename = "nonExistentFile.txt";
-    when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/nas");
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
 
     assertThrows(TechnicalException.class, () -> nasFileService.loadFile(filename));
   }
@@ -85,8 +85,8 @@ class NasFileServiceTest {
     var targetDirectory = tempDir.resolve("output");
     Files.createDirectories(targetDirectory);
 
-    when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-    when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn(OUTPUT_DIRECTORY);
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+    when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn(OUTPUT_DIRECTORY);
 
     nasFileService.saveFile(filename, content,OUTPUT_DIRECTORY);
 
@@ -114,7 +114,7 @@ class NasFileServiceTest {
     var filename = "../invalidFile.txt";
     var content = "test content".getBytes();
 
-    when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
 
     assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content, OUTPUT_DIRECTORY));
   }
@@ -124,10 +124,10 @@ class NasFileServiceTest {
     var filename = "../outsideDir/testFile.txt";
     var content = "test content".getBytes();
 
-    when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-    when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectory");
-    when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("load");
-    when(antaressDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+    when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectory");
+    when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("load");
+    when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("output");
 
     assertThrows(TechnicalException.class, () -> nasFileService.saveFile(filename, content, OUTPUT_DIRECTORY));
   }

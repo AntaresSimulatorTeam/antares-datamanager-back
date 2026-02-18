@@ -49,8 +49,6 @@ public class ThermalToJsonService {
             Map<String, Object> dataMap = DATA_MAPPER.convertValue(dto, new TypeReference<>() {
             });
 
-            Map<String, Object> paramModulation = PARAM_MODULATION_MAPPER.convertValue(dto, new TypeReference<>() {
-            });
 
             Map<String, Object> clusterData = new LinkedHashMap<>();
             clusterData.put(PROPERTIES, propertiesMap);

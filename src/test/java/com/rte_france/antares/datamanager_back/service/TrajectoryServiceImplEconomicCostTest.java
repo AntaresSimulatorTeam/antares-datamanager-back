@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
@@ -14,16 +14,11 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlSer
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import org.apache.poi.ss.usermodel.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -50,7 +45,7 @@ class TrajectoryServiceImplEconomicCostTest {
     @Mock private UserService userService;
     @Mock private LoadFileProcessorServiceImpl loadFileProcessorService;
     @Mock private ThermalSpecificParametersRepository thermalSpecificParametersRepository;
-    @Mock private AntaressDataManagerProperties props;
+    @Mock private AntaresDataManagerProperties props;
     @Mock private com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService areaFileProcessorService;
     @Mock private com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService linkFileProcessorService;
     @Mock private ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;

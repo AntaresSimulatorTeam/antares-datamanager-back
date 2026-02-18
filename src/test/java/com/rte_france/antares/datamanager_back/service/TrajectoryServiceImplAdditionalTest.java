@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FsTrajectoryDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
@@ -56,7 +56,7 @@ class TrajectoryServiceImplAdditionalTest {
     private UserService userService;
 
     @Mock
-    private AntaressDataManagerProperties antaressDataManagerProperties;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
 
     @Mock
     private LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
@@ -180,9 +180,9 @@ class TrajectoryServiceImplAdditionalTest {
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("testUser").build());
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("");
 
         when(loadFileProcessorServiceImpl.checkForMissingLoadFiles(any(), any(), any(), any(), any()))
                 .thenReturn(Collections.emptySet());
@@ -249,9 +249,9 @@ class TrajectoryServiceImplAdditionalTest {
         when(areaRepository.findAreaByNameAndStudyId(area, studyId))
                 .thenReturn(Optional.of(AreaEntity.builder().name(area).build()));
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getLoadDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("");
 
         var existingTrajectory = TrajectoryEntity.builder()
                 .fileName(trajectoryToUse)
@@ -354,9 +354,9 @@ class TrajectoryServiceImplAdditionalTest {
         Path testFile = linkDir.resolve("invalid_name.txt");
         Files.createFile(testFile);
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getLinkDirectory()).thenReturn("link");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getLinkDirectory()).thenReturn("link");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER", null);
@@ -374,9 +374,9 @@ class TrajectoryServiceImplAdditionalTest {
         Path testFile = areaDir.resolve("areas_test1.xlsx");
         Files.createFile(testFile);
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null, null);
@@ -389,9 +389,9 @@ class TrajectoryServiceImplAdditionalTest {
 
     @Test
     void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
         assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area"));
     }
 
@@ -405,9 +405,9 @@ class TrajectoryServiceImplAdditionalTest {
         Files.createFile(specificFile);
         Files.createFile(commonFile);
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
 
         java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null,null);
 
@@ -425,9 +425,9 @@ class TrajectoryServiceImplAdditionalTest {
         Files.createFile(specificFile);
         Files.createFile(commonFile);
 
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
-        when(antaressDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
 
         java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null,null);
 
@@ -446,9 +446,9 @@ class TrajectoryServiceImplAdditionalTest {
         Files.createFile(testFile);
 
 
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaressDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
 
         // Then
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null,"test");
@@ -469,9 +469,9 @@ class TrajectoryServiceImplAdditionalTest {
 
         Files.createFile(dir1.resolve("CM_test.txt"));
         Files.createFile(dir2.resolve("MR_test.txt"));
-        when(antaressDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaressDataManagerProperties.getTrajectoryFilePath()).thenReturn(""); // empty if not used
-        when(antaressDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(""); // important!
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(""); // empty if not used
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(""); // important!
 
         // Act
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(

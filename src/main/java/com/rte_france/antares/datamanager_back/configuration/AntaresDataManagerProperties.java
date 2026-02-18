@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Configuration
 @EnableCaching
-public class  AntaressDataManagerProperties {
+public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.trajectory.file.path}")
     public String trajectoryFilePath;

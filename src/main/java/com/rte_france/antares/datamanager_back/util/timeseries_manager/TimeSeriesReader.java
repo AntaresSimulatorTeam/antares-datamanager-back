@@ -97,7 +97,8 @@ public final class TimeSeriesReader {
       // Create TimeSeriesMatrix
       var columns = new ArrayList<TimeSeriesMatrixColumn>(columnCount);
       for (int c = 0; c < columnCount; c++) {
-        columns.add(new TimeSeriesMatrixColumn("Column" + c, data[c]));
+        String columnName = getHeaderValue(firstRow.getCell(c));
+        columns.add(new TimeSeriesMatrixColumn(columnName != null ? columnName : "Column" + c, data[c]));
       }
 
       return new TimeSeriesMatrix(columns);
@@ -184,6 +185,21 @@ public final class TimeSeriesReader {
     };
   }
 
+  /**
+   * Extracts header value based on a cell type
+   */
+  private static String getHeaderValue(Cell cell) {
+    if (cell == null) return null;
+    return switch (cell.getCellType()) {
+      case STRING -> cell.getStringCellValue();
+      case NUMERIC -> String.valueOf(cell.getNumericCellValue());
+      default -> null;
+    };
+  }
+
+  /**
+   * Parses string to double, handling null/empty/format errors
+   */
   private static double parseStringNumber(String s) {
     if (s == null) return 0.0;
     s = s.trim();

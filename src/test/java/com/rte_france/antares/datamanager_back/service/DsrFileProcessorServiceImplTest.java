@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -50,7 +50,7 @@ class DsrFileProcessorServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        AntaressDataManagerProperties properties = mock(AntaressDataManagerProperties.class);
+        AntaresDataManagerProperties properties = mock(AntaresDataManagerProperties.class);
         trajectoryRepository = mock(TrajectoryRepository.class);
         userService = mock(UserService.class);
         areaRepository = mock(AreaRepository.class);

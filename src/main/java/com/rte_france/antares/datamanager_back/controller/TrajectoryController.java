@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
@@ -67,7 +67,7 @@ public class TrajectoryController {
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId) throws IOException {
-        pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaressDataManagerProperties::getTrajectoryFilePath);
+        pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaresDataManagerProperties::getTrajectoryFilePath);
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
@@ -78,7 +78,7 @@ public class TrajectoryController {
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId) throws IOException {
-        pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaressDataManagerProperties::getTrajectoryFilePath);
+        pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaresDataManagerProperties::getTrajectoryFilePath);
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 

@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -40,7 +40,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
     @Mock private StudyRepository studyRepository;
     @Mock private WarningRepository warningRepository;
     @Mock private ThermalSpecificFileProcessorService thermalSpecificProcessorService;
-    @Mock private AntaressDataManagerProperties props;
+    @Mock private AntaresDataManagerProperties props;
     @Mock private UserService userService;
 
     @InjectMocks private TrajectoryServiceImpl service;

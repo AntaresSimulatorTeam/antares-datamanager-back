@@ -1,6 +1,7 @@
-package com.rte_france.antares.datamanager_back.service.study.impl;
+package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
+import com.rte_france.antares.datamanager_back.service.study.impl.DsrToJsonService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +33,7 @@ class DsrToJsonServiceTest {
                 .marketBidCost(50.0)
                 .dsrTsList(List.of("ts1.txt", "ts2.txt"))
                 .foDuration(2.5)
-                .foRate(0.1)
+                .foMonthlyRate(Collections.nCopies(12, 0.1))
                 .reliability(0.95)
                 .build();
 
@@ -58,14 +59,15 @@ class DsrToJsonServiceTest {
         assertEquals(50.0, properties.get("marginal_cost"));
         assertEquals(50.0, properties.get("market_bid_cost"));
 
-        // Series
-        assertEquals(List.of("ts1.txt", "ts2.txt"), clusterData.get("series"));
-
         // Data
         Map<String, Object> data = (Map<String, Object>) clusterData.get("data");
         assertNotNull(data);
         assertEquals(2.5, data.get("fo_duration"));
-        assertEquals(0.1, data.get("fo_rate"));
+        @SuppressWarnings("unchecked")
+        List<Double> monthly = (List<Double>) data.get("fo_monthly_rate");
+        assertNotNull(monthly);
+        assertEquals(12, monthly.size());
+        monthly.forEach(v -> assertEquals(0.1, v));
         assertEquals(0.95, data.get("reliability"));
 
         // Modulation

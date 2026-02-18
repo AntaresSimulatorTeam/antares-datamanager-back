@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.dsr.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.DsrRepository;
@@ -32,7 +32,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 @Service
 @RequiredArgsConstructor
 public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacityModulationFileProcessorService {
-    private final AntaressDataManagerProperties antaressDataManagerProperties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final DsrRepository dsrRepository;
@@ -53,7 +53,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         }
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        // récupération des clusters de l'étude 
+        // récupération des clusters de l'étude
         List<String> dsrClusters = dsrRepository.findAllDsrClusterEntitiesByStudyId(studyId);
         var dsrCapacityModulationEntities = buildDsrCapacityModulationEntity(horizon, trajectoryFilePath, dsrClusters);
 
@@ -111,9 +111,9 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
 
     public Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
         //build the file path
-        Path baseDirectory = Path.of(antaressDataManagerProperties.getNasDirectory())
-                .resolve(antaressDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaressDataManagerProperties.getDsrCapacityDirectory())
+        Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getDsrCapacityDirectory())
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {

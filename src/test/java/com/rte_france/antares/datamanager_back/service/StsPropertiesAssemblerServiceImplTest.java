@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaressDataManagerProperties;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 class StsPropertiesAssemblerServiceImplTest {
 
     @Mock
-    private AntaressDataManagerProperties antaressDataManagerProperties;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
     @Mock
     private NasFileService nasFileService;
     @TempDir
@@ -52,9 +52,9 @@ class StsPropertiesAssemblerServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        antaressDataManagerProperties = Mockito.mock(AntaressDataManagerProperties.class);
+        antaresDataManagerProperties = Mockito.mock(AntaresDataManagerProperties.class);
         nasFileService = Mockito.mock(NasFileService.class);
-        ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaressDataManagerProperties", antaressDataManagerProperties);
+        ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "nasFileService", nasFileService);
     }
 
@@ -254,7 +254,7 @@ class StsPropertiesAssemblerServiceImplTest {
         entity.setTsPath(tempDir.toString());
         String horizon = "2030";
 
-        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+        when(antaresDataManagerProperties.getStsTsOutputDirectory())
                 .thenReturn("/output");
 
         // create all required files
@@ -279,7 +279,7 @@ class StsPropertiesAssemblerServiceImplTest {
         StStorageEntity entity = new StStorageEntity();
         entity.setTsPath(tempDir.toString());
 
-        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+        when(antaresDataManagerProperties.getStsTsOutputDirectory())
                 .thenReturn("/output");
 
         // create all files except one
@@ -309,7 +309,7 @@ class StsPropertiesAssemblerServiceImplTest {
         StStorageEntity entity = new StStorageEntity();
         entity.setTsPath(tempDir.toString());
 
-        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+        when(antaresDataManagerProperties.getStsTsOutputDirectory())
                 .thenReturn("/output");
 
         for (StsTsFile file : StsTsFile.values()) {
@@ -336,7 +336,7 @@ class StsPropertiesAssemblerServiceImplTest {
         entity.setTsPath(tempDir.toString());
         String horizon = "2030";
 
-        when(antaressDataManagerProperties.getStsTsOutputDirectory())
+        when(antaresDataManagerProperties.getStsTsOutputDirectory())
                 .thenReturn("/output");
 
         for (StsTsFile file : StsTsFile.values()) {
