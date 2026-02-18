@@ -840,7 +840,7 @@ class UtilsTest {
         when(workbook.getNumberOfSheets()).thenReturn(1);
         when(workbook.getSheet("H1")).thenReturn(sheet);
 
-        Sheet result = Utils.getRequiredSheet(workbook, "H1", path);
+        Sheet result = Utils.getRequiredSheet(workbook, "H1", path, null);
 
         assertSame(sheet, result);
     }
@@ -855,10 +855,11 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path)
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
         );
 
         assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
+        assertTrue(ex.getMessage().contains("DSR"));
     }
 
     @Test
@@ -870,10 +871,11 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path)
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
         );
 
         assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
+        assertTrue(ex.getMessage().contains("DSR"));
     }
 
     @Test
@@ -886,10 +888,11 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path)
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
         );
 
         assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
+        assertTrue(ex.getMessage().contains("DSR"));
     }
 
     @Test
@@ -901,7 +904,7 @@ class UtilsTest {
         when(workbook.getSheet("")).thenReturn(null);
 
         assertThrows(BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "", path));
+                () -> Utils.getRequiredSheet(workbook, "", path, "DSR"));
     }
 
     @Test
@@ -914,10 +917,11 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path)
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "Capacity modulation")
         );
 
         assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
+        assertTrue(ex.getMessage().contains("Capacity modulation"));
     }
 
 }

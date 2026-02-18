@@ -98,19 +98,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         }
         return name.regionMatches(true, 0, prefix, 0, prefix.length());
     }
-
-
-    private Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
-        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
-        if (sheet == null) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        return sheet;
-    }
+    
 
     private String getStringCellValue(Row row, int idx) {
         Cell cell = row.getCell(idx);
@@ -271,7 +259,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath, "DSR Cluster");
             Row header = sheet.getRow(0);
             checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName, TrajectoryType.DSR.name());
 

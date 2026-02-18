@@ -718,12 +718,12 @@ public class Utils {
         return name.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
-    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
+    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath, String trajectoryType) {
         Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
         if (sheet == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
+                    .message("Horizon {0} does not exist in the" + trajectoryType +" trajectory {1}")
                     .build();
         }
         return sheet;
