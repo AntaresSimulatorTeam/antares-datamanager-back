@@ -723,7 +723,7 @@ public class Utils {
         if (sheet == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the" + trajectoryType +" trajectory {1}")
+                    .message("Horizon {0} does not exist in the " + trajectoryType + " trajectory {1}")
                     .build();
         }
         return sheet;

@@ -107,7 +107,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Horizon {0} does not exist in the DSR cluster trajectory {1}");
+                .hasMessageContaining("Horizon {0} does not exist in the DSR Cluster trajectory {1}");
     }
 
     @Test
