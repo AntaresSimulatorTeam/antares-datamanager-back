@@ -32,6 +32,9 @@ public class StudyEntity {
     @Column(name = "creation_date")
     private LocalDateTime creationDate;
 
+    @Column(name = "generation_date")
+    private LocalDateTime generationDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
     private ProjectEntity project ;
