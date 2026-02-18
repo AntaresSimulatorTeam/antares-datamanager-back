@@ -53,6 +53,7 @@ public class Utils {
     private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
     private static final String STS_PREFIX = "cluster_";
     private static final String DSR_PREFIX = "cluster_DSR_";
+    private static final String DSR_CAPACITY_MODULATION = "cm_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -236,6 +237,8 @@ public class Utils {
             prefix = THERMAL_ECONOMIC_COST_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.DSR.toString())) {
             prefix = DSR_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.DSR_CAPACITY_MODULATION.toString())) {
+            prefix = DSR_CAPACITY_MODULATION;
         } else {
             prefix = "";
         }
