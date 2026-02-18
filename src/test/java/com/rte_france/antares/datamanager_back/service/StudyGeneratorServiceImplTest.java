@@ -11,11 +11,8 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
-import com.rte_france.antares.datamanager_back.service.study.impl.LinksToJsonService;
-import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
-import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
-import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
-import com.rte_france.antares.datamanager_back.service.study.impl.StudyGeneratorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
@@ -87,10 +84,16 @@ class StudyGeneratorServiceImplTest {
     private ThermalToJsonService thermalToJsonService;
 
     @Mock
+    private DsrToJsonService drsToJsonService;
+
+    @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
     private StsGenerationAssemblerService stPropertiesAssemblerService;
+
+    @Mock
+    private DsrGenerationAssemblerService dsrGenerationAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -141,6 +144,9 @@ class StudyGeneratorServiceImplTest {
         lenient().when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
         // Default STS assembler returns empty map to avoid NPE in tests not focused on STS
         lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
+        //Default DSR assembler returns empty map to avoid NPE in tests not focused on DSR
+        lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
+
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
             new LinksToJsonService().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1));
@@ -155,6 +161,9 @@ class StudyGeneratorServiceImplTest {
                 .when(thermalToJsonService).getClusterPropsForArea(anyMap(), anyString());
         lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMapGenerator(inv.getArgument(0)))
                 .when(thermalToJsonService).thermalsMapGenerator(anyMap());
+
+        lenient().doAnswer(inv -> new DsrToJsonService().buildDsrDataMap(inv.getArgument(0), inv.getArgument(1)))
+                .when(drsToJsonService).buildDsrDataMap(anyString(),anyMap());
     }
 
     @Test

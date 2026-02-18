@@ -52,6 +52,9 @@ public class  AntaressDataManagerProperties {
     @Value("${antares.datamanager.thermal.modulation.output.directory}")
     public String paramModulationOutputDirectory;
 
+    @Value("${antares.datamanager.dsr.ts.output.directory}")
+    public String dsrModulationTsOutputDirectory;
+
     @Value("${antares.datamanager.study.json.output.directory}")
     public String studyJsonOutputDirectory;
 
