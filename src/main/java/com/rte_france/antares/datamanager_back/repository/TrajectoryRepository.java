@@ -43,14 +43,14 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                 WHERE t.type = :type
                   AND t.horizon = :horizon
                   AND (:fileNameContains IS NULL OR :fileNameContains = '' OR LOWER(t.fileName) LIKE LOWER(CONCAT('%', :fileNameContains, '%')))
-                  AND (:area IS NULL OR TRIM(:area) = '' OR t.area = :area)
+                  AND (:area IS NULL OR (:area) = '' OR t.area = :area)
                   AND (
                       (
-                          (:technology IS NULL OR TRIM(:technology) = '')
-                          AND (t.technology IS NULL OR TRIM(t.technology) = '')
+                          (:technology IS NULL OR (:technology) = '')
+                          AND (t.technology IS NULL OR (t.technology) = '')
                       )
                       OR (
-                          TRIM(:technology) <> ''
+                          (:technology) <> ''
                           AND LOWER(t.technology) = LOWER(:technology)
                       )
                   )
@@ -60,14 +60,14 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                       WHERE t1.fileName = t.fileName
                         AND t1.type = :type
                         AND t1.horizon = :horizon
-                        AND (:area IS NULL OR TRIM(:area) = '' OR t1.area = :area)
+                        AND (:area IS NULL OR (:area) = '' OR t1.area = :area)
                         AND (
                               (
-                                  (:technology IS NULL OR TRIM(:technology) = '')
-                                  AND (t1.technology IS NULL OR TRIM(t1.technology) = '')
+                                  (:technology IS NULL OR (:technology) = '')
+                                  AND (t1.technology IS NULL OR (t1.technology) = '')
                               )
                               OR (
-                                  TRIM(:technology) <> ''
+                                  (:technology) <> ''
                                   AND LOWER(t1.technology) = LOWER(:technology)
                               )
                           )
