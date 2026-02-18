@@ -106,6 +106,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
                     .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         return sheet;
@@ -139,6 +140,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
                     .message("Area is missing in DSR trajectory {0} for row: {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
@@ -148,6 +150,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(clusterName, trajectoryFileName, rowArea, horizon))
                     .message("Value {0} too long in DSR Cluster trajectory {1} for area {2} and horizon {3}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
@@ -171,6 +174,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
                     .message("Values "+ String.join(", ", wrongColumns) + " for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
@@ -203,6 +207,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
                     .message("Values " + String.join(", ", wrongColumns) + " for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
@@ -256,6 +261,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
                     .message("Modulation for node {0} / cluster {1} are not boolean in DSR trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
@@ -326,6 +332,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName))
                         .message("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
 
