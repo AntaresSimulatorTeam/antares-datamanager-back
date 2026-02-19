@@ -4,10 +4,10 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.DsrRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.DsrCapacityModulationEntity;
+import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.dsr.impl.DsrCapacityModulationFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
+import static java.lang.Boolean.TRUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.Mockito.*;
@@ -41,7 +42,6 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     @Mock private DsrRepository dsrRepository;
     @Mock private TrajectoryRepository trajectoryRepository;
     @Mock private UserService userService;
-    @Mock private AreaRepository areaRepository;
 
     @TempDir
     Path tempDir;
@@ -69,10 +69,17 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         Path xlsx = tempDir.resolve("cm_capacity_test.xlsx");
         Files.createFile(xlsx);
-        createWorkbookWithHeadersAndData(clusters, xlsx, "2029-2030");
+        createWorkbookWithHeadersAndData(clusters, xlsx);
 
+        DsrClusterEntity clusterEntity = new DsrClusterEntity();
+        clusterEntity.setArea("FR");
+        clusterEntity.setName("DSR_industries");
+        // Le service lit désormais l'area depuis trajectory.getArea(), initialiser pour le test
+        TrajectoryEntity clusterTrajectory = new TrajectoryEntity();
+        clusterTrajectory.setArea("FR");
+        clusterEntity.setTrajectory(clusterTrajectory);
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
-                .thenReturn(List.of("FR_DSR_industries"));
+                .thenReturn(List.of(clusterEntity));
 
         doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
 
@@ -101,10 +108,16 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         Path xlsx = tempDir.resolve("cm_capacity_test.xlsx");
         Files.createFile(xlsx);
-        createWorkbookWithHeadersAndData(clustersInFile, xlsx, "2029-2030");
+        createWorkbookWithHeadersAndData(clustersInFile, xlsx);
 
+        DsrClusterEntity clusterEntity2 = new DsrClusterEntity();
+        clusterEntity2.setArea("FR");
+        clusterEntity2.setName("DSR_industries");
+        TrajectoryEntity clusterTrajectory2 = new TrajectoryEntity();
+        clusterTrajectory2.setArea("FR");
+        clusterEntity2.setTrajectory(clusterTrajectory2);
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
-                .thenReturn(List.of("FR_DSR_industries"));
+                .thenReturn(List.of(clusterEntity2));
 
         doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
 
@@ -161,10 +174,17 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         Path xlsx = tempDir.resolve("cm_capacity_test.xlsx");
         Files.createFile(xlsx);
-        createWorkbookWithHeadersAndData(clustersInFile, xlsx, "2029-2030");
+        createWorkbookWithHeadersAndData(clustersInFile, xlsx);
 
+        DsrClusterEntity clusterEntity3 = new DsrClusterEntity();
+        clusterEntity3.setArea("FR");
+        clusterEntity3.setName("DSR_industries");
+        TrajectoryEntity clusterTrajectory3 = new TrajectoryEntity();
+        clusterTrajectory3.setArea("FR");
+        clusterEntity3.setModulation(TRUE);
+        clusterEntity3.setTrajectory(clusterTrajectory3);
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
-                .thenReturn(List.of("FR_DSR_industries"));
+                .thenReturn(List.of(clusterEntity3));
 
         doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
 
@@ -188,10 +208,16 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         Path xlsx = tempDir.resolve("cm_capacity_test.xlsx");
         Files.createFile(xlsx);
-        createWorkbookWithOnlyHeaders(clusters, xlsx, "2029-2030");
+        createWorkbookWithOnlyHeaders(clusters, xlsx);
 
+        DsrClusterEntity clusterEntity4 = new DsrClusterEntity();
+        clusterEntity4.setArea("FR");
+        clusterEntity4.setName("DSR_industries");
+        TrajectoryEntity clusterTrajectory4 = new TrajectoryEntity();
+        clusterTrajectory4.setArea("FR");
+        clusterEntity4.setTrajectory(clusterTrajectory4);
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
-                .thenReturn(List.of("FR_DSR_industries"));
+                .thenReturn(List.of(clusterEntity4));
 
         doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
 
@@ -207,9 +233,61 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     }
 
     // -------------------------------------------------------------------------
+    // TEST 7 : Specific enabled should require specific even if OTHERS enabled
+    // -------------------------------------------------------------------------
+    @Test
+    void shouldRequireSpecificWhenSpecificEnabledEvenIfOthersEnabled() throws IOException {
+        // create xlsx that contains only OTHERS header (no FR header)
+        Path xlsx = tempDir.resolve("cm_specific_true.xlsx");
+        Files.createFile(xlsx);
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sh = wb.createSheet("2029-2030");
+            Row header = sh.createRow(0);
+            header.createCell(0).setCellValue("date");
+            header.createCell(1).setCellValue("area");
+            header.createCell(2).setCellValue("OTHERS_DSR_tertiaire");
+
+            Row data = sh.createRow(1);
+            data.createCell(0).setCellValue("01/07/2028 00:00");
+            data.createCell(1).setCellValue("OTHERS");
+            data.createCell(2).setCellValue(1.0);
+
+            try (OutputStream os = Files.newOutputStream(xlsx)) {
+                wb.write(os);
+            }
+        }
+
+        DsrClusterEntity fr = new DsrClusterEntity();
+        fr.setArea("FR");
+        fr.setName("DSR_tertiaire");
+        fr.setModulation(true);
+        TrajectoryEntity frTrajectory = new TrajectoryEntity();
+        frTrajectory.setArea("FR");
+        fr.setTrajectory(frTrajectory);
+
+        DsrClusterEntity others = new DsrClusterEntity();
+        others.setArea("OTHERS");
+        others.setName("DSR_tertiaire");
+        others.setModulation(true);
+        TrajectoryEntity othersTrajectory = new TrajectoryEntity();
+        othersTrajectory.setArea("OTHERS");
+        others.setTrajectory(othersTrajectory);
+
+        when(dsrRepository.findAllDsrClusterEntitiesByStudyId(100))
+                .thenReturn(List.of(fr, others));
+
+        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+
+        assertThatThrownBy(() -> service.processDsrCapacityModulationFile("cm_specific_true", "2029-2030", 100))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing Areas/Clusters");
+    }
+
+    // -------------------------------------------------------------------------
     // HELPERS EXCEL
     // -------------------------------------------------------------------------
-    private Path createWorkbookWithOnlyHeaders(List<String> clusters, Path file, String horizon) throws IOException {
+    private void createWorkbookWithOnlyHeaders(List<String> clusters, Path file) throws IOException {
+        String horizon = "2029-2030";
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet(horizon);
 
@@ -225,10 +303,10 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
             workbook.write(os);
         }
         workbook.close();
-        return file;
     }
 
-    private Path createWorkbookWithHeadersAndData(List<String> clusters, Path file, String horizon) throws IOException {
+    private void createWorkbookWithHeadersAndData(List<String> clusters, Path file) throws IOException {
+        String horizon = "2029-2030";
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet(horizon);
 
@@ -254,6 +332,5 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
             workbook.write(os);
         }
         workbook.close();
-        return file;
     }
 }

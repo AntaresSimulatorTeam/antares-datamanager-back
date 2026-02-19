@@ -9,17 +9,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface DsrRepository  extends JpaRepository<DsrClusterEntity, Integer> {
+public interface DsrRepository extends JpaRepository<DsrClusterEntity, Integer> {
 
     @Query("""
-                SELECT CONCAT(c.area, '_', c.name)
-                FROM DsrCluster c
-                WHERE c.trajectory.id IN (
-                    SELECT st.trajectory.id
-                    FROM studyTrajectory st
-                    WHERE st.studyEntity.id = :studyId
-                )
-                AND c.modulation = true
+                SELECT  d from DsrCluster d JOIN d.trajectory.scenarioEntities s
+            where  s.id =:studyId
             """)
-    List<String> findAllDsrClusterEntitiesByStudyId(@Param("studyId") Integer studyId);
+    List<DsrClusterEntity> findAllDsrClusterEntitiesByStudyId(@Param("studyId") Integer studyId);
 }
