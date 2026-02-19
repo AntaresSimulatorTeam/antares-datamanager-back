@@ -220,11 +220,11 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
             if (clusterName.isEmpty()) continue;
 
             // Use a common helper with flexible suffix matching for DSR
-            BufferedWriter bw = ColumnSplitWriter
+            Optional<BufferedWriter> bwOpt = ColumnSplitWriter
                     .openWriterIfAllowed(clusterName, baseName, tmpDir, allowedClusters, generatedFiles, true);
-            if (bw == null) continue;
+            if (bwOpt.isEmpty()) continue;
 
-            try (bw) {
+            try (BufferedWriter bw = bwOpt.get()) {
                 for (double value : column.values()) {
                     bw.write(String.valueOf(value));
                     bw.newLine();
