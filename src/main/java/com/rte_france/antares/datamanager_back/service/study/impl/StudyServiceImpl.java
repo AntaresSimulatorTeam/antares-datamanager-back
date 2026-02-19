@@ -297,6 +297,7 @@ public class StudyServiceImpl implements StudyService {
         studyRepository.findById(studyId).ifPresentOrElse(
                 studyEntity -> {
                     studyEntity.setStatus(StudyStatus.GENERATED);
+                    studyEntity.setGenerationDate(LocalDateTime.now());
                     studyRepository.save(studyEntity);
                 },
                 () -> {

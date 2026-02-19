@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,6 +23,8 @@ import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class UtilsTest {
     @TempDir
@@ -391,6 +394,64 @@ class UtilsTest {
     }
 
     @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalEconomicCostParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("costs_ALF34.xlsx", TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name());
+        assertEquals("ALF34", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_thermalDsrClusterType_stripsPrefixAndExtensionAndKeepsInnerDots() {
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_DSR_ALF34.xlsx", TrajectoryType.DSR.name());
+        assertEquals("ALF34", name);
+    }
+
+    @Test
+    void getFileNameWithoutExtensionAndWithoutPrefix_shouldTechnicalException_fileNameIsBlank() {
+        assertThrows(NullPointerException.class, () -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(null, TrajectoryType.DSR.name()));
+    }
+
+    @Test void testValidDateFormat() {
+        assertTrue(Utils.hasValidDateFormat("2024-01-15T12:30:45"));
+    }
+
+    @Test void testInvalidDateFormat() {
+        assertFalse(Utils.hasValidDateFormat("2024/01/15 12:30:45"));
+    }
+
+    @Test void testInvalidValue() {
+        assertFalse(Utils.hasValidDateFormat("not-a-date"));
+    }
+
+    @Test
+    void testExtractValidStsPath() {
+        String msg = "Error: INPUT/ABC12345 for something failed";
+        assertEquals("ABC12345", Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testExtractValidStsPathAtEnd() {
+        String msg = "Failure at INPUT/XYZ789";
+        assertEquals("XYZ789", Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testCaseInsensitive() {
+        String msg = "warning: input/PathToFile for processing";
+        assertEquals("PathToFile", Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testNoMatchReturnsOriginalMessage() {
+        String msg = "No INPUT path found here";
+        assertEquals(msg, Utils.extractStsPathFromErrorMessage(msg));
+    }
+
+    @Test
+    void testNullReturnsNull() {
+        assertNull(Utils.extractStsPathFromErrorMessage(null));
+    }
+
+    @Test
     void checkParamModulationTrajectoryVersion_shouldReturnFalseWhenNewListIsEmpty() {
         List<ThermalModulationParameterEntity> newList = List.of();
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
@@ -561,6 +622,306 @@ class UtilsTest {
         String checksum2 = Utils.calculateThermalCostTrajectoryChecksum(thermalCostsType, thermalRates);
 
         assertEquals(checksum1, checksum2);
+    }
+
+        @Test
+        void testNullCell() {
+            assertFalse(Utils.isNumericCell(null));
+        }
+
+        @Test
+        void testNumericCell() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.NUMERIC);
+
+            assertTrue(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testFormulaNumericResult() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.NUMERIC);
+
+            assertTrue(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testFormulaNonNumericResult() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testStringNumeric() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn(" 123.45 ");
+
+            assertTrue(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testStringEmpty() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("   ");
+
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testStringNonNumeric() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("abc");
+
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testOtherType() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
+            
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+    @Test
+    void testHeaderRowNullThrowsAllMissing() {
+        Sheet sheet = mock(Sheet.class);
+        when(sheet.getRow(0)).thenReturn(null);
+
+        String[] expected = {"A", "B", "C"};
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.checkMissingColumns(sheet, expected, "T1", "STS")
+        );
+
+        assertTrue(ex.getMessage().contains("A"));
+        assertTrue(ex.getMessage().contains("B"));
+        assertTrue(ex.getMessage().contains("C"));
+        assertTrue(ex.getMessage().contains("STS"));
+    }
+
+    @Test
+    void testAllColumnsPresent() {
+        Sheet sheet = mock(Sheet.class);
+        Row row = mock(Row.class);
+
+        when(sheet.getRow(0)).thenReturn(row);
+        when(row.getLastCellNum()).thenReturn((short) 3);
+
+        Cell c1 = mock(Cell.class);
+        Cell c2 = mock(Cell.class);
+        Cell c3 = mock(Cell.class);
+
+        when(row.getCell(0)).thenReturn(c1);
+        when(row.getCell(1)).thenReturn(c2);
+        when(row.getCell(2)).thenReturn(c3);
+
+        when(c1.toString()).thenReturn("A");
+        when(c2.toString()).thenReturn("B");
+        when(c3.toString()).thenReturn("C");
+
+        assertDoesNotThrow(() ->
+                Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", "STS")
+        );
+    }
+
+    @Test
+    void testMissingOneColumn() {
+        Sheet sheet = mock(Sheet.class);
+        Row row = mock(Row.class);
+
+        when(sheet.getRow(0)).thenReturn(row);
+        when(row.getLastCellNum()).thenReturn((short) 2);
+
+        Cell c1 = mock(Cell.class);
+        Cell c2 = mock(Cell.class);
+
+        when(row.getCell(0)).thenReturn(c1);
+        when(row.getCell(1)).thenReturn(c2);
+
+        when(c1.toString()).thenReturn("A");
+        when(c2.toString()).thenReturn("B");
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", "DSR")
+        );
+
+        assertTrue(ex.getMessage().contains("C"));
+    }
+
+    @Test
+    void testCaseInsensitiveMatching() {
+        Sheet sheet = mock(Sheet.class);
+        Row row = mock(Row.class);
+
+        when(sheet.getRow(0)).thenReturn(row);
+        when(row.getLastCellNum()).thenReturn((short) 2);
+
+        Cell c1 = mock(Cell.class);
+        Cell c2 = mock(Cell.class);
+
+        when(row.getCell(0)).thenReturn(c1);
+        when(row.getCell(1)).thenReturn(c2);
+
+        when(c1.toString()).thenReturn("  a  ");
+        when(c2.toString()).thenReturn("B ");
+
+        assertDoesNotThrow(() ->
+                Utils.checkMissingColumns(sheet, new String[]{"A", "b"}, "T1", "STS")
+        );
+    }
+
+    @Test
+    void testEmptyCellsIgnored() {
+        Sheet sheet = mock(Sheet.class);
+        Row row = mock(Row.class);
+
+        when(sheet.getRow(0)).thenReturn(row);
+        when(row.getLastCellNum()).thenReturn((short) 3);
+
+        Cell c1 = mock(Cell.class);
+        Cell c2 = mock(Cell.class);
+        Cell c3 = mock(Cell.class);
+
+        when(row.getCell(0)).thenReturn(c1);
+        when(row.getCell(1)).thenReturn(c2);
+        when(row.getCell(2)).thenReturn(c3);
+
+        when(c1.toString()).thenReturn("A");
+        when(c2.toString()).thenReturn("   "); // vide → ignoré
+        when(c3.toString()).thenReturn("");
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", "STS")
+        );
+
+        assertTrue(ex.getMessage().contains("B"));
+    }
+
+    @Test
+    void testNullCellsIgnored() {
+        Sheet sheet = mock(Sheet.class);
+        Row row = mock(Row.class);
+
+        when(sheet.getRow(0)).thenReturn(row);
+        when(row.getLastCellNum()).thenReturn((short) 2);
+
+        Cell c1 = mock(Cell.class);
+
+        when(row.getCell(0)).thenReturn(c1);
+        when(row.getCell(1)).thenReturn(null); // null → ignoré
+
+        when(c1.toString()).thenReturn("A");
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", "DSR")
+        );
+
+        assertTrue(ex.getMessage().contains("B"));
+    }
+
+    @Test
+    void getRequiredSheet_shouldReturnSheet_whenSheetExists() {
+        Workbook workbook = mock(Workbook.class);
+        Sheet sheet = mock(Sheet.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(sheet);
+
+        Sheet result = Utils.getRequiredSheet(workbook, "H1", path, null);
+
+        assertSame(sheet, result);
+    }
+
+    @Test
+    void getRequiredSheet_shouldThrowBusinessException_whenSheetDoesNotExist() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
+        );
+
+        assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
+        assertTrue(ex.getMessage().contains("DSR"));
+    }
+
+    @Test
+    void getRequiredSheet_shouldThrowBusinessException_whenWorkbookIsEmpty() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(0);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
+        );
+
+        assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
+        assertTrue(ex.getMessage().contains("DSR"));
+    }
+
+    @Test
+    void getRequiredSheet_shouldIncludeArgumentsInException() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
+        );
+
+        assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
+        assertTrue(ex.getMessage().contains("DSR"));
+    }
+
+    @Test
+    void getRequiredSheet_shouldThrow_whenHorizonIsEmpty() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("")).thenReturn(null);
+
+        assertThrows(BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "", path, "DSR"));
+    }
+
+    @Test
+    void getRequiredSheet_shouldUseFileNameInErrorMessage() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("/tmp/trajectory.xlsx");
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", path, "Capacity modulation")
+        );
+
+        assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
+        assertTrue(ex.getMessage().contains("Capacity modulation"));
     }
 
 }
