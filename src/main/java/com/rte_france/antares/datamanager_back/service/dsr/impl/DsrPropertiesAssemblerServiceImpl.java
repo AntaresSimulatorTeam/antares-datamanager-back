@@ -75,7 +75,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
 }
 
     private static @NonNull List<String> getClusterModulationFiles(List<String> modulationFiles, String clusterKey, String nameKey) {
-        List<String> clusterModulationFiles = modulationFiles.stream()
+        return modulationFiles.stream()
                 .filter(fileName -> {
                     int csvIndex = fileName.indexOf(INTERMEDIARY_PREFIX);
                     if (csvIndex == -1) return false;
@@ -84,7 +84,6 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                             .endsWith("_" + clusterKey + INTERMEDIARY_PREFIX) || (nameKey != null && baseFileName.endsWith("_" + nameKey + INTERMEDIARY_PREFIX));
                 })
                 .toList();
-        return clusterModulationFiles;
     }
 
 

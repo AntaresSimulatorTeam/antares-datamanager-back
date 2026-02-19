@@ -72,7 +72,4 @@ public class ThermalToJsonService {
     private static final ObjectMapper DATA_MAPPER = new ObjectMapper()
             .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalClusterGenerationDto.ThermalClusterViews.Data.class));
 
-    private static final ObjectMapper PARAM_MODULATION_MAPPER = new ObjectMapper()
-            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalClusterGenerationDto.ThermalClusterViews.ParamModulation.class));
-
 }

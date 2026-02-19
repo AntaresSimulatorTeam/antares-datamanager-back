@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.dsr;
 
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
-import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 
 import java.util.List;
