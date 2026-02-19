@@ -79,7 +79,7 @@ class ThermalGroupMappingServiceTest {
                 .groupName("Lignite")
                 .build();
 
-        when(repository.findByClusterIgnoreCase("LIGNITE OLD 1")).thenReturn(Optional.of(entity));
+        when(repository.findByClusterIgnoreCase("LIGNITE OLD 1")).thenReturn(Optional.empty());
 
         assertThat(service.toGroup("LIGNITE OLD 1")).isEqualTo(Optional.of("Lignite"));
     }
