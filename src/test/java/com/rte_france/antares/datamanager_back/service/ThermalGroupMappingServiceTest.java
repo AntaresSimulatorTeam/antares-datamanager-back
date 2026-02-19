@@ -43,6 +43,23 @@ class ThermalGroupMappingServiceTest {
     }
 
     @Test
+    void toGroup_fallbackToNuclear_whenContainsNuclear() {
+        when(repository.findByClusterIgnoreCase("NUCLEAR_EPR")).thenReturn(Optional.empty());
+        assertThat(service.toGroup("Nuclear_epr")).contains("Nuclear");
+    }
+
+    @Test
+    void toGroup_exactMatchTakesPrecedenceOverNuclearFallback() {
+        var entity = ThermalGroupMappingEntity.builder()
+                .cluster("NUCLEAR SMR")
+                .groupName("Special Nuclear")
+                .build();
+        when(repository.findByClusterIgnoreCase("NUCLEAR SMR")).thenReturn(Optional.of(entity));
+
+        assertThat(service.toGroup("Nuclear SMR")).contains("Special Nuclear");
+    }
+
+    @Test
     void toGroup_null_throwsNpe() {
         assertThatThrownBy(() -> service.toGroup(null))
                 .isInstanceOf(NullPointerException.class);
