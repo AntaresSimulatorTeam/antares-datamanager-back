@@ -59,6 +59,31 @@ class ThermalGroupMappingServiceTest {
         assertThat(service.toGroup("Nuclear SMR")).contains("Special Nuclear");
     }
 
+
+    @Test
+    void toGroup_foundH2_mapToH2() {
+        var entity = ThermalGroupMappingEntity.builder()
+                .cluster("CCGT H2")
+                .groupName("H2")
+                .build();
+
+        when(repository.findByClusterIgnoreCase("TEST CCGT H2")).thenReturn(Optional.of(entity));
+
+        assertThat(service.toGroup("TEST CCGT H2")).isEqualTo(Optional.of("H2"));
+    }
+
+    @Test
+    void toGroup_foundH2_mapToLignite() {
+        var entity = ThermalGroupMappingEntity.builder()
+                .cluster("Lignite old 1")
+                .groupName("Lignite")
+                .build();
+
+        when(repository.findByClusterIgnoreCase("LIGNITE OLD 1")).thenReturn(Optional.of(entity));
+
+        assertThat(service.toGroup("LIGNITE OLD 1")).isEqualTo(Optional.of("Lignite"));
+    }
+
     @Test
     void toGroup_null_throwsNpe() {
         assertThatThrownBy(() -> service.toGroup(null))
