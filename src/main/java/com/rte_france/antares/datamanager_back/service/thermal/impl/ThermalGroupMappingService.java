@@ -39,9 +39,6 @@ public class ThermalGroupMappingService {
     if (normalized.contains("CCGT") && !normalized.contains("H2")) {
       return Optional.of("Gas");
     }
-
-
-
     return Optional.empty();
   }
 }
