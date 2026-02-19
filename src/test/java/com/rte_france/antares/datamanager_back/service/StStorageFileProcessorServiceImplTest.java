@@ -5,12 +5,9 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Row;
@@ -46,8 +43,6 @@ class StStorageFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
     private UserService userService;
     private AreaRepository areaRepository;
-    private StudyRepository studyRepository;
-    private WarningRepository warningRepository;
 
     private StStorageFileProcessorServiceImpl service;
 
@@ -60,16 +55,13 @@ class StStorageFileProcessorServiceImplTest {
         trajectoryRepository = mock(TrajectoryRepository.class);
         userService = mock(UserService.class);
         areaRepository = mock(AreaRepository.class);
-        studyRepository = mock(StudyRepository.class);
-        warningRepository = mock(WarningRepository.class);
 
-        // Construct service with current constructor (properties, trajectoryRepository, userService, areaRepository, studyRepository)
+        // Construct service with current constructor (properties, trajectoryRepository, userService, areaRepository)
         service = new StStorageFileProcessorServiceImpl(
                 properties,
                 trajectoryRepository,
                 userService,
-                areaRepository,
-                studyRepository
+                areaRepository
         );
 
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
