@@ -302,14 +302,14 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         String baseName = getBaseName(file);
 
         for (int i = 2; i < columns.length; i++) {
+            final int index = i;
             String areaCluster = columns[i].trim();
             if (areaCluster.isEmpty()) continue;
 
             //Helper to handle lowercase check and writer creation (exact match)
-            BufferedWriter bw = ColumnSplitWriter
-                    .openWriterIfAllowed(areaCluster, baseName, targetDir, listSpecificParamClusters, generatedFiles, false);
-            if (bw == null) continue;
-            writers.put(i, bw);
+            ColumnSplitWriter
+                    .openWriterIfAllowed(areaCluster, baseName, targetDir, listSpecificParamClusters, generatedFiles, false)
+                    .ifPresent(bw -> writers.put(index, bw));
         }
 
         return writers;
