@@ -32,6 +32,14 @@ public class ThermalGroupMappingService {
       return Optional.of("Nuclear");
     }
 
+    if (normalized.contains("LIGNITE")) {
+      return Optional.of("Lignite");
+    }
+
+    if (normalized.contains("CCGT") && !normalized.contains("H2")) {
+      return Optional.of("Gas");
+    }
+
     return Optional.empty();
   }
 }
