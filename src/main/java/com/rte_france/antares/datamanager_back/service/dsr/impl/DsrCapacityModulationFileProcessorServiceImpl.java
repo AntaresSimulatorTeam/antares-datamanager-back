@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.DsrRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.DsrCapacityModulationEntity;
+import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -53,9 +54,41 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         }
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        // récupération des clusters de l'étude
-        List<String> dsrClusters = dsrRepository.findAllDsrClusterEntitiesByStudyId(studyId);
-        var dsrCapacityModulationEntities = buildDsrCapacityModulationEntity(horizon, trajectoryFilePath, dsrClusters);
+        // récupération des clusters de l'étude 
+        List<DsrClusterEntity> dsrClusters = dsrRepository.findAllDsrClusterEntitiesByStudyId(studyId);
+        List<String> clusterKeys =
+                dsrClusters.stream()
+                        .collect(Collectors.groupingBy(
+                                c -> c.getArea() + "_" + c.getName()
+                        ))
+                        .values()
+                        .stream()
+                        .map(group -> {
+
+                            // trajectoire spécifique = area != "OTHERS"
+                            Optional<DsrClusterEntity> specific =
+                                    group.stream()
+                                            .filter(c -> !"OTHERS".equals(c.getTrajectory().getArea()))
+                                            .findFirst();
+
+                            if (specific.isPresent()) {
+                                return Boolean.TRUE.equals(specific.get().getModulation())
+                                        ? specific.get().getArea() + "_" + specific.get().getName()
+                                        : null;
+                            }
+
+                            // fallback OTHERS
+                            return group.stream()
+                                    .filter(c -> Boolean.TRUE.equals(c.getModulation()))
+                                    .findFirst()
+                                    .map(c -> c.getArea() + "_" + c.getName())
+                                    .orElse(null);
+                        })
+                        .filter(Objects::nonNull)
+                        .toList();
+
+
+        var dsrCapacityModulationEntities = buildDsrCapacityModulationEntity(horizon, trajectoryFilePath, clusterKeys);
 
         TrajectoryEntity trajectoryEntity = buildDsrCapacityModulationTrajectory(trajectoryFilePath, horizon);
         dsrCapacityModulationEntities.forEach(entity -> entity.setTrajectory(trajectoryEntity));
@@ -74,12 +107,14 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath, "DSR Capacity Modulation");
 
             List<String> headers = getClusterName(sheet);
-            boolean allPresent = new HashSet<>(headers).containsAll(dsrClusters);
+            Set<String> headerClusters = new HashSet<>(headers);
+
+            // Compute the set of clusters that are required but missing in the file headers
             dsrClusterNames = dsrClusters.stream()
-                    .filter(cluster -> !headers.contains(cluster))
+                    .filter(cluster -> !headerClusters.contains(cluster))
                     .collect(Collectors.toSet());
 
-            if (!allPresent) {
+            if (!dsrClusterNames.isEmpty()) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName, horizon))
                         .message("Missing Areas/Clusters " + String.join(", ", dsrClusterNames) + " in Capacity modulation file for trajectory {0} for horizon {1}")
