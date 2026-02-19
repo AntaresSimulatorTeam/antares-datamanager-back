@@ -73,10 +73,6 @@ class ThermalGroupMappingServiceTest {
 
     @Test
     void toGroup_foundH2_mapToLignite() {
-        var entity = ThermalGroupMappingEntity.builder()
-                .cluster("Lignite old 1")
-                .groupName("Lignite")
-                .build();
 
         when(repository.findByClusterIgnoreCase("LIGNITE OLD 1")).thenReturn(Optional.empty());
 
