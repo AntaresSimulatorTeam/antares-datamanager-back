@@ -21,7 +21,17 @@ public class ThermalGroupMappingService {
   public Optional<String> toGroup(String raw) {
     Objects.requireNonNull(raw);
     var normalized = raw.trim().toUpperCase(Locale.ROOT);
-    return thermalGroupMappingRepository.findByClusterIgnoreCase(normalized)
-               .map(ThermalGroupMappingEntity::getGroupName);
+    var exactMatch = thermalGroupMappingRepository.findByClusterIgnoreCase(normalized)
+            .map(ThermalGroupMappingEntity::getGroupName);
+
+    if (exactMatch.isPresent()) {
+      return exactMatch;
+    }
+
+    if (normalized.contains("NUCLEAR")) {
+      return Optional.of("Nuclear");
+    }
+
+    return Optional.empty();
   }
 }
