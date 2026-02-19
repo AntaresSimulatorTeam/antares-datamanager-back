@@ -72,5 +72,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V32-create-dsr-tables.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V33-update-dsr-capacity-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V34-update-study-table_add_generation_date.sql
 
 

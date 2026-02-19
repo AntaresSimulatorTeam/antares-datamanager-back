@@ -52,6 +52,8 @@ public class Utils {
     private static final String THERMAL_ECONOMIC_PREFIX = "economic_param_";
     private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
     private static final String STS_PREFIX = "cluster_";
+    private static final String DSR_PREFIX = "cluster_DSR_";
+    private static final String DSR_CAPACITY_MODULATION = "cm_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -233,13 +235,17 @@ public class Utils {
             prefix = THERMAL_ECONOMIC_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.toString())) {
             prefix = THERMAL_ECONOMIC_COST_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.DSR.toString())) {
+            prefix = DSR_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.DSR_CAPACITY_MODULATION.toString())) {
+            prefix = DSR_CAPACITY_MODULATION;
         } else {
             prefix = "";
         }
 
         if (Objects.equals(trajectoryType, TrajectoryType.STS.toString())) {
             fileName = removeClusterPrefix(fileName);
-        } else if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix)) {
+        } else if (!prefix.isEmpty() && fileName.toLowerCase().startsWith(prefix.toLowerCase())) {
             fileName = fileName.substring(prefix.length());
         }
 
@@ -391,7 +397,7 @@ public class Utils {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
-            case  STS ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case STS, DSR ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
@@ -656,4 +662,70 @@ public class Utils {
         return s;
     }
 
+    public boolean isNumericCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.NUMERIC) return true;
+        if (t == CellType.FORMULA) {
+            CellType resType = cell.getCachedFormulaResultType();
+            return resType == CellType.NUMERIC;
+        }
+        if (t == CellType.STRING) {
+            String s = cell.getStringCellValue().trim();
+            if (s.isEmpty()) return false;
+            try {
+                Double.parseDouble(s);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    public static void checkMissingColumns(Sheet sheet, String[] expectedColumns, String trajectoryName, String type) {
+        Row headerRow = sheet.getRow(0);
+        List<String> missingColumns = new ArrayList<>();
+        if (headerRow == null) {
+            missingColumns.addAll(Arrays.asList(expectedColumns));
+        } else {
+            int lastCell = headerRow.getLastCellNum() < 0 ? 0 : headerRow.getLastCellNum();
+            Set<String> headerNames = new HashSet<>();
+            for (int i = 0; i < lastCell; i++) {
+                Cell c = headerRow.getCell(i);
+                if (c != null) {
+                    String val = c.toString().trim().toLowerCase(Locale.ROOT);
+                    if (!val.isEmpty()) headerNames.add(val);
+                }
+            }
+            for (String expected : expectedColumns) {
+                String norm = expected.trim().toLowerCase(Locale.ROOT);
+                if (!headerNames.contains(norm)) {
+                    missingColumns.add(expected);
+                }
+            }
+        }
+        if (!missingColumns.isEmpty()) {
+            String missingList = String.join(", ", missingColumns);
+            throw BusinessException.builder().message("Missing columns " + missingList + " in " + type + " trajectory " + trajectoryName).build();
+        }
+    }
+
+    public static boolean startsWithIgnoreCase(String name, String prefix) {
+        if (name == null) {
+            return false;
+        }
+        return name.regionMatches(true, 0, prefix, 0, prefix.length());
+    }
+
+    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
+        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
+        if (sheet == null) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
+                    .message("Horizon {0} does not exist in the DSR cluster trajectory {1}")
+                    .build();
+        }
+        return sheet;
+    }
 }
