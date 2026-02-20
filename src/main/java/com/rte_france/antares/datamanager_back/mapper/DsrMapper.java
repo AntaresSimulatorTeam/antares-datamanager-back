@@ -14,7 +14,7 @@ import java.util.Optional;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DsrMapper {
 
-    private static final String GROUP="Other";
+    private static final String GROUP="DSR";
     public static DsrGenerationDTO mapToDsrGenerationDTO(DsrClusterEntity dsrEntity) {
         return DsrGenerationDTO.builder()
                 .enabled(Optional.ofNullable(dsrEntity.getToUse()).orElse(false))
