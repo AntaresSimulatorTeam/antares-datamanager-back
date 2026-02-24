@@ -404,7 +404,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
-        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.MISC_CAPACITY, "testFile", "2023-2024", 1));
+        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.UNKNOWN, "testFile", "2023-2024", 1));
     }
 
     @Test
@@ -1094,12 +1094,11 @@ class TrajectoryServiceImplTest {
 
 
     @Test
-    void getDirectoryByTrajectoryType_throwsTechnicalException_whenTypeIsMisc() {
-        TechnicalException exception = assertThrows(
-                TechnicalException.class,
-                () -> trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC_CAPACITY, null, null)
-        );
-        assertTrue(exception.getMessage().contains("No directory defined for TrajectoryType"));
+    void getDirectoryByTrajectoryType_returnsMiscCapacityDirector_whenTypeIsMisc() throws IOException {
+        when(antaresDataManagerProperties.getMiscCapacityDirectory()).thenReturn("MISC/installed power");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC_CAPACITY, null, null);
+        assertEquals("MISC/installed power", result);
+
     }
 
     @Test

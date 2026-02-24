@@ -101,6 +101,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String STS_PREFIX = "cluster_";
     private static final String DSR_PREFIX = "cluster_dsr_";
     private static final String DSR_CAPACITY_PREFIX = "cm_";
+    private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -467,7 +468,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
+                    .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD
                             || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
@@ -497,6 +498,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR -> fileName.startsWith(DSR_PREFIX);
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
+            case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
             default -> true;
         };
     }
@@ -927,8 +929,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 findChildDirectoryIgnoreCase(Path.of(antaresDataManagerProperties.getNasDirectory())
                         .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                         .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
-            case MISC_CAPACITY ->
-                    throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
+            case MISC_CAPACITY -> antaresDataManagerProperties.getMiscCapacityDirectory();
+            case MISC_LOAD -> antaresDataManagerProperties.getMiscLoadDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }

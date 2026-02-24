@@ -67,4 +67,10 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.sts.ts.output.directory}")
     public String stsTsOutputDirectory;
 
+    @Value("${antares.datamanager.misc.capacity.directory}")
+    public String miscCapacityDirectory;
+
+    @Value("${antares.datamanager.misc.load.directory}")
+    public String miscLoadDirectory;
+
 }
