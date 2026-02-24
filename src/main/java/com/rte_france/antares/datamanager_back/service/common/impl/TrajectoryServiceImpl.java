@@ -927,7 +927,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 findChildDirectoryIgnoreCase(Path.of(antaresDataManagerProperties.getNasDirectory())
                         .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                         .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
-            case MISC ->
+            case MISC_CAPACITY ->
                     throw TechnicalException.builder().message("No directory defined for TrajectoryType: " + trajectoryType).build();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
