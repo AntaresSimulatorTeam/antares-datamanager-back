@@ -80,12 +80,12 @@ public class Utils {
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon()));
+                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon()));
+                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
     }
 
     public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
@@ -137,7 +137,7 @@ public class Utils {
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
             createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
-        String checksum = computeChecksumByType(path, trajectoryType, horizon);
+        String checksum = computeChecksumByType(path, trajectoryType, horizon, area);
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
@@ -394,15 +394,66 @@ public class Utils {
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
      */
-    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon) throws IOException {
+    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws IOException {
         return switch (type) {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
-            case STS, DSR ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case STS ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case DSR ->  computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
             default -> computeSheetChecksum(path.toString(), horizon);
         };
+    }
+
+    private String canonicalRow(Row row) {
+        StringBuilder sb = new StringBuilder();
+
+        for (int c = 0; c < row.getLastCellNum(); c++) {
+            sb.append(getCellValue(row, c)).append("|");
+        }
+
+        return sb.toString();
+    }
+
+    private String hashSheetByArea(Sheet sheet, String areaFilter) {
+        var sb = new StringBuilder();
+
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) { // skip header
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+
+            Cell areaCell = row.getCell(1); // 2ème colonne
+            if (areaCell == null) continue;
+
+            String area = areaCell.getStringCellValue();
+            if (!areaFilter.equals(area)) continue;
+
+            // Construire une ligne canonique
+            sb.append(canonicalRow(row)).append("\n");
+        }
+
+        return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
+    }
+
+    private static String computeDsrChecksum(String filePath, String horizon, String areaFilter) throws IOException {
+        try (var in = Files.newInputStream(Path.of(filePath));
+             var wb = WorkbookFactory.create(in)) {
+
+            var horizonSheet = wb.getSheet(horizon);
+            if (horizonSheet == null) {
+                throw TechnicalException.builder()
+                        .message("Sheet '" + horizon + "' not found: " + filePath)
+                        .build();
+            }
+
+            // Hash uniquement des lignes correspondant à l'area
+            var hHash = hashSheetByArea(horizonSheet, areaFilter);
+
+            return Hashing.sha256()
+                    .hashString(hHash, StandardCharsets.UTF_8)
+                    .toString();
+        }
     }
 
     public static String computeSheetChecksum(String filePath, String sheetName) throws IOException {
