@@ -27,7 +27,13 @@ public class DuplicationTrajectoryUtils {
     private static final List<TrajectoryType> SUPPORTED_TRAJECTORY_TYPES = List.of(
             TrajectoryType.AREA,
             TrajectoryType.LINK,
-            TrajectoryType.LOAD
+            TrajectoryType.LOAD,
+            TrajectoryType.THERMAL_CAPACITY,
+            TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER,
+            TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,
+            TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
+            TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
+            TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER
     );
 
 
@@ -176,7 +182,7 @@ public class DuplicationTrajectoryUtils {
                 missingTrajectoryTypes.add(type.name());
 
             } else {
-                if (type == TrajectoryType.LOAD) {
+                if (type == TrajectoryType.LOAD || type == TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER || type == TrajectoryType.THERMAL_CAPACITY) {
                     // LOAD we can have several trajectories for one study
                     // Track if any LOAD trajectory was successfully linked
                     List<String> tempMissingTypes = new ArrayList<>();
