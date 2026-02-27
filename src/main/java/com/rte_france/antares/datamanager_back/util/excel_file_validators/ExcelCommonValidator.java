@@ -301,18 +301,34 @@ public class ExcelCommonValidator {
      * @return boolean value expected and avoid null for formatted cells
      */
     public static Optional<Boolean> getBooleanCellValue(Cell cell) {
-        // If the cell is null or blank, we return empty to indicate an invalid or undefined value
-        if (isInvalidOrUndefinedCell(cell)) return Optional.empty();
 
-        // If the cell contains a boolean value, return it directly
-        if (cell.getCellType() == CellType.BOOLEAN) return Optional.of(cell.getBooleanCellValue());
-
-        // If the cell contains a string representation of true/false, parse it
-        if (cell.getCellType() == CellType.STRING) {
-            String value = cell.getStringCellValue().trim().toUpperCase();
-            if ("TRUE".equals(value)) return Optional.of(true);
-            if ("FALSE".equals(value)) return Optional.of(false);
+        // Cellule invalide
+        if (isInvalidOrUndefinedCell(cell)) {
+            return Optional.empty();
         }
+
+        switch (cell.getCellType()) {
+
+            case BOOLEAN:
+                return Optional.of(cell.getBooleanCellValue());
+
+            case STRING:
+                String value = cell.getStringCellValue().trim().toUpperCase();
+                if ("TRUE".equals(value)) return Optional.of(true);
+                if ("FALSE".equals(value)) return Optional.of(false);
+                break;
+
+            case NUMERIC:
+                double numericValue = cell.getNumericCellValue();
+
+                if (numericValue == 1.0) return Optional.of(true);
+                if (numericValue == 0.0) return Optional.of(false);
+                break;
+
+            default:
+                break;
+        }
+
         return Optional.empty();
     }
 

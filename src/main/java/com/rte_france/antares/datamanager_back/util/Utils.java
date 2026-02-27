@@ -23,6 +23,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -398,6 +400,7 @@ public class Utils {
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
             case STS, DSR ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case MISC_CAPACITY -> "checksum_misc";
             default -> computeSheetChecksum(path.toString(), horizon);
         };
     }
@@ -727,5 +730,31 @@ public class Utils {
                     .build();
         }
         return sheet;
+    }
+
+    // Méthode utilitaire pour calculer le checksum SHA-256
+    public String calculateChecksum(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Erreur lors du calcul du checksum", e);
+        }
+    }
+
+    public static void throwAlreadyProcessedFileException(Path path) {
+        log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
+        throw BusinessException.builder()
+                .message("File already processed with same content {0}")
+                .errorMessageArguments(List.of(path.getFileName().toString()))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 }
