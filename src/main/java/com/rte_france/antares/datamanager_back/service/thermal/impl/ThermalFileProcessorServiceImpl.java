@@ -130,7 +130,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         if (existingTrajectoryOpt.isPresent() && existingTrajectoryOpt.get().getChecksum() != null) {
             if (existingTrajectoryOpt.get().getChecksum().equals(checksum)) {
-                throwAlreadyProcessedFileException(path);
+                log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
+                throw BusinessException.builder()
+                        .message("File already processed with same content {0}")
+                        .errorMessageArguments(List.of(path.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+
             }
             // Same identifiers but different checksum -> version +1
             trajectory = buildTrajectory(path, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
@@ -414,14 +420,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
     }
 
-    public static void throwAlreadyProcessedFileException(Path path) {
-        log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
-        throw BusinessException.builder()
-                .message("File already processed with same content {0}")
-                .errorMessageArguments(List.of(path.getFileName().toString()))
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build();
-    }
+
 
 
     public WarningMessageEntity buildWarningMessage(Path path, String area, Integer studyId, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas) {
@@ -686,22 +685,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
 
-    // Méthode utilitaire pour calculer le checksum SHA-256
-    private String calculateChecksum(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Erreur lors du calcul du checksum", e);
-        }
-    }
+
 
     private void validateCommonParamHeaderColumns(Row header, Path path) {
         for (int i = 0; i < REQUIRED_COMMON_PARAM_HEADER_COLUMNS.size(); i++) {

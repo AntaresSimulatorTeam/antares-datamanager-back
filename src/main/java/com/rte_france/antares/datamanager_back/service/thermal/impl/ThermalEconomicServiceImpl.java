@@ -27,9 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
-import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.throwAlreadyProcessedFileException;
-import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
-import static com.rte_france.antares.datamanager_back.util.Utils.getFileNameWithoutExtensionAndWithoutPrefix;
+import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
 @Service
