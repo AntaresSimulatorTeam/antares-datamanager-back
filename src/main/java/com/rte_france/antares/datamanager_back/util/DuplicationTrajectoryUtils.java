@@ -109,7 +109,6 @@ public class DuplicationTrajectoryUtils {
      * @param trajectoriesAvailable    The list of available trajectories to be processed and linked.
      * @param studyDTO                 The DTO representing the study for which the trajectories are being processed.
      * @param trajectoryService        The service used for trajectory-related operations.
-     * @param loadFileProcessorService
      * @param createdBy                The user or system identifier that initiated the process.
      * @return A result object containing information about missing trajectory types, the linked area trajectory,
      * and any warning messages generated during processing.

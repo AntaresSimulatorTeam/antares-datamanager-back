@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -208,5 +210,88 @@ class DuplicationTrajectoryUtilsTest {
                 missingTrajectoryTypes,
                 createdBy
         );
+    }
+
+    @Test
+    void processAndLinkTrajectories_whenAllLoadTrajectoriesFail_shouldAddLOADToMissingTypes_once() throws Exception {
+        // Given
+        TrajectoryServiceImpl trajectoryService = mock(TrajectoryServiceImpl.class);
+        LoadFileProcessorServiceImpl loadFileProcessorService = mock(LoadFileProcessorServiceImpl.class);
+
+        StudyDTO studyDTO = StudyDTO.builder()
+                .id(100)
+                .createdBy("user1")
+                .build();
+
+        // AREA obligatoire (sinon orElseThrow dans findAndLinkAreaTrajectory)
+        TrajectoryEntity area = trajectory(TrajectoryType.AREA, 1, null);
+
+        // 2 LOAD avec area non null => on va déclencher le "return" (donc échec) si la liste ne contient pas les areas
+        TrajectoryEntity load1 = trajectory(TrajectoryType.LOAD, 10, "FR");
+        TrajectoryEntity load2 = trajectory(TrajectoryType.LOAD, 11, "DE");
+
+        // On fournit aussi les autres types supportés (sinon ils seront "missing" et le test devient moins lisible)
+        TrajectoryEntity link = trajectory(TrajectoryType.LINK, 20, null);
+        TrajectoryEntity thermalCapacity = trajectory(TrajectoryType.THERMAL_CAPACITY, 30, null);
+        TrajectoryEntity thermalSpec = trajectory(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, 31, null);
+        TrajectoryEntity thermalCommon = trajectory(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, 32, null);
+        TrajectoryEntity thermalEcoCost = trajectory(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, 33, null);
+        TrajectoryEntity thermalEco = trajectory(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, 34, null);
+        TrajectoryEntity thermalMod = trajectory(TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, 35, null);
+
+        List<TrajectoryEntity> available = new ArrayList<>(List.of(
+                area,
+                load1, load2,
+                link,
+                thermalCapacity,
+                thermalSpec,
+                thermalCommon,
+                thermalEcoCost,
+                thermalEco,
+                thermalMod
+        ));
+
+        // La liste des zones "sans trajectoire sélectionnée" ne contient ni FR ni DE => les 2 LOAD échouent
+        when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(100))
+                .thenReturn(List.of("ES", "IT"));
+
+        // On laisse les liens OK (pas d'exception) pour les autres types
+        when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any()))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity t = new TrajectoryEntity();
+                    t.setId(inv.getArgument(0, Integer.class));
+                    t.setType(inv.getArgument(2, TrajectoryType.class).name());
+                    return t;
+                });
+        doNothing().when(trajectoryService).checkLinkCoherence(anyInt(), anySet(), any(), anyString());
+
+        // When
+        var result = DuplicationTrajectoryUtils.processAndLinkTrajectories(
+                available,
+                studyDTO,
+                trajectoryService,
+                loadFileProcessorService,
+                "user1"
+        );
+
+        // Then
+        assertThat(result.missingTrajectoryTypes())
+                .contains(TrajectoryType.LOAD.name());
+
+        // important: LOAD ne doit être ajouté qu'une seule fois dans missingTrajectoryTypes (c'est la branche que tu vises)
+        assertThat(result.missingTrajectoryTypes().stream().filter(TrajectoryType.LOAD.name()::equals).count())
+                .isEqualTo(1);
+
+        // Et surtout: comme ça "return" avant linkTrajectoryToStudy pour LOAD, donc aucun link LOAD ne doit arriver
+        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(10), eq(100), eq(TrajectoryType.LOAD));
+        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(11), eq(100), eq(TrajectoryType.LOAD));
+    }
+
+    private static TrajectoryEntity trajectory(TrajectoryType type, int id, String area) {
+        TrajectoryEntity t = new TrajectoryEntity();
+        t.setId(id);
+        t.setType(type.name());
+        t.setArea(area);
+        return t;
     }
 }
