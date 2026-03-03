@@ -2,10 +2,9 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.misc.impl.InstalledMiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -31,7 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-class InstalledMiscFileProcessorServiceImplTest {
+class MiscFileProcessorServiceImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -43,7 +42,7 @@ class InstalledMiscFileProcessorServiceImplTest {
     private TrajectoryServiceImpl trajectoryService;
 
     @InjectMocks
-    private InstalledMiscFileProcessorServiceImpl service;
+    private MiscFileProcessorServiceImpl service;
 
     @TempDir
     Path tempDir;

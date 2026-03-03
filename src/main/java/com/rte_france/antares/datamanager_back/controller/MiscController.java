@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.service.misc.InstalledMiscFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -24,8 +24,8 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @Validated
 @RequestMapping("/v1/trajectory")
 @RequiredArgsConstructor
-public class InstalledMiscController {
-    private final InstalledMiscFileProcessorService installedMiscFileProcessorService;
+public class MiscController {
+    private final MiscFileProcessorService miscFileProcessorService;
 
     @Operation(summary = "import installed misc trajectory to database ")
     @PostMapping("/installed-misc")
@@ -36,7 +36,20 @@ public class InstalledMiscController {
             @RequestParam("studyId") Integer studyId) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(
-                installedMiscFileProcessorService.processInstalledMiscFile(trajectoryToUse, horizon, studyId, area)
+                miscFileProcessorService.processInstalledMiscFile(trajectoryToUse, horizon, studyId, area)
+        ), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import installed misc trajectory to database ")
+    @PostMapping("/load-factor-misc")
+    public ResponseEntity<TrajectoryDTO> uploadLoadFactorMiscTrajectory(
+            @RequestParam("area") String area,
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId) throws Exception {
+
+        return new ResponseEntity<>(toTrajectoryDTO(
+                miscFileProcessorService.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area)
         ), HttpStatus.CREATED);
     }
 }

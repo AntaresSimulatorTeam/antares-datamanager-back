@@ -2,16 +2,21 @@ package com.rte_france.antares.datamanager_back.service.misc.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
+import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.misc.InstalledMiscFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +26,12 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -29,9 +39,10 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class InstalledMiscFileProcessorServiceImpl implements InstalledMiscFileProcessorService {
+public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
     private final TrajectoryRepository trajectoryRepository;
+    private final MiscClusterCapacityRepository miscClusterCapacityRepository;
     private final UserService userService;
 
     private final TrajectoryServiceImpl trajectoryService;
@@ -102,6 +113,118 @@ public class InstalledMiscFileProcessorServiceImpl implements InstalledMiscFileP
         }
     }
 
+    @Override
+    public TrajectoryEntity processLoadFactorMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws Exception {
+        Path trajectoryFilePath = trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD);
+
+        Map<GroupClusterKey, List<String>> listAreasByGroup = getAreasByGroupClusterByStudyId(studyId);
+
+        // for each group search ts file (ex: load_factor_waste_2030-2031 )  from   physical file system in  directory trajectoryFilePath/group/group ou load_factor is the prefix of ts and group the group and horizon the horizon
+        for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
+            GroupClusterKey groupCluster = entry.getKey();
+            List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
+            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas);
+        }
+
+        TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryFilePath, horizon, area);
+        return trajectoryRepository.save(trajectory);
+    }
+
+    private TrajectoryEntity buildLoadFactorMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws Exception {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+        String checksum = calculateDirectoryChecksum(trajectoryFilePath);
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.MISC_LOAD.name()))// file name without extension
+                .fileSize(Files.size(trajectoryFilePath))
+                .creationDate(LocalDateTime.now())
+                .createdBy(createdBy)
+                .checksum(checksum)
+                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(trajectoryFilePath).toMillis()), ZoneId.systemDefault()))
+                .horizon(civilToChevalHorizon(horizon))
+                .area(area)
+                .technology(null)
+                .type(TrajectoryType.MISC_LOAD.name())
+                .hasTimeSeries(true)
+                .build();
+        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(trajectoryFilePath, horizon, area, TrajectoryType.MISC_LOAD);
+        if (existingTrajectory.isPresent()) {
+            if (existingTrajectory.get().getChecksum().equals(checksum)) {
+                // use Utils since method moved
+                throwAlreadyProcessedFileException(trajectoryFilePath);
+            } else {
+                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
+                trajectory.setChecksum(checksum);
+            }
+        } else {
+            trajectory.setVersion(1);
+            trajectory.setChecksum(checksum);
+        }
+
+        return trajectory;
+    }
+
+    private static void verifyTsFile(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, List<String> areas) throws IOException {
+        Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
+        if (Files.exists(tsFilePath)) {
+            //get header of tsFilePath (csv file ) file and check if it contains all areas
+            try (Scanner scanner = new Scanner(tsFilePath)) {
+                if (scanner.hasNextLine()) {
+                    String headerLine = scanner.nextLine();
+                    List<String> headerAreas = Arrays.stream(headerLine.split(";"))
+                            .map(s -> s.strip().replace("\"", "").toLowerCase())
+                            .toList();
+                    if (!new HashSet<>(headerAreas).containsAll(areas)) {
+                        throw BusinessException.builder()
+                                .message("Load factor file {0} is missing areas for group {1}: expected {2}, found {3}")
+                                .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe, areas.toString(), headerAreas.toString()))
+                                .build();
+                    } else {
+                        log.info("Load factor file {} for group {} contains all expected areas", tsFilePath.getFileName(), groupClusterKey.groupe);
+
+                    }
+                } else {
+                    throw BusinessException.builder()
+                            .message("Load factor file {0} for group {1} is empty")
+                            .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe, areas.toString()))
+                            .build();
+                }
+            }
+
+        } else {
+            throw BusinessException.builder()
+                    .message("Load factor file not found for group {0}: expected at {1}")
+                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
+                    .build();
+        }
+    }
+
+    private static Path getLoadFactorByGroupPath(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey) {
+        return trajectoryFilePath
+                .resolve(groupClusterKey.groupe)
+                .resolve(groupClusterKey.cluster)// for biomass group the file is in small biomass subfolder
+                .resolve("load_factor_" + groupClusterKey.groupe + "_" + horizon + ".csv");
+
+    }
+
+    public record GroupClusterKey(String groupe, String cluster) {
+    }
+
+    public Map<GroupClusterKey, List<String>> getAreasByGroupClusterByStudyId(Integer studyId) {
+
+        return miscClusterCapacityRepository.findByStudyId(studyId)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        entity -> new GroupClusterKey(
+                                entity.getGroupe(),
+                                entity.getCluster()
+                        ),
+                        Collectors.mapping(
+                                GroupAreaMiscCapacity::getArea,
+                                Collectors.toList()
+                        )
+                ));
+    }
+
     private static int getYearColIndex(int lastCol, Row header, String horizonYear, int yearColIndex) {
         for (int c = 5; c < lastCol; c++) {
             Integer headerVal = (int) header.getCell(c).getNumericCellValue();
@@ -115,7 +238,7 @@ public class InstalledMiscFileProcessorServiceImpl implements InstalledMiscFileP
 
     private TrajectoryEntity buildMiscTrajectory(String horizon, String areaParam, StringBuilder checksumBuilder, Path filePath, List<MiscClusterCapacityEntity> entities) throws IOException {
         String checksum = calculateChecksum(checksumBuilder.toString());
-        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, null);
+        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, TrajectoryType.MISC_CAPACITY);
         TrajectoryEntity trajectory = buildInstalledMiscTrajectory(filePath, horizon, areaParam);
 
         if (existingTrajectory.isPresent() && existingTrajectory.get().getChecksum() != null) {
@@ -143,7 +266,7 @@ public class InstalledMiscFileProcessorServiceImpl implements InstalledMiscFileP
         // toUse: ExcelCommonValidator peut extraire 1/0 comme boolean; si absent on considère false
         boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(false);
 
-        String area = Optional.ofNullable(getCellValue(row,1)).map(Object::toString).orElse(null);
+        String area = Optional.ofNullable(getCellValue(row, 1)).map(Object::toString).orElse(null);
 
         // Filtre par area param (si areaParam différent de OTHERS on garde uniquement la même area)
         if (areaParam != null && !OTHERS_AREA.equalsIgnoreCase(areaParam)) {
@@ -152,16 +275,19 @@ public class InstalledMiscFileProcessorServiceImpl implements InstalledMiscFileP
             }
         }
 
-        String group = Optional.ofNullable(getCellValue(row,2)).map(Object::toString).orElse(null);
-        String cluster = Optional.ofNullable(getCellValue(row,3)).map(Object::toString).orElse(null);
-        String category = Optional.ofNullable(getCellValue(row,4)).map(Object::toString).orElse(null);
+        String group = Optional.ofNullable(getCellValue(row, 2)).map(Object::toString).orElse(null);
+        String cluster = Optional.ofNullable(getCellValue(row, 3)).map(Object::toString).orElse(null);
+        String category = Optional.ofNullable(getCellValue(row, 4)).map(Object::toString).orElse(null);
 
         // Récupérer la valeur numérique de la colonne correspondant à l'horizon de manière robuste
         Object cellVal = getCellValue(row, yearColIndex);
         Number numeric = null;
         if (cellVal instanceof Number) numeric = (Number) cellVal;
         else if (cellVal instanceof String) {
-            try { numeric = Double.parseDouble((String) cellVal); } catch (NumberFormatException ignored) {}
+            try {
+                numeric = Double.parseDouble((String) cellVal);
+            } catch (NumberFormatException ignored) {
+            }
         }
         if (numeric == null) return;
         BigDecimal capacityByYear = BigDecimal.valueOf(numeric.doubleValue());
@@ -183,13 +309,13 @@ public class InstalledMiscFileProcessorServiceImpl implements InstalledMiscFileP
                 .append(toUse).append("\n");
     }
 
-    private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, String technology) {
+    private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.MISC_CAPACITY.name()),
-                TrajectoryType.MISC_CAPACITY.name(),
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()),
+                trajectoryType.name(),
                 horizon,
                 area,
-                technology);
+                null);
     }
 
     private TrajectoryEntity buildInstalledMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws IOException {
