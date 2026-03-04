@@ -109,20 +109,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         return rowArea.equalsIgnoreCase(areaParam) || areaParam.equals(OTHERS_AREA);
     }
 
-    private void validateSelectedAreaPresence(String areaParam, List<DsrClusterEntity> results, String trajectoryFileName) {
-        Set<String> fileAreas = results.stream()
-                .map(DsrClusterEntity::getArea)
-                .map(String::toUpperCase)
-                .collect(Collectors.toSet());
-        if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(areaParam, trajectoryFileName))
-                    .message("Selected area {0} is not present in the 'node' column of DSR cluster trajectory {1}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
     private void validateRow(String rowArea, String trajectoryFileName, int r) {
         if (rowArea == null || rowArea.isEmpty()) {
             throw BusinessException.builder()
@@ -314,18 +300,11 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-
-            boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
-            if (hasNoAreaOfTrajectoryAreaInFile) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName))
-                        .message("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+            
+            validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.DSR, trajectoryFileName);
 
             // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-            validateSelectedAreaPresence(areaParam, results, trajectoryFileName);
+            validateSelectedAreaPresence(areaParam, results, trajectoryFileName, DsrClusterEntity::getArea, e -> TrajectoryType.DSR);
         }
         return results;
     }

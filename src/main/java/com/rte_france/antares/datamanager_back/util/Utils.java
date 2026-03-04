@@ -34,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -848,5 +849,56 @@ public class Utils {
         }
 
         return HexFormat.of().formatHex(digest.digest());
+    }
+    
+    private String getErrormessageLabelFromType(TrajectoryType type) {
+        return switch (type) {
+            case DSR -> "DSR cluster";
+            case MISC_CAPACITY -> "MISC";
+            default -> "trajectory";
+        };
+    }
+
+    private <T> String resolveLabelFromResults(List<T> results, Function<T, TrajectoryType> typeExtractor) {
+        if (results == null || results.isEmpty()) {
+            return "trajectory"; // fallback (ou "UNKNOWN")
+        }
+
+        TrajectoryType type = results.stream()
+                .filter(Objects::nonNull)
+                .map(typeExtractor)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(TrajectoryType.UNKNOWN);
+        
+        return getErrormessageLabelFromType(type);
+    }
+
+    public <T> void validateSelectedAreaPresence(String areaParam, List<T> results, String trajectoryFileName, Function<T, String> areaExtractor, Function<T, TrajectoryType> typeExtractor) {
+        Set<String> fileAreas = results.stream()
+                .map(areaExtractor)
+                .filter(a -> a != null && !a.isBlank())
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
+        if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
+            String label = resolveLabelFromResults(results, typeExtractor);
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
+                    .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    public void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
+        boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
+        if (hasNoAreaOfTrajectoryAreaInFile) {
+            String label = getErrormessageLabelFromType(trajectoryType);
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(label, trajectoryToUse))
+                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 }

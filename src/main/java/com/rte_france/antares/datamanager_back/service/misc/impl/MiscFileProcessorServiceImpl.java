@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
 import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -43,14 +44,17 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final MiscClusterCapacityRepository miscClusterCapacityRepository;
     private final UserService userService;
+    private final AreaRepository areaRepository;
 
     private final TrajectoryServiceImpl trajectoryService;
 
     private static final String INSTALLED_MISC_PREFIX = "installedMisc_";
+    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
+            "ToUse", "Area", "Group", "Cluster", "Capacity"};
 
     @Transactional
     @Override
-    public TrajectoryEntity processInstalledMiscFile(String trajectoryToUse, String horizon, Integer studyId, String areaParam) throws IOException {
+    public TrajectoryEntity processInstalledMiscFile(String trajectoryToUse, String horizon, Integer studyId, String areaParam, boolean isCivilYear) throws IOException {
         // prefix check
         if (!startsWithIgnoreCase(trajectoryToUse, INSTALLED_MISC_PREFIX)) {
             throw BusinessException.builder()
@@ -59,6 +63,8 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
 
         Path filePath = trajectoryService.getTrajectoryFilePath(TrajectoryType.MISC_CAPACITY, trajectoryToUse, null);
 
@@ -80,14 +86,21 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 throw BusinessException.builder().message("InstalledMisc header is invalid").httpStatus(HttpStatus.BAD_REQUEST).build();
             }
 
+            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryToUse, TrajectoryType.MISC_CAPACITY.name());
+
             // Détecter l'index de la colonne correspondant à l'horizon hors de la boucle de lignes
             int yearColIndex = -1;
-            String horizonYear = horizon.split("-")[1];
+            String horizonYear;
+            if (isCivilYear) {
+                horizonYear = horizon.split("-")[1];
+            } else {
+                horizonYear = horizon.split("-")[1] + 1;
+            }
 
             yearColIndex = getYearColIndex(lastCol, header, horizonYear, yearColIndex);
             if (yearColIndex == -1) {
                 throw BusinessException.builder()
-                        .message("Horizon column '" + horizon + "' not found in InstalledMisc header for trajectory " + filePath.getFileName())
+                        .message("Horizon '" + horizon + "' does not exist in the Misc trajectory " + filePath.getFileName())
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -97,12 +110,18 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             rows.next(); // skip header
             StringBuilder checksumBuilder = new StringBuilder();
 
+            List<String> fileAreas = new ArrayList<>();
             while (rows.hasNext()) {
-                processMiscCapacityRow(areaParam, rows, yearColIndex, entities, checksumBuilder);
+                processMiscCapacityRow(areaParam, rows, yearColIndex, entities, checksumBuilder, fileAreas);
             }
 
+            validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.MISC_CAPACITY, trajectoryToUse);
+
+            // The selected area must be present in the file's 'node' column, except when area equals OTHERS
+            validateSelectedAreaPresence(areaParam, entities, trajectoryToUse, MiscClusterCapacityEntity::getArea, e -> TrajectoryType.MISC_CAPACITY);
+
             if (entities.isEmpty()) {
-                throw BusinessException.builder().message("No data in InstalledMisc trajectory " + filePath.getFileName()).httpStatus(HttpStatus.BAD_REQUEST).build();
+                throw BusinessException.builder().message("No area found in Misc trajectory " + filePath.getFileName()).httpStatus(HttpStatus.BAD_REQUEST).build();
             }
 
             TrajectoryEntity trajectory = buildMiscTrajectory(horizon, areaParam, checksumBuilder, filePath, entities);
@@ -266,7 +285,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectory;
     }
 
-    private void processMiscCapacityRow(String areaParam, Iterator<Row> rows, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder) {
+    private void processMiscCapacityRow(String areaParam, Iterator<Row> rows, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder, List<String> fileAreas) {
         Row row = rows.next();
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
@@ -274,6 +293,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(false);
 
         String area = Optional.ofNullable(getCellValue(row, 1)).map(Object::toString).orElse(null);
+        fileAreas.add(area);
 
         // Filtre par area param (si areaParam différent de OTHERS on garde uniquement la même area)
         if (areaParam != null && !OTHERS_AREA.equalsIgnoreCase(areaParam)) {
