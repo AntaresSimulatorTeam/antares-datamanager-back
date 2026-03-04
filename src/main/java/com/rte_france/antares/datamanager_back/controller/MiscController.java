@@ -37,7 +37,7 @@ public class MiscController {
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(
-                miscFileProcessorService.processInstalledMiscFile(trajectoryToUse, horizon, studyId, area)
+                miscFileProcessorService.processInstalledMiscFile(trajectoryToUse, horizon, studyId, area, isCivilYear)
         ), HttpStatus.CREATED);
     }
 
