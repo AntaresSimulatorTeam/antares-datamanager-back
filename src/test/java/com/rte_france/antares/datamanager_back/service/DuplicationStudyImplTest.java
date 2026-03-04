@@ -209,8 +209,20 @@ class DuplicationStudyImplTest {
 
         List<String> actual = listCaptor.getValue();
 
-
-        assertThat(actual).containsExactly("LINK, LOAD", "2031");
+        System.out.println(actual);
+        assertThat(actual).containsExactly(
+                String.join(", ",
+                        TrajectoryType.LINK.name(),
+                        TrajectoryType.LOAD.name(),
+                        TrajectoryType.THERMAL_CAPACITY.name(),
+                        TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(),
+                        TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(),
+                        TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name(),
+                        TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name(),
+                        TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.name()
+                ),
+                "2031"
+        );
 
         verify(warningRepository).saveAll(any());
 

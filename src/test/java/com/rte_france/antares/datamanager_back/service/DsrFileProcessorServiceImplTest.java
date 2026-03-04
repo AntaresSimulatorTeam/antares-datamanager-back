@@ -150,6 +150,7 @@ class DsrFileProcessorServiceImplTest {
 
         var trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setType(TrajectoryType.DSR.name());
+        trajectoryEntity.setArea("FR");
         trajectoryEntity.setFileName("test");
         trajectoryEntity.setVersion(1);
         trajectoryEntity.setHorizon("2029-2030");
