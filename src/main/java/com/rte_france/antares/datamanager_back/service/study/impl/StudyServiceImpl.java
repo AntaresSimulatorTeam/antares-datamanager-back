@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
@@ -170,7 +171,7 @@ public class StudyServiceImpl implements StudyService {
 
             // Cette méthode doit renvoyer la dernière version pour chaque nom présent et pour le horizon donné.
             // Si elle n'existe pas encore, ajoutez-la dans TrajectoryRepository.
-            trajectoriesAvailable = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(trajectoryNames, newHorizonRange);
+            trajectoriesAvailable = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(trajectoryNames, newHorizonRange, TrajectoryType.AREA.name());
         }
 
       TrajectoryEntity areaTrajectory =  DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable, existingStudyTrajectories, studyDTO.getHorizon());
