@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -83,14 +84,22 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     @Query("SELECT t FROM Trajectory t JOIN t.scenarioEntities s WHERE (:type IS NULL OR :type = '' OR t.type = :type) AND s.id = :studyId")
     List<TrajectoryEntity> findByTypeAndStudyId(@Param("type") String type, @Param("studyId") Integer studyId);
 
-
-    @Query("SELECT t FROM Trajectory t WHERE t.horizon = :horizon AND t.fileName IN :names AND t.type = :type" +
-            " AND t.id IN (" +
-            "  SELECT MAX(t2.id) FROM Trajectory t2 WHERE t2.horizon = :horizon AND t2.type = :type AND t2.fileName IN :names GROUP BY t2.fileName" +
-            ")")
+    @Query("""
+                SELECT t
+                FROM Trajectory t
+                WHERE t.horizon = :horizon
+                  AND t.fileName IN :names
+                  AND t.type IN :types
+                  AND t.id IN (
+                      SELECT MAX(t2.id)
+                      FROM Trajectory t2
+                      WHERE t2.horizon = :horizon
+                        AND t2.type IN :types
+                        AND t2.fileName IN :names
+                      GROUP BY t2.fileName, t2.type
+                  )
+                """)
     List<TrajectoryEntity> findLatestTrajectoriesByNamesAndHorizon(@Param("names") Set<String> names,
                                                                    @Param("horizon") String horizon,
-                                                                   @Param("type") String type);
-
-
+                                                                   @Param("types") Collection<String> types);
 }
