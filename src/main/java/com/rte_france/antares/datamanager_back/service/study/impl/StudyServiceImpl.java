@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -61,7 +62,7 @@ public class StudyServiceImpl implements StudyService {
 
     private static final String STUDY_NOT_FOUND = "Study with id {0} not found.";
     private static final String HORIZON_FORMAT = "%d-%s";
-
+    public record TrajectoryKey(String fileName, String type, String area) {};
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -164,16 +165,25 @@ public class StudyServiceImpl implements StudyService {
             // Cas 2 : horizon changé -> chercher pour le nouveau horizon les trajectoires ayant le même nom
             String newHorizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
 
-            // Récupérer la liste des noms des trajectoires existantes
-            Set<String> trajectoryNames = existingStudyTrajectories.stream()
-                    .map(TrajectoryEntity::getFileName)
+            Set<TrajectoryKey> requestedKeys = existingStudyTrajectories.stream()
                     .filter(Objects::nonNull)
+                    .map(t -> new TrajectoryKey(t.getFileName(), t.getType(), t.getArea()))
                     .collect(Collectors.toSet());
 
-            // Cette méthode doit renvoyer la dernière version pour chaque nom présent et pour le horizon donné.
-            // Si elle n'existe pas encore, ajoutez-la dans TrajectoryRepository.
-            List<String> typeNames = SUPPORTED_TRAJECTORY_TYPES.stream().map(Enum::name).toList();
-            trajectoriesAvailable = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(trajectoryNames, newHorizonRange, typeNames);
+
+            List<TrajectoryEntity> out = new ArrayList<>();
+            for (TrajectoryKey k : requestedKeys) {
+                List<TrajectoryEntity> one = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(
+                        newHorizonRange,
+                        k.fileName(),
+                        k.type(),
+                        k.area(),
+                        PageRequest.of(0, 1)
+                );
+
+                one.stream().findFirst().ifPresent(out::add);
+            }
+            trajectoriesAvailable = out;
         }
 
       TrajectoryEntity areaTrajectory =  DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable, existingStudyTrajectories, studyDTO.getHorizon());
