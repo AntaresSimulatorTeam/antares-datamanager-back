@@ -26,7 +26,6 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -117,9 +116,17 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     public TrajectoryEntity processLoadFactorMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws Exception {
         Path trajectoryFilePath = trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD);
 
-        Map<GroupClusterKey, List<String>> listAreasByGroup = getAreasByGroupClusterByStudyId(studyId);
-
-        // for each group search ts file (ex: load_factor_waste_2030-2031 )  from   physical file system in  directory trajectoryFilePath/group/group ou load_factor is the prefix of ts and group the group and horizon the horizon
+        Map<GroupClusterKey, List<String>> listAreasByGroup = getAreasByGroupClusterByStudyId(studyId, area);
+        // for each group search ts file (ex: load_factor_waste_2030-2031 )  from
+        // physical file system in  directory trajectoryFilePath/group/group
+        // ou load_factor is the prefix of ts and group the group and horizon the horizon
+        if(listAreasByGroup.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No group found for study id {0} and area {1} in misc cluster capacity table, at least one group is expected to check load factor file(s)")
+                    .errorMessageArguments(List.of(studyId.toString(),area))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
             GroupClusterKey groupCluster = entry.getKey();
             List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
@@ -209,9 +216,9 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     public record GroupClusterKey(String groupe, String cluster) {
     }
 
-    public Map<GroupClusterKey, List<String>> getAreasByGroupClusterByStudyId(Integer studyId) {
+    public Map<GroupClusterKey, List<String>> getAreasByGroupClusterByStudyId(Integer studyId, String area) {
 
-        return miscClusterCapacityRepository.findByStudyId(studyId)
+        return miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area)
                 .stream()
                 .collect(Collectors.groupingBy(
                         entity -> new GroupClusterKey(
