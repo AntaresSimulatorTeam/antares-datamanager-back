@@ -39,6 +39,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
+import static com.rte_france.antares.datamanager_back.util.DuplicationTrajectoryUtils.SUPPORTED_TRAJECTORY_TYPES;
 
 @Slf4j
 @Service
@@ -171,7 +172,8 @@ public class StudyServiceImpl implements StudyService {
 
             // Cette méthode doit renvoyer la dernière version pour chaque nom présent et pour le horizon donné.
             // Si elle n'existe pas encore, ajoutez-la dans TrajectoryRepository.
-            trajectoriesAvailable = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(trajectoryNames, newHorizonRange, TrajectoryType.AREA.name());
+            List<String> typeNames = SUPPORTED_TRAJECTORY_TYPES.stream().map(Enum::name).toList();
+            trajectoriesAvailable = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(trajectoryNames, newHorizonRange, typeNames);
         }
 
       TrajectoryEntity areaTrajectory =  DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable, existingStudyTrajectories, studyDTO.getHorizon());

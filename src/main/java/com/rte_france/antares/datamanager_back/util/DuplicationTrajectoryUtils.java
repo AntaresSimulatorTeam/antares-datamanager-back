@@ -24,7 +24,7 @@ public class DuplicationTrajectoryUtils {
 
     public static final String OTHER_AREA = "OTHERS";
 
-    private static final List<TrajectoryType> SUPPORTED_TRAJECTORY_TYPES = List.of(
+    public static final List<TrajectoryType> SUPPORTED_TRAJECTORY_TYPES = List.of(
             TrajectoryType.AREA,
             TrajectoryType.LINK,
             TrajectoryType.LOAD,
