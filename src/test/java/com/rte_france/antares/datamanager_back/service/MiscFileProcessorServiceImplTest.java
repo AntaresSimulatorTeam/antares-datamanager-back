@@ -197,7 +197,7 @@ class MiscFileProcessorServiceImplTest {
 
             TrajectoryEntity result =
                     service.processInstalledMiscFile("installedMisc_test",
-                            "2029-2030", 1, "FR", true);
+                            "2029-2030", 1, "FR", false);
 
             assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
         }
