@@ -11,7 +11,6 @@ import com.rte_france.antares.datamanager_back.service.common.impl.TrajectorySer
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -237,7 +236,7 @@ class MiscFileProcessorServiceImplTest {
             createInstalledWorkbook(List.of(
                     new Object[]{1, "FR", "g1", "c1", "cat", 100},
                     new Object[]{1, "DE", "g2", "c2", "cat", 200}
-            ), "2029-2030", true);
+            ), 2030);
 
             TrajectoryEntity result =
                     service.processInstalledMiscFile("installedMisc_test",
