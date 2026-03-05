@@ -807,4 +807,36 @@ public class Utils {
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }
+
+    public static String calculateDirectoryChecksum(Path directory)
+            throws IOException, NoSuchAlgorithmException {
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+        try (Stream<Path> paths = Files.walk(directory)) {
+
+            List<Path> files = paths
+                    .filter(Files::isRegularFile)
+                    .sorted(Comparator.comparing(Path::toString)) // ordre stable
+                    .toList();
+
+            for (Path file : files) {
+
+                // Hash du chemin relatif (important)
+                Path relativePath = directory.relativize(file);
+                digest.update(relativePath.toString().getBytes());
+
+                // Hash du contenu du fichier
+                try (InputStream is = Files.newInputStream(file)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = is.read(buffer)) != -1) {
+                        digest.update(buffer, 0, bytesRead);
+                    }
+                }
+            }
+        }
+
+        return HexFormat.of().formatHex(digest.digest());
+    }
 }

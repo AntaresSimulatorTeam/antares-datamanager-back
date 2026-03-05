@@ -718,6 +718,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             directoryByType = antaresDataManagerProperties.getLoadDirectory();
         } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
             directoryByType = antaresDataManagerProperties.getThermalModulationParameterDirectory();
+        } else if (TrajectoryType.MISC_LOAD.equals(type)) {
+            directoryByType = antaresDataManagerProperties.getMiscLoadDirectory();
         }
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {

@@ -4,6 +4,9 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 
 import java.io.IOException;
 
-public interface InstalledMiscFileProcessorService {
+public interface MiscFileProcessorService {
+
     TrajectoryEntity processInstalledMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException;
+
+    TrajectoryEntity processLoadFactorMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws Exception;
 }
