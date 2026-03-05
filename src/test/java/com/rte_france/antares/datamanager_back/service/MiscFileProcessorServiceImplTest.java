@@ -69,16 +69,9 @@ class MiscFileProcessorServiceImplTest {
     // Helpers
     // ======================================================
 
-    private Path createInstalledWorkbook(List<Object[]> rows, String horizon, boolean isCivilYear) throws Exception {
+    private Path createInstalledWorkbook(List<Object[]> rows, int year, boolean isCivilYear) throws Exception {
 
         Path file = Files.createTempFile(tempDir, "installedMisc_", ".xlsx");
-        int horizonYear;
-        if (isCivilYear) {
-            horizonYear = Integer.parseInt(horizon.split("-")[1]);
-        } else {
-            int endYear = Integer.parseInt(horizon.split("-")[1]);
-            horizonYear = endYear + 1;
-        }
 
         try (Workbook wb = new XSSFWorkbook()) {
 
@@ -90,7 +83,7 @@ class MiscFileProcessorServiceImplTest {
             header.createCell(2).setCellValue("Group");
             header.createCell(3).setCellValue("Cluster");
             header.createCell(4).setCellValue("Category");
-            header.createCell(5).setCellValue(horizonYear);
+            header.createCell(5).setCellValue(year);
 
             int rowIndex = 1;
 
@@ -172,7 +165,7 @@ class MiscFileProcessorServiceImplTest {
             createInstalledWorkbook(List.of(
                     new Object[]{1, "FR", "g1", "c1", "cat", 100},
                     new Object[]{1, "DE", "g2", "c2", "cat", 200}
-            ), "2029-2030", false);
+            ), 2030, false);
 
             TrajectoryEntity result =
                     service.processInstalledMiscFile("installedMisc_test",
@@ -205,7 +198,7 @@ class MiscFileProcessorServiceImplTest {
         @Test
         void shouldThrowWhenHorizonMissing() throws Exception {
 
-            createInstalledWorkbook(List.of(), "2024-2025", false);
+            createInstalledWorkbook(List.of(), 2025, false);
 
             assertThatThrownBy(() ->
                     service.processInstalledMiscFile("installedMisc_test",
@@ -233,7 +226,7 @@ class MiscFileProcessorServiceImplTest {
 
             createInstalledWorkbook(Collections.singletonList(
                     new Object[]{1, "FR", "g", "c", "cat", 100}
-            ), "2029-2030", false);
+            ), 2030, false);
 
             TrajectoryEntity result =
                     service.processInstalledMiscFile("installedMisc_test",
