@@ -255,7 +255,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "OTHERS_AREA")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}");
+                .hasMessageContaining("None of the areas of trajectory AREA are present in {0} trajectory {1}");
     }
 
     @Test
@@ -355,7 +355,7 @@ class DsrFileProcessorServiceImplTest {
                 )
         );
 
-        assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present in DSR cluster trajectory {0}"));
+        assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present in {0} trajectory {1}"));
     }
 
     @Test
@@ -440,7 +440,7 @@ class DsrFileProcessorServiceImplTest {
                 )
         );
 
-        assertTrue(ex.getMessage().contains("Selected area {0} is not present in the 'node' column of DSR cluster trajectory {1}"));
+        assertTrue(ex.getMessage().contains("Selected area {0} is not present in the 'node' column of {1} trajectory {2}"));
     }
 
     @Test
