@@ -467,36 +467,38 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) return;
 
         for (int i = 6; i < header.getLastCellNum(); i++) {
-            String monthYear = header.getCell(i).getStringCellValue();
-            boolean toUse = row.getCell(0).getNumericCellValue() == 1;
-            if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
+            if (header.getCell(i) != null && !header.getCell(i).getStringCellValue().isEmpty()) {
+                String monthYear = header.getCell(i).getStringCellValue();
+                boolean toUse = row.getCell(0).getNumericCellValue() == 1;
+                if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
 
-            ThermalCategoryEnum category = categoryStr.equals(ThermalCategoryEnum.POWER.name().toLowerCase())
-                    ? ThermalCategoryEnum.POWER
-                    : ThermalCategoryEnum.NUMBER;
+                ThermalCategoryEnum category = categoryStr.equals(ThermalCategoryEnum.POWER.name().toLowerCase())
+                        ? ThermalCategoryEnum.POWER
+                        : ThermalCategoryEnum.NUMBER;
 
-            double value = capacityValue(row, i, horizon, trajectoryName, category);
+                double value = capacityValue(row, i, horizon, trajectoryName, category);
 
-            // Ajout des valeurs au checksum
-            checksum.append(rowArea).append("|")
-                    .append(techName).append("|")
-                    .append(clusterName).append("|")
-                    .append(category.name()).append("|")
-                    .append(monthYear).append("|")
-                    .append(value).append("|")
-                    .append(fuel).append("|")
-                    .append(toUse).append("\n");
+                // Ajout des valeurs au checksum
+                checksum.append(rowArea).append("|")
+                        .append(techName).append("|")
+                        .append(clusterName).append("|")
+                        .append(category.name()).append("|")
+                        .append(monthYear).append("|")
+                        .append(value).append("|")
+                        .append(fuel).append("|")
+                        .append(toUse).append("\n");
 
-            ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
-                    .toUse(toUse)
-                    .area(rowArea)
-                    .fuel(fuel)
-                    .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName, null))
-                    .category(category)
-                    .monthYear(monthYear)
-                    .value(value)
-                    .build();
-            result.add(entity);
+                ThermalClusterCapacityEntity entity = ThermalClusterCapacityEntity.builder()
+                        .toUse(toUse)
+                        .area(rowArea)
+                        .fuel(fuel)
+                        .thermalClusterRef(thermalClusterRefService.findOrCreateThermalClusterRef(techName, clusterName, null))
+                        .category(category)
+                        .monthYear(monthYear)
+                        .value(value)
+                        .build();
+                result.add(entity);
+            }
         }
     }
 
@@ -568,9 +570,11 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         List<String> actualColumns = new ArrayList<>();
         for (int i = 6; i < header.getLastCellNum(); i++) {
+            if(header.getCell(i) != null && !header.getCell(i).getStringCellValue().isEmpty()) {
             String colName = header.getCell(i).getStringCellValue();
             if (isCellInHorizon(colName, horizon, isCivilYear)) {
                 actualColumns.add(colName);
+            }
             }
         }
         for (String col : expectedColumns) {

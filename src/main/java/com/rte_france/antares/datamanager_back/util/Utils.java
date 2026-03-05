@@ -8,7 +8,10 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -55,6 +58,7 @@ public class Utils {
     private static final String STS_PREFIX = "cluster_";
     private static final String DSR_PREFIX = "cluster_DSR_";
     private static final String DSR_CAPACITY_MODULATION = "cm_";
+    private static final String MISC_CAPACITY_PREFIX = "installedMisc_";
 
     public static final String OTHERS_AREA = "OTHERS";
 
@@ -240,6 +244,8 @@ public class Utils {
             prefix = DSR_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.DSR_CAPACITY_MODULATION.toString())) {
             prefix = DSR_CAPACITY_MODULATION;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.MISC_CAPACITY.toString())) {
+            prefix = MISC_CAPACITY_PREFIX;
         } else {
             prefix = "";
         }
@@ -397,9 +403,12 @@ public class Utils {
         return switch (type) {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER -> "NA";
-            case STS ->  computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
-            case DSR ->  computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
+                    "NA";
+            case STS ->
+                    computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case DSR ->
+                    computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
             default -> computeSheetChecksum(path.toString(), horizon);
         };
@@ -693,10 +702,11 @@ public class Utils {
             if (dir.isPresent()) {
                 return dir.get();
             } else {
-                throw  BusinessException.builder().message("Directory not found under " + extractStsPathFromErrorMessage(parent.toString()) + " for '" + childName + "'").build();
+                throw BusinessException.builder().message("Directory not found under " + extractStsPathFromErrorMessage(parent.toString()) + " for '" + childName + "'").build();
             }
         }
     }
+
     // java
     public static String extractStsPathFromErrorMessage(String errorMessage) {
         if (errorMessage == null) return null;
