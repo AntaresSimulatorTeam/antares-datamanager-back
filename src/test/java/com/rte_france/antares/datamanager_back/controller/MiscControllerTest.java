@@ -47,11 +47,11 @@ class MiscControllerTest {
         entity.setHasTimeSeries(false);
 
         when(miscFileProcessorService.processInstalledMiscFile(
-                eq("installedMisc_test"),
-                eq("2029-2030"),
-                eq(1),
-                eq("FR"),
-                eq(false)
+                "installedMisc_test",
+                "2029-2030",
+                1,
+                "FR",
+                false
         )).thenReturn(entity);
 
         mockMvc.perform(post("/v1/trajectory/installed-misc")
@@ -114,10 +114,10 @@ class MiscControllerTest {
         entity.setHasTimeSeries(true);
 
         when(miscFileProcessorService.processLoadFactorMiscFile(
-                eq("loadFactor_test"),
-                eq("2029-2030"),
-                eq(1),
-                eq("FR")
+                "loadFactor_test",
+                "2029-2030",
+                1,
+                "FR"
         )).thenReturn(entity);
 
         mockMvc.perform(post("/v1/trajectory/load-factor-misc")
