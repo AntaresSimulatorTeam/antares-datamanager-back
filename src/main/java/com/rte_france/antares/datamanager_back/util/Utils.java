@@ -850,14 +850,6 @@ public class Utils {
 
         return HexFormat.of().formatHex(digest.digest());
     }
-    
-    private String getErrormessageLabelFromType(TrajectoryType type) {
-        return switch (type) {
-            case DSR -> "DSR cluster";
-            case MISC_CAPACITY -> "MISC";
-            default -> "trajectory";
-        };
-    }
 
     public <T> void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
@@ -865,18 +857,6 @@ public class Utils {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
                     .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    public void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
-        if (hasNoAreaOfTrajectoryAreaInFile) {
-            String label = getErrormessageLabelFromType(trajectoryType);
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(label, trajectoryToUse))
-                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
