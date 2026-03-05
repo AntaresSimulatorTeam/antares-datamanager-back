@@ -859,29 +859,9 @@ public class Utils {
         };
     }
 
-    private <T> String resolveLabelFromResults(List<T> results, Function<T, TrajectoryType> typeExtractor) {
-        if (results == null || results.isEmpty()) {
-            return "trajectory"; // fallback (ou "UNKNOWN")
-        }
-
-        TrajectoryType type = results.stream()
-                .filter(Objects::nonNull)
-                .map(typeExtractor)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(TrajectoryType.UNKNOWN);
-        
-        return getErrormessageLabelFromType(type);
-    }
-
-    public <T> void validateSelectedAreaPresence(String areaParam, List<T> results, String trajectoryFileName, Function<T, String> areaExtractor, Function<T, TrajectoryType> typeExtractor) {
-        Set<String> fileAreas = results.stream()
-                .map(areaExtractor)
-                .filter(a -> a != null && !a.isBlank())
-                .map(String::toUpperCase)
-                .collect(Collectors.toSet());
+    public <T> void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
-            String label = resolveLabelFromResults(results, typeExtractor);
+            String label = getErrormessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
                     .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
