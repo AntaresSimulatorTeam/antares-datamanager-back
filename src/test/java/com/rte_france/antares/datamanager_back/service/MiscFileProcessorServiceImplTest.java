@@ -141,7 +141,7 @@ class MiscFileProcessorServiceImplTest {
         @Test
         void shouldRejectInvalidTrajectoryName() {
             assertThatThrownBy(() ->
-                    service.processInstalledMiscFile("bad", "2029-2030", 1, "FR"))
+                    service.processInstalledMiscFile("bad", "2029-2030", 1, "FR", false))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -155,7 +155,7 @@ class MiscFileProcessorServiceImplTest {
 
             TrajectoryEntity result =
                     service.processInstalledMiscFile("installedMisc_test",
-                            "2029-2030", 1, "FR");
+                            "2029-2030", 1, "FR", false);
 
             assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
         }
@@ -167,7 +167,7 @@ class MiscFileProcessorServiceImplTest {
 
             assertThatThrownBy(() ->
                     service.processInstalledMiscFile("installedMisc_test",
-                            "2029-2030", 1, "FR"))
+                            "2029-2030", 1, "FR", false))
                     .isInstanceOf(BusinessException.class);
         }
 
@@ -189,7 +189,7 @@ class MiscFileProcessorServiceImplTest {
 
             TrajectoryEntity result =
                     service.processInstalledMiscFile("installedMisc_test",
-                            "2029-2030", 1, "FR");
+                            "2029-2030", 1, "FR", false);
 
             assertThat(result.getVersion()).isEqualTo(3);
         }
