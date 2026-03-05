@@ -182,6 +182,27 @@ class MiscFileProcessorServiceImplTest {
         }
 
         @Test
+        void shouldFilterByAreaWhenisCivilYear() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            AreaEntity de = new AreaEntity();
+            de.setName("DE");
+
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+
+            createInstalledWorkbook(List.of(
+                    new Object[]{1, "FR", "g1", "c1", "cat", 100},
+                    new Object[]{1, "DE", "g2", "c2", "cat", 200}
+            ), "2029-2030", true);
+
+            TrajectoryEntity result =
+                    service.processInstalledMiscFile("installedMisc_test",
+                            "2029-2030", 1, "FR", true);
+
+            assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+        }
+
+        @Test
         void shouldThrowWhenHorizonMissing() throws Exception {
 
             createInstalledWorkbook(List.of(), "2024-2025", false);
