@@ -340,7 +340,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         if (numeric == null) {
             invalidCombos.add(combo);
             return;
-        };
+        }
         BigDecimal capacityByYear = BigDecimal.valueOf(numeric.doubleValue());
 
         MiscClusterCapacityEntity entity = MiscClusterCapacityEntity.builder()
