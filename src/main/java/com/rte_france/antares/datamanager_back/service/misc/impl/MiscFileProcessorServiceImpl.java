@@ -50,7 +50,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
     private static final String INSTALLED_MISC_PREFIX = "installedMisc_";
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "ToUse", "Area", "Group", "Cluster", "Capacity"};
+            "ToUse", "Area", "Group", "Cluster", "Category"};
 
     @Transactional
     @Override
@@ -94,7 +94,8 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             if (isCivilYear) {
                 horizonYear = horizon.split("-")[1];
             } else {
-                horizonYear = horizon.split("-")[1] + 1;
+                int endYear = Integer.parseInt(horizon.split("-")[1]);
+                horizonYear = String.valueOf(endYear + 1);
             }
 
             yearColIndex = getYearColIndex(lastCol, header, horizonYear, yearColIndex);
