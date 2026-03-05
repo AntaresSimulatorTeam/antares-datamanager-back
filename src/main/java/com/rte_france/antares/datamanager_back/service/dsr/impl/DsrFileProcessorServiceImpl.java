@@ -304,7 +304,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.DSR, trajectoryFileName);
 
             // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-            validateSelectedAreaPresence(areaParam, results, trajectoryFileName, DsrClusterEntity::getArea, e -> TrajectoryType.DSR);
+            validateSelectedAreaPresence(areaParam, fileAreas, TrajectoryType.DSR, trajectoryFileName);
         }
         return results;
     }
