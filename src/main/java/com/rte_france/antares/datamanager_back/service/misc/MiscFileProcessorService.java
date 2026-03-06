@@ -6,7 +6,7 @@ import java.io.IOException;
 
 public interface MiscFileProcessorService {
 
-    TrajectoryEntity processInstalledMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException;
+    TrajectoryEntity processInstalledMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area, boolean isCivilYear) throws IOException;
 
     TrajectoryEntity processLoadFactorMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws Exception;
 }
