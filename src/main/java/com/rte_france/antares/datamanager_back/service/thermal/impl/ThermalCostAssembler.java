@@ -73,10 +73,9 @@ public class ThermalCostAssembler {
     private void computeFallbackCo2(ThermalClusterGenerationDto dto, String fuel, ThermalEconomicEnerContentEntity economicTrajectory, Double ratioNcvHcv) {
         Double rawEfficiency = dto.getEfficiency();
         if (rawEfficiency == null || rawEfficiency == 0.0) return;
-        final Double efficiency = (rawEfficiency > 1.0) ? rawEfficiency / 100.0 : rawEfficiency;
+        final double efficiency = (rawEfficiency > 1.0) ? rawEfficiency / 100.0 : rawEfficiency;
 
         TrajectoryEntity trajectory = economicTrajectory.getTrajectory();
-        if (economicTrajectory == null) return;
         Integer horizonYear = parseHorizonYear(trajectory.getHorizon());
 
         findEconomicCo2(trajectory, fuel, horizonYear).ifPresentOrElse(economicCo2 -> {
