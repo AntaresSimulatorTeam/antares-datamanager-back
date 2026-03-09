@@ -70,6 +70,20 @@ public class ThermalCostAssembler {
         });
     }
 
+    /**
+     * Computes the fallback CO2 emissions for a given thermal cluster generation based on the provided parameters.
+     * This method calculates CO2 emissions using efficiency and energy content ratios, or falls back to alternative
+     * computations based on economic trajectories and CO2 cost if standard parameters are not available.
+     *
+     *      * Compute CO2 emissions from an economic emission factor when available,
+     *      * otherwise fallback to CO2 cost from thermal_cost.
+     *      * Formula: (co2 / 1000) / efficiency / NCV_HHV_ratio
+     *
+     * @param dto Object representing the thermal cluster generation data where the computed CO2 emissions will be set.
+     * @param fuel The fuel type associated with the thermal generation, used for retrieving economic CO2 emissions.
+     * @param economicTrajectory An entity containing economic energy content and CO2-related data used in fallback calculations.
+     * @param ratioNcvHcv Ratio of net calorific value to gross calorific value, influencing the efficiency-adjusted computation.
+     */
     private void computeFallbackCo2(ThermalClusterGenerationDto dto, String fuel, ThermalEconomicEnerContentEntity economicTrajectory, Double ratioNcvHcv) {
         Double rawEfficiency = dto.getEfficiency();
         if (rawEfficiency == null || rawEfficiency == 0.0) return;
@@ -78,6 +92,7 @@ public class ThermalCostAssembler {
         TrajectoryEntity trajectory = economicTrajectory.getTrajectory();
         Integer horizonYear = parseHorizonYear(trajectory.getHorizon());
 
+        // Computes CO2 emissions using economic data or cost fallback
         findEconomicCo2(trajectory, fuel, horizonYear).ifPresentOrElse(economicCo2 -> {
             BigDecimal co2EmissionFuel = economicCo2.getCo2EmissionFuel();
             if (co2EmissionFuel != null) {
