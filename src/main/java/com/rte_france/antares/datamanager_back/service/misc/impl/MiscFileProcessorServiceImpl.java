@@ -108,18 +108,25 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
             List<String> fileAreas = new ArrayList<>();
             Set<String> invalidCombos = new LinkedHashSet<>();
+            boolean allRowsEmpty = true;
             while (rows.hasNext()) {
-                processMiscCapacityRow(areaParam, rows, yearColIndex, entities, checksumBuilder, fileAreas, trajectoryToUse, invalidCombos);
+                Row row = rows.next();
+
+                if (!ExcelCommonValidator.isRowEmpty(row)) {
+                    allRowsEmpty = false;
+                    processMiscCapacityRow(areaParam, row, yearColIndex, entities, checksumBuilder, fileAreas, trajectoryToUse, invalidCombos);
+                }
+            }
+
+
+            if (allRowsEmpty) {
+                throw BusinessException.builder().message("No area found in Misc trajectory " + filePath.getFileName()).httpStatus(HttpStatus.BAD_REQUEST).build();
             }
 
             validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.MISC_CAPACITY, trajectoryToUse);
 
             // The selected area must be present in the file's 'node' column, except when area equals OTHERS
             validateSelectedAreaPresence(areaParam, fileAreas, TrajectoryType.MISC_CAPACITY, trajectoryToUse);
-
-            if (entities.isEmpty()) {
-                throw BusinessException.builder().message("No area found in Misc trajectory " + filePath.getFileName()).httpStatus(HttpStatus.BAD_REQUEST).build();
-            }
 
             if (!invalidCombos.isEmpty()) {
                 String combos = String.join(", ", invalidCombos);
@@ -324,8 +331,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectory;
     }
 
-    private void processMiscCapacityRow(String areaParam, Iterator<Row> rows, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder, List<String> fileAreas, String trajectoryToUse, Set<String> invalidCombos) {
-        Row row = rows.next();
+    private void processMiscCapacityRow(String areaParam, Row row, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder, List<String> fileAreas, String trajectoryToUse,  Set<String> invalidCombos) {
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
         // toUse: ExcelCommonValidator peut extraire 1/0 comme boolean; si absent on considère false

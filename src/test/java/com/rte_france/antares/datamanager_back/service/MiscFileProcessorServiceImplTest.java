@@ -383,10 +383,7 @@ class MiscFileProcessorServiceImplTest {
 
             // areaParam = FR mais seules des lignes DE => filtrées => entities vide
             createInstalledWorkbook(
-                        List.<Object[]>of(
-                                new Object[]{1, "FR", "g1", "c1", "cat", null},
-                    new Object[]{true, "DE", "g", "c", "cat", 100}
-            ), 2030);
+                        List.<Object[]>of(), 2030);
 
             assertThatThrownBy(() ->
                     service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
