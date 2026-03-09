@@ -30,6 +30,20 @@ public class ThermalPropertiesAssemblerService {
     private final ThermalCostAssembler thermalCostAssembler;
 
     public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AreaClusterRefKey that)) return false;
+            String thisName = this.thermalClusterRef != null ? this.thermalClusterRef.getName() : null;
+            String thatName = that.thermalClusterRef != null ? that.thermalClusterRef.getName() : null;
+            return Objects.equals(this.area, that.area) && Objects.equals(thisName, thatName);
+        }
+
+        @Override
+        public int hashCode() {
+            String name = this.thermalClusterRef != null ? this.thermalClusterRef.getName() : null;
+            return Objects.hash(area, name);
+        }
     }
 
     /**
@@ -61,20 +75,43 @@ public class ThermalPropertiesAssemblerService {
 
             var commonTrajectories = trajectories.stream()
                     .filter(Objects::nonNull)
-                    .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType()))
-                            || THERMAL_ECONOMIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+                    .filter(t -> THERMAL_TECHNICAL_COMMON_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
                     .toList();
+            var economicTrajectory = trajectories.stream()
+                    .filter(Objects::nonNull)
+                    .filter(t -> THERMAL_ECONOMIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+                    .findFirst()
+                    .orElse(null);
+            var economicCostTrajectory = trajectories.stream()
+                    .filter(Objects::nonNull)
+                    .filter(t -> THERMAL_ECONOMIC_COST_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
+                    .findFirst()
+                    .orElse(null);
+
+            ThermalEconomicEnerContentEntity economicEnerContentParam = Optional.ofNullable(economicTrajectory)
+                    .map(TrajectoryEntity::getThermalEconomicEnerContents)
+                    .orElseGet(List::of)
+                    .stream()
+                    .filter(e -> "mwht/gj".equalsIgnoreCase(e.getUnit()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (economicEnerContentParam != null) {
+                economicEnerContentParam.setTrajectory(economicTrajectory);
+            }
+
+
             var specificTrajectories = trajectories.stream()
                     .filter(Objects::nonNull)
                     .filter(t -> THERMAL_TECHNICAL_SPECIFIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
                     .toList();
 
-            //clusterRef IP  : name , NA, 1
+            //clusterRef IP: name, NA, 1
             var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories); //by  area_cluster_ref (area + cluster ref)
-            //clusterRef common : name , namePEMMDB, null
+            //clusterRef common: name, namePEMMDB, null
             var commonsParamByClusterName = extractCommonParamsByClusterRef(commonTrajectories); // by cluster name
-            //clusterRef specific  : name , namePEMMDB| NA :(FR) , null
-            var specificsByClusterRef = extractSpecificParamsByClusterRef(specificTrajectories); //by cluster ref
+
+
 
 
             for (var entry : capacitiesByAreaRef.entrySet()) {
@@ -95,7 +132,7 @@ public class ThermalPropertiesAssemblerService {
 
                 List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
 
-                ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, commonTrajectories);
+                ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, economicEnerContentParam, economicCostTrajectory);
 
                 // modulation param ts files ts
                 List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
@@ -187,7 +224,8 @@ public class ThermalPropertiesAssemblerService {
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
             List<ThermalCommonParameterEntity> thermalCommonParameters,
             List<ThermalSpecificParametersEntity> thermalSpecificParameters,
-            List<TrajectoryEntity> commonTrajectories
+            ThermalEconomicEnerContentEntity economicTrajectory,
+            TrajectoryEntity economicCostTrajectory
     ) {
         ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder thermalClusterGenerationDtoBuilder = ThermalClusterGenerationDto.builder();
 
@@ -195,37 +233,26 @@ public class ThermalPropertiesAssemblerService {
         buildFromCommonParameters(thermalCommonParameters, thermalClusterGenerationDtoBuilder);
         buildFromSpecificParameters(thermalCommonParameters, thermalSpecificParameters, thermalClusterGenerationDtoBuilder);
 
-        ThermalCommonParameterEntity commonParam = thermalCommonParameters.stream().findFirst().orElse(null);
-        String fuel = commonParam != null ? commonParam.getFuel() : null;
+        ThermalClusterGenerationDto dto = computeCostsForGenerationDto(thermalClusterCapacities, thermalSpecificParameters,
+                economicTrajectory, economicCostTrajectory, thermalClusterGenerationDtoBuilder, thermalCommonParameters);
 
-        if (fuel == null) {
-            fuel = thermalClusterCapacities.stream()
-                    .map(ThermalClusterCapacityEntity::getFuel)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-        }
+        return dto;
+    }
 
-        Double ratioNcvHcv = null;
-        if (fuel != null) {
-            ratioNcvHcv = thermalCostTypeRepository.findByFuelIgnoreCase(fuel).stream()
-                    .map(ThermalCostTypeEntity::getRatioNcvHcv)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-        }
+    private ThermalClusterGenerationDto computeCostsForGenerationDto(List<ThermalClusterCapacityEntity> thermalClusterCapacities,
+                                                                     List<ThermalSpecificParametersEntity> specificParams,
+                                                                     ThermalEconomicEnerContentEntity economicTrajectory,
+                                                                     TrajectoryEntity economicCostTrajectory,
+                                                                     ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder thermalClusterGenerationDtoBuilder,
+                                                                     List<ThermalCommonParameterEntity> commonParams) {
+        ThermalClusterGenerationDto dto = thermalClusterGenerationDtoBuilder.build();
 
-       ThermalClusterGenerationDto dto = thermalClusterGenerationDtoBuilder.build();
-        thermalSpecificParameters.stream().findFirst().ifPresent(specificParam -> {
-            if (specificParam.getMarginalCost() != null) {
-                dto.setMarginalCost(specificParam.getMarginalCost());
-            }
-        });
+        thermalCostAssembler.computeCo2(dto, commonParams, economicTrajectory);
 
-        thermalCostAssembler.computeCo2(dto, commonParam, fuel, commonTrajectories, ratioNcvHcv);
-        thermalCostAssembler.computeStartupCost(dto, commonParam, fuel, thermalSpecificParameters, thermalClusterCapacities, commonTrajectories);
-        thermalCostAssembler.computeMarketBidCost(dto, commonParam, thermalSpecificParameters);
+        thermalCostAssembler.computeStartupAndMarginalCost(dto, commonParams, specificParams,
+                thermalClusterCapacities, economicTrajectory, economicCostTrajectory);
 
+        thermalCostAssembler.computeMarketBidCost(dto, commonParams, specificParams);
         return dto;
     }
 

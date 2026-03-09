@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -39,13 +41,14 @@ class ThermalPropertiesAssemblerServiceTest {
     @InjectMocks
     private ThermalPropertiesAssemblerService service;
 
-    private final ThermalCostAssembler thermalCostAssembler = new ThermalCostAssembler();
+    private ThermalCostAssembler thermalCostAssembler;
 
     private ThermalClusterRef gasRef;
     private ThermalClusterRef nucRef;
 
     @BeforeEach
     void init() throws Exception {
+        thermalCostAssembler = new ThermalCostAssembler(thermalCostTypeRepository);
         var field = ThermalPropertiesAssemblerService.class.getDeclaredField("thermalCostAssembler");
         field.setAccessible(true);
         field.set(service, thermalCostAssembler);
@@ -414,7 +417,9 @@ class ThermalPropertiesAssemblerServiceTest {
                 ))
                 .build();
 
-        // CO2 = 100 kg/Net GJ. Conversion: 100 * 0.0036 = 0.36 t/MWhe
+        // CO2 = 100 kg/Net GJ. Conversion: 100 * (3.6 / 1000) / (efficiency / 100)
+        // efficiency = 0.415 (41.5%)
+        // Result = 100 * 0.0036 / 0.415 = 0.36 / 0.415 = 0.8674... -> 0.867
         var paramTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalCommonParameters(List.of(
@@ -429,7 +434,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        assertThat(dto.getCo2()).isEqualTo(0.36);
+        assertThat(dto.getCo2()).isEqualTo(0.867);
     }
 
     @Test
@@ -452,13 +457,24 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thermalCommonParameters(List.of(commonParam))
                 .build();
 
-        // Economic CO2 data in the same trajectory (or another one)
         var econCo2 = ThermalEconomicCo2Entity.builder()
                 .fuel("GAS")
                 .year(2026)
                 .co2EmissionFuel(new BigDecimal("100.0")) // kg/MWht
                 .build();
-        paramTraj.setThermalEconomicCo2s(List.of(econCo2));
+
+        var enerContent = ThermalEconomicEnerContentEntity.builder()
+                .value(new BigDecimal("1.0"))
+                .unit("mwht/gj")
+                .build();
+
+        var econTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
+                .thermalEconomicCo2s(List.of(econCo2))
+                .thermalEconomicEnerContents(List.of(enerContent))
+                .build();
+        enerContent.setTrajectory(econTraj);
+        econCo2.setTrajectory(econTraj);
 
         // Mock for ratio_ncv_hcv
         when(thermalCostTypeRepository.findByFuelIgnoreCase("GAS"))
@@ -471,7 +487,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj)).build());
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj, econTraj)).build());
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
@@ -502,12 +518,17 @@ class ThermalPropertiesAssemblerServiceTest {
                 .co2EmissionFuel(new BigDecimal("1000"))
                 .build();
 
-        var commonTraj = TrajectoryEntity.builder()
-                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+        var econTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
                 .horizon("2025")
-                .thermalCommonParameters(List.of(commonParam))
                 .thermalEconomicCo2s(List.of(economicCo2))
+                .thermalEconomicEnerContents(List.of(
+                        ThermalEconomicEnerContentEntity.builder().unit("mwht/gj").value(BigDecimal.ONE).build()
+                ))
                 .build();
+        for (ThermalEconomicEnerContentEntity e : econTraj.getThermalEconomicEnerContents()) {
+            e.setTrajectory(econTraj);
+        }
 
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
@@ -523,7 +544,13 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thenReturn(Optional.of(gasCostType));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .horizon("2025")
+                .thermalCommonParameters(List.of(commonParam))
+                .build();
+
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, econTraj)).build());
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("AREA_FR", gasRef));
@@ -564,7 +591,13 @@ class ThermalPropertiesAssemblerServiceTest {
                 .horizon("2025")
                 .thermalCommonParameters(List.of(commonParam))
                 .thermalEconomicCo2s(List.of(economicCo2))
+                .thermalEconomicEnerContents(List.of(
+                        ThermalEconomicEnerContentEntity.builder().unit("mwht/gj").value(BigDecimal.ONE).build()
+                ))
                 .build();
+        for (ThermalEconomicEnerContentEntity e : commonTraj.getThermalEconomicEnerContents()) {
+            e.setTrajectory(commonTraj);
+        }
 
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
@@ -650,34 +683,44 @@ class ThermalPropertiesAssemblerServiceTest {
                 .p10(poMonthlyRate.get(9)).p11(poMonthlyRate.get(10)).p12(poMonthlyRate.get(11))
                 .build();
     }
+
     @Test
     void assembleForTrajectory_computesStartupCost() {
         // given
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true)
+                                .toBuilder().area("FR").build(),
                         ThermalClusterCapacityEntity.builder()
                                 .thermalClusterRef(gasRef)
                                 .fuel("GAS")
-                                .value(50.0) // startup_fuel
                                 .area("FR")
                                 .build()
                 ))
                 .build();
 
-        var commonParam = params(gasRef, 0.4, 3, 2, 0.40, 7.2, 100.0);
+        var commonParam = params(gasRef, 0.4, 3, 2, 40.0, 7.2, 100.0);
         commonParam.setFuel("GAS");
         commonParam.setStartUpFixCost(1000.0);
+        commonParam.setStartUpFuel(500.0);
 
-        var paramTraj = TrajectoryEntity.builder()
-                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
-                .thermalCommonParameters(List.of(commonParam))
+        var econTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
                 .thermalEconomicEnerContents(List.of(
                         ThermalEconomicEnerContentEntity.builder()
                                 .value(new BigDecimal("2.0")) // ener_value
+                                .unit("mwht/gj")
                                 .build()
                 ))
+                .build();
+        for (ThermalEconomicEnerContentEntity e : econTraj.getThermalEconomicEnerContents()) {
+            e.setTrajectory(econTraj);
+        }
+
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(commonParam))
                 .build();
 
         var specificParam = ThermalSpecificParametersEntity.builder()
@@ -685,7 +728,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .marginalCost(30.0) // marginal_cost
                 .minStableGeneration(0.4)
                 .spinning(0.0)
-                .efficiency(0.40)
+                .efficiency(0.4)
                 .foDuration(0.0)
                 .poDuration(0.0)
                 .f1(0.0).f2(0.0).f3(0.0).f4(0.0).f5(0.0).f6(0.0).f7(0.0).f8(0.0).f9(0.0).f10(0.0).f11(0.0).f12(0.0)
@@ -704,13 +747,13 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj, specificTraj)).build());
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, specificTraj)).build());
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        // startup_fuel (50) * ener_value (2.0) * efficiency (0.4) * marginal_cost (30.0) + startup_fix_cost (1000)
-        // 50 * 2.0 * 0.4 * 30.0 + 1000 = 100 * 12 + 1000 = 1200 + 1000 = 2200
-        assertThat(dto.getStartupCost()).isEqualTo(2200.0);
+        // startup_fuel (500) * COEFF (3.6) * efficiency (0.4) * marginal_cost (30.0) + startup_fix_cost (1000)
+        // 500 * 3.6 * 0.4 * 30.0 + 1000 = 100 * 12 + 1000 = 1200 + 1000 = 22600
+        assertThat(dto.getStartupCost()).isEqualTo(22600.0);
     }
 
     @Test
@@ -719,11 +762,11 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true)
+                                .toBuilder().area("FR").build(),
                         ThermalClusterCapacityEntity.builder()
                                 .thermalClusterRef(gasRef)
                                 .fuel("GAS")
-                                .value(50.0) // startup_fuel
                                 .area("FR")
                                 .build()
                 ))
@@ -732,24 +775,13 @@ class ThermalPropertiesAssemblerServiceTest {
         var commonParam = params(gasRef, 0.4, 3, 2, 0.50, 7.2, 0.0); // efficiency 0.5 (50%), om_cost 7.2
         commonParam.setFuel("GAS");
         commonParam.setStartUpFixCost(1000.0);
+        commonParam.setStartUpFuel(500.0);
 
         // Economic CO2 for computeCo2
         var econCo2 = ThermalEconomicCo2Entity.builder()
                 .fuel("GAS")
                 .year(2026)
                 .co2EmissionFuel(new BigDecimal("90.0")) // kg/MWht
-                .build();
-
-        var parameterTrajectory = TrajectoryEntity.builder()
-                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
-                .horizon("2026")
-                .thermalCommonParameters(List.of(commonParam))
-                .thermalEconomicEnerContents(List.of(
-                        ThermalEconomicEnerContentEntity.builder()
-                                .value(new BigDecimal("2.0")) // ener_value
-                                .build()
-                ))
-                .thermalEconomicCo2s(List.of(econCo2))
                 .build();
 
         // Fuel costs for fallback marginal cost
@@ -761,8 +793,31 @@ class ThermalPropertiesAssemblerServiceTest {
         var co2Cost = ThermalCostEntity.builder().thermalType(co2CostType).cost(25.0).build();
         co2CostType.setThermalCostEntities(List.of(co2Cost));
 
-        var costTraj = TrajectoryEntity.builder()
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .horizon("2026")
+                .thermalCommonParameters(List.of(commonParam))
+                .build();
+
+        var econTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
+                .horizon("2026")
+                .thermalEconomicEnerContents(List.of(
+                        ThermalEconomicEnerContentEntity.builder()
+                                .value(new BigDecimal("2.0")) // ener_value
+                                .unit("mwht/gj")
+                                .build()
+                ))
+                .thermalEconomicCo2s(List.of(econCo2))
+                .build();
+        for (ThermalEconomicEnerContentEntity e : econTraj.getThermalEconomicEnerContents()) {
+            e.setTrajectory(econTraj);
+        }
+        econCo2.setTrajectory(econTraj);
+
+        var costTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                .horizon("2026")
                 .thermalCosts(List.of(gasCost, co2Cost))
                 .build();
         gasCost.setTrajectory(costTraj);
@@ -772,7 +827,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(thermalCostTypeRepository.findByFuelIgnoreCase("GAS")).thenReturn(Optional.of(gasCostType));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, parameterTrajectory, costTraj)).build());
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, costTraj)).build());
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
@@ -782,9 +837,9 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // 2. Marginal cost fallback: (fuelCost / efficiency) + (co2Cost * co2) + omCost
         // (40 / 0.5) + (25 * 0.2) + 7.2 = 80 + 5 + 7.2 = 92.2
-        // 3. Startup cost: startup_fuel (50) * ener_value (2.0) * efficiency (0.5) * marginal_cost (92.2) + startup_fix_cost (1000)
-        // 50 * 2.0 * 0.5 * 92.2 + 1000 = 50 * 92.2 + 1000 = 4610 + 1000 = 5610
-        assertThat(dto.getStartupCost()).isCloseTo(5610.0, within(0.0001));
+        // 3. Startup cost: startup_fuel (500) * COEFF (3.6) * efficiency (0.5) * marginal_cost (92.2) + startup_fix_cost (1000)
+        // 500 * 3.6 * 0.5 * 92.2 + 1000 = 50 * 92.2 + 1000 = 4610 + 1000 = 83980
+        assertThat(dto.getStartupCost()).isCloseTo(83980, within(0.0001));
     }
 
     @Test
@@ -923,7 +978,7 @@ class ThermalPropertiesAssemblerServiceTest {
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
-        assertThat(dto.getCo2()).isEqualTo(0.36);
+        assertThat(dto.getCo2()).isEqualTo(0.72);
         assertThat(dto.getMarginalCost()).isEqualTo(200.0);
         assertThat(dto.getMarketBidCost()).isEqualTo(190.0); // 200 - 10
     }
@@ -951,19 +1006,29 @@ class ThermalPropertiesAssemblerServiceTest {
                 .co2EmissionFuel(new BigDecimal("1000"))
                 .build();
 
-        var commonTraj = TrajectoryEntity.builder()
-                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+        var econTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
                 .horizon("2025")
-                .thermalCommonParameters(List.of(commonParam))
                 .thermalEconomicCo2s(List.of(economicCo2))
+                .thermalEconomicEnerContents(List.of(
+                        ThermalEconomicEnerContentEntity.builder().unit("mwht/gj").value(BigDecimal.ONE).build()
+                ))
                 .build();
+        for (ThermalEconomicEnerContentEntity e : econTraj.getThermalEconomicEnerContents()) {
+            e.setTrajectory(econTraj);
+        }
 
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
         when(thermalCostTypeRepository.findByFuelIgnoreCase("Gas"))
                 .thenReturn(Optional.of(ThermalCostTypeEntity.builder().fuel("GAS").country("FR").ratioNcvHcv(0.5).build()));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .horizon("2025")
+                .thermalCommonParameters(List.of(commonParam))
+                .build();
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, econTraj)).build());
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", gasRef));
@@ -1006,15 +1071,17 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, specificTraj)).build());
+        var resultMapFinal = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, specificTraj)).build());
 
         // then
-        var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        assertThat(dto).isNotNull();
-        assertThat(dto.getMarginalCost()).isEqualTo(100.0);
+        assertNotNull(resultMapFinal);
+        assertFalse(resultMapFinal.isEmpty());
+        ThermalClusterGenerationDto dtoFound = resultMapFinal.values().iterator().next();
+        assertNotNull(dtoFound);
+        assertEquals(100.0, dtoFound.getMarginalCost());
         // om_cost should be 0.0 since common parameters are missing
         // market_bid_cost = marginal_cost (100.0) - om_cost (0.0) = 100.0
-        assertThat(dto.getMarketBidCost()).isEqualTo(100.0);
+        assertEquals(100.0, dtoFound.getMarketBidCost());
     }
 
     @Test
