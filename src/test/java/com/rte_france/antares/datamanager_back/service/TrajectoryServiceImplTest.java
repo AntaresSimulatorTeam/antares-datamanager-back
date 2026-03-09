@@ -89,6 +89,9 @@ class TrajectoryServiceImplTest {
     @Mock
     private ThermalEconomicService thermalEconomicService;
 
+    @Mock
+    private MiscClusterCapacityRepository miscClusterCapacityRepository;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -1442,5 +1445,56 @@ class TrajectoryServiceImplTest {
                 TrajectoryServiceImpl.verifyExistingEconomicSheet(trajectoryToUse, sheetCo2, sheetEnr));
     }
 
+    @Test
+    void controlesMiscOnSelectInstalledPowerTrajectorySucceedsWhenLoadFactorCoversAllInstalledAreas(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+        Integer trajectoryId = 10;
 
+        GroupAreaMiscCapacity capacity1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
+        GroupAreaMiscCapacity capacity2 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area2";} public String getCluster(){return "cluster1";} };
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, null)).thenReturn(List.of(capacity1, capacity2));
+        when(miscClusterCapacityRepository.findByTrajectoryId(trajectoryId)).thenReturn(Collections.emptyList());
+
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder().fileName("file1").horizon("2030-2031").type(TrajectoryType.MISC_LOAD.name()).build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(loadFactorTrajectory));
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("load_factor_group1_2030-2031.csv"), "area1;area2\n1;2\n");
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("file1"), eq(TrajectoryType.MISC_LOAD));
+
+        TrajectoryEntity installed = TrajectoryEntity.builder().id(trajectoryId).type(TrajectoryType.MISC_CAPACITY.name()).build();
+
+        assertDoesNotThrow(() -> spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), installed, "user"));
+    }
+
+    @Test
+    void controlesMiscOnSelectInstalledPowerTrajectoryThrowsWhenLoadFactorMissingInstalledAreas(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+        Integer trajectoryId = 10;
+
+        GroupAreaMiscCapacity capacity1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
+        GroupAreaMiscCapacity capacity2 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area2";} public String getCluster(){return "cluster1";} };
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, null)).thenReturn(List.of(capacity1, capacity2));
+        when(miscClusterCapacityRepository.findByTrajectoryId(trajectoryId)).thenReturn(Collections.emptyList());
+
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder().fileName("file1").horizon("2030-2031").type(TrajectoryType.MISC_LOAD.name()).build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(loadFactorTrajectory));
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("load_factor_group1_2030-2031.csv"), "area1;other\n1;2\n");
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("file1"), eq(TrajectoryType.MISC_LOAD));
+
+        TrajectoryEntity installed = TrajectoryEntity.builder().id(trajectoryId).type(TrajectoryType.MISC_CAPACITY.name()).build();
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), installed, "user"));
+        assertTrue(exception.getMessage().toLowerCase().contains("missing"));
+    }
 }
