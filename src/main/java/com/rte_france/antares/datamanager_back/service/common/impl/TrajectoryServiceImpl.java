@@ -15,6 +15,8 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
+import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl.readHeaderAreas;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -90,6 +93,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final StStorageRepository stStorageRepository;
 
     private final ThermalParamModulationService thermalParamModulationService;
+
+    private final MiscClusterCapacityRepository miscClusterCapacityRepository;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -951,11 +956,63 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
             case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
+            case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory.getId());
 
         }
 
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
         warningRepository.saveAll(warningMessages);
+    }
+
+    private void controlesMiscOnSelectInstalledPowerTrajectory(Integer studyId, Integer trajectoryId) throws IOException {
+
+        List<TrajectoryEntity> loadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
+        if(!loadFactorTrajectories.isEmpty()) {
+
+            // Merge capacities
+            List<GroupAreaMiscCapacity> capacities = new ArrayList<>(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, null));
+
+            capacities.addAll(miscClusterCapacityRepository.findByTrajectoryId(trajectoryId));
+
+            // Installed power map
+            Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = capacities.stream()
+                    .collect(Collectors.groupingBy(
+                            e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
+                            Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
+                    ));
+
+            // Load factor trajectories
+
+            Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = new HashMap<>();
+
+            for (MiscFileProcessorServiceImpl.GroupClusterKey key : installedPowerMap.keySet()) {
+
+                for (TrajectoryEntity trajectory : loadFactorTrajectories) {
+                    Path path  = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.MISC_LOAD);
+                    List<String> areas = readHeaderAreas(trajectory.getHorizon(), path, key)
+                            .stream()
+                            .map(String::toLowerCase)
+                            .toList();
+
+                    loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).addAll(areas);
+                }
+
+                Set<String> installedAreas = installedPowerMap.get(key);
+                Set<String> loadFactorAreas = loadFactorMap.getOrDefault(key, Collections.emptySet());
+
+                if (!loadFactorAreas.containsAll(installedAreas)) {
+                    List<String> missing = installedAreas.stream()
+                            .filter(a -> !loadFactorAreas.contains(a))
+                            .toList();
+
+                    throw BusinessException.builder()
+                            .message("The load factor trajectory file(s) associated with group {0} and cluster {1} are missing the following areas required by the installed power trajectory: {2}")
+                            .errorMessageArguments(List.of(key.groupe(), key.cluster(), missing.toString()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+        }
     }
 
     private Set<WarningMessageEntity> verifyLoad(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
