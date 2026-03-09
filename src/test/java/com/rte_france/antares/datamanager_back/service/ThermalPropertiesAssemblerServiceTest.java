@@ -683,13 +683,15 @@ class ThermalPropertiesAssemblerServiceTest {
                 .p10(poMonthlyRate.get(9)).p11(poMonthlyRate.get(10)).p12(poMonthlyRate.get(11))
                 .build();
     }
+
     @Test
     void assembleForTrajectory_computesStartupCost() {
         // given
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true)
+                                .toBuilder().area("FR").build(),
                         ThermalClusterCapacityEntity.builder()
                                 .thermalClusterRef(gasRef)
                                 .fuel("GAS")
@@ -701,6 +703,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var commonParam = params(gasRef, 0.4, 3, 2, 40.0, 7.2, 100.0);
         commonParam.setFuel("GAS");
         commonParam.setStartUpFixCost(1000.0);
+        commonParam.setStartUpFuel(500.0);
 
         var econTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
@@ -725,7 +728,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .marginalCost(30.0) // marginal_cost
                 .minStableGeneration(0.4)
                 .spinning(0.0)
-                .efficiency(40.0)
+                .efficiency(0.4)
                 .foDuration(0.0)
                 .poDuration(0.0)
                 .f1(0.0).f2(0.0).f3(0.0).f4(0.0).f5(0.0).f6(0.0).f7(0.0).f8(0.0).f9(0.0).f10(0.0).f11(0.0).f12(0.0)
@@ -748,9 +751,9 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        // startup_fuel (1000) * ener_value (2.0) * efficiency (0.4) * marginal_cost (30.0) + startup_fix_cost (1000)
-        // 1000 * 2.0 * 0.4 * 30.0 + 1000 = 100 * 12 + 1000 = 1200 + 1000 = 2401000
-        assertThat(dto.getStartupCost()).isEqualTo(2401000.0);
+        // startup_fuel (500) * COEFF (3.6) * efficiency (0.4) * marginal_cost (30.0) + startup_fix_cost (1000)
+        // 500 * 3.6 * 0.4 * 30.0 + 1000 = 100 * 12 + 1000 = 1200 + 1000 = 22600
+        assertThat(dto.getStartupCost()).isEqualTo(22600.0);
     }
 
     @Test
@@ -759,7 +762,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true)
+                                .toBuilder().area("FR").build(),
                         ThermalClusterCapacityEntity.builder()
                                 .thermalClusterRef(gasRef)
                                 .fuel("GAS")
@@ -771,6 +775,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var commonParam = params(gasRef, 0.4, 3, 2, 0.50, 7.2, 0.0); // efficiency 0.5 (50%), om_cost 7.2
         commonParam.setFuel("GAS");
         commonParam.setStartUpFixCost(1000.0);
+        commonParam.setStartUpFuel(500.0);
 
         // Economic CO2 for computeCo2
         var econCo2 = ThermalEconomicCo2Entity.builder()
@@ -832,9 +837,9 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // 2. Marginal cost fallback: (fuelCost / efficiency) + (co2Cost * co2) + omCost
         // (40 / 0.5) + (25 * 0.2) + 7.2 = 80 + 5 + 7.2 = 92.2
-        // 3. Startup cost: startup_fuel (50) * ener_value (2.0) * efficiency (0.5) * marginal_cost (92.2) + startup_fix_cost (1000)
-        // 50 * 2.0 * 0.5 * 92.2 + 1000 = 50 * 92.2 + 1000 = 4610 + 1000 = 5610
-        assertThat(dto.getStartupCost()).isCloseTo(93200, within(0.0001));
+        // 3. Startup cost: startup_fuel (500) * COEFF (3.6) * efficiency (0.5) * marginal_cost (92.2) + startup_fix_cost (1000)
+        // 500 * 3.6 * 0.5 * 92.2 + 1000 = 50 * 92.2 + 1000 = 4610 + 1000 = 83980
+        assertThat(dto.getStartupCost()).isCloseTo(83980, within(0.0001));
     }
 
     @Test

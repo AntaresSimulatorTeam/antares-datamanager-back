@@ -206,8 +206,8 @@ public class ThermalCostAssembler {
         if (efficiency == null || efficiency == 0.0) return;
         if (efficiency > 1.0) efficiency = efficiency / 100.0;
 
-        Double startupFuelCap = (commonParam != null && commonParam.getStartUpFixCost() != null)
-                ? commonParam.getStartUpFixCost()
+        Double startupFuel = (commonParam != null && commonParam.getStartUpFuel() != null)
+                ? commonParam.getStartUpFuel()
                 : 0.0;
 
         Double enerValue = (economicTrajectory != null && economicTrajectory.getValue() != null)
@@ -232,8 +232,8 @@ public class ThermalCostAssembler {
         if (marginalCostValue != null) {
             marginalCostValue = round(marginalCostValue);
             Double startupFixCost = (commonParam != null && commonParam.getStartUpFixCost() != null) ? commonParam.getStartUpFixCost() : 0.0;
-            // Formula: startup_fuel * ener_value * efficiency * marginal_cost + startup_fix_cost
-            dto.setStartupCost(round((startupFuelCap * enerValue * efficiency * marginalCostValue) + startupFixCost));
+            // Formula: (startup_fuel * COFF_GJ_T_MWH * efficiency * marginal_cost )+ startup_fix_cost
+            dto.setStartupCost(round((startupFuel * COFF_GJ_T_MWH * efficiency * marginalCostValue) + startupFixCost));
         }
 
         // Always set the calculated marginal cost back to the DTO if it wasn't there
