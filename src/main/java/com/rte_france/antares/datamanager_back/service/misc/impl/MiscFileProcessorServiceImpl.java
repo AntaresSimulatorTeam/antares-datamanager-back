@@ -2,9 +2,9 @@ package com.rte_france.antares.datamanager_back.service.misc.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
 import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -146,17 +146,17 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         // for each group search ts file (ex: load_factor_waste_2030-2031 )  from
         // physical file system in  directory trajectoryFilePath/group/group
         // ou load_factor is the prefix of ts and group the group and horizon the horizon
-        if(listAreasByGroup.isEmpty()) {
+        if (listAreasByGroup.isEmpty()) {
             throw BusinessException.builder()
                     .message("No group found for study id {0} and area {1} in misc cluster capacity table, at least one group is expected to check load factor file(s)")
-                    .errorMessageArguments(List.of(studyId.toString(),area))
+                    .errorMessageArguments(List.of(studyId.toString(), area))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
             GroupClusterKey groupCluster = entry.getKey();
             List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
-            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas);
+            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId);
         }
 
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryFilePath, horizon, area);
@@ -196,29 +196,61 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectory;
     }
 
-    private static void verifyTsFile(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, List<String> areas) throws IOException {
+    private void verifyTsFile(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, List<String> areas, Integer studyId) throws Exception {
+
+        Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
+
+        List<String> mergedHeader = mergedAllHeadersOfAllLoadFactorMiscTrajectories(horizon, trajectoryFilePath, groupClusterKey, studyId);
+        if (!new HashSet<>(mergedHeader).containsAll(areas)) {
+            throw BusinessException.builder()
+                    .message("Load factor file {0} is missing areas for group {1}: expected {2}, found {3}")
+                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe, areas.toString(), mergedHeader.toString()))
+                    .build();
+        } else {
+            log.info("Load factor file {} for group {} contains all expected areas (merged headers)", tsFilePath.getFileName(), groupClusterKey.groupe);
+        }
+    }
+
+    private List<String> mergedAllHeadersOfAllLoadFactorMiscTrajectories(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, Integer studyId) throws IOException {
+        // Read header of the current file
+        List<String> headerAreas = readHeaderAreas(horizon, trajectoryFilePath, groupClusterKey);
+
+        // Merge headers from existing misc load trajectories for this study/horizon (read from DB)
+        Set<String> mergedHeaderSet = new LinkedHashSet<>(headerAreas);
+
+        List<TrajectoryEntity> existingTrajectories = trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name());
+        Set<Path> processedPaths = new HashSet<>();
+        for (TrajectoryEntity traj : existingTrajectories) {
+            try {
+                Path existingTrajectoryFilePath = trajectoryService.buildTrajectoryPath(traj.getFileName(), TrajectoryType.MISC_LOAD);
+                Path existingPath = getLoadFactorByGroupPath(horizon, existingTrajectoryFilePath, groupClusterKey);
+                if (processedPaths.contains(existingPath)) continue;
+                processedPaths.add(existingPath);
+                if (Files.exists(existingPath)) {
+                    List<String> otherHeader = readHeaderAreas(horizon, existingTrajectoryFilePath, groupClusterKey);
+                    mergedHeaderSet.addAll(otherHeader);
+                }
+            } catch (Exception e) {
+                log.warn("Could not read header for trajectory {}: {}", traj.getFileName(), e.getMessage());
+            }
+        }
+
+        return new ArrayList<>(mergedHeaderSet);
+    }
+
+    public static List<String> readHeaderAreas(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey) throws IOException {
         Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
         if (Files.exists(tsFilePath)) {
-            //get header of tsFilePath (csv file ) file and check if it contains all areas
             try (Scanner scanner = new Scanner(tsFilePath)) {
                 if (scanner.hasNextLine()) {
                     String headerLine = scanner.nextLine();
-                    List<String> headerAreas = Arrays.stream(headerLine.split(";"))
+                    return Arrays.stream(headerLine.split(";"))
                             .map(s -> s.strip().replace("\"", "").toLowerCase())
                             .toList();
-                    if (!new HashSet<>(headerAreas).containsAll(areas)) {
-                        throw BusinessException.builder()
-                                .message("Load factor file {0} is missing areas for group {1}: expected {2}, found {3}")
-                                .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe, areas.toString(), headerAreas.toString()))
-                                .build();
-                    } else {
-                        log.info("Load factor file {} for group {} contains all expected areas", tsFilePath.getFileName(), groupClusterKey.groupe);
-
-                    }
                 } else {
                     throw BusinessException.builder()
                             .message("Load factor file {0} for group {1} is empty")
-                            .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe, areas.toString()))
+                            .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
                             .build();
                 }
             }
@@ -292,12 +324,16 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectory;
     }
 
-    private void processMiscCapacityRow(String areaParam, Iterator<Row> rows, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder, List<String> fileAreas, String trajectoryToUse,  Set<String> invalidCombos) {
+    private void processMiscCapacityRow(String areaParam, Iterator<Row> rows, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder, List<String> fileAreas, String trajectoryToUse, Set<String> invalidCombos) {
         Row row = rows.next();
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
         // toUse: ExcelCommonValidator peut extraire 1/0 comme boolean; si absent on considère false
         Boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(null);
+        if(Boolean.FALSE.equals(toUse)) {
+            //skip rows with ToUse = false or empty, they are not relevant for trajectory and can contain invalid data that we don't want to process
+            return;
+        }
 
         String area = Optional.ofNullable(getCellValue(row, 1)).map(Object::toString).orElse(null);
         fileAreas.add(area);
@@ -308,14 +344,14 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         if (toUse == null || area == null || group == null || cluster == null || category == null) {
             throw BusinessException.builder()
-                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory "+ trajectoryToUse)
+                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory " + trajectoryToUse)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
         // Filtre par area param (si areaParam différent de OTHERS on garde uniquement la même area)
         if (areaParam != null && !OTHERS_AREA.equalsIgnoreCase(areaParam)) {
-            if (!areaParam.equalsIgnoreCase(Optional.ofNullable(area).orElse(""))) {
+            if (!areaParam.equalsIgnoreCase(Objects.toString(area, ""))) {
                 return;
             }
         }
