@@ -65,6 +65,8 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .nbUnits(5)
                 .price(new BigDecimal("50.0"))
                 .modulation(true)
+                .maxHourPerDay(3)
+                .nbHourPerDay(2)
                 .build();
 
         TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
@@ -87,6 +89,8 @@ class DsrPropertiesAssemblerServiceImplTest {
         assertEquals(100.5, dto.getNominalCapacity());
         assertEquals(5, dto.getUnitCount());
         assertEquals(50.0, dto.getMarginalCost());
+        assertEquals(3, dto.getMaxHourPerDay());
+        assertEquals(2, dto.getNbHourPerDay());
     }
 
     @Test
