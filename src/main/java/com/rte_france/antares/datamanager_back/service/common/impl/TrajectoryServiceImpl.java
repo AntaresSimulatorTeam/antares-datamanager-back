@@ -45,6 +45,7 @@ import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFile
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static java.util.stream.Collectors.toList;
 
 
 @Slf4j
@@ -159,17 +160,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA -> areaConfigRepository.findAreaConfigByTrajectoryId(trajectoryId)
                     .stream()
                     .map(AreaMapper::toAreaTrajectoryDataDTO)
-                    .collect(Collectors.toList());
+                    .collect(toList());
 
             case LINK -> linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
                     .stream()
                     .map(LinkMapper::toLinkTrajectoryDataDTO)
-                    .collect(Collectors.toList());
+                    .collect(toList());
 
             case STS -> stStorageRepository.findStStorageEntitiesByTrajectoryId(trajectoryId)
                     .stream()
                     .map(StStorageMapper::toStStorageTrajectoryDataDTO)
-                    .collect(Collectors.toList());
+                    .collect(toList());
 
             default -> throw TechnicalException.builder()
                     .message("TrajectoryType {0} is not supported.")
@@ -956,7 +957,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
             case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
-            case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory.getId());
+            case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
+            case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
 
         }
 
@@ -964,53 +966,132 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         warningRepository.saveAll(warningMessages);
     }
 
-    private void controlesMiscOnSelectInstalledPowerTrajectory(Integer studyId, Integer trajectoryId) throws IOException {
+    private void controlesMiscOnSelectLoadFactorTrajectory(Integer studyId, TrajectoryEntity trajectory) throws IOException {
+
+        List<GroupAreaMiscCapacity> capacities = miscClusterCapacityRepository.findByStudyIdAndArea(studyId, trajectory.getArea());
+
+        if (capacities.isEmpty()) {
+            return;
+        }
+
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> capacityMap = buildCapacityAreasMap(capacities);
+
+        List<TrajectoryEntity> loadFactorTrajectories = new ArrayList<>(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId));
+
+        // Add the trajectory currently being selected
+        Integer trajectoryId = trajectory.getId();
+        TrajectoryEntity currentTrajectory = trajectoryRepository.findById(trajectoryId)
+                .orElseThrow(() -> new IllegalArgumentException("Trajectory not found: " + trajectoryId));
+
+        loadFactorTrajectories.add(currentTrajectory);
+
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = buildMergedLoadFactorHeaders(loadFactorTrajectories, capacityMap.keySet());
+
+        validateAreas(capacityMap, loadFactorMap);
+    }
+
+
+    private void controlesMiscOnSelectInstalledPowerTrajectory(Integer studyId, TrajectoryEntity trajectory) throws IOException {
+        List<GroupAreaMiscCapacity> additionalCapacities = miscClusterCapacityRepository.findByTrajectoryId(trajectory.getId());
+
+        controlesMiscInstalledPower(studyId, additionalCapacities, trajectory.getArea());
+    }
+
+    public void controlesMiscOnImportInstalledPower(Integer studyId, List<MiscClusterCapacityEntity> miscClusterCapacityEntities, String area) throws IOException {
+        Set<GroupAreaMiscCapacity> additionalCapacities = mapToGroupAreaMiscCapacity(miscClusterCapacityEntities);
+
+        controlesMiscInstalledPower(studyId, new ArrayList<>(additionalCapacities), area);
+    }
+
+    private void controlesMiscInstalledPower(Integer studyId, List<GroupAreaMiscCapacity> additionalCapacities, String area) throws IOException {
 
         List<TrajectoryEntity> loadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
-        if(!loadFactorTrajectories.isEmpty()) {
 
-            // Merge capacities
-            List<GroupAreaMiscCapacity> capacities = new ArrayList<>(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, null));
+        if (loadFactorTrajectories.isEmpty()) {
+            return;
+        }
 
-            capacities.addAll(miscClusterCapacityRepository.findByTrajectoryId(trajectoryId));
+        List<GroupAreaMiscCapacity> capacities = new ArrayList<>(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area));
 
-            // Installed power map
-            Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = capacities.stream()
-                    .collect(Collectors.groupingBy(
-                            e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
-                            Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
-                    ));
+        capacities.addAll(additionalCapacities);
 
-            // Load factor trajectories
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
 
-            Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = new HashMap<>();
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap =
+                buildMergedLoadFactorHeaders(loadFactorTrajectories, installedPowerMap.keySet());
 
-            for (MiscFileProcessorServiceImpl.GroupClusterKey key : installedPowerMap.keySet()) {
+        validateAreas(installedPowerMap, loadFactorMap);
+    }
 
-                for (TrajectoryEntity trajectory : loadFactorTrajectories) {
-                    Path path  = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.MISC_LOAD);
-                    List<String> areas = readHeaderAreas(trajectory.getHorizon(), path, key)
-                            .stream()
-                            .map(String::toLowerCase)
-                            .toList();
+    private static Set<GroupAreaMiscCapacity> mapToGroupAreaMiscCapacity(List<MiscClusterCapacityEntity> miscClusterCapacityEntities) {
+        return miscClusterCapacityEntities.stream().map(capacity ->
 
-                    loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).addAll(areas);
-                }
+                new GroupAreaMiscCapacity() {
+                    public String getGroupe() {
+                        return capacity.getGroupe();
+                    }
 
-                Set<String> installedAreas = installedPowerMap.get(key);
-                Set<String> loadFactorAreas = loadFactorMap.getOrDefault(key, Collections.emptySet());
+                    public String getArea() {
+                        return capacity.getArea();
+                    }
 
-                if (!loadFactorAreas.containsAll(installedAreas)) {
-                    List<String> missing = installedAreas.stream()
-                            .filter(a -> !loadFactorAreas.contains(a))
-                            .toList();
+                    public String getCluster() {
+                        return capacity.getCluster();
+                    }
+                }).collect(Collectors.toSet());
+    }
 
-                    throw BusinessException.builder()
-                            .message("The load factor trajectory file(s) associated with group {0} and cluster {1} are missing the following areas required by the installed power trajectory: {2}")
-                            .errorMessageArguments(List.of(key.groupe(), key.cluster(), missing.toString()))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
+    private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildCapacityAreasMap(List<GroupAreaMiscCapacity> capacities) {
+
+        return capacities.stream()
+                .collect(Collectors.groupingBy(
+                        e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
+                        Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
+                ));
+    }
+
+
+    private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildMergedLoadFactorHeaders(List<TrajectoryEntity> loadFactorTrajectories, Set<MiscFileProcessorServiceImpl.GroupClusterKey> keys) throws IOException {
+
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = new HashMap<>();
+
+        for (TrajectoryEntity trajectory : loadFactorTrajectories) {
+
+            Path path = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.MISC_LOAD);
+
+            for (MiscFileProcessorServiceImpl.GroupClusterKey key : keys) {
+
+                List<String> areas = readHeaderAreas(trajectory.getHorizon(), path, key)
+                        .stream()
+                        .map(String::toLowerCase)
+                        .toList();
+
+                loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).addAll(areas);
+            }
+        }
+
+        return loadFactorMap;
+    }
+
+
+    private void validateAreas(Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> expected, Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> actual) {
+
+        for (MiscFileProcessorServiceImpl.GroupClusterKey key : expected.keySet()) {
+
+            Set<String> expectedAreas = expected.get(key);
+            Set<String> actualAreas = actual.getOrDefault(key, Collections.emptySet());
+
+            if (!actualAreas.containsAll(expectedAreas)) {
+
+                List<String> missing = expectedAreas.stream()
+                        .filter(a -> !actualAreas.contains(a))
+                        .toList();
+
+                throw BusinessException.builder()
+                        .message("The load factor trajectory file(s) associated with group {0} and cluster {1} are missing the following areas: {2}")
+                        .errorMessageArguments(List.of(key.groupe(), key.cluster(), missing.toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         }
     }
