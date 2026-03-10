@@ -130,7 +130,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-
+            trajectoryService.controlesMiscOnImportInstalledPower(studyId, entities, areaParam);
             TrajectoryEntity trajectory = buildMiscTrajectory(horizon, areaParam, checksumBuilder, filePath, entities);
 
             // save trajectory
@@ -147,20 +147,18 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         // physical file system in  directory trajectoryFilePath/group/group
         // ou load_factor is the prefix of ts and group the group and horizon the horizon
         if (listAreasByGroup.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("No group found for study id {0} and area {1} in misc cluster capacity table, at least one group is expected to check load factor file(s)")
-                    .errorMessageArguments(List.of(studyId.toString(), area))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
-            GroupClusterKey groupCluster = entry.getKey();
-            List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
-            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId);
-        }
+            log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
 
+        } else {
+            for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
+                GroupClusterKey groupCluster = entry.getKey();
+                List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
+                verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId);
+            }
+        }
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryFilePath, horizon, area);
         return trajectoryRepository.save(trajectory);
+
     }
 
     private TrajectoryEntity buildLoadFactorMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws Exception {
@@ -201,10 +199,12 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
 
         List<String> mergedHeader = mergedAllHeadersOfAllLoadFactorMiscTrajectories(horizon, trajectoryFilePath, groupClusterKey, studyId);
-        if (!new HashSet<>(mergedHeader).containsAll(areas)) {
+        Set<String> missingAreas = new HashSet<>(areas);
+        mergedHeader.forEach(missingAreas::remove);
+        if (!missingAreas.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Load factor file {0} is missing areas for group {1}: expected {2}, found {3}")
-                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe, areas.toString(), mergedHeader.toString()))
+                    .message("Load factor file {0} is missing areas {1} for group {2}")
+                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString(), groupClusterKey.groupe))
                     .build();
         } else {
             log.info("Load factor file {} for group {} contains all expected areas (merged headers)", tsFilePath.getFileName(), groupClusterKey.groupe);
@@ -267,7 +267,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectoryFilePath
                 .resolve(groupClusterKey.groupe)
                 .resolve(groupClusterKey.cluster)// for biomass group the file is in small biomass subfolder
-                .resolve("load_factor_" + groupClusterKey.groupe + "_" + horizon + ".csv");
+                .resolve("load_factor_" + groupClusterKey.cluster + "_" + horizon + ".csv");
 
     }
 
@@ -330,7 +330,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         // toUse: ExcelCommonValidator peut extraire 1/0 comme boolean; si absent on considère false
         Boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(null);
-        if(Boolean.FALSE.equals(toUse)) {
+        if (Boolean.FALSE.equals(toUse)) {
             //skip rows with ToUse = false or empty, they are not relevant for trajectory and can contain invalid data that we don't want to process
             return;
         }

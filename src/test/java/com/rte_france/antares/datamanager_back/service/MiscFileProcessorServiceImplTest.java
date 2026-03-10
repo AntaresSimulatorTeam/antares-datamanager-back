@@ -172,7 +172,7 @@ class MiscFileProcessorServiceImplTest {
         Path dir = root.resolve(group).resolve(cluster);
         Files.createDirectories(dir);
 
-        Path csv = dir.resolve("load_factor_" + group + "_" + horizon + ".csv");
+        Path csv = dir.resolve("load_factor_" + cluster + "_" + horizon + ".csv");
         Files.writeString(csv, header + "\n1;2;3");
 
         when(trajectoryService.buildTrajectoryPath(anyString(), any()))
@@ -475,20 +475,6 @@ class MiscFileProcessorServiceImplTest {
         }
 
         @Test
-        void shouldThrowWhenNoGroupFound() {
-
-            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
-                    .thenReturn(List.of());
-
-            assertThatThrownBy(() ->
-                    service.processLoadFactorMiscFile("loadFactor",
-                            "2029-2030",
-                            1,
-                            "FR"))
-                    .isInstanceOf(BusinessException.class);
-        }
-
-        @Test
         void shouldThrowWhenTsFileMissing() throws Exception {
 
             Path root = Files.createTempDirectory(tempDir, "misc_load_");
@@ -595,7 +581,7 @@ class MiscFileProcessorServiceImplTest {
         // create the csv file that will be read: only AREA3 present -> should fail
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "\"area3\";\"other\"\nvalue1;value2\n");
 
         // mock save to avoid interacting with DB
@@ -630,7 +616,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "AREA1;AREA2;OTHER\n1;2;3\n");
 
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -653,7 +639,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Files.writeString(groupDir.resolve("load_factor_group1_" + horizon + ".csv"), "AREA1\n1\n");
+        Files.writeString(groupDir.resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
 
         TrajectoryEntity traj1 = TrajectoryEntity.builder().fileName("existA").build();
         TrajectoryEntity traj2 = TrajectoryEntity.builder().fileName("existB").build();
@@ -662,7 +648,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path existingBase = tempDir.resolve("existingBase");
         Files.createDirectories(existingBase.resolve("group1").resolve("cluster1"));
-        Files.writeString(existingBase.resolve("group1").resolve("cluster1").resolve("load_factor_group1_" + horizon + ".csv"), "AREA1\n1\n");
+        Files.writeString(existingBase.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
 
         when(trajectoryService.buildTrajectoryPath(eq("existA"), eq(TrajectoryType.MISC_LOAD))).thenReturn(existingBase);
         when(trajectoryService.buildTrajectoryPath(eq("existB"), eq(TrajectoryType.MISC_LOAD))).thenReturn(existingBase);
@@ -687,7 +673,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Files.writeString(groupDir.resolve("load_factor_group1_" + horizon + ".csv"), "AREA1\n1\n");
+        Files.writeString(groupDir.resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
 
         TrajectoryEntity tA = TrajectoryEntity.builder().fileName("tA").build();
         TrajectoryEntity tB = TrajectoryEntity.builder().fileName("tB").build();
@@ -700,7 +686,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path baseB = tempDir.resolve("baseB");
         Files.createDirectories(baseB.resolve("group1").resolve("cluster1"));
-        Files.writeString(baseB.resolve("group1").resolve("cluster1").resolve("load_factor_group1_" + horizon + ".csv"), "AREA2;AREA3\n3;4\n");
+        Files.writeString(baseB.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA2;AREA3\n3;4\n");
 
         when(trajectoryService.buildTrajectoryPath(eq("tA"), eq(TrajectoryType.MISC_LOAD))).thenReturn(baseA);
         when(trajectoryService.buildTrajectoryPath(eq("tB"), eq(TrajectoryType.MISC_LOAD))).thenReturn(baseB);

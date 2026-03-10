@@ -72,7 +72,7 @@ class MiscFileProcessorServiceImplTest {
         // create the csv file that will be read: only AREA3 present -> should fail
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "\"area3\";\"other\"\nvalue1;value2\n");
 
         // mock save to avoid interacting with DB
@@ -107,7 +107,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "AREA1;AREA2;OTHER\n1;2;3\n");
 
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -157,7 +157,7 @@ class MiscFileProcessorServiceImplTest {
         // create current csv with header AREA1
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "AREA1;OTHER\n1;2\n");
 
         // no existing trajectories in DB
@@ -187,7 +187,7 @@ class MiscFileProcessorServiceImplTest {
         // create current csv with header AREA1
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "AREA1;OTHER\n1;2\n");
 
         // one existing trajectory in DB but its load_factor file does NOT exist -> should be skipped
@@ -220,7 +220,7 @@ class MiscFileProcessorServiceImplTest {
         // create current csv with header AREA1
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_group1_" + horizon + ".csv");
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
         Files.writeString(csv, "AREA1;OTHER\n1;2\n");
 
         // existing trajectory with empty file -> readHeaderAreas will throw for that file but should be caught
@@ -229,7 +229,7 @@ class MiscFileProcessorServiceImplTest {
         Path otherBase = tempDir.resolve("other");
         Files.createDirectories(otherBase.resolve("group1")).toFile();
         Files.createDirectories(otherBase.resolve("group1").resolve("cluster1"));
-        Path otherCsv = otherBase.resolve("group1").resolve("cluster1").resolve("load_factor_group1_" + horizon + ".csv");
+        Path otherCsv = otherBase.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv");
         // create empty file to trigger "is empty" BusinessException when readHeaderAreas is called
         Files.writeString(otherCsv, "");
         when(trajectoryService.buildTrajectoryPath(traj.getFileName(), TrajectoryType.MISC_LOAD)).thenReturn(otherBase);
