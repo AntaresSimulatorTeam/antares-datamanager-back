@@ -60,4 +60,12 @@ public class DsrGenerationDTO {
     @JsonProperty("reliability")
     private Double reliability;
 
+    @JsonView(DsrClustersViews.Data.class)
+    @JsonProperty("nb_hour_per_day")
+    private Double nbHourPerDay;
+
+    @JsonView(DsrClustersViews.Data.class)
+    @JsonProperty("max_hour_per_day")
+    private Double maxHourPerDay;
+
 }
