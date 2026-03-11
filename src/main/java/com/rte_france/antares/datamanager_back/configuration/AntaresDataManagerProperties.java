@@ -73,4 +73,12 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.misc.load.directory}")
     public String miscLoadDirectory;
 
+    @Value("${antares.datamanager.res.capacity.directory}")
+    public String resCapacityDirectory;
+
+    @Value("${antares.datamanager.res.load.directory}")
+    public String resLoadDirectory;
+
+    @Value("${antares.datamanager.res.distribution.directory}")
+    public String resDistributionDirectory;
 }

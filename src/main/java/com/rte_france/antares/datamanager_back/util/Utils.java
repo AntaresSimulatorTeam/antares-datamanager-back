@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -40,6 +41,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
 
 
 /**
@@ -879,6 +882,31 @@ public class Utils {
                     .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
+        }
+    }
+
+    public Stream<Path> findTechnologyFiles(Path directoryPath, String prefixDirectory, String technology) throws IOException {
+        String prefix = prefixDirectory + technology + "_";
+        try (var stream = Files.walk(directoryPath, 2)) {// profondeur 2 : root + sous-dossiers + fichiers
+            return  stream
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString();
+                        return name.startsWith(prefix) && name.endsWith(".xlsx");
+                    });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+    
+    public Stream<Path> getFilesList(TrajectoryType trajectoryType, String area, Path directory, String prefix, String technology) throws IOException {
+        try {
+            if (trajectoryType == RES_CAPACITY && Objects.equals(area, "FR")) {
+                return findTechnologyFiles(directory, prefix, technology);
+            }
+            return Files.list(directory.normalize());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 }

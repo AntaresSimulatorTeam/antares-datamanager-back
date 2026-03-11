@@ -39,7 +39,9 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
 import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl.readHeaderAreas;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
@@ -108,6 +110,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String DSR_PREFIX = "cluster_dsr_";
     private static final String DSR_CAPACITY_PREFIX = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
+    private static final String RES_CAPACITY_PREFIX = "installedRES_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -472,7 +475,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        try (var stream = Files.list(directory.normalize())) {
+        try (var stream = getFilesList(trajectoryType, area, directory, RES_CAPACITY_PREFIX, technology)) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD
                             || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))
@@ -505,6 +508,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
+            case RES_CAPACITY -> fileName.startsWith(RES_CAPACITY_PREFIX);
             default -> true;
         };
     }
@@ -920,10 +924,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA -> antaresDataManagerProperties.getAreaDirectory();
             case LINK -> antaresDataManagerProperties.getLinkDirectory();
             case LOAD -> antaresDataManagerProperties.getLoadDirectory();
-            case THERMAL_CAPACITY ->
-                    area.equals("FR") ? Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
+            case THERMAL_CAPACITY -> area.equals("FR") ? Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
+                    .resolve(area)
+                    .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
+                    .toString();
+            case RES_CAPACITY ->
+                    area.equals("FR") ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
                             .resolve(area)
-                            .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
+                            .toString() : Path.of(antaresDataManagerProperties.getResCapacityDirectory())
                             .toString();
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaresDataManagerProperties.getThermalParameterDirectory();
@@ -1223,5 +1231,5 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-
+    
 }
