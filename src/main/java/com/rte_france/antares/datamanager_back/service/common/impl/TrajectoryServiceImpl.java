@@ -19,6 +19,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -469,7 +470,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        try (var stream = getFilesList(trajectoryType, area, directory, RES_CAPACITY_PREFIX, technology.toLowerCase())) {
+        try (var stream = getFilesList(trajectoryType, area, directory, RES_CAPACITY_PREFIX, StringUtils.lowerCase(technology))) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD
                             || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))
