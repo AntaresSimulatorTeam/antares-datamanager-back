@@ -110,7 +110,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String DSR_PREFIX = "cluster_dsr_";
     private static final String DSR_CAPACITY_PREFIX = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
-    private static final String RES_CAPACITY_PREFIX = "installedRES_";
+    private static final String RES_CAPACITY_PREFIX = "installedres_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -475,7 +475,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        try (var stream = getFilesList(trajectoryType, area, directory, RES_CAPACITY_PREFIX, technology)) {
+        try (var stream = getFilesList(trajectoryType, area, directory, RES_CAPACITY_PREFIX, technology.toLowerCase())) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD
                             || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))
@@ -490,8 +490,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .sorted(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed())
                     .toList();
 
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        } 
+        catch (IOException e) {
+           throw new UncheckedIOException(e);
         }
     }
 
@@ -508,7 +509,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> fileName.startsWith(RES_CAPACITY_PREFIX);
+            case RES_CAPACITY -> fileName.matches("^" + Pattern.quote(RES_CAPACITY_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             default -> true;
         };
     }
