@@ -844,13 +844,13 @@ class TrajectoryServiceImplTest {
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn("MISC/load factor/BP23_A_Ref/biogas/biogas/");
+        when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn("MISC/load factor/");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.MISC_LOAD, "FR", null, null);
 
         // Then
-        assertEquals("load_factor_biogas_2030-2031.xlsx", result.getFirst().getFileName());
+        assertEquals("BP23_A_Ref", result.getFirst().getFileName());
     }
 
     @Test
