@@ -925,7 +925,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
                     .toString();
             case RES_CAPACITY ->
-                    area.equals("FR") ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
+                    "FR".equals(area) ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
                             .resolve(area)
                             .toString() : Path.of(antaresDataManagerProperties.getResCapacityDirectory())
                             .toString();

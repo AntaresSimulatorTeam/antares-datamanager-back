@@ -701,6 +701,28 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsRESFilesContainingTechnologyForOther(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/installed power/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("installedRES_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("onshore_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("other_installedRES_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResCapacityDirectory()).thenReturn("RES/installed power/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("installedRES_BP23_Aref.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
     void findTrajectoriesByType_returnsThermalCapacityFilesForfR(@TempDir Path tempDir) throws IOException {
         // Given
         Path thermalDir = tempDir.resolve("thermal/installed power/FR/");
@@ -808,6 +830,27 @@ class TrajectoryServiceImplTest {
         // Then
         assertEquals(1, result.size());
         assertEquals("installedMisc_BP23_A_ref_FR_v2.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsMiscLoadFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("MISC/load factor/BP23_A_Ref/biogas/biogas/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("load_factor_biogas_2030-2031.csv"));
+        Files.createFile(thermalDir.resolve("load_factor_biogas_2030-2031.xlsx"));
+        Files.createFile(thermalDir.resolve("other_load_factor_biogas_2030-2031.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn("MISC/load factor/BP23_A_Ref/biogas/biogas/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.MISC_LOAD, "FR", null, null);
+
+        // Then
+        assertEquals("load_factor_biogas_2030-2031.xlsx", result.getFirst().getFileName());
     }
 
     @Test
