@@ -886,7 +886,9 @@ public class Utils {
     }
 
     public Stream<Path> findTechnologyFiles(Path directoryPath, String prefixDirectory, String technology) throws IOException {
-        String prefix = prefixDirectory + technology + "_";
+        String prefix = technology != null
+                ? prefixDirectory + technology + "_"
+                : prefixDirectory;
 
         return Files.walk(directoryPath, 2)
                 .filter(Files::isRegularFile)

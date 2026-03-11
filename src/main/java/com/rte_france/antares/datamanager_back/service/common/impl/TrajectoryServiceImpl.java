@@ -510,7 +510,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> fileName.matches("^" + Pattern.quote(RES_CAPACITY_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
+            case RES_CAPACITY -> fileName.startsWith(RES_CAPACITY_PREFIX);
             default -> true;
         };
     }

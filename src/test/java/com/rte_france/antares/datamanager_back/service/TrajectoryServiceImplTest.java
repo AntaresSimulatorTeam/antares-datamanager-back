@@ -681,6 +681,139 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsRESFilesContainingTechnologyForFR(@TempDir Path tempDir) throws IOException {
+        // Given
+        String technology = "onshore";
+        Path thermalDir = tempDir.resolve("RES/installed power/FR/BP_23_FR/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("installedRES_offshore_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResCapacityDirectory()).thenReturn("RES/installed power/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, "FR", technology, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("installedRES_onshore_BP23_Aref.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsThermalCapacityFilesForfR(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("thermal/installed power/FR/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("thermal_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("other_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("thermal_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalCapacityDirectory()).thenReturn("thermal/installed power/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_CAPACITY, "FR", null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("thermal_BP23_Aref.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsThermalEconomicFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("thermal_economic/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("economic_param_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("other_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("param_economic_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getThermalEconomicDirectory()).thenReturn("thermal_economic/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("economic_param_BP23_A_ref.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsDSRFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("DSR/cluster/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("cluster_DSR_PEMMDB25.xlsx"));
+        Files.createFile(thermalDir.resolve("other_DSR_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("DSR_cluster_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getDsrDirectory()).thenReturn("DSR/cluster/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("cluster_DSR_PEMMDB25.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsDSRModulationFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("DSR/capacity modulation/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("CM_BP25_A_ref_2031.xlsx"));
+        Files.createFile(thermalDir.resolve("other_CM_BP25_A_ref_2031.xlsx"));
+        Files.createFile(thermalDir.resolve("DSR_cluster_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getDsrDirectory()).thenReturn("DSR/capacity modulation/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("CM_BP25_A_ref_2031.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsMiscCapacityFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("MISC/installed power/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("installedMisc_BP23_A_ref_FR_v2.xlsx"));
+        Files.createFile(thermalDir.resolve("other_installedMisc_BP23_A_ref_FR_v2.xlsx"));
+        Files.createFile(thermalDir.resolve("installedMisc_BP23_A_ref_FR_v2.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getDsrDirectory()).thenReturn("MISC/installed power/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("installedMisc_BP23_A_ref_FR_v2.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
     void processLoadTrajectory_savesTrajectoryAndProcessesLoadFiles() throws IOException {
         String area = "FR";
         String trajectoryToUse = "testTrajectory";
