@@ -887,26 +887,20 @@ public class Utils {
 
     public Stream<Path> findTechnologyFiles(Path directoryPath, String prefixDirectory, String technology) throws IOException {
         String prefix = prefixDirectory + technology + "_";
-        try (var stream = Files.walk(directoryPath, 2)) {// profondeur 2 : root + sous-dossiers + fichiers
-            return  stream
-                    .filter(Files::isRegularFile)
-                    .filter(path -> {
-                        String name = path.getFileName().toString();
-                        return name.startsWith(prefix) && name.endsWith(".xlsx");
-                    });
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+
+        return Files.walk(directoryPath, 2)
+                .filter(Files::isRegularFile)
+                .filter(path -> {
+                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    return name.startsWith(prefix) && name.endsWith(".xlsx");
+                });
     }
-    
+
     public Stream<Path> getFilesList(TrajectoryType trajectoryType, String area, Path directory, String prefix, String technology) throws IOException {
-        try {
-            if (trajectoryType == RES_CAPACITY && Objects.equals(area, "FR")) {
-                return findTechnologyFiles(directory, prefix, technology);
-            }
-            return Files.list(directory.normalize());
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+        if (trajectoryType == RES_CAPACITY && Objects.equals(area, "FR")) {
+            return findTechnologyFiles(directory, prefix, technology);
         }
+        return Files.list(directory.normalize());
     }
+
 }
