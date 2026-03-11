@@ -781,7 +781,7 @@ class TrajectoryServiceImplTest {
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaresDataManagerProperties.getDsrDirectory()).thenReturn("DSR/capacity modulation/");
+        when(antaresDataManagerProperties.getDsrCapacityDirectory()).thenReturn("DSR/capacity modulation/");
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
@@ -803,10 +803,10 @@ class TrajectoryServiceImplTest {
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaresDataManagerProperties.getDsrDirectory()).thenReturn("MISC/installed power/");
+        when(antaresDataManagerProperties.getMiscCapacityDirectory()).thenReturn("MISC/installed power/");
 
         // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.MISC_CAPACITY, null, null, null);
 
         // Then
         assertEquals(1, result.size());
