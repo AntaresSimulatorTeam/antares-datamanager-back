@@ -8,20 +8,17 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.MockedStatic;
 import org.springframework.http.HttpStatus;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -929,95 +926,13 @@ class UtilsTest {
     }
 
     @Test
-    void testGetFilesList_callsFindTechnologyFiles() throws IOException {
-
-        Path directory = Path.of("/tmp/");
-        Stream<Path> mockedStream = Stream.of(Path.of("file1.xlsx"));
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-
-            // Mock de la méthode statique findTechnologyFiles()
-            mockedUtils.when(() -> Utils.findTechnologyFiles(directory, "PREFIX_", "TECH"))
-                    .thenReturn(mockedStream);
-
-            // Mock de la méthode statique getFilesList() → appelle la vraie méthode
-            mockedUtils.when(() -> Utils.getFilesList(
-                    TrajectoryType.RES_CAPACITY,
-                    "FR",
-                    directory,
-                    "PREFIX_",
-                    "TECH"
-            )).thenCallRealMethod();
-
-            // WHEN
-            Stream<Path> result = Utils.getFilesList(
-                    TrajectoryType.RES_CAPACITY,
-                    "FR",
-                    directory,
-                    "PREFIX_",
-                    "TECH"
-            );
-
-            // THEN
-            assertNotNull(result);
-            assertEquals(1, result.count());
-        }
-    }
-
-    @Test
-    void testGetFilesList_callsFilesList() throws IOException {
-
-        Path directory = Path.of("/tmp/");
-        Stream<Path> mockedStream = Stream.of(Path.of("fileA.txt"));
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class);
-             MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-
-            // 1️⃣ Mock du DirectoryStream utilisé en interne par Files.list()
-            DirectoryStream<Path> fakeDirStream = mock(DirectoryStream.class);
-            when(fakeDirStream.iterator()).thenReturn(mock(Iterator.class));
-
-            mockedFiles.when(() -> Files.newDirectoryStream(directory.normalize()))
-                    .thenReturn(fakeDirStream);
-
-            // 2️⃣ Mock de Files.list() → renvoie ton stream
-            mockedFiles.when(() -> Files.list(directory.normalize()))
-                    .thenReturn(mockedStream);
-
-            // 3️⃣ Mock de Utils.getFilesList() → appelle la vraie méthode
-            mockedUtils.when(() -> Utils.getFilesList(
-                    TrajectoryType.MISC_LOAD,
-                    "FR",
-                    directory,
-                    "PREFIX_",
-                    "TECH"
-            )).thenCallRealMethod();
-
-            // WHEN
-            Stream<Path> result = Utils.getFilesList(
-                    TrajectoryType.MISC_LOAD,
-                    "FR",
-                    directory,
-                    "PREFIX_",
-                    "TECH"
-            );
-
-            // THEN
-            assertNotNull(result);
-            assertEquals(1, result.count());
-
-            mockedFiles.verify(() -> Files.list(directory.normalize()));
-        }
-    }
-
-    @Test
     void testFindTechnologyFiles_withRealFS(@TempDir Path tempDir) throws IOException {
 
         Files.createFile(tempDir.resolve("prefixTECH_file.xlsx"));
         Files.createFile(tempDir.resolve("prefixTECH_other.txt"));
         Files.createFile(tempDir.resolve("other_file.xlsx"));
 
-        Stream<Path> result = Utils.findTechnologyFiles(tempDir, "prefix", "tech");
+        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix", "tech");
 
         List<Path> collected = result.toList();
 
@@ -1032,7 +947,7 @@ class UtilsTest {
         Files.createFile(tempDir.resolve("prefix_TECH_other.xlsx"));
         Files.createFile(tempDir.resolve("other_file.xlsx"));
 
-        Stream<Path> result = Utils.findTechnologyFiles(tempDir, "prefix_", null);
+        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", null);
 
         List<Path> collected = result.toList();
 
