@@ -886,14 +886,13 @@ public class Utils {
     }
 
     public Stream<Path> findResCapacityTechnologyFiles(Path directoryPath, String prefix, String technology) throws IOException {
-        return Files.walk(directoryPath, 2)
-                .filter(Files::isRegularFile)
-                .filter(path -> {
-                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-                    return name.startsWith(prefix)
-                            && name.endsWith(".xlsx")
-                            && (technology == null || technology.isEmpty() || name.contains(technology.toLowerCase()));
-                });
-    }
-
+            return Files.walk(directoryPath, 2)
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                        return name.startsWith(prefix)
+                                && name.endsWith(".xlsx")
+                                && name.contains(technology.toLowerCase());
+                    });
+        }
 }

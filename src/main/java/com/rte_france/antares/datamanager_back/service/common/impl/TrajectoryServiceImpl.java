@@ -474,13 +474,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        try (var stream = (trajectoryType == RES_CAPACITY && Objects.equals(area, "FR")) ?
+        try (var stream = (trajectoryType == RES_CAPACITY && technology != null && !technology.isEmpty()) ?
                 findResCapacityTechnologyFiles(directory, RES_CAPACITY_PREFIX, technology):
                 Files.list(directory.normalize())
         ) {
             return stream
-                    .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD
-                            || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))
+                    .filter(path -> (isDirectoryTrajectory(trajectoryType, area) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology))))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -885,6 +884,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private boolean isRelevantFile(Path path, TrajectoryType trajectoryType) {
         return trajectoryType == TrajectoryType.LOAD ||
                 (Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType));
+    }
+
+    private boolean isDirectoryTrajectory(TrajectoryType trajectoryType, String area) {
+        return trajectoryType == TrajectoryType.LOAD || trajectoryType == RES_CAPACITY && "FR".equals(area) || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD;
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
