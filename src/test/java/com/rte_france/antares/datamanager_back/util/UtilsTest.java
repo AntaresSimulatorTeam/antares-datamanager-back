@@ -928,31 +928,18 @@ class UtilsTest {
     @Test
     void testFindTechnologyFiles_withRealFS(@TempDir Path tempDir) throws IOException {
 
-        Files.createFile(tempDir.resolve("prefixTECH_file.xlsx"));
-        Files.createFile(tempDir.resolve("prefixTECH_other.txt"));
-        Files.createFile(tempDir.resolve("other_file.xlsx"));
-
-        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix", "tech");
-
-        List<Path> collected = result.toList();
-
-        assertEquals(1, collected.size());
-        assertEquals("prefixTECH_file.xlsx", collected.getFirst().getFileName().toString());
-    }
-
-    @Test
-    void testFindTechnologyFiles_withRealFSWhenTechnologyIsEmptyString(@TempDir Path tempDir) throws IOException {
-
         Files.createFile(tempDir.resolve("prefix_TECH_file.xlsx"));
-        Files.createFile(tempDir.resolve("prefix_TECH_other.xlsx"));
+        Files.createFile(tempDir.resolve("prefix_tech_file.xlsx"));
+        Files.createFile(tempDir.resolve("prefixTECH_other.txt"));
+        Files.createFile(tempDir.resolve("prefix_other_TECH_.txt"));
         Files.createFile(tempDir.resolve("other_file.xlsx"));
 
-        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "");
+        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "tech");
 
         List<Path> collected = result.toList();
 
         assertEquals(2, collected.size());
-        assertEquals("prefix_TECH_file.xlsx", collected.get(0).getFileName().toString());
-        assertEquals("prefix_TECH_other.xlsx", collected.get(1).getFileName().toString());
+        assertEquals("prefix_TECH_file.xlsx", collected.getFirst().getFileName().toString());
+        assertEquals("prefix_tech_file.xlsx", collected.get(1).getFileName().toString());
     }
 }
