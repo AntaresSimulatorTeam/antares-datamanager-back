@@ -885,16 +885,14 @@ public class Utils {
         }
     }
 
-    public Stream<Path> findResCapacityTechnologyFiles(Path directoryPath, String prefixDirectory, String technology) throws IOException {
-        String prefix = technology != null
-                ? prefixDirectory + technology + "_"
-                : prefixDirectory;
-
+    public Stream<Path> findResCapacityTechnologyFiles(Path directoryPath, String prefix, String technology) throws IOException {
         return Files.walk(directoryPath, 2)
                 .filter(Files::isRegularFile)
                 .filter(path -> {
                     String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-                    return name.startsWith(prefix) && name.endsWith(".xlsx");
+                    return name.startsWith(prefix)
+                            && name.endsWith(".xlsx")
+                            && (technology == null || technology.isEmpty() || name.contains(technology.toLowerCase()));
                 });
     }
 
