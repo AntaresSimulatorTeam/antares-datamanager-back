@@ -21,4 +21,6 @@ public interface MiscClusterCapacityRepository extends JpaRepository<MiscCluster
       AND ( :area IS NULL OR :area = 'OTHERS' OR m.area = :area )
 """)
     List<GroupAreaMiscCapacity> findByStudyIdAndArea(Integer studyId, String area);
+
+    List<GroupAreaMiscCapacity> findByTrajectoryId(Integer trajectoryId);
 }

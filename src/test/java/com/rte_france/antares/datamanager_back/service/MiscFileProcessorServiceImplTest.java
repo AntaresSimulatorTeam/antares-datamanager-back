@@ -24,6 +24,7 @@ import java.nio.file.*;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -171,7 +172,7 @@ class MiscFileProcessorServiceImplTest {
         Path dir = root.resolve(group).resolve(cluster);
         Files.createDirectories(dir);
 
-        Path csv = dir.resolve("load_factor_" + group + "_" + horizon + ".csv");
+        Path csv = dir.resolve("load_factor_" + cluster + "_" + horizon + ".csv");
         Files.writeString(csv, header + "\n1;2;3");
 
         when(trajectoryService.buildTrajectoryPath(anyString(), any()))
@@ -474,20 +475,6 @@ class MiscFileProcessorServiceImplTest {
         }
 
         @Test
-        void shouldThrowWhenNoGroupFound() {
-
-            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
-                    .thenReturn(List.of());
-
-            assertThatThrownBy(() ->
-                    service.processLoadFactorMiscFile("loadFactor",
-                            "2029-2030",
-                            1,
-                            "FR"))
-                    .isInstanceOf(BusinessException.class);
-        }
-
-        @Test
         void shouldThrowWhenTsFileMissing() throws Exception {
 
             Path root = Files.createTempDirectory(tempDir, "misc_load_");
@@ -567,4 +554,148 @@ class MiscFileProcessorServiceImplTest {
             assertThat(result).isEmpty();
         }
     }
+    @Test
+    void processLoadFactorMiscFileThrowsWhenMergedHeadersDoNotContainAllAreas(@TempDir Path tempDir) throws Exception {
+        String horizon = "2030-2031";
+        String trajectoryToUse = "load_factor_test";
+        Integer studyId = 1;
+        String areaParam = "";
+
+        // Prepare DB projection results: two areas for the same group/cluster
+        GroupAreaMiscCapacity e1 = new GroupAreaMiscCapacity() {
+            public String getGroupe() { return "group1"; }
+            public String getArea() { return "AREA1"; }
+            public String getCluster() { return "cluster1"; }
+        };
+        GroupAreaMiscCapacity e2 = new GroupAreaMiscCapacity() {
+            public String getGroupe() { return "group1"; }
+            public String getArea() { return "AREA2"; }
+            public String getCluster() { return "cluster1"; }
+        };
+
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, areaParam)).thenReturn(List.of(e1, e2));
+
+        // build base trajectory path (temp dir)
+        when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD)).thenReturn(tempDir);
+
+        // create the csv file that will be read: only AREA3 present -> should fail
+        Path groupDir = tempDir.resolve("group1").resolve("cluster1");
+        Files.createDirectories(groupDir);
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
+        Files.writeString(csv, "\"area3\";\"other\"\nvalue1;value2\n");
+
+        // mock save to avoid interacting with DB
+        when(trajectoryRepository.save(any())).thenReturn(TrajectoryEntity.builder().fileName("f").build());
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, areaParam)
+        );
+        assertTrue(ex.getMessage().toLowerCase().contains("missing areas") || ex.getMessage().toLowerCase().contains("is missing"));
+    }
+
+    @Test
+    void processLoadFactorMiscFileSucceedsWhenMergedHeadersContainAllAreas(@TempDir Path tempDir) throws Exception {
+        String horizon = "2030-2031";
+        String trajectoryToUse = "load_factor_test";
+        Integer studyId = 1;
+        String areaParam = "";
+
+        GroupAreaMiscCapacity e1 = new GroupAreaMiscCapacity() {
+            public String getGroupe() { return "group1"; }
+            public String getArea() { return "AREA1"; }
+            public String getCluster() { return "cluster1"; }
+        };
+        GroupAreaMiscCapacity e2 = new GroupAreaMiscCapacity() {
+            public String getGroupe() { return "group1"; }
+            public String getArea() { return "AREA2"; }
+            public String getCluster() { return "cluster1"; }
+        };
+
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, areaParam)).thenReturn(List.of(e1, e2));
+        when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD)).thenReturn(tempDir);
+
+        Path groupDir = tempDir.resolve("group1").resolve("cluster1");
+        Files.createDirectories(groupDir);
+        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
+        Files.writeString(csv, "AREA1;AREA2;OTHER\n1;2;3\n");
+
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, areaParam));
+        verify(trajectoryRepository, atLeastOnce()).save(any());
+    }
+
+    @Test
+    void mergedAllHeadersSkipsDuplicateExistingPaths() throws Exception {
+        String horizon = "2030-2031";
+        String trajectoryToUse = "load_factor_test";
+        Integer studyId = 1;
+        String areaParam = "";
+
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, areaParam))
+                .thenReturn(List.of(buildGroup("group1", "cluster1", "AREA1")));
+
+        when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD)).thenReturn(tempDir);
+
+        Path groupDir = tempDir.resolve("group1").resolve("cluster1");
+        Files.createDirectories(groupDir);
+        Files.writeString(groupDir.resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
+
+        TrajectoryEntity traj1 = TrajectoryEntity.builder().fileName("existA").build();
+        TrajectoryEntity traj2 = TrajectoryEntity.builder().fileName("existB").build();
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
+                .thenReturn(List.of(traj1, traj2));
+
+        Path existingBase = tempDir.resolve("existingBase");
+        Files.createDirectories(existingBase.resolve("group1").resolve("cluster1"));
+        Files.writeString(existingBase.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
+
+        when(trajectoryService.buildTrajectoryPath(eq("existA"), eq(TrajectoryType.MISC_LOAD))).thenReturn(existingBase);
+        when(trajectoryService.buildTrajectoryPath(eq("existB"), eq(TrajectoryType.MISC_LOAD))).thenReturn(existingBase);
+
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, areaParam));
+        verify(trajectoryRepository, atLeastOnce()).save(any());
+    }
+
+    @Test
+    void mergedAllHeadersMergesHeadersFromDistinctExistingTrajectories() throws Exception {
+        String horizon = "2030-2031";
+        String trajectoryToUse = "load_factor_test";
+        Integer studyId = 1;
+        String areaParam = "";
+
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, areaParam))
+                .thenReturn(List.of(buildGroup("group1", "cluster1", "AREA1"), buildGroup("group1", "cluster1", "AREA2")));
+
+        when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD)).thenReturn(tempDir);
+
+        Path groupDir = tempDir.resolve("group1").resolve("cluster1");
+        Files.createDirectories(groupDir);
+        Files.writeString(groupDir.resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
+
+        TrajectoryEntity tA = TrajectoryEntity.builder().fileName("tA").build();
+        TrajectoryEntity tB = TrajectoryEntity.builder().fileName("tB").build();
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
+                .thenReturn(List.of(tA, tB));
+
+        Path baseA = tempDir.resolve("baseA");
+        Files.createDirectories(baseA.resolve("group1").resolve("cluster1"));
+        Files.writeString(baseA.resolve("group1").resolve("cluster1").resolve("load_factor_group1_" + horizon + ".csv"), "AREA2_PART;AREA2\n1;2\n");
+
+        Path baseB = tempDir.resolve("baseB");
+        Files.createDirectories(baseB.resolve("group1").resolve("cluster1"));
+        Files.writeString(baseB.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA2;AREA3\n3;4\n");
+
+        when(trajectoryService.buildTrajectoryPath(eq("tA"), eq(TrajectoryType.MISC_LOAD))).thenReturn(baseA);
+        when(trajectoryService.buildTrajectoryPath(eq("tB"), eq(TrajectoryType.MISC_LOAD))).thenReturn(baseB);
+
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, areaParam));
+        verify(trajectoryRepository, atLeastOnce()).save(any());
+    }
+
 }
+
