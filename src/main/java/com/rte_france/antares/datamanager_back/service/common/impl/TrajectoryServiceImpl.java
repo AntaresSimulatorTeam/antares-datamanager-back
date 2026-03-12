@@ -15,13 +15,11 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -476,7 +474,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        try (var stream = getFilesList(trajectoryType, area, directory, RES_CAPACITY_PREFIX, StringUtils.lowerCase(technology))) {
+        try (var stream = (trajectoryType == RES_CAPACITY && Objects.equals(area, "FR")) ?
+                findResCapacityTechnologyFiles(directory, RES_CAPACITY_PREFIX, technology):
+                Files.list(directory.normalize())
+        ) {
             return stream
                     .filter(path -> (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD
                             || isRelevantFile(path, trajectoryType)) && matchesPrefix(path, trajectoryType, technology))

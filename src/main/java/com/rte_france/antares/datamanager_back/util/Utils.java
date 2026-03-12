@@ -885,7 +885,7 @@ public class Utils {
         }
     }
 
-    public Stream<Path> findTechnologyFiles(Path directoryPath, String prefixDirectory, String technology) throws IOException {
+    public Stream<Path> findResCapacityTechnologyFiles(Path directoryPath, String prefixDirectory, String technology) throws IOException {
         String prefix = technology != null
                 ? prefixDirectory + technology + "_"
                 : prefixDirectory;
@@ -896,13 +896,6 @@ public class Utils {
                     String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
                     return name.startsWith(prefix) && name.endsWith(".xlsx");
                 });
-    }
-
-    public Stream<Path> getFilesList(TrajectoryType trajectoryType, String area, Path directory, String prefix, String technology) throws IOException {
-        if (trajectoryType == RES_CAPACITY && Objects.equals(area, "FR")) {
-            return findTechnologyFiles(directory, prefix, technology);
-        }
-        return Files.list(directory.normalize());
     }
 
 }
