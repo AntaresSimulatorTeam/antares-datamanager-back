@@ -955,4 +955,20 @@ class UtilsTest {
         assertEquals("prefix_TECH_file.xlsx", collected.get(0).getFileName().toString());
         assertEquals("prefix_TECH_other.xlsx", collected.get(1).getFileName().toString());
     }
+
+    @Test
+    void testFindTechnologyFiles_withRealFSWhenTechnologyIsEmptyString(@TempDir Path tempDir) throws IOException {
+
+        Files.createFile(tempDir.resolve("prefix_TECH_file.xlsx"));
+        Files.createFile(tempDir.resolve("prefix_TECH_other.xlsx"));
+        Files.createFile(tempDir.resolve("other_file.xlsx"));
+
+        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "");
+
+        List<Path> collected = result.toList();
+
+        assertEquals(2, collected.size());
+        assertEquals("prefix_TECH_file.xlsx", collected.get(0).getFileName().toString());
+        assertEquals("prefix_TECH_other.xlsx", collected.get(1).getFileName().toString());
+    }
 }
