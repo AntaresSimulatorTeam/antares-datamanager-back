@@ -27,6 +27,7 @@ import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 class UtilsTest {
@@ -1021,7 +1022,7 @@ class UtilsTest {
         List<Path> collected = result.toList();
 
         assertEquals(1, collected.size());
-        assertTrue(collected.get(0).getFileName().toString().equals("prefixTECH_file.xlsx"));
+        assertEquals("prefixTECH_file.xlsx", collected.getFirst().getFileName().toString());
     }
 
     @Test
@@ -1036,7 +1037,7 @@ class UtilsTest {
         List<Path> collected = result.toList();
 
         assertEquals(2, collected.size());
-        assertTrue(collected.get(0).getFileName().toString().equals("prefix_TECH_file.xlsx"));
-        assertTrue(collected.get(1).getFileName().toString().equals("prefix_TECH_other.xlsx"));
+        assertEquals("prefix_TECH_file.xlsx", collected.get(0).getFileName().toString());
+        assertEquals("prefix_TECH_other.xlsx", collected.get(1).getFileName().toString());
     }
 }
