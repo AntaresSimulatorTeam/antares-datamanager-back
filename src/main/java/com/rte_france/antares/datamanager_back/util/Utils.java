@@ -854,10 +854,10 @@ public class Utils {
         return HexFormat.of().formatHex(digest.digest());
     }
 
-    public void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
+    public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
         boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
         if (hasNoAreaOfTrajectoryAreaInFile) {
-            String label = getErrormessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(label, trajectoryToUse))
                     .message("None of the areas of trajectory AREA are present in {0} trajectory {1}")
@@ -866,7 +866,7 @@ public class Utils {
         }
     }
     
-    private String getErrormessageLabelFromType(TrajectoryType type) {
+    private static String getErrorMessageLabelFromType(TrajectoryType type) {
         return switch (type) {
             case DSR -> "DSR cluster";
             case MISC_CAPACITY -> "MISC";
@@ -874,9 +874,9 @@ public class Utils {
         };
     }
 
-    public <T> void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
+    public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
-            String label = getErrormessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
                     .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
