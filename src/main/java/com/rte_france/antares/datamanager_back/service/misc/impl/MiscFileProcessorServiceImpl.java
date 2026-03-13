@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorSer
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -41,6 +42,23 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Service
 @RequiredArgsConstructor
 public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
+    @Getter
+    @RequiredArgsConstructor
+    private static class MiscRowProcessingContext {
+        private final List<String> studyAreas;
+        private final String areaParam;
+        private final int yearColIndex;
+        private final String trajectoryToUse;
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    private static class MiscRowProcessingResult {
+        private final List<MiscClusterCapacityEntity> entities;
+        private final StringBuilder checksumBuilder;
+        private final List<String> fileAreas;
+        private final Set<String> invalidCombos;
+    }
 
     private final TrajectoryRepository trajectoryRepository;
     private final MiscClusterCapacityRepository miscClusterCapacityRepository;
@@ -110,15 +128,18 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             List<String> fileAreas = new ArrayList<>();
             Set<String> invalidCombos = new LinkedHashSet<>();
             boolean allRowsEmpty = true;
+            MiscRowProcessingContext context = new MiscRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse);
+
+            MiscRowProcessingResult result = new MiscRowProcessingResult(entities, checksumBuilder, fileAreas, invalidCombos);
+
             while (rows.hasNext()) {
                 Row row = rows.next();
 
                 if (!ExcelCommonValidator.isRowEmpty(row)) {
                     allRowsEmpty = false;
-                    processMiscCapacityRow(areaParam, row, yearColIndex, entities, checksumBuilder, fileAreas, trajectoryToUse, invalidCombos);
+                    processMiscCapacityRow(context, result, row);
                 }
             }
-
 
             if (allRowsEmpty) {
                 throw BusinessException.builder().message("No area found in Misc trajectory " + filePath.getFileName()).httpStatus(HttpStatus.BAD_REQUEST).build();
@@ -332,18 +353,29 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectory;
     }
 
-    private void processMiscCapacityRow(String areaParam, Row row, int yearColIndex, List<MiscClusterCapacityEntity> entities, StringBuilder checksumBuilder, List<String> fileAreas, String trajectoryToUse,  Set<String> invalidCombos) {
+    private void processMiscCapacityRow(MiscRowProcessingContext context, MiscRowProcessingResult result, Row row) {
+
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
-        // toUse: ExcelCommonValidator peut extraire 1/0 comme boolean; si absent on considère false
         Boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(null);
         if (Boolean.FALSE.equals(toUse)) {
-            //skip rows with ToUse = false or empty, they are not relevant for trajectory and can contain invalid data that we don't want to process
             return;
         }
 
         String area = Optional.ofNullable(getCellValue(row, 1)).map(Object::toString).orElse(null);
-        fileAreas.add(area);
+
+        if (context.getAreaParam() != null
+                && !OTHERS_AREA.equalsIgnoreCase(context.getAreaParam())
+                && !context.getAreaParam().equalsIgnoreCase(Objects.toString(area, ""))) {
+            return;
+        }
+
+        if (OTHERS_AREA.equalsIgnoreCase(context.getAreaParam())
+                && !context.getStudyAreas().contains(Objects.toString(area, "").toUpperCase())) {
+            return;
+        }
+
+        result.getFileAreas().add(area);
 
         String group = Optional.ofNullable(getCellValue(row, 2)).map(Object::toString).orElse(null);
         String cluster = Optional.ofNullable(getCellValue(row, 3)).map(Object::toString).orElse(null);
@@ -351,16 +383,10 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         if (toUse == null || area == null || group == null || cluster == null || category == null) {
             throw BusinessException.builder()
-                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory " + trajectoryToUse)
+                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory "
+                            + context.getTrajectoryToUse())
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
-        }
-
-        // Filtre par area param (si areaParam différent de OTHERS on garde uniquement la même area)
-        if (areaParam != null && !OTHERS_AREA.equalsIgnoreCase(areaParam)) {
-            if (!areaParam.equalsIgnoreCase(Objects.toString(area, ""))) {
-                return;
-            }
         }
 
         String combo = "%s/%s/%s".formatted(
@@ -369,21 +395,24 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 Objects.toString(cluster, "")
         );
 
-        // Récupérer la valeur numérique de la colonne correspondant à l'horizon de manière robuste
-        Object cellVal = getCellValue(row, yearColIndex);
+        Object cellVal = getCellValue(row, context.getYearColIndex());
         Number numeric = null;
-        if (cellVal instanceof Number) numeric = (Number) cellVal;
-        else if (cellVal instanceof String) {
+
+        if (cellVal instanceof Number) {
+            numeric = (Number) cellVal;
+        } else if (cellVal instanceof String) {
             try {
                 numeric = Double.parseDouble((String) cellVal);
             } catch (NumberFormatException ignored) {
-                invalidCombos.add(combo);
+                result.getInvalidCombos().add(combo);
             }
         }
+
         if (numeric == null) {
-            invalidCombos.add(combo);
+            result.getInvalidCombos().add(combo);
             return;
         }
+
         BigDecimal capacityByYear = BigDecimal.valueOf(numeric.doubleValue());
 
         MiscClusterCapacityEntity entity = MiscClusterCapacityEntity.builder()
@@ -394,8 +423,11 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 .category(category)
                 .capacityByYear(capacityByYear)
                 .build();
-        entities.add(entity);
-        checksumBuilder.append(area).append("|")
+
+        result.getEntities().add(entity);
+
+        result.getChecksumBuilder()
+                .append(area).append("|")
                 .append(group).append("|")
                 .append(cluster).append("|")
                 .append(category).append("|")
