@@ -501,6 +501,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology, String area) {
         String fileName = path.getFileName().toString().toLowerCase();
+        String technologyPrefix = (technology == null ? "" : technology.toLowerCase() + "_");
         return switch (trajectoryType) {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
@@ -512,9 +513,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> "FR".equals(area) && technology == null ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
-            case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX + (technology == null ? "" : technology.toLowerCase() + "_"));
-            case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX);
+            case RES_CAPACITY -> "FR".equals(area) && technology == null ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX + technologyPrefix);
+            case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
+            case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             default -> true;
         };
     }
@@ -886,8 +887,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private boolean isRelevantFile(Path path, TrajectoryType trajectoryType) {
-        return trajectoryType == TrajectoryType.LOAD ||
-                (Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType));
+        return Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType);
     }
 
     private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {

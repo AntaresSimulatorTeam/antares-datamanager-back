@@ -685,7 +685,7 @@ class TrajectoryServiceImplTest {
             "onshore",
             "ONSHORE",
     })
-    void findTrajectoriesByType_returnsRESFilesContainingTechnologyForFR(String technology,@TempDir Path tempDir) throws IOException {
+    void findTrajectoriesByType_returnsRESFilesWithTechnologyForFR(String technology,@TempDir Path tempDir) throws IOException {
         // Given
         Path thermalDir = tempDir.resolve("RES/installed power/FR/BP_23_FR/");
         Files.createDirectories(thermalDir);
@@ -704,6 +704,36 @@ class TrajectoryServiceImplTest {
         // Then
         assertEquals(1, result.size());
         assertEquals("installedRES_onshore_BP23_Aref.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsRESFilesWithoutTechnologyForFR(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/installed power/FR");
+        Files.createDirectories(thermalDir);
+
+        Files.createDirectory(thermalDir.resolve("BP23_Aref"));
+        Files.createDirectory(thermalDir.resolve("BP23_Aref_v2"));
+        Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.xlsx"));
+        Files.createFile(thermalDir.resolve("other_installedRES_BP23_Aref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResCapacityDirectory()).thenReturn("RES/installed power/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, "FR", null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> expected = List.of("BP23_Aref", "BP23_Aref_v2");
+
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+
+        assertTrue(actual.containsAll(expected));
+        assertEquals(expected.size(), actual.size());
     }
 
     @Test
@@ -728,41 +758,6 @@ class TrajectoryServiceImplTest {
         assertEquals("installedRES_BP23_Aref.xlsx", result.getFirst().getFileName());
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "offshore",
-            "OFFSHORE",
-    })
-    void findTrajectoriesByType_returnsResZonalDistributionWithTechnologyFiles(String technology, @TempDir Path tempDir) throws IOException {
-        // Given
-        Path thermalDir = tempDir.resolve("RES/technicalParameters/");
-        Files.createDirectories(thermalDir);
-
-        Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.xlsx"));
-        Files.createFile(thermalDir.resolve("repartition_zonale_onshore_BP23_A_ref.xlsx"));
-        Files.createFile(thermalDir.resolve("repartition_zonale_BP23_A_ref_onshore.xlsx"));
-        Files.createFile(thermalDir.resolve("repartition_zonale_OFFSHORE_BP23_A_ref.xlsx"));
-        Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.txt"));
-
-        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
-        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
-
-        // When
-        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_ZONAL_DISTRIBUTION, null, technology, null);
-
-        // Then
-        assertEquals(2, result.size());
-        List<String> expected = List.of("repartition_zonale_offshore_BP23_A_ref.xlsx", "repartition_zonale_OFFSHORE_BP23_A_ref.xlsx");
-
-        List<String> actual = result.stream()
-                .map(FsTrajectoryDTO::getFileName)
-                .toList();
-
-        assertTrue(actual.containsAll(expected));
-        assertEquals(expected.size(), actual.size());
-    }
-    
     @Test
     void findTrajectoriesByType_returnsResZonalDistributionWithoutTechnologyFiles(@TempDir Path tempDir) throws IOException {
         // Given
@@ -794,6 +789,41 @@ class TrajectoryServiceImplTest {
         assertTrue(actual.containsAll(expected));
         assertEquals(expected.size(), actual.size());
 
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "offshore",
+            "OFFSHORE",
+    })
+    void findTrajectoriesByType_returnsResTechnologyDistributionWithTechnologyFiles(String technology, @TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/technicalParameters/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("repartition_techno_offshore_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_techno_onshore_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_techno_BP23_A_ref_onshore.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_techno_OFFSHORE_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_techno_offshore_BP23_A_ref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, null, technology, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> expected = List.of("repartition_techno_offshore_BP23_A_ref.xlsx", "repartition_techno_OFFSHORE_BP23_A_ref.xlsx");
+
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+
+        assertTrue(actual.containsAll(expected));
+        assertEquals(expected.size(), actual.size());
     }
 
     @Test
