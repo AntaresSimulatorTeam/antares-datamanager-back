@@ -771,7 +771,8 @@ class TrajectoryServiceImplTest {
 
         Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.xlsx"));
         Files.createFile(thermalDir.resolve("repartition_zonale_onshore_BP23_A_ref.xlsx"));
-        Files.createFile(thermalDir.resolve("repartition_zonale_BP23_A_ref_onshore.xlsx"));
+        Files.createFile(thermalDir.resolve("REPARTITION_TECHNO_BP23_A_ref_onshore.xlsx"));
+        Files.createFile(thermalDir.resolve("REPARTITION_ZONALE_BP23_A_ref_onshore.xlsx"));
         Files.createFile(thermalDir.resolve("repartition_zonale_OFFSHORE_BP23_A_ref.xlsx"));
         Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.txt"));
 
@@ -784,7 +785,7 @@ class TrajectoryServiceImplTest {
 
         // Then
         assertEquals(4, result.size());
-        List<String> expected = List.of("repartition_zonale_offshore_BP23_A_ref.xlsx", "repartition_zonale_onshore_BP23_A_ref.xlsx", "repartition_zonale_BP23_A_ref_onshore.xlsx", "repartition_zonale_OFFSHORE_BP23_A_ref.xlsx");
+        List<String> expected = List.of("repartition_zonale_offshore_BP23_A_ref.xlsx", "repartition_zonale_onshore_BP23_A_ref.xlsx", "REPARTITION_ZONALE_BP23_A_ref_onshore.xlsx", "repartition_zonale_OFFSHORE_BP23_A_ref.xlsx");
 
         List<String> actual = result.stream()
                 .map(FsTrajectoryDTO::getFileName)
