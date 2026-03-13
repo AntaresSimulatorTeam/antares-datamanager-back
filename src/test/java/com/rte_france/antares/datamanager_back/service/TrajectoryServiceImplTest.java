@@ -680,10 +680,13 @@ class TrajectoryServiceImplTest {
         assertEquals(0, result.size());
     }
 
-    @Test
-    void findTrajectoriesByType_returnsRESFilesContainingTechnologyForFR(@TempDir Path tempDir) throws IOException {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "onshore",
+            "ONSHORE",
+    })
+    void findTrajectoriesByType_returnsRESFilesContainingTechnologyForFR(String technology,@TempDir Path tempDir) throws IOException {
         // Given
-        String technology = "onshore";
         Path thermalDir = tempDir.resolve("RES/installed power/FR/BP_23_FR/");
         Files.createDirectories(thermalDir);
 
@@ -723,6 +726,129 @@ class TrajectoryServiceImplTest {
         // Then
         assertEquals(1, result.size());
         assertEquals("installedRES_BP23_Aref.xlsx", result.getFirst().getFileName());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "offshore",
+            "OFFSHORE",
+    })
+    void findTrajectoriesByType_returnsResZonalDistributionWithTechnologyFiles(String technology, @TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/technicalParameters/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_onshore_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_BP23_A_ref_onshore.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_OFFSHORE_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_ZONAL_DISTRIBUTION, null, technology, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> expected = List.of("repartition_zonale_offshore_BP23_A_ref.xlsx", "repartition_zonale_OFFSHORE_BP23_A_ref.xlsx");
+
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+
+        assertTrue(actual.containsAll(expected));
+        assertEquals(expected.size(), actual.size());
+    }
+    
+    @Test
+    void findTrajectoriesByType_returnsResZonalDistributionWithoutTechnologyFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/technicalParameters/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_onshore_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_BP23_A_ref_onshore.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_OFFSHORE_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_offshore_BP23_A_ref.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_ZONAL_DISTRIBUTION, null, null, null);
+
+        // Then
+        assertEquals(4, result.size());
+        List<String> expected = List.of("repartition_zonale_offshore_BP23_A_ref.xlsx", "repartition_zonale_onshore_BP23_A_ref.xlsx", "repartition_zonale_BP23_A_ref_onshore.xlsx", "repartition_zonale_OFFSHORE_BP23_A_ref.xlsx");
+
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+
+        assertTrue(actual.containsAll(expected));
+        assertEquals(expected.size(), actual.size());
+
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsResTechnologyDistributionFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/technicalParameters/");
+        Files.createDirectories(thermalDir);
+
+        Files.createFile(thermalDir.resolve("repartition_techno_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_TECHNO_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_BP23_A_ref_onshore.xlsx"));
+        Files.createFile(thermalDir.resolve("REPARTITION_TECHNO_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_zonale_OFFSHORE_BP23_A_ref.xlsx"));
+        Files.createFile(thermalDir.resolve("repartition_techno_BP23_A_ref.xlsx.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, null, null, null);
+
+        // Then
+        assertEquals(3, result.size());
+        List<String> expected = List.of("repartition_techno_BP23_A_ref.xlsx", "repartition_TECHNO_BP23_A_ref.xlsx", "REPARTITION_TECHNO_BP23_A_ref.xlsx");
+
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+
+        assertTrue(actual.containsAll(expected));
+        assertEquals(expected.size(), actual.size());
+
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsResLoadFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("RES/load factor/");
+        Files.createDirectories(thermalDir);
+
+        Files.createDirectory(thermalDir.resolve("BP23_A_ref_FR"));
+        Files.createDirectory(thermalDir.resolve("BP23_A_ref_FR_v2"));
+        Files.createDirectory(thermalDir.resolve("BP23_A_ref_FR_v3"));
+        Files.createFile(thermalDir.resolve("BP23_A_ref_FR_v3.xlsx"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getResLoadDirectory()).thenReturn("RES/load factor/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_LOAD, null, null, null);
+
+        // Then
+        assertEquals(3, result.size());
+        assertEquals("BP23_A_ref_FR_v2", result.getFirst().getFileName());
     }
 
     @Test
