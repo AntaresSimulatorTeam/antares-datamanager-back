@@ -110,6 +110,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String DSR_CAPACITY_PREFIX = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
     private static final String RES_CAPACITY_PREFIX = "installedres_";
+    private static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
+    private static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -479,7 +481,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 Files.list(directory.normalize())
         ) {
             return stream
-                    .filter(path -> (isDirectoryTrajectory(trajectoryType, area) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology))))
+                    .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -497,20 +499,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology) {
+    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology, String area) {
         String fileName = path.getFileName().toString().toLowerCase();
         return switch (trajectoryType) {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
+            case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> fileName.startsWith(RES_CAPACITY_PREFIX);
+            case RES_CAPACITY -> "FR".equals(area) && technology == null ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
+            case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX + (technology == null ? "" : technology.toLowerCase() + "_"));
+            case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX);
             default -> true;
         };
     }
@@ -886,8 +890,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 (Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType));
     }
 
-    private boolean isDirectoryTrajectory(TrajectoryType trajectoryType, String area) {
-        return trajectoryType == TrajectoryType.LOAD || trajectoryType == RES_CAPACITY && "FR".equals(area) || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD;
+    private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
+        return Files.isDirectory(path) &&
+                (trajectoryType == TrajectoryType.LOAD || trajectoryType == RES_CAPACITY && "FR".equals(area) || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD || trajectoryType == TrajectoryType.RES_LOAD);
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
@@ -934,11 +939,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .resolve(area)
                     .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
                     .toString();
-            case RES_CAPACITY ->
-                    "FR".equals(area) ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
-                            .resolve(area)
-                            .toString() : Path.of(antaresDataManagerProperties.getResCapacityDirectory())
-                            .toString();
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
                     antaresDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaresDataManagerProperties.getThermalCostDirectory();
@@ -953,6 +953,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
             case MISC_CAPACITY -> antaresDataManagerProperties.getMiscCapacityDirectory();
             case MISC_LOAD -> antaresDataManagerProperties.getMiscLoadDirectory();
+            case RES_CAPACITY ->
+                    "FR".equals(area) ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
+                            .resolve(area)
+                            .toString() : Path.of(antaresDataManagerProperties.getResCapacityDirectory())
+                            .toString();
+            case RES_LOAD -> antaresDataManagerProperties.getResLoadDirectory();
+            case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION -> antaresDataManagerProperties.getResDistributionDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
