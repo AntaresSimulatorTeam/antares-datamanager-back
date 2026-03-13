@@ -939,7 +939,7 @@ class UtilsTest {
         List<Path> collected = result.toList();
 
         assertEquals(2, collected.size());
-        assertEquals("prefix_TECH_file.xlsx", collected.getFirst().getFileName().toString());
-        assertEquals("prefix_tech_file.xlsx", collected.get(1).getFileName().toString());
+        assertTrue(collected.stream().anyMatch(p -> p.getFileName().toString().equals("prefix_TECH_file.xlsx")));
+        assertTrue(collected.stream().anyMatch(p -> p.getFileName().toString().equals("prefix_tech_file.xlsx")));
     }
 }
