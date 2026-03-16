@@ -211,50 +211,101 @@ public class ThermalCostAssembler {
             ThermalEconomicEnerContentEntity economicTrajectory,
             TrajectoryEntity economicCostTrajectory
     ) {
-        ThermalCostEntity thermalCostEntity = Optional.ofNullable(economicCostTrajectory)
+        ThermalCostEntity thermalCostEntity = findThermalCostForFuel(economicCostTrajectory, fuel);
+
+        Double efficiency = normalizeEfficiency(dto.getEfficiency());
+        if (efficiency == null) {
+            return;
+        }
+
+        Double startupFuel = getStartupFuel(commonParam);
+        resolveEnergyValue(economicTrajectory);
+
+        ThermalSpecificParametersEntity specificParam = findMatchingSpecificParam(commonParam, specificParams, thermalClusterCapacities);
+        Double marginalCostValue = getMarginalCost(specificParam, thermalCostEntity, fuel, commonParam, dto);
+        if (marginalCostValue != null) {
+            marginalCostValue = round(marginalCostValue);
+        }
+
+        updateStartupCost(dto, commonParam, startupFuel, efficiency, marginalCostValue);
+        if (dto.getMarginalCost() == null) {
+            dto.setMarginalCost(marginalCostValue);
+        }
+    }
+
+    private ThermalCostEntity findThermalCostForFuel(TrajectoryEntity economicCostTrajectory, String fuel) {
+        return Optional.ofNullable(economicCostTrajectory)
                 .flatMap(t -> t.getThermalCosts().stream()
                         .filter(c -> c.getThermalType() != null && fuel.equalsIgnoreCase(c.getThermalType().getFuel()))
                         .findFirst())
                 .orElse(null);
+    }
 
-        Double efficiency = dto.getEfficiency();
-        if (efficiency == null || efficiency == 0.0) return;
-        if (efficiency > 1.0) efficiency = efficiency / 100.0;
+    private Double normalizeEfficiency(Double efficiency) {
+        if (efficiency == null || efficiency == 0.0) {
+            return null;
+        }
+        return efficiency > 1.0 ? efficiency / 100.0 : efficiency;
+    }
 
-        Double startupFuel = (commonParam != null && commonParam.getStartUpFuel() != null)
-                ? commonParam.getStartUpFuel()
-                : 0.0;
+    private Double getStartupFuel(ThermalCommonParameterEntity commonParam) {
+        return (commonParam != null && commonParam.getStartUpFuel() != null) ? commonParam.getStartUpFuel() : 0.0;
+    }
 
+    private Double resolveEnergyValue(ThermalEconomicEnerContentEntity economicTrajectory) {
         Double enerValue = (economicTrajectory != null && economicTrajectory.getValue() != null)
                 ? economicTrajectory.getValue().doubleValue() : 0.0;
         if (enerValue == 0.0) {
-            enerValue = getEnergyValue(Optional.ofNullable(economicTrajectory).map(ThermalEconomicEnerContentEntity::getTrajectory)
+            return getEnergyValue(Optional.ofNullable(economicTrajectory)
+                    .map(ThermalEconomicEnerContentEntity::getTrajectory)
                     .orElse(null));
         }
+        return enerValue;
+    }
 
-        // Matches specific parameter by thermal cluster reference name
-        ThermalSpecificParametersEntity specificParam = specificParams.stream()
-                .filter(s -> s.getThermalClusterRef() != null
-                        && (commonParam != null && commonParam.getThermalClusterRef() != null
-                        ? Objects.equals(s.getThermalClusterRef().getName(), commonParam.getThermalClusterRef().getName())
-                        : thermalClusterCapacities.stream().anyMatch(c -> c.getThermalClusterRef() != null && Objects.equals(s.getThermalClusterRef().getName(), c.getThermalClusterRef().getName()))))
+    private ThermalSpecificParametersEntity findMatchingSpecificParam(
+            ThermalCommonParameterEntity commonParam,
+            List<ThermalSpecificParametersEntity> specificParams,
+            List<ThermalClusterCapacityEntity> thermalClusterCapacities
+    ) {
+        return specificParams.stream()
+                .filter(s -> matchesSpecificParamForCluster(s, commonParam, thermalClusterCapacities))
                 .findFirst()
                 .orElse(null);
+    }
 
+    private boolean matchesSpecificParamForCluster(
+            ThermalSpecificParametersEntity specificParam,
+            ThermalCommonParameterEntity commonParam,
+            List<ThermalClusterCapacityEntity> thermalClusterCapacities
+    ) {
+        if (specificParam.getThermalClusterRef() == null) {
+            return false;
+        }
+        String specificClusterName = specificParam.getThermalClusterRef().getName();
+        if (commonParam != null && commonParam.getThermalClusterRef() != null) {
+            return Objects.equals(specificClusterName, commonParam.getThermalClusterRef().getName());
+        }
+        return thermalClusterCapacities.stream()
+                .anyMatch(c -> c.getThermalClusterRef() != null
+                        && Objects.equals(specificClusterName, c.getThermalClusterRef().getName()));
+    }
 
-        Double marginalCostValue = getMarginalCost(specificParam, thermalCostEntity, fuel, commonParam, dto);
-
-        if (marginalCostValue != null) {
-            marginalCostValue = round(marginalCostValue);
-            Double startupFixCost = (commonParam != null && commonParam.getStartUpFixCost() != null) ? commonParam.getStartUpFixCost() : 0.0;
-            // Formula: (startup_fuel * COFF_GJ_T_MWH * efficiency * marginal_cost )+ startup_fix_cost
-            dto.setStartupCost(round((startupFuel * COFF_GJ_T_MWH * efficiency * marginalCostValue) + startupFixCost));
+    private void updateStartupCost(
+            ThermalClusterGenerationDto dto,
+            ThermalCommonParameterEntity commonParam,
+            Double startupFuel,
+            Double efficiency,
+            Double marginalCostValue
+    ) {
+        if (marginalCostValue == null) {
+            return;
         }
 
-        // Always set the calculated marginal cost back to the DTO if it wasn't there
-        if (dto.getMarginalCost() == null) {
-            dto.setMarginalCost(marginalCostValue);
-        }
+        Double startupFixCost = (commonParam != null && commonParam.getStartUpFixCost() != null)
+                ? commonParam.getStartUpFixCost() : 0.0;
+        // Formula: (startup_fuel * COFF_GJ_T_MWH * efficiency * marginal_cost )+ startup_fix_cost
+        dto.setStartupCost(round((startupFuel * COFF_GJ_T_MWH * efficiency * marginalCostValue) + startupFixCost));
     }
 
 
