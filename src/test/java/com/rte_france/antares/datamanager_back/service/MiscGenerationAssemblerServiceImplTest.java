@@ -1,5 +1,11 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscGenerationAssemblerServiceImpl;
@@ -13,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.math.BigDecimal;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +42,12 @@ class MiscGenerationAssemblerServiceImplTest {
     @Mock
     private TimeSeriesReader timeSeriesReader;
 
+    @Mock
+    private AreaRepository areaRepository;
+
+    @Mock
+    private MiscFileProcessorServiceImpl miscFileProcessorService;
+
     @InjectMocks
     private MiscGenerationAssemblerServiceImpl miscGenerationAssemblerService;
 
@@ -45,12 +58,40 @@ class MiscGenerationAssemblerServiceImplTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         miscGenerationAssemblerService = new MiscGenerationAssemblerServiceImpl(
-                null, // areaRepository
-                null, // miscFileProcessorService
+                areaRepository,
+                miscFileProcessorService,
                 nasFileService,
                 antaresDataManagerProperties,
                 timeSeriesReader
         );
+    }
+
+    @Test
+    void assembleMiscProperties_shouldReturnCorrectMap() {
+        // Given
+        StudyEntity study = new StudyEntity();
+        study.setId(1);
+        study.setHorizon("2030-2031");
+
+        TrajectoryEntity t1 = new TrajectoryEntity();
+        t1.setType("MISC_CAPACITY");
+        t1.setHorizon("2030-2031");
+
+        MiscClusterCapacityEntity m1 = new MiscClusterCapacityEntity();
+        m1.setArea("FR");
+        m1.setGroupe("biogas");
+        m1.setCapacityByYear(BigDecimal.valueOf(100.0));
+        t1.setMiscClusterCapacityEntities(List.of(m1));
+        study.setTrajectories(Set.of(t1));
+
+        // When
+        var result = miscGenerationAssemblerService.assembleMiscProperties(study);
+
+        // Then
+        assertEquals(1, result.size());
+        assertTrue(result.containsKey("FR"));
+        assertEquals(1, result.get("FR").size());
+        assertEquals("biogas", result.get("FR").get(0).getGroupe());
     }
 
     @Test

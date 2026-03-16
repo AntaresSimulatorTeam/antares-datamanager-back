@@ -134,30 +134,29 @@ class NasFileServiceTest {
 
 
   @Test
-  void processLoadFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-    var tempFile = tempDir.resolve("test-path.txt");
-    Files.createFile(tempFile);
-    Files.writeString(tempFile, "This is the content to be written to the file.");
-    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
-    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
+  void saveMatrixToNas_fromMatrix_validInput() throws IOException {
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn("matrix content".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
 
-    assertDoesNotThrow(() -> nasFileService.saveMatrixToNas(tempFile, "loadOutputDir"));
+    String result = nasFileService.saveMatrixToNas(timeSeriesMatrix, "baseName", OUTPUT_DIRECTORY);
 
-    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
-    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
+    assertNotNull(result);
+    assertTrue(result.startsWith("baseName."));
+    assertTrue(result.endsWith(".arrow"));
+    
+    Path savedFile = tempDir.resolve(OUTPUT_DIRECTORY).resolve(result);
+    assertTrue(Files.exists(savedFile));
+    assertArrayEquals("matrix content".getBytes(), Files.readAllBytes(savedFile));
   }
 
   @Test
-  void processLoadFile_whenTrajectoryDoesNotExist() throws IOException {
-    var tempFile = tempDir.resolve("test-path.txt");
-    Files.createFile(tempFile);
-    Files.writeString(tempFile, "This is the content to be written to the file.");
-    when(timeSeriesReader.readFromTxt(any(Path.class))).thenReturn(timeSeriesMatrix);
-    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[0]);
+  void saveMatrixToNas_fromMatrix_nullMatrix() {
+    assertThrows(NullPointerException.class, () -> nasFileService.saveMatrixToNas((TimeSeriesMatrix) null, "baseName", OUTPUT_DIRECTORY));
+  }
 
-    assertDoesNotThrow(() -> nasFileService.saveMatrixToNas(tempFile, "loadOutputDir"));
-
-    verify(timeSeriesReader, times(1)).readFromTxt(any(Path.class));
-    verify(timeSeriesWriter, times(1)).writeToByteArray(any(TimeSeriesMatrix.class));
+  @Test
+  void saveMatrixToNas_fromMatrix_nullBaseName() {
+    assertThrows(NullPointerException.class, () -> nasFileService.saveMatrixToNas(timeSeriesMatrix, null, OUTPUT_DIRECTORY));
   }
 }
