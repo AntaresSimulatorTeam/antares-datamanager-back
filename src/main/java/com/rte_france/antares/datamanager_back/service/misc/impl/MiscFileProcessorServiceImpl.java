@@ -177,6 +177,28 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         // ou load_factor is the prefix of ts and group the group and horizon the horizon
         if (listAreasByGroup.isEmpty()) {
             log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
+            //check that all files exist
+            List<GroupClusterKey> groupClusterKeyList = List.of(
+                    new GroupClusterKey("biomass", "small biomass"),
+                    new GroupClusterKey("biogas", "biogas"),
+                    new GroupClusterKey("geothermal", "geothermal"),
+                    new GroupClusterKey("other", "other"),
+                    new GroupClusterKey("waste", "waste") ,
+                    new GroupClusterKey("wave", "wave"),
+                    new GroupClusterKey("hydrokinetic", "hydrokinetic")
+            );
+            groupClusterKeyList.forEach(groupClusterKey -> {
+                Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
+                if (!Files.exists(tsFilePath)) {
+                    throw BusinessException.builder()
+                            .message("Load factor file not found for group {0}: expected at {1}")
+                            .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
+                            .build();
+                } else {
+                    log.info("Load factor file {} for group {} found at expected location {}", tsFilePath.getFileName(), groupClusterKey.groupe, tsFilePath);
+                }
+            });
+
 
         } else {
             for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
