@@ -1872,4 +1872,149 @@ class TrajectoryServiceImplTest {
         // expect IOException because buildMergedLoadFactorHeaders does not swallow IOExceptions from buildTrajectoryPath
         assertThrows(IOException.class, () -> spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), selectingTrajectory, "user"));
     }
+
+    @Test
+    void controlesMiscOnSelectInstalledPowerTrajectorySucceedsWhenLoadFactorCoversAllInstalledAreas_select(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+
+        // additional capacities returned when selecting installed power trajectory
+        GroupAreaMiscCapacity add1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
+        GroupAreaMiscCapacity add2 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area2";} public String getCluster(){return "cluster1";} };
+        when(miscClusterCapacityRepository.findByTrajectoryId(10)).thenReturn(List.of(add1, add2));
+
+        // one existing load factor trajectory present for the study
+        TrajectoryEntity existingLf = TrajectoryEntity.builder()
+                .id(2)
+                .fileName("fileLF")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area("FR")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
+
+        // build temp files for readHeaderAreas
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("load_factor_cluster1_2030-2031.csv"), "area1;area2\n1;2\n");
+
+        // selecting trajectory (the one being selected is of type MISC_CAPACITY so checkTrajectoryCoherence will call the right private method)
+        TrajectoryEntity selectingTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .fileName("installedFile")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_CAPACITY.name())
+                .area("FR")
+                .build();
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("fileLF"), eq(TrajectoryType.MISC_LOAD));
+
+        assertDoesNotThrow(() -> spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), selectingTrajectory, "user"));
+    }
+
+    @Test
+    void controlesMiscOnSelectInstalledPowerTrajectoryThrowsWhenLoadFactorMissingInstalledAreas_select(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+
+        GroupAreaMiscCapacity add1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
+        GroupAreaMiscCapacity add2 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area2";} public String getCluster(){return "cluster1";} };
+        when(miscClusterCapacityRepository.findByTrajectoryId(10)).thenReturn(List.of(add1, add2));
+
+        TrajectoryEntity existingLf = TrajectoryEntity.builder()
+                .id(2)
+                .fileName("fileLF")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area("FR")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        // missing area2 in header
+        Files.writeString(dir.resolve("load_factor_cluster1_2030-2031.csv"), "area1;other\n1;2\n");
+
+        TrajectoryEntity selectingTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .fileName("installedFile")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_CAPACITY.name())
+                .area("FR")
+                .build();
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("fileLF"), eq(TrajectoryType.MISC_LOAD));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), selectingTrajectory, "user"));
+        assertTrue(exception.getMessage().toLowerCase().contains("missing") || exception.getMessage().toLowerCase().contains("manqu"));
+    }
+
+    @Test
+    void controlesMiscOnImportInstalledPowerSucceedsWhenLoadFactorCoversAllInstalledAreas_import(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+
+        // prepare imported MiscClusterCapacityEntity list
+        MiscClusterCapacityEntity imported1 = MiscClusterCapacityEntity.builder().groupe("group1").area("area1").cluster("cluster1").build();
+        MiscClusterCapacityEntity imported2 = MiscClusterCapacityEntity.builder().groupe("group1").area("area2").cluster("cluster1").build();
+
+        // existing load factor trajectory
+        TrajectoryEntity existingLf = TrajectoryEntity.builder()
+                .id(2)
+                .fileName("fileLF")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area("FR")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
+
+        // no previously stored installed capacity for study+area
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(Collections.emptyList());
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("load_factor_cluster1_2030-2031.csv"), "area1;area2\n1;2\n");
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("fileLF"), eq(TrajectoryType.MISC_LOAD));
+
+        // should not throw
+        assertDoesNotThrow(() -> spyService.controlesMiscOnImportInstalledPower(studyId, List.of(imported1, imported2), "FR"));
+    }
+
+    @Test
+    void controlesMiscOnImportInstalledPowerThrowsWhenLoadFactorMissingInstalledAreas_import(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+
+        MiscClusterCapacityEntity imported1 = MiscClusterCapacityEntity.builder().groupe("group1").area("area1").cluster("cluster1").build();
+        MiscClusterCapacityEntity imported2 = MiscClusterCapacityEntity.builder().groupe("group1").area("area2").cluster("cluster1").build();
+
+        TrajectoryEntity existingLf = TrajectoryEntity.builder()
+                .id(2)
+                .fileName("fileLF")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area("FR")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(Collections.emptyList());
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        // missing area2
+        Files.writeString(dir.resolve("load_factor_cluster1_2030-2031.csv"), "area1;other\n1;2\n");
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("fileLF"), eq(TrajectoryType.MISC_LOAD));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> spyService.controlesMiscOnImportInstalledPower(studyId, List.of(imported1, imported2), "FR"));
+        assertTrue(exception.getMessage().toLowerCase().contains("missing") || exception.getMessage().toLowerCase().contains("manqu"));
+    }
 }
