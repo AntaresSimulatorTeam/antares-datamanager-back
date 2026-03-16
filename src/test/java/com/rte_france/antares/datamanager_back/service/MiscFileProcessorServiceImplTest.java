@@ -694,5 +694,54 @@ class MiscFileProcessorServiceImplTest {
         verify(trajectoryRepository, atLeastOnce()).save(any());
     }
 
+    @Test
+    void shouldThrowWhenDefaultGroupFileMissing() throws Exception {
+
+        String horizon = "2029-2030";
+        String trajectoryToUse = "loadFactor";
+        Integer studyId = 1;
+        String area = "FR";
+
+        Path root = Files.createTempDirectory(tempDir, "misc_load_");
+
+        when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                .thenReturn(root);
+
+        // Force listAreasByGroup.isEmpty()
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                .thenReturn(List.of());
+
+        // Create ALL folders but omit one CSV to trigger exception
+        List<MiscFileProcessorServiceImpl.GroupClusterKey> keys = List.of(
+                new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "small biomass"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("geothermal", "geothermal"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("other", "other"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("waste", "waste"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("wave", "wave"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("hydrokinetic", "hydrokinetic")
+        );
+
+        int index = 0;
+
+        for (MiscFileProcessorServiceImpl.GroupClusterKey key : keys) {
+
+            Path dir = root.resolve(key.groupe()).resolve(key.cluster());
+            Files.createDirectories(dir);
+
+            // Skip one file to trigger error
+            if (index++ == 3) continue;
+
+            Path csv = dir.resolve("load_factor_" + key.cluster() + "_" + horizon + ".csv");
+
+            Files.writeString(csv, "FR;DE\n1;2");
+        }
+
+        assertThatThrownBy(() ->
+                service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Load factor file not found");
+    }
+
 }
 
