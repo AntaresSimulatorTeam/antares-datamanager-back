@@ -1954,6 +1954,45 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void controlesMiscInstalledPowerReturnsWhenNoRelevantLoadFactorTrajectories() throws IOException {
+        Integer studyId = 1;
+
+        // additional capacities returned when selecting installed power trajectory
+        GroupAreaMiscCapacity add1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
+        when(miscClusterCapacityRepository.findByTrajectoryId(10)).thenReturn(List.of(add1));
+
+        // existing load factor trajectory present but for a different area (neither the selected area nor OTHERS)
+        TrajectoryEntity existingLf = TrajectoryEntity.builder()
+                .id(2)
+                .fileName("fileLF")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area("DE")
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
+
+        // selecting trajectory (the one being selected is of type MISC_CAPACITY so checkTrajectoryCoherence will call the right private method)
+        TrajectoryEntity selectingTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .fileName("installedFile")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_CAPACITY.name())
+                .area("FR")
+                .build();
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+
+        // Should return early (no exception) because after filtering by area there is no relevant load factor trajectory
+        assertDoesNotThrow(() -> spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), selectingTrajectory, "user"));
+
+        verify(miscClusterCapacityRepository, times(1)).findByTrajectoryId(10);
+        // ensure we did not call the study+area lookup because method should have returned early
+        verify(miscClusterCapacityRepository, never()).findByStudyIdAndArea(anyInt(), anyString());
+        verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
+    }
+
+    @Test
     void controlesMiscOnImportInstalledPowerSucceedsWhenLoadFactorCoversAllInstalledAreas_import(@TempDir Path tempDir) throws IOException {
         Integer studyId = 1;
 
