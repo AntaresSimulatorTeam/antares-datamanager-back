@@ -865,7 +865,7 @@ public class Utils {
                     .build();
         }
     }
-    
+
     private static String getErrorMessageLabelFromType(TrajectoryType type) {
         return switch (type) {
             case DSR -> "DSR cluster";
@@ -885,7 +885,7 @@ public class Utils {
         }
     }
 
-    public Stream<Path> findResCapacityTechnologyFiles(Path directoryPath, String prefix, String technology) throws IOException {
+    public static Stream<Path> findResCapacityTechnologyFiles(Path directoryPath, String prefix, String technology) throws IOException {
             String prefixWithTechnology = prefix + technology.toLowerCase() + "_";
             return Files.walk(directoryPath, 2)
                     .filter(Files::isRegularFile)

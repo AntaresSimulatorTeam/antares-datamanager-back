@@ -935,9 +935,10 @@ class UtilsTest {
         Files.createFile(tempDir.resolve("prefix_other_TECH_.txt"));
         Files.createFile(tempDir.resolve("other_file.xlsx"));
 
-        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "tech");
-
-        List<Path> collected = result.toList();
+        List<Path> collected;
+        try (Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "tech")) {
+            collected = result.toList();
+        }
 
         assertEquals(2, collected.size());
         assertThat(collected).extracting(Path::getFileName)
