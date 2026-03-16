@@ -55,6 +55,9 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.dsr.ts.output.directory}")
     public String dsrModulationTsOutputDirectory;
 
+    @Value("${antares.datamanager.misc.ts.output.directory}")
+    public String miscGenTsOutputDirectory;
+
     @Value("${antares.datamanager.study.json.output.directory}")
     public String studyJsonOutputDirectory;
 

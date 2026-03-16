@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,11 +26,14 @@ class MiscControllerTest {
 
     @Autowired
     protected WebApplicationContext wac;
-    
+
     private MockMvc mockMvc;
 
     @MockBean
     private MiscFileProcessorService miscFileProcessorService;
+
+    @MockBean
+    private MiscGenerationAssemblerService miscGenerationAssemblerService;
 
     @BeforeEach
     void setup() {

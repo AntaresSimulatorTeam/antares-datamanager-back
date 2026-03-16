@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -87,6 +88,9 @@ class StudyGeneratorServiceImplTest {
     private DsrToJsonService drsToJsonService;
 
     @Mock
+    private MiscToJsonService miscToJsonService;
+
+    @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
@@ -94,6 +98,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private DsrGenerationAssemblerService dsrGenerationAssemblerService;
+
+    @Mock
+    private MiscGenerationAssemblerService miscGenerationAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 

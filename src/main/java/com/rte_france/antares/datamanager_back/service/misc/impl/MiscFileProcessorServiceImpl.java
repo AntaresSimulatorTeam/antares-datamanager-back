@@ -314,7 +314,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         }
     }
 
-    private static Path getLoadFactorByGroupPath(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey) {
+    public static Path getLoadFactorByGroupPath(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey) {
         return trajectoryFilePath
                 .resolve(groupClusterKey.groupe)
                 .resolve(groupClusterKey.cluster)// for biomass group the file is in small biomass subfolder
@@ -328,6 +328,21 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     public Map<GroupClusterKey, List<String>> getAreasByGroupClusterByStudyId(Integer studyId, String area) {
 
         return miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        entity -> new GroupClusterKey(
+                                entity.getGroupe(),
+                                entity.getCluster()
+                        ),
+                        Collectors.mapping(
+                                GroupAreaMiscCapacity::getArea,
+                                Collectors.toList()
+                        )
+                ));
+    }
+
+    public Map<GroupClusterKey, List<String>> getAreasByGroupClusterByTrajectoryId(Integer trajectoryId) {
+        return miscClusterCapacityRepository.findByTrajectoryId(trajectoryId)
                 .stream()
                 .collect(Collectors.groupingBy(
                         entity -> new GroupClusterKey(

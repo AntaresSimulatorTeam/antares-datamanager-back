@@ -57,13 +57,31 @@ class TimeSeriesReaderTest {
     void readFromTxt_shouldReadCorrectly(@TempDir Path tempDir) throws IOException {
         var filePath = tempDir.resolve("timeseries.txt");
         Files.createFile(filePath);
-        Files.writeString(filePath, "1.0 2.0 3.0\n4.0 5.0 6.0\n7.0 8.0 9.0");
+        Files.writeString(filePath, "Col1 Col2 Col3\n1.0 2.0 3.0\n4.0 5.0 6.0\n7.0 8.0 9.0");
         var matrix = timeSeriesReader.readFromTxt(filePath);
 
         assertEquals(8760, matrix.getRowCount());
         assertEquals(3, matrix.columns().size());
+        assertEquals("Col1", matrix.columns().get(0).name());
         assertArrayEquals(new double[]{1.0, 4.0, 7.0}, Arrays.copyOf(matrix.columns().get(0).values(), 3));
         assertArrayEquals(new double[]{3.0, 6.0, 9.0}, Arrays.copyOf(matrix.columns().get(2).values(), 3));
+    }
+
+    @Test
+    void readFromTxt_shouldReadWithSemicolonSeparator(@TempDir Path tempDir) throws IOException {
+        var filePath = tempDir.resolve("timeseries.csv");
+        Files.createFile(filePath);
+        Files.writeString(filePath, "date;AT;BE;CH\n2023-01-01;1.0;2.0;3.0\n2023-01-02;4.0;5.0;6.0");
+        var matrix = timeSeriesReader.readFromTxt(filePath);
+
+        assertEquals(8760, matrix.getRowCount());
+        assertEquals(4, matrix.columns().size());
+        assertEquals("date", matrix.columns().get(0).name());
+        assertEquals("AT", matrix.columns().get(1).name());
+        // date column should have 0.0 because it's non-numeric
+        assertEquals(0.0, matrix.columns().get(0).values()[0]);
+        assertEquals(1.0, matrix.columns().get(1).values()[0]);
+        assertEquals(2.0, matrix.columns().get(2).values()[0]);
     }
 
     @Test

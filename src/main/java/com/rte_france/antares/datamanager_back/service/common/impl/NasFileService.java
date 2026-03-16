@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -27,6 +28,7 @@ public class NasFileService {
 
     private final TimeSeriesReader reader;
 
+    @Getter
     private final TimeSeriesWriter writer;
 
 
@@ -123,7 +125,7 @@ public class NasFileService {
                     .build();
 
         }
-        var outputFileName = generateUniqueFileName(inputPath);
+        var outputFileName = generateUniqueFileName(inputPath.getFileName().toString());
         saveMatrix(outputFileName, matrix, outputDir);
         setFilePermissions(inputPath);
         return outputFileName;
@@ -133,8 +135,19 @@ public class NasFileService {
         return saveMatrixToNas(inputPath, outputDir, null);
     }
 
-    private String generateUniqueFileName(Path inputPath) {
-        return inputPath.getFileName() + "." + UUID.randomUUID() + "." + writer.getDefaultFileExtension();
+    public String saveMatrixToNas(TimeSeriesMatrix matrix, String baseName, String outputDir) throws IOException {
+        Objects.requireNonNull(matrix, "matrix must not be null");
+        Objects.requireNonNull(baseName, "baseName must not be null");
+        var outputFileName = generateUniqueFileName(baseName);
+        saveMatrix(outputFileName, matrix, outputDir);
+        return outputFileName;
+    }
+
+    private String generateUniqueFileName(String baseName) {
+        if (baseName.toLowerCase().endsWith("." + writer.getDefaultFileExtension())) {
+            baseName = baseName.substring(0, baseName.length() - (writer.getDefaultFileExtension().length() + 1));
+        }
+        return baseName + "." + UUID.randomUUID() + "." + writer.getDefaultFileExtension();
     }
 
     private void saveMatrix(String fileName, TimeSeriesMatrix matrix, String outputDir) throws IOException {

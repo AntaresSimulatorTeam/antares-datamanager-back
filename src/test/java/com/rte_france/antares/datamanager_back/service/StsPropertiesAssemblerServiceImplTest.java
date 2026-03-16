@@ -316,7 +316,7 @@ class StsPropertiesAssemblerServiceImplTest {
             Files.createFile(file.resolve(tempDir));
         }
 
-        when(nasFileService.saveMatrixToNas(any(), any(), any()))
+        when(nasFileService.saveMatrixToNas(any(Path.class), any(), any()))
                 .thenThrow(new IOException("NAS error"));
 
         // when / then
@@ -349,7 +349,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
 
-        when(nasFileService.saveMatrixToNas(any(), any(), eq(horizon)))
+        when(nasFileService.saveMatrixToNas(any(Path.class), any(), eq(horizon)))
                 .thenThrow(originalEx);
 
         // when / then
