@@ -144,60 +144,89 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                                                                      List<ThermalCostsRateEntity> thermalRateEntities,
                                                                      TrajectoryType type) {
         trajectory.setType(type.name());
-        List<ThermalCostEntity> toPersistCosts = new ArrayList<>();
-
-        if (thermalCostTypeEntities != null) {
-            for (ThermalCostTypeEntity inputType : thermalCostTypeEntities) {
-                if (inputType == null) continue;
-
-                // Normaliser les clés de recherche
-                String country = trimOrNull(inputType.getCountry());
-                String fuel = trimOrNull(inputType.getFuel());
-                String comment = trimOrNull(inputType.getComment());
-                String unit = trimOrNull(inputType.getUnit());
-                String modulation = trimOrNull(inputType.getModulation());
-                Double ratio = inputType.getRatioNcvHcv();
-
-                // Rechercher une entité existante ; si absente, créer puis sauvegarder
-                ThermalCostTypeEntity typeEntity = thermalCostTypeRepository
-                        .findByCountryAndFuelAndCommentAndUnitAndModulationAndRatioNcvHcv(country, fuel, comment, unit, modulation, ratio)
-                        .orElseGet(() -> thermalCostTypeRepository.save(
-                                ThermalCostTypeEntity.builder()
-                                        .fuel(fuel)
-                                        .country(country)
-                                        .comment(comment)
-                                        .unit(unit)
-                                        .modulation(modulation)
-                                        .ratioNcvHcv(ratio)
-                                        .build()
-                        ));
-
-                List<ThermalCostEntity> costs = inputType.getThermalCostEntities();
-                if (costs != null) {
-                    for (ThermalCostEntity c : costs) {
-                        if (c == null) continue;
-                        c.setThermalType(typeEntity);
-                        c.setTrajectory(trajectory);
-                        toPersistCosts.add(c);
-                    }
-                }
-            }
-        }
+        List<ThermalCostEntity> toPersistCosts = collectThermalCostsForTrajectory(trajectory, thermalCostTypeEntities);
 
         if (!toPersistCosts.isEmpty()) {
             trajectory.setThermalCosts(toPersistCosts);
         }
 
-        if (thermalRateEntities != null && !thermalRateEntities.isEmpty()) {
-            for (ThermalCostsRateEntity rate : thermalRateEntities) {
-                if (rate == null) continue;
-                rate.setTrajectory(trajectory);
-            }
-            trajectory.setThermalCostsRates(thermalRateEntities);
-        }
+        attachRatesToTrajectory(trajectory, thermalRateEntities);
 
         return trajectoryRepository.save(trajectory);
     }
+
+    private List<ThermalCostEntity> collectThermalCostsForTrajectory(
+            TrajectoryEntity trajectory,
+            List<ThermalCostTypeEntity> thermalCostTypeEntities
+    ) {
+        List<ThermalCostEntity> toPersistCosts = new ArrayList<>();
+        if (thermalCostTypeEntities == null) {
+            return toPersistCosts;
+        }
+
+        for (ThermalCostTypeEntity inputType : thermalCostTypeEntities) {
+            if (inputType == null) {
+                continue;
+            }
+            ThermalCostTypeEntity typeEntity = resolveOrCreateCostType(inputType);
+            linkCostsToTrajectory(trajectory, inputType.getThermalCostEntities(), typeEntity, toPersistCosts);
+        }
+        return toPersistCosts;
+    }
+
+    private ThermalCostTypeEntity resolveOrCreateCostType(ThermalCostTypeEntity inputType) {
+        String country = trimOrNull(inputType.getCountry());
+        String fuel = trimOrNull(inputType.getFuel());
+        String comment = trimOrNull(inputType.getComment());
+        String unit = trimOrNull(inputType.getUnit());
+        String modulation = trimOrNull(inputType.getModulation());
+        Double ratio = inputType.getRatioNcvHcv();
+
+        return thermalCostTypeRepository
+                .findByCountryAndFuelAndCommentAndUnitAndModulationAndRatioNcvHcv(country, fuel, comment, unit, modulation, ratio)
+                .orElseGet(() -> thermalCostTypeRepository.save(
+                        ThermalCostTypeEntity.builder()
+                                .fuel(fuel)
+                                .country(country)
+                                .comment(comment)
+                                .unit(unit)
+                                .modulation(modulation)
+                                .ratioNcvHcv(ratio)
+                                .build()
+                ));
+    }
+
+    private void linkCostsToTrajectory(
+            TrajectoryEntity trajectory,
+            List<ThermalCostEntity> costs,
+            ThermalCostTypeEntity typeEntity,
+            List<ThermalCostEntity> toPersistCosts
+    ) {
+        if (costs == null) {
+            return;
+        }
+        for (ThermalCostEntity cost : costs) {
+            if (cost == null) {
+                continue;
+            }
+            cost.setThermalType(typeEntity);
+            cost.setTrajectory(trajectory);
+            toPersistCosts.add(cost);
+        }
+    }
+
+    private void attachRatesToTrajectory(TrajectoryEntity trajectory, List<ThermalCostsRateEntity> thermalRateEntities) {
+        if (thermalRateEntities == null || thermalRateEntities.isEmpty()) {
+            return;
+        }
+        for (ThermalCostsRateEntity rate : thermalRateEntities) {
+            if (rate != null) {
+                rate.setTrajectory(trajectory);
+            }
+        }
+        trajectory.setThermalCostsRates(thermalRateEntities);
+    }
+
 
 
 
