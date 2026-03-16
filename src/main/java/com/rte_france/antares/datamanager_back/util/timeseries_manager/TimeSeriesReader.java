@@ -42,14 +42,18 @@ public final class TimeSeriesReader {
       }
 
       var firstLine = iterator.next();
-      var columnCount = firstLine.split("\\s+").length;
+      String separator = firstLine.contains(";") ? ";" : "\\s+";
+
+      var headerValues = firstLine.split(separator);
+      var columnCount = headerValues.length;
       var data = new double[columnCount][ROW_COUNT];
 
-      fillDataList(firstLine, iterator, data);
+      fillDataList(null, iterator, data, separator);
 
       var columns = new ArrayList<TimeSeriesMatrixColumn>(data.length);
       for (int j = 0; j < data.length; j++) {
-        columns.add(new TimeSeriesMatrixColumn("Column" + j, data[j]));
+        String colName = headerValues[j].trim();
+        columns.add(new TimeSeriesMatrixColumn(colName.isEmpty() ? "Column" + j : colName, data[j]));
       }
 
       return new TimeSeriesMatrix(columns);
@@ -211,18 +215,18 @@ public final class TimeSeriesReader {
     }
   }
 
-  private static void fillDataList(String firstLine, Iterator<String> iterator, double[][] data) {
+  private static void fillDataList(String firstLine, Iterator<String> iterator, double[][] data, String separator) {
     var rowIndex = 0;
     while ((firstLine != null || iterator.hasNext()) && rowIndex < ROW_COUNT) {
       String[] values;
       if (firstLine != null) {
-        values = firstLine.split("\\s+");
+        values = firstLine.split(separator);
         firstLine = null;
       } else {
-        values = iterator.next().split("\\s+");
+        values = iterator.next().split(separator);
       }
       for (var j = 0; j < values.length && j < data.length; j++) {
-        data[j][rowIndex] = Double.parseDouble(values[j].replace(',', '.'));
+        data[j][rowIndex] = parseStringNumber(values[j]);
       }
       rowIndex++;
     }

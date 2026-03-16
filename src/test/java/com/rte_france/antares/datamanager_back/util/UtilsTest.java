@@ -688,7 +688,7 @@ class UtilsTest {
         void testOtherType() {
             Cell cell = mock(Cell.class);
             when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
-            
+
             assertFalse(Utils.isNumericCell(cell));
         }
 
