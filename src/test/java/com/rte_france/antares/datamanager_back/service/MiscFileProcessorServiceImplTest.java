@@ -195,6 +195,45 @@ class MiscFileProcessorServiceImplTest {
 
             assertThat(result).isNotNull();
             assertThat(result.getType()).isEqualTo(TrajectoryType.MISC_LOAD.name());
+            assertThat(result.getChecksum()).isNotNull();
+        }
+
+        @Test
+        void shouldThrowAlreadyProcessedWhenChecksumMatches() throws Exception {
+            GroupAreaMiscCapacity m1 = mock(GroupAreaMiscCapacity.class);
+            when(m1.getGroupe()).thenReturn("biomass");
+            when(m1.getCluster()).thenReturn("small_biomass");
+            when(m1.getArea()).thenReturn("FR");
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR")).thenReturn(List.of(m1));
+
+            Path root = tempDir.resolve("trajectories_existing");
+            Files.createDirectories(root.resolve("biomass").resolve("small_biomass"));
+            Path csv = root.resolve("biomass").resolve("small_biomass").resolve("load_factor_small_biomass_2029-2030.csv");
+            Files.writeString(csv, "date;FR\n2029-01-01;0.5");
+
+            when(trajectoryService.buildTrajectoryPath(anyString(), eq(TrajectoryType.MISC_LOAD))).thenReturn(root);
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+
+            TrajectoryEntity existing = new TrajectoryEntity();
+            existing.setChecksum("someChecksum");
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(any(), any(), any(), any(), any()))
+                    .thenReturn(Optional.of(existing));
+
+            // Simuler l'exception en forçant le checksum à correspondre
+            try (var mockedUtils = mockStatic(com.rte_france.antares.datamanager_back.util.Utils.class)) {
+                mockedUtils.when(() -> com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum(any())).thenReturn("someChecksum");
+                mockedUtils.when(() -> com.rte_france.antares.datamanager_back.util.Utils.getFileNameWithoutExtensionAndWithoutPrefix(any(), any())).thenReturn("test");
+                mockedUtils.when(() -> com.rte_france.antares.datamanager_back.util.Utils.throwAlreadyProcessedFileException(any())).thenThrow(
+                        BusinessException.builder()
+                                .message("File already processed with same content")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build());
+
+                assertThatThrownBy(() ->
+                        miscFileProcessorService.processLoadFactorMiscFile("load_factor_test", "2029-2030", 1, "FR"))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("File already processed with same content");
+            }
         }
 
         @Test
