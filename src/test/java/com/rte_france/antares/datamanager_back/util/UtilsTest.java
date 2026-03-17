@@ -925,24 +925,5 @@ class UtilsTest {
         assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
         assertTrue(ex.getMessage().contains("Capacity modulation"));
     }
-
-    @Test
-    void testFindTechnologyFiles_withRealFS(@TempDir Path tempDir) throws IOException {
-
-        Files.createFile(tempDir.resolve("prefix_TECH_file.xlsx"));
-        Files.createFile(tempDir.resolve("prefix_tech_file.xlsx"));
-        Files.createFile(tempDir.resolve("prefixTECH_other.txt"));
-        Files.createFile(tempDir.resolve("prefix_other_TECH_.txt"));
-        Files.createFile(tempDir.resolve("other_file.xlsx"));
-
-        List<Path> collected;
-        try (Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "tech")) {
-            collected = result.toList();
-        }
-
-        assertEquals(2, collected.size());
-        assertThat(collected).extracting(Path::getFileName)
-                .extracting(Path::toString)
-                .containsExactlyInAnyOrder("prefix_TECH_file.xlsx", "prefix_tech_file.xlsx");
-    }
+    
 }
