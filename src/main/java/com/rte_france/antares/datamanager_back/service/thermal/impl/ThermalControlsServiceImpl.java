@@ -34,6 +34,20 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
     public static final String SHEET_COSTS = "costs";
     public static final String SHEET_RATE = "rate";
 
+    private record TabValidationSpec(String sheetName, String horizonMissingMessage, String noDataMessage) {}
+    private static final List<TabValidationSpec> COSTS_TABS = List.of(
+            new TabValidationSpec(
+                    SHEET_COSTS,
+                    "Horizon does not exist in THERMAL Costs trajectory {0} in costs tab",
+                    "No data for horizon {0} in THERMAL Costs trajectory {1} in costs tab"
+            ),
+            new TabValidationSpec(
+                    SHEET_RATE,
+                    "Horizon does not exist in THERMAL Costs trajectory {1} in rate tab",
+                    "No data for horizon {0} in THERMAL Costs trajectory {1} in rate tab"
+            )
+    );
+
 
     /**
      * Checks for missing clusters in the provided parameter clusters.
@@ -150,104 +164,75 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
 
             Sheet costsSheet = workbook.getSheet(SHEET_COSTS);
             Sheet rateSheet = workbook.getSheet(SHEET_RATE);
+            validateCostsAndRateSheets(costsSheet, rateSheet, trajectoryName);
 
-            if (costsSheet == null && rateSheet == null) {
-                throw BusinessException.builder()
-                        .message("Missing costs/rate data in trajectory {0}")
-                        .errorMessageArguments(List.of(trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            } else if (costsSheet == null) {
-                throw BusinessException.builder()
-                        .message("Missing costs data in trajectory {0}")
-                        .errorMessageArguments(List.of(trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            } else if (rateSheet == null) {
-                throw BusinessException.builder()
-                        .message("Missing rate data in trajectory {0}")
-                        .errorMessageArguments(List.of(trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+            Map<String, Sheet> sheetsByName = Map.of(
+                    SHEET_COSTS, costsSheet,
+                    SHEET_RATE, rateSheet
+            );
+            for (TabValidationSpec tabSpec : COSTS_TABS) {
+                validateTrajectoryTab(sheetsByName.get(tabSpec.sheetName()), horizon, trajectoryName, tabSpec);
             }
-
-            // Vérification de l'onglet costs
-            Row headerCosts = costsSheet.getRow(0);
-            Integer horizonColCosts = findHorizonColumnIndex(headerCosts, horizon);
-
-            if (horizonColCosts == null) {
-                throw BusinessException.builder()
-                        .message("Horizon does not exist in THERMAL Costs trajectory {0} in costs tab")
-                        .errorMessageArguments(List.of(horizon, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            // Vérifier qu'il y a au moins une donnée dans la colonne horizon (costs)
-            boolean hasDataInHorizonColCosts = false;
-            for (int r = 1; r <= costsSheet.getLastRowNum(); r++) {
-                Row row = costsSheet.getRow(r);
-                if (row != null) {
-                    Object value = getCellValue(row, horizonColCosts);
-                    if (value != null && (!(value instanceof String) || !((String) value).trim().isEmpty())) {
-                        hasDataInHorizonColCosts = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!hasDataInHorizonColCosts) {
-                throw BusinessException.builder()
-                        .message("No data for horizon {0} in THERMAL Costs trajectory {1} in costs tab")
-                        .errorMessageArguments(List.of(horizon, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            validateDataCells(costsSheet, trajectoryName, SHEET_COSTS, horizonColCosts);
-
-            // Vérification de l'onglet rate
-            Row headerRate = rateSheet.getRow(0);
-            Integer horizonColRate = findHorizonColumnIndex(headerRate, horizon);
-
-            if (horizonColRate == null) {
-                throw BusinessException.builder()
-                        .message("Horizon does not exist in THERMAL Costs trajectory {1} in rate tab")
-                        .errorMessageArguments(List.of(horizon, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            // Vérifier qu'il y a au moins une donnée dans la colonne horizon (rate)
-            boolean hasDataInHorizonColRate = false;
-            for (int r = 1; r <= rateSheet.getLastRowNum(); r++) {
-                Row row = rateSheet.getRow(r);
-                if (row != null) {
-                    Object value = getCellValue(row, horizonColRate);
-                    if (value != null && (!(value instanceof String) || !((String) value).trim().isEmpty())) {
-                        hasDataInHorizonColRate = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!hasDataInHorizonColRate) {
-                throw BusinessException.builder()
-                        .message("No data for horizon {0} in THERMAL Costs trajectory {1} in rate tab")
-                        .errorMessageArguments(List.of(horizon, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            validateDataCells(rateSheet, trajectoryName, SHEET_RATE, horizonColRate);
 
         } catch (IOException e) {
-            throw BusinessException.builder()
-                    .message("Cannot open trajectory file {0}")
-                    .errorMessageArguments(List.of(trajectoryName))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+            throw buildBadRequest("Cannot open trajectory file {0}", List.of(trajectoryName));
         }
+    }
+
+    private void validateCostsAndRateSheets(Sheet costsSheet, Sheet rateSheet, String trajectoryName) {
+        if (costsSheet == null && rateSheet == null) {
+            throw buildBadRequest("Missing costs/rate data in trajectory {0}", List.of(trajectoryName));
+        }
+        if (costsSheet == null) {
+            throw buildBadRequest("Missing costs data in trajectory {0}", List.of(trajectoryName));
+        }
+        if (rateSheet == null) {
+            throw buildBadRequest("Missing rate data in trajectory {0}", List.of(trajectoryName));
+        }
+    }
+
+    private void validateTrajectoryTab(
+            Sheet sheet,
+            String horizon,
+            String trajectoryName,
+            TabValidationSpec tabSpec) {
+        Row header = sheet.getRow(0);
+        if (header == null) {
+            throw buildBadRequest(tabSpec.horizonMissingMessage(), List.of(horizon, trajectoryName));
+        }
+        Integer horizonColumn = findHorizonColumnIndex(header, horizon);
+
+        if (horizonColumn == null) {
+            throw buildBadRequest(tabSpec.horizonMissingMessage(), List.of(horizon, trajectoryName));
+        }
+        if (!hasNonBlankDataInHorizonColumn(sheet, horizonColumn)) {
+            throw buildBadRequest(tabSpec.noDataMessage(), List.of(horizon, trajectoryName));
+        }
+
+        validateDataCells(sheet, trajectoryName, tabSpec.sheetName(), horizonColumn);
+    }
+
+    private boolean hasNonBlankDataInHorizonColumn(Sheet sheet, int horizonColumn) {
+        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+
+            Object value = getCellValue(row, horizonColumn);
+            if (value != null && (!(value instanceof String) || !((String) value).trim().isEmpty())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private BusinessException buildBadRequest(String message, List<String> args) {
+        return BusinessException.builder()
+                .message(message)
+                .errorMessageArguments(args)
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
 
@@ -307,7 +292,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             if (!listEconomicFuel.isEmpty() && !listEconomicFuel.contains(commonFuelLower)) {
                 final String typeTrajectoryName = trajectoryType.equals(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER) ? "Cost" : "Economic";
                 throw BusinessException.builder()
-                        .message("Fuel {0} does not exist in "+ typeTrajectoryName+" Trajectory {1} for horizon {2}")
+                        .message("Fuel {0} does not exist in " + typeTrajectoryName + " Trajectory {1} for horizon {2}")
                         .errorMessageArguments(List.of(commonFuel, trajectoryName, horizon))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();

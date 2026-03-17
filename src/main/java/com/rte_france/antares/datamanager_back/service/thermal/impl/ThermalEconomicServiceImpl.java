@@ -106,7 +106,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             String comment = getCellString(row, 5);
 
             // ignorer les lignes entièrement vides
-            if (fuel.isEmpty() && country.isEmpty() && yearStr.isBlank() && co2Str.isBlank() && unitCo2.isEmpty() && comment.isEmpty()) {
+            if (isCo2RowEmpty(fuel, country, yearStr, co2Str, unitCo2, comment)) {
                 continue;
             }
 
@@ -115,7 +115,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             Integer year = parseInteger(yearStr);
 
             // filtrage horizon : si l'année est renseignée et différente -> ligne à ignorer
-            if (year != null && horizonYear != null && !year.equals(horizonYear)) {
+            if (!matchesHorizon(year, horizonYear)) {
                 continue;
             }
 
@@ -130,16 +130,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
                         .build();
             }
 
-            // mapping
-            ThermalEconomicCo2Entity e = new ThermalEconomicCo2Entity();
-            e.setFuel(fuel);
-            e.setCountry(country);
-            if (year != null) e.setYear(year);
-            e.setCo2EmissionFuel(co2);
-            e.setUnitCo2(unitCo2);
-            e.setComment(comment);
-
-            list.add(e);
+            list.add(buildCo2Entity(fuel, country, year, co2, unitCo2, comment));
         }
 
         if (!foundAnyDataRow) {
@@ -157,6 +148,27 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         }
 
         return list;
+    }
+
+    private boolean isCo2RowEmpty(String fuel, String country, String yearStr, String co2Str, String unitCo2, String comment) {
+        return fuel.isEmpty() && country.isEmpty() && yearStr.isBlank() && co2Str.isBlank() && unitCo2.isEmpty() && comment.isEmpty();
+    }
+
+    private boolean matchesHorizon(Integer year, Integer horizonYear) {
+        return year == null || horizonYear == null || year.equals(horizonYear);
+    }
+
+    private ThermalEconomicCo2Entity buildCo2Entity(String fuel, String country, Integer year, BigDecimal co2, String unitCo2, String comment) {
+        ThermalEconomicCo2Entity entity = new ThermalEconomicCo2Entity();
+        entity.setFuel(fuel);
+        entity.setCountry(country);
+        if (year != null) {
+            entity.setYear(year);
+        }
+        entity.setCo2EmissionFuel(co2);
+        entity.setUnitCo2(unitCo2);
+        entity.setComment(comment);
+        return entity;
     }
 
 
