@@ -24,6 +24,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
@@ -587,6 +588,19 @@ class TrajectoryServiceImplTest {
         verify(warningRepository, times(1)).saveAll(warningMessages);
     }
 
+    @Test
+    void checkTrajectoryCoherence_throwsTechnicalException_whenTypeIsUnsupported() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().type("UNSUPPORTED_TYPE").build();
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user"));
+
+        assertEquals("Trajectory type {0} is not supported", exception.getMessage());
+        assertEquals(List.of("UNSUPPORTED_TYPE"), exception.getErrorMessageArguments());
+        verify(warningRepository, never()).saveAll(any());
+    }
+
 
     @Test
     void findTrajectoriesByType_returnsFilesStartingByAreas_(@TempDir Path tempDir) throws IOException {
@@ -607,6 +621,30 @@ class TrajectoryServiceImplTest {
         // Then
         assertEquals(1, result.size());
         assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_throwsTechnicalException_whenCannotReadLastModifiedDateForThermalModulation(@TempDir Path tempDir) throws IOException {
+        Path modulationDir = tempDir.resolve("modulation");
+        Files.createDirectories(modulationDir);
+        Path trajectoryDirectory = modulationDir.resolve("traj_mod");
+        Files.createDirectories(trajectoryDirectory);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn("modulation");
+
+        try (MockedStatic<Files> filesMock = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+            filesMock.when(() -> Files.getLastModifiedTime(trajectoryDirectory))
+                    .thenThrow(new IOException("cannot read timestamp"));
+
+            TechnicalException exception = assertThrows(TechnicalException.class,
+                    () -> trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null, null));
+
+            assertEquals("Can't read trajectory file", exception.getMessage());
+            assertNotNull(exception.getCause());
+            assertInstanceOf(IOException.class, exception.getCause());
+        }
     }
 
     @Test
