@@ -30,7 +30,7 @@ public class ResClusterCapacityEntity {
 
     private String category;
 
-    @Column(name = "capacity_by_year")
+    @Column(name = "capacity_by_year", precision = 4, scale = 2)
     private BigDecimal capacityByYear;
 
     @ManyToOne
