@@ -687,9 +687,11 @@ class TrajectoryServiceImplTest {
     })
     void findTrajectoriesByType_returnsRESFilesWithTechnologyForFR(String technology,@TempDir Path tempDir) throws IOException {
         // Given
-        Path thermalDir = tempDir.resolve("RES/installed power/FR/BP_23_FR/");
+        Path thermalDir = tempDir.resolve("RES/installed power/FR/");
         Files.createDirectories(thermalDir);
 
+        Files.createDirectory(thermalDir.resolve("BP23_Aref"));
+        Files.createDirectory(thermalDir.resolve("BP23_Aref_v2"));
         Files.createFile(thermalDir.resolve("installedRES_offshore_BP23_Aref.xlsx"));
         Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.xlsx"));
         Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.txt"));
@@ -702,8 +704,15 @@ class TrajectoryServiceImplTest {
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, "FR", technology, null);
 
         // Then
-        assertEquals(1, result.size());
-        assertEquals("installedRES_onshore_BP23_Aref.xlsx", result.getFirst().getFileName());
+        assertEquals(2, result.size());
+        List<String> expected = List.of("BP23_Aref", "BP23_Aref_v2");
+
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+
+        assertTrue(actual.containsAll(expected));
+        assertEquals(expected.size(), actual.size());
     }
 
     @Test
