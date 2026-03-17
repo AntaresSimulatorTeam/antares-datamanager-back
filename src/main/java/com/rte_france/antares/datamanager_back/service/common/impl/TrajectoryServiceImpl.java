@@ -1028,6 +1028,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         List<TrajectoryEntity> loadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
 
+        if (!OTHER_AREA.equalsIgnoreCase(area)) {
+            loadFactorTrajectories = loadFactorTrajectories.stream()
+                    .filter(t -> t.getArea().equalsIgnoreCase(area)
+                            || t.getArea().equalsIgnoreCase(OTHER_AREA))
+                    .collect(Collectors.toList());
+        }
+
         if (loadFactorTrajectories.isEmpty()) {
             return;
         }
@@ -1038,8 +1045,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
 
-        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap =
-                buildMergedLoadFactorHeaders(loadFactorTrajectories, installedPowerMap.keySet());
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = buildMergedLoadFactorHeaders(loadFactorTrajectories, installedPowerMap.keySet());
 
         validateAreas(installedPowerMap, loadFactorMap);
     }

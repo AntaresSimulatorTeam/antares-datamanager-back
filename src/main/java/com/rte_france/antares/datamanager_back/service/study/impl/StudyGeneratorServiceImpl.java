@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
@@ -39,6 +40,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final LinksToJsonService linksToJsonService;
     private final StsToJsonService stsToJsonService;
     private final DsrToJsonService dsrToJsonService;
+    private final MiscToJsonService miscToJsonService;
     private final ThermalToJsonService thermalToJsonService;
     private final StudyRepository studyRepository;
 
@@ -49,6 +51,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
     private final DsrGenerationAssemblerService dsrPropertiesAssemblerService;
+    private final MiscGenerationAssemblerService miscPropertiesAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String MATRIX_HASH = "matrix hash";
@@ -116,6 +119,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 log.warn("STS trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                         case DSR, DSR_CAPACITY_MODULATION ->
                                 log.warn("DSR trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
+                        case MISC_CAPACITY, MISC_LOAD ->
+                                log.warn("MISC trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                         default -> {
                             log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                             throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -165,6 +170,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         var areaDsrClusterGenerationDtoMap = dsrPropertiesAssemblerService.assembleDsrProperties(studyEntity);
         log.info("DSR cluster props {} entries", areaDsrClusterGenerationDtoMap != null ? areaDsrClusterGenerationDtoMap.size() : 0);
 
+        Map<String, List<MiscGenerationDTO>> areaMiscGenerationDtoMap = miscPropertiesAssemblerService.assembleMiscProperties(studyEntity);
+        log.info("Misc generation {} entries", areaMiscGenerationDtoMap != null ? areaMiscGenerationDtoMap.size() : 0);
+
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
@@ -173,7 +181,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 listArrowLoadFilesByArea.get(areaDTO.getName()),
                                 thermalToJsonService.getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
                                 areaStsClusterGenerationDtoMap,
-                                areaDsrClusterGenerationDtoMap
+                                areaDsrClusterGenerationDtoMap,
+                                areaMiscGenerationDtoMap
 
                         )
                 ));
@@ -183,7 +192,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps,
-                                                  Map<String, StsGenerationDTO> stsClusterProps, Map<String, DsrGenerationDTO> dsrClusterProps) {
+                                                  Map<String, StsGenerationDTO> stsClusterProps,
+                                                  Map<String, DsrGenerationDTO> dsrClusterProps,
+                                                  Map<String, List<MiscGenerationDTO>> miscProps
+    ) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
@@ -203,12 +215,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), stsClusterProps);
         Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), dsrClusterProps);
+        Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), miscProps);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
         areaMap.put("sts", stsMap);
         areaMap.put("dsr", dsrMap);
+        areaMap.put("misc", miscMap);
 
         return areaMap;
     }

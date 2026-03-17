@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -687,7 +688,7 @@ class UtilsTest {
         void testOtherType() {
             Cell cell = mock(Cell.class);
             when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
-            
+
             assertFalse(Utils.isNumericCell(cell));
         }
 
@@ -934,12 +935,14 @@ class UtilsTest {
         Files.createFile(tempDir.resolve("prefix_other_TECH_.txt"));
         Files.createFile(tempDir.resolve("other_file.xlsx"));
 
-        Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "tech");
-
-        List<Path> collected = result.toList();
+        List<Path> collected;
+        try (Stream<Path> result = Utils.findResCapacityTechnologyFiles(tempDir, "prefix_", "tech")) {
+            collected = result.toList();
+        }
 
         assertEquals(2, collected.size());
-        assertEquals("prefix_TECH_file.xlsx", collected.getFirst().getFileName().toString());
-        assertEquals("prefix_tech_file.xlsx", collected.get(1).getFileName().toString());
+        assertThat(collected).extracting(Path::getFileName)
+                .extracting(Path::toString)
+                .containsExactlyInAnyOrder("prefix_TECH_file.xlsx", "prefix_tech_file.xlsx");
     }
 }

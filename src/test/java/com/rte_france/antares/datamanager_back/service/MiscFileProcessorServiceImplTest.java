@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
@@ -40,10 +41,13 @@ class MiscFileProcessorServiceImplTest {
     private UserService userService;
 
     @Mock
+    private AreaRepository areaRepository;
+
+    @Mock
     private TrajectoryServiceImpl trajectoryService;
 
     @Mock
-    private AreaRepository areaRepository;
+    private AntaresDataManagerProperties antaresDataManagerProperties;
 
     @InjectMocks
     private MiscFileProcessorServiceImpl service;
@@ -449,7 +453,6 @@ class MiscFileProcessorServiceImplTest {
 
     @Nested
     class LoadFactor {
-
         @Test
         void shouldProcessSuccessfully() throws Exception {
 
@@ -467,8 +470,8 @@ class MiscFileProcessorServiceImplTest {
                             "FR");
 
             assertThat(result).isNotNull();
-            assertThat(result.getHasTimeSeries()).isTrue();
-            assertThat(result.getVersion()).isEqualTo(1);
+            assertThat(result.getType()).isEqualTo(TrajectoryType.MISC_LOAD.name());
+            assertThat(result.getChecksum()).isNotNull();
         }
 
         @Test
@@ -510,7 +513,7 @@ class MiscFileProcessorServiceImplTest {
     }
 
     // ======================================================
-    // FIND BY STUDY ID
+    // REPOSITORY WRAPPERS
     // ======================================================
 
     @Nested
@@ -692,6 +695,55 @@ class MiscFileProcessorServiceImplTest {
 
         assertDoesNotThrow(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, areaParam));
         verify(trajectoryRepository, atLeastOnce()).save(any());
+    }
+
+    @Test
+    void shouldThrowWhenDefaultGroupFileMissing() throws Exception {
+
+        String horizon = "2029-2030";
+        String trajectoryToUse = "loadFactor";
+        Integer studyId = 1;
+        String area = "FR";
+
+        Path root = Files.createTempDirectory(tempDir, "misc_load_");
+
+        when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                .thenReturn(root);
+
+        // Force listAreasByGroup.isEmpty()
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                .thenReturn(List.of());
+
+        // Create ALL folders but omit one CSV to trigger exception
+        List<MiscFileProcessorServiceImpl.GroupClusterKey> keys = List.of(
+                new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "small biomass"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("geothermal", "geothermal"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("other", "other"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("waste", "waste"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("wave", "wave"),
+                new MiscFileProcessorServiceImpl.GroupClusterKey("hydrokinetic", "hydrokinetic")
+        );
+
+        int index = 0;
+
+        for (MiscFileProcessorServiceImpl.GroupClusterKey key : keys) {
+
+            Path dir = root.resolve(key.groupe()).resolve(key.cluster());
+            Files.createDirectories(dir);
+
+            // Skip one file to trigger error
+            if (index++ == 3) continue;
+
+            Path csv = dir.resolve("load_factor_" + key.cluster() + "_" + horizon + ".csv");
+
+            Files.writeString(csv, "FR;DE\n1;2");
+        }
+
+        assertThatThrownBy(() ->
+                service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Load factor file not found");
     }
 
 }
