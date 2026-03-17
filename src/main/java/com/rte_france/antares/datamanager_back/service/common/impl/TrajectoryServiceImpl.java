@@ -38,7 +38,6 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
