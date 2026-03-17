@@ -76,5 +76,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V34-update-study-table_add_generation_date.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V35-create-misc-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V36-create-res-tables.sql
 
 
