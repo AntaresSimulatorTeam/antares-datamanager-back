@@ -45,7 +45,6 @@ import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFile
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static java.util.stream.Collectors.toList;
 
 
 @Slf4j
@@ -162,18 +161,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return switch (trajectoryType) {
             case AREA -> areaConfigRepository.findAreaConfigByTrajectoryId(trajectoryId)
                     .stream()
-                    .map(AreaMapper::toAreaTrajectoryDataDTO)
-                    .collect(toList());
+                    .<TrajectoryDataDTO>map(AreaMapper::toAreaTrajectoryDataDTO)
+                    .toList();
 
             case LINK -> linkRepository.findLinkEntitiesByTrajectoryIdIs(trajectoryId)
                     .stream()
-                    .map(LinkMapper::toLinkTrajectoryDataDTO)
-                    .collect(toList());
+                    .<TrajectoryDataDTO>map(LinkMapper::toLinkTrajectoryDataDTO)
+                    .toList();
 
             case STS -> stStorageRepository.findStStorageEntitiesByTrajectoryId(trajectoryId)
                     .stream()
-                    .map(StStorageMapper::toStStorageTrajectoryDataDTO)
-                    .collect(toList());
+                    .<TrajectoryDataDTO>map(StStorageMapper::toStStorageTrajectoryDataDTO)
+                    .toList();
 
             default -> throw TechnicalException.builder()
                     .message("TrajectoryType {0} is not supported.")
@@ -185,9 +184,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public Map<String, Integer> countWarningMessage(Integer studyId) {
         return trajectoryRepository.findByTypeAndStudyId(null, studyId).stream()
-                .peek(trajectory ->
-                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()))).toList()
-                .stream()
+                .map(trajectory -> {
+                    trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()));
+                    return trajectory;
+                })
                 .collect(Collectors.groupingBy(
                         TrajectoryEntity::getType,
                         Collectors.summingInt(trajectory -> trajectory.getWarningMessages() != null ? trajectory.getWarningMessages().size() : 0)
@@ -228,9 +228,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     @Transactional
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
-        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith("thermal_")) {
+        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(CAPACITY_PREFIX)) {
             throw BusinessException.builder()
-                    .message("The trajectory file name must start with 'thermal_'")
+                    .message("The trajectory file name must start with '" + CAPACITY_PREFIX + "'")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -318,10 +318,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 area,
                 null
         );
-        if (existingOpt.isPresent()) {
-            if (checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
-                trajectory.setVersion(existingOpt.get().getVersion() + 1);
-            }
+        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+            trajectory.setVersion(existingOpt.get().getVersion() + 1);
         }
 
         List<String> missingAreas = studyAreas.stream()
@@ -520,8 +518,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public List<TrajectoryDTO> findTrajectoriesByTypeAndStudyId(String trajectoryType, Integer studyId) {
         List<TrajectoryEntity> trajectoryEntities = trajectoryRepository.findByTypeAndStudyId(trajectoryType, studyId).stream()
-                .peek(trajectory ->
-                        trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()))).toList();
+                .map(trajectory -> {
+                    trajectory.setWarningMessages(filterWarningMessages(studyId, trajectory.getWarningMessages()));
+                    return trajectory;
+                })
+                .toList();
         return TrajectoryMapper.toTrajectoryDtos(trajectoryEntities);
     }
 
@@ -860,7 +861,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                                 .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
                         .build();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw TechnicalException.builder()
+                        .message("Can't read trajectory file")
+                        .cause(e)
+                        .build();
             }
         } else {
             return createFsTrajectoryDTO(path, trajectoryType);
@@ -976,7 +980,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
             case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
             case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
-
+            default -> throw TechnicalException.builder()
+                    .message("Trajectory type {0} is not supported")
+                    .errorMessageArguments(List.of(type))
+                    .build();
         }
 
         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
@@ -1099,9 +1106,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private void validateAreas(Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> expected, Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> actual) {
 
-        for (MiscFileProcessorServiceImpl.GroupClusterKey key : expected.keySet()) {
+        for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> entry : expected.entrySet()) {
+            MiscFileProcessorServiceImpl.GroupClusterKey key = entry.getKey();
 
-            Set<String> expectedAreas = expected.get(key);
+            Set<String> expectedAreas = entry.getValue();
             Set<String> actualAreas = actual.getOrDefault(key, Collections.emptySet());
 
             if (!actualAreas.containsAll(expectedAreas)) {
