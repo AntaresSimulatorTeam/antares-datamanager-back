@@ -6,7 +6,7 @@ CREATE TABLE res_cluster_capacity
     id                INTEGER,
     to_use            BOOLEAN DEFAULT false,
     area              VARCHAR(20),
-    group             VARCHAR(40),
+    groupe             VARCHAR(40),
     cluster           VARCHAR(40),
     category          VARCHAR(20) DEFAULT 'power',
     capacity_by_year  numeric,
@@ -15,9 +15,9 @@ CREATE TABLE res_cluster_capacity
 );
 
 ALTER TABLE res_cluster_capacity
-    ADD CONSTRAINT "misc_cluster_capacity_FK1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id);
+    ADD CONSTRAINT "res_cluster_capacity_FK1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id);
 
-CREATE SEQUENCE misc_cluster_capacity_sequence
+CREATE SEQUENCE res_cluster_capacity_sequence
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -49,7 +49,7 @@ CREATE TABLE res_technology_distribution
 (
     id                INTEGER,
     area              VARCHAR(20),
-    group             VARCHAR(40),
+    groupe             VARCHAR(40),
     cluster           VARCHAR(40),
     pecd_zone         VARCHAR(10),
     pecd_technology   VARCHAR(10),
@@ -73,7 +73,7 @@ CREATE TABLE res_zonal_distribution
 (
     id                INTEGER,
     area              VARCHAR(20),
-    group             VARCHAR(40),
+    groupe             VARCHAR(40),
     pecd_zone         VARCHAR(10),
     capacity_by_year  numeric,
     trajectory_id     INTEGER,

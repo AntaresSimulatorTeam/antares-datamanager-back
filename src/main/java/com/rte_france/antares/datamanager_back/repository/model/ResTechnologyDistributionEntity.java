@@ -21,7 +21,7 @@ public class ResTechnologyDistributionEntity {
 
     private String area;
 
-    private String group;
+    private String groupe;
 
     private String cluster;
 
