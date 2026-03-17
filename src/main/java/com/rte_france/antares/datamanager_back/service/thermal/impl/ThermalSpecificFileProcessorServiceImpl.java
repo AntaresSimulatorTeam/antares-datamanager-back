@@ -31,6 +31,9 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificFileProcessorService {
 
+    private static final String VALUES_FOR_NODE_MESSAGE_PREFIX = "Values for node ";
+    private static final String CLUSTER_MESSAGE_SEPARATOR = " / cluster ";
+
     private final AreaRepository areaRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final ThermalControlService thermalControlService;
@@ -170,7 +173,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
         if (value != null && Double.compare(value, 0.0) < 0) {
-            throw BusinessException.builder().message("Values for node " + areaName + " / cluster " + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
+            throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
         }
         return value;
     }
@@ -267,11 +270,11 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             Object v = getCellValue(row, i);
             if (v == null) continue; // allow blanks
             if (!(v instanceof Number)) {
-                throw BusinessException.builder().message("Values for node " + areaName + " / cluster " + clusterName + " are not numeric in THERMAL Specific Param trajectory " + trajectoryName).build();
+                throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " are not numeric in THERMAL Specific Param trajectory " + trajectoryName).build();
             }
             double d = ((Number) v).doubleValue();
             if (d < 0) {
-                throw BusinessException.builder().message("Values for node " + areaName + " / cluster " + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
+                throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
             }
         }
     }
