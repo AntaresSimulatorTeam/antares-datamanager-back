@@ -185,8 +185,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                     new GroupClusterKey("other", "other"),
                     new GroupClusterKey("waste", "waste") ,
                     new GroupClusterKey("wave", "wave"),
-                    new GroupClusterKey("hydrokinetic", "hydrokinetic"),
-                    new GroupClusterKey("hydrokinetic", "hydrokinetic_1")
+                    new GroupClusterKey("hydrokinetic", "hydrokinetic")
             );
             groupClusterKeyList.forEach(groupClusterKey -> {
                 Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
