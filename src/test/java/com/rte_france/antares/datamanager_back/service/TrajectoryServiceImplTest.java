@@ -592,9 +592,10 @@ class TrajectoryServiceImplTest {
     void checkTrajectoryCoherence_throwsTechnicalException_whenTypeIsUnsupported() {
         Integer studyId = 1;
         TrajectoryEntity trajectory = TrajectoryEntity.builder().type("UNSUPPORTED_TYPE").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
 
         TechnicalException exception = assertThrows(TechnicalException.class,
-                () -> trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user"));
+                () -> trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user"));
 
         assertEquals("Trajectory type {0} is not supported", exception.getMessage());
         assertEquals(List.of("UNSUPPORTED_TYPE"), exception.getErrorMessageArguments());
