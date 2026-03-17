@@ -476,10 +476,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        try (var stream = (trajectoryType == RES_CAPACITY && technology != null && !technology.isEmpty()) ?
-                findResCapacityTechnologyFiles(directory, RES_CAPACITY_PREFIX, technology):
-                Files.list(directory.normalize())
-        ) {
+        try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
@@ -513,7 +510,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> "FR".equals(area) && technology == null ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX + technologyPrefix);
+            case RES_CAPACITY -> "FR".equals(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX + technologyPrefix);
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
             case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             default -> true;
