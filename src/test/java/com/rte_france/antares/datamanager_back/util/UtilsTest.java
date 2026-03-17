@@ -20,10 +20,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
