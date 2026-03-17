@@ -179,13 +179,14 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
             //check that all files exist
             List<GroupClusterKey> groupClusterKeyList = List.of(
-                    new GroupClusterKey("biomass", "small biomass"),
+                    new GroupClusterKey("biomass", "Small biomass"),
                     new GroupClusterKey("biogas", "biogas"),
                     new GroupClusterKey("geothermal", "geothermal"),
                     new GroupClusterKey("other", "other"),
                     new GroupClusterKey("waste", "waste") ,
                     new GroupClusterKey("wave", "wave"),
-                    new GroupClusterKey("hydrokinetic", "hydrokinetic")
+                    new GroupClusterKey("hydrokinetic", "hydrokinetic"),
+                    new GroupClusterKey("hydrokinetic", "hydrokinetic_1")
             );
             groupClusterKeyList.forEach(groupClusterKey -> {
                 Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
