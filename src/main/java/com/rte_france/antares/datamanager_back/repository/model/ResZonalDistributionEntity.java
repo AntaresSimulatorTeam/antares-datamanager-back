@@ -22,7 +22,7 @@ public class ResZonalDistributionEntity {
 
     private String area;
 
-    private String group;
+    private String groupe;
 
     @Column(name = "pecd_zone")
     private String pecdZone;
