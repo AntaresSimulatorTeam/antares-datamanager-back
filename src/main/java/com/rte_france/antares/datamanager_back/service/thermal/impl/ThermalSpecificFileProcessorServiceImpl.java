@@ -176,50 +176,72 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     }
 
     private void validateHeaderColumns(Row header, String trajectoryName) {
-        // Primary expected names (used for error message)
-        List<String> expected = new ArrayList<>(List.of("node", "node_ENTSOE", "comments", "cluster_PEMMDB", "cluster", "min_stable_generation", "spinning", "efficiency", "FO_rate", "FO_duration", "PO_duration", "PO_winter", "marginal_cost", "market_bid", "MR_specific", "CM_specific", "NPO_max_winter", "NPO_max_summer", "nb_unit", "PO_winter_rate"));
-        for (int i = 1; i <= 12; i++) expected.add("F" + i);
-        for (int i = 1; i <= 12; i++) expected.add("P" + i);
-
-        // Allowed aliases per index (normalized)
-        List<Set<String>> aliases = new ArrayList<>();
-        for (int i = 0; i < expected.size(); i++) aliases.add(new HashSet<>());
-        // Fill aliases with each own expected normalized value
-        for (int i = 0; i < expected.size(); i++) aliases.get(i).add(normalized(expected.get(i)));
-        // Additional accepted variants
-        aliases.get(2).add(normalized("comment")); // comments/comment
-        aliases.get(4).add(normalized("cluster_name")); // cluster/cluster_name
-
-        List<String> missingNames = new ArrayList<>();
-        if (header == null) {
-            missingNames.addAll(expected);
-        } else {
-            // Collect all present header labels (normalized) regardless of index
-            Set<String> present = new HashSet<>();
-            short last = header.getLastCellNum();
-            for (int i = 0; i < last; i++) {
-                String actual = getHeaderLabel(header, i);
-                if (actual == null || actual.isBlank()) continue;
-                present.add(normalized(actual));
-            }
-            // For each expected column, check if any alias is present
-            for (int i = 0; i < expected.size(); i++) {
-                boolean found = false;
-                for (String alias : aliases.get(i)) {
-                    if (present.contains(alias)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    missingNames.add(expected.get(i));
-                }
-            }
-        }
+        List<String> expected = buildExpectedHeaderNames();
+        List<Set<String>> aliases = buildHeaderAliases(expected);
+        List<String> missingNames = findMissingExpectedHeaders(header, expected, aliases);
 
         if (!missingNames.isEmpty()) {
             throw BusinessException.builder().message("Missing columns " + String.join(", ", missingNames) + " in THERMAL Specific Param trajectory " + trajectoryName).build();
         }
+    }
+
+    private List<String> buildExpectedHeaderNames() {
+        List<String> expected = new ArrayList<>(List.of("node", "node_ENTSOE", "comments", "cluster_PEMMDB", "cluster", "min_stable_generation", "spinning", "efficiency", "FO_rate", "FO_duration", "PO_duration", "PO_winter", "marginal_cost", "market_bid", "MR_specific", "CM_specific", "NPO_max_winter", "NPO_max_summer", "nb_unit", "PO_winter_rate"));
+        for (int i = 1; i <= 12; i++) {
+            expected.add("F" + i);
+        }
+        for (int i = 1; i <= 12; i++) {
+            expected.add("P" + i);
+        }
+        return expected;
+    }
+
+    private List<Set<String>> buildHeaderAliases(List<String> expected) {
+        List<Set<String>> aliases = new ArrayList<>();
+        for (int i = 0; i < expected.size(); i++) {
+            Set<String> values = new HashSet<>();
+            values.add(normalized(expected.get(i)));
+            aliases.add(values);
+        }
+        aliases.get(2).add(normalized("comment"));
+        aliases.get(4).add(normalized("cluster_name"));
+        return aliases;
+    }
+
+    private List<String> findMissingExpectedHeaders(Row header, List<String> expected, List<Set<String>> aliases) {
+        if (header == null) {
+            return new ArrayList<>(expected);
+        }
+
+        Set<String> present = collectNormalizedPresentHeaders(header);
+        List<String> missingNames = new ArrayList<>();
+        for (int i = 0; i < expected.size(); i++) {
+            if (!containsAnyAlias(present, aliases.get(i))) {
+                missingNames.add(expected.get(i));
+            }
+        }
+        return missingNames;
+    }
+
+    private Set<String> collectNormalizedPresentHeaders(Row header) {
+        Set<String> present = new HashSet<>();
+        short last = header.getLastCellNum();
+        for (int i = 0; i < last; i++) {
+            String actual = getHeaderLabel(header, i);
+            if (actual != null && !actual.isBlank()) {
+                present.add(normalized(actual));
+            }
+        }
+        return present;
+    }
+
+    private boolean containsAnyAlias(Set<String> present, Set<String> aliases) {
+        for (String alias : aliases) {
+            if (present.contains(alias)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String getHeaderLabel(Row header, int index) {
