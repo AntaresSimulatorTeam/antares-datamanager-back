@@ -2,6 +2,8 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import java.nio.file.attribute.PosixFilePermissions;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
 import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
@@ -509,6 +511,178 @@ class MiscFileProcessorServiceImplTest {
                             1,
                             "FR"))
                     .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        void processLoadFactorMiscFileThrowsWhenSpecificAreaMissingInHeader() throws Exception {
+            String horizon = "2029-2030";
+            String trajectoryToUse = "loadFactor";
+            Integer studyId = 1;
+            String area = "FR";
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_missing_area_");
+
+            when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            // Force listAreasByGroup.isEmpty() to exercise verifyLoadFactorTsFilesWithoutInstalledPower
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                    .thenReturn(List.of());
+
+            List<MiscFileProcessorServiceImpl.GroupClusterKey> groupClusterKeyList = List.of(
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("geothermal", "geothermal"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("other", "other"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("waste", "waste"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("wave", "wave"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("hydrokinetic", "hydrokinetic")
+            );
+
+            // Create all expected CSV files but none contains the requested area 'FR'
+            for (MiscFileProcessorServiceImpl.GroupClusterKey groupClusterKey : groupClusterKeyList) {
+                Path dir = root.resolve(groupClusterKey.groupe()).resolve(groupClusterKey.cluster());
+                Files.createDirectories(dir);
+                Path csv = dir.resolve("load_factor_" + groupClusterKey.cluster() + "_" + horizon + ".csv");
+                Files.writeString(csv, "DE;IT\n1;2");
+            }
+
+            assertThatThrownBy(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Load factor file {0} is missing area {1} for group {2}");
+        }
+
+        @Test
+        void processLoadFactorThrowsBusinessExceptionWithMissingAreaMessage() throws Exception {
+            String horizon = "2029-2030";
+            String trajectoryToUse = "loadFactor";
+            Integer studyId = 1;
+            String area = "FR";
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_missing_area2_");
+
+            when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                    .thenReturn(List.of());
+
+            List<MiscFileProcessorServiceImpl.GroupClusterKey> groupClusterKeyList = List.of(
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
+            );
+
+            for (MiscFileProcessorServiceImpl.GroupClusterKey groupClusterKey : groupClusterKeyList) {
+                Path dir = root.resolve(groupClusterKey.groupe()).resolve(groupClusterKey.cluster());
+                Files.createDirectories(dir);
+                Path csv = dir.resolve("load_factor_" + groupClusterKey.cluster() + "_" + horizon + ".csv");
+                Files.writeString(csv, "DE;IT\n1;2");
+            }
+
+            assertThatThrownBy(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Load factor file {0} is missing area {1} for group {2}");
+        }
+
+        @Test
+        void processLoadFactorThrowsBusinessExceptionForMissingAreaTemplate() throws Exception {
+            String horizon = "2029-2030";
+            String trajectoryToUse = "loadFactor";
+            Integer studyId = 1;
+            String area = "FR";
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_missing_area_template_");
+
+            when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                    .thenReturn(List.of());
+
+            List<MiscFileProcessorServiceImpl.GroupClusterKey> groupClusterKeyList = List.of(
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("geothermal", "geothermal"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("other", "other"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("waste", "waste"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("wave", "wave"),
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("hydrokinetic", "hydrokinetic")
+            );
+
+            for (MiscFileProcessorServiceImpl.GroupClusterKey groupClusterKey : groupClusterKeyList) {
+                Path dir = root.resolve(groupClusterKey.groupe()).resolve(groupClusterKey.cluster());
+                Files.createDirectories(dir);
+                Path csv = dir.resolve("load_factor_" + groupClusterKey.cluster() + "_" + horizon + ".csv");
+                Files.writeString(csv, "DE;IT\n1;2");
+            }
+
+            assertThatThrownBy(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Load factor file {0} is missing area {1} for group {2}");
+        }
+
+        @Test
+        void processLoadFactorMiscFileThrowsTechnicalExceptionWhenLoadFactorFileCannotBeRead() throws Exception {
+            String horizon = "2029-2030";
+            String trajectoryToUse = "loadFactor";
+            Integer studyId = 1;
+            String area = "FR";
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_io_");
+
+            when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            // Force listAreasByGroup.isEmpty() to exercise verifyLoadFactorTsFilesWithoutInstalledPower
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                    .thenReturn(List.of());
+
+            List<MiscFileProcessorServiceImpl.GroupClusterKey> groupClusterKeyList = List.of(
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
+            );
+
+            for (MiscFileProcessorServiceImpl.GroupClusterKey groupClusterKey : groupClusterKeyList) {
+                Path parent = root.resolve(groupClusterKey.groupe()).resolve(groupClusterKey.cluster());
+                Files.createDirectories(parent);
+                Path tsFilePath = parent.resolve("load_factor_" + groupClusterKey.cluster() + "_" + horizon + ".csv");
+                Files.writeString(tsFilePath, "AREA;OTHER\n1;2\n");
+                // remove read permissions to provoke IOException when opening the file
+                try {
+                    Files.setPosixFilePermissions(tsFilePath, PosixFilePermissions.fromString("---------"));
+                } catch (UnsupportedOperationException ignored) {
+                    // In environments without POSIX file attribute support, fallback by attempting to make file unreadable
+                    tsFilePath.toFile().setReadable(false, false);
+                }
+            }
+
+            assertThatThrownBy(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                    .isInstanceOf(TechnicalException.class)
+                    .hasMessageContaining("Error while reading load factor file");
+        }
+
+        @Test
+        void throwsBusinessExceptionWithMissingAreaTemplateForSingleGroupFile() throws Exception {
+            String horizon = "2029-2030";
+            String trajectoryToUse = "loadFactor";
+            Integer studyId = 1;
+            String area = "FR";
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_missing_area_single_");
+
+            when(trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area))
+                    .thenReturn(List.of());
+
+            MiscFileProcessorServiceImpl.GroupClusterKey key = new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass");
+            Path dir = root.resolve(key.groupe()).resolve(key.cluster());
+            Files.createDirectories(dir);
+            Path csv = dir.resolve("load_factor_" + key.cluster() + "_" + horizon + ".csv");
+            Files.writeString(csv, "DE;IT\n1;2");
+
+            assertThatThrownBy(() -> service.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Load factor file {0} is missing area {1} for group {2}");
         }
     }
 

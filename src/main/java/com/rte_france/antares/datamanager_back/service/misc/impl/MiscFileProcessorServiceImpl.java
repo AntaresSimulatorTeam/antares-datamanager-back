@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.misc.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
 import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
@@ -11,7 +12,6 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -172,44 +172,65 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         Path trajectoryFilePath = trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD);
 
         Map<GroupClusterKey, List<String>> listAreasByGroup = getAreasByGroupClusterByStudyId(studyId, area);
-        // for each group search ts file (ex: load_factor_waste_2030-2031 )  from
-        // physical file system in  directory trajectoryFilePath/group/group
-        // ou load_factor is the prefix of ts and group the group and horizon the horizon
-        if (listAreasByGroup.isEmpty()) {
-            log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
-            //check that all files exist
-            List<GroupClusterKey> groupClusterKeyList = List.of(
-                    new GroupClusterKey("biomass", "Small biomass"),
-                    new GroupClusterKey("biogas", "biogas"),
-                    new GroupClusterKey("geothermal", "geothermal"),
-                    new GroupClusterKey("other", "other"),
-                    new GroupClusterKey("waste", "waste") ,
-                    new GroupClusterKey("wave", "wave"),
-                    new GroupClusterKey("hydrokinetic", "hydrokinetic")
-            );
-            groupClusterKeyList.forEach(groupClusterKey -> {
-                Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
-                if (!Files.exists(tsFilePath)) {
-                    throw BusinessException.builder()
-                            .message("Load factor file not found for group {0}: expected at {1}")
-                            .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
-                            .build();
-                } else {
-                    log.info("Load factor file {} for group {} found at expected location {}", tsFilePath.getFileName(), groupClusterKey.groupe, tsFilePath);
-                }
-            });
 
+        if (listAreasByGroup.isEmpty()) {
+            verifyLoadFactorTsFilesWithoutInstalledPower(horizon, studyId, area, trajectoryFilePath);
 
         } else {
-            for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
-                GroupClusterKey groupCluster = entry.getKey();
-                List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
-                verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId);
-            }
+            verifyLoadFactorTsFilesWithInstalledPower(horizon, studyId, listAreasByGroup, trajectoryFilePath);
         }
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryFilePath, horizon, area);
         return trajectoryRepository.save(trajectory);
 
+    }
+
+    private void verifyLoadFactorTsFilesWithInstalledPower(String horizon, Integer studyId, Map<GroupClusterKey, List<String>> listAreasByGroup, Path trajectoryFilePath) throws Exception {
+        for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
+            GroupClusterKey groupCluster = entry.getKey();
+            List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
+            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId);
+        }
+    }
+
+    private static void verifyLoadFactorTsFilesWithoutInstalledPower(String horizon, Integer studyId, String area, Path trajectoryFilePath) {
+        log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
+        //check that all files exist
+        List<GroupClusterKey> groupClusterKeyList = List.of(
+                new GroupClusterKey("biomass", "Small biomass"),
+                new GroupClusterKey("biogas", "biogas"),
+                new GroupClusterKey("geothermal", "geothermal"),
+                new GroupClusterKey("other", "other"),
+                new GroupClusterKey("waste", "waste") ,
+                new GroupClusterKey("wave", "wave"),
+                new GroupClusterKey("hydrokinetic", "hydrokinetic")
+        );
+        groupClusterKeyList.forEach(groupClusterKey -> {
+            Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
+            if (!Files.exists(tsFilePath)) {
+                throw BusinessException.builder()
+                        .message("Load factor file not found for group {0}: expected at {1}")
+                        .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
+                        .build();
+            } else {
+                try {
+                    List<String> headerAreas = readHeaderAreas(horizon, trajectoryFilePath, groupClusterKey);
+                    if (area != null && !OTHERS_AREA.equalsIgnoreCase(area)) {
+                        if (!headerAreas.contains(area.toLowerCase())) {
+                            throw BusinessException.builder()
+                                    .message("Load factor file {0} is missing area {1} for group {2}")
+                                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), area, groupClusterKey.groupe))
+                                    .build();
+                        }
+                    }
+                    log.info("Load factor file {} for group {} found at expected location {}", tsFilePath.getFileName(), groupClusterKey.groupe, tsFilePath);
+                } catch (TechnicalException | IOException technicalException) {
+                    throw TechnicalException.builder()
+                            .message("Error while reading load factor file for group {0} at {1}: {2}")
+                            .errorMessageArguments(List.of(groupClusterKey.groupe, tsFilePath.getFileName().toString(), technicalException.getMessage()))
+                            .build();
+                }
+            }
+        });
     }
 
     private TrajectoryEntity buildLoadFactorMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws Exception {
