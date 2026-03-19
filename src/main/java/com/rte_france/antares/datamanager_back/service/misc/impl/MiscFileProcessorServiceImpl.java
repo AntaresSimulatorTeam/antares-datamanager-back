@@ -110,7 +110,6 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
             // Détecter l'index de la colonne correspondant à l'horizon hors de la boucle de lignes
             int yearColIndex = -1;
-            // TODO définir quelle année prendre quand isCivilYear est à true
             String horizonYear = horizon.split("-")[1];
 
             yearColIndex = getYearColIndex(lastCol, header, horizonYear, yearColIndex);
