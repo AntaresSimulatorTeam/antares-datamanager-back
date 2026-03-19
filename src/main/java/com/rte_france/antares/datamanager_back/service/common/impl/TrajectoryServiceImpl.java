@@ -1096,7 +1096,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .map(String::toLowerCase)
                         .toList();
 
-                loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).addAll(areas);
+                if(trajectory.getArea().equals(OTHERS_AREA)) {
+                    loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).addAll(areas);
+                } else if (areas.contains(trajectory.getArea().toLowerCase())) {
+                    loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).add(trajectory.getArea().toUpperCase());
+
+                }
             }
         }
 
