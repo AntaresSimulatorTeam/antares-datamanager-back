@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -177,18 +178,18 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             verifyLoadFactorTsFilesWithoutInstalledPower(horizon, studyId, area, trajectoryFilePath);
 
         } else {
-            verifyLoadFactorTsFilesWithInstalledPower(horizon, studyId, listAreasByGroup, trajectoryFilePath);
+            verifyLoadFactorTsFilesWithInstalledPower(horizon, studyId, listAreasByGroup, trajectoryFilePath, area);
         }
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryFilePath, horizon, area);
         return trajectoryRepository.save(trajectory);
 
     }
 
-    private void verifyLoadFactorTsFilesWithInstalledPower(String horizon, Integer studyId, Map<GroupClusterKey, List<String>> listAreasByGroup, Path trajectoryFilePath) throws Exception {
+    private void verifyLoadFactorTsFilesWithInstalledPower(String horizon, Integer studyId, Map<GroupClusterKey, List<String>> listAreasByGroup, Path trajectoryFilePath, String area) throws Exception {
         for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
             GroupClusterKey groupCluster = entry.getKey();
             List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
-            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId);
+            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId, area);
         }
     }
 
@@ -196,13 +197,13 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
         //check that all files exist
         List<GroupClusterKey> groupClusterKeyList = List.of(
-                new GroupClusterKey("biomass", "Small biomass"),
-                new GroupClusterKey("biogas", "biogas"),
-                new GroupClusterKey("geothermal", "geothermal"),
-                new GroupClusterKey("other", "other"),
-                new GroupClusterKey("waste", "waste") ,
-                new GroupClusterKey("wave", "wave"),
-                new GroupClusterKey("hydrokinetic", "hydrokinetic")
+                new GroupClusterKey("biomass", ""),
+                new GroupClusterKey("biogas", ""),
+                new GroupClusterKey("geothermal", ""),
+                new GroupClusterKey("other", ""),
+                new GroupClusterKey("waste", ""),
+                new GroupClusterKey("wave", ""),
+                new GroupClusterKey("hydrokinetic", "")
         );
         groupClusterKeyList.forEach(groupClusterKey -> {
             Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
@@ -266,48 +267,99 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         return trajectory;
     }
 
-    private void verifyTsFile(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, List<String> areas, Integer studyId) throws Exception {
+    private void verifyTsFile(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, List<String> expectedAreas, Integer studyId, String selectedArea) throws Exception {
 
         Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
 
-        List<String> mergedHeader = mergedAllHeadersOfAllLoadFactorMiscTrajectories(horizon, trajectoryFilePath, groupClusterKey, studyId);
-        Set<String> missingAreas = new HashSet<>(areas);
-        mergedHeader.forEach(missingAreas::remove);
+        // 1. Lire header du fichier courant
+        List<String> currentHeader = readHeaderAreas(horizon, trajectoryFilePath, groupClusterKey);
+
+        if (verifySpecificAreatTsFile(groupClusterKey, expectedAreas, selectedArea, currentHeader, tsFilePath)) return;
+
+        // 3. Cas OTHERS → merge des zones
+        Set<String> mergedAreas = new LinkedHashSet<>(currentHeader);
+
+        mergeSpecificTrajectoryWithActualOther(horizon, groupClusterKey, studyId, tsFilePath, mergedAreas);
+
+        // 4. Vérification finale : toutes les zones attendues sont présentes
+        Set<String> missingAreas = new HashSet<>(expectedAreas.stream().map(String::toLowerCase).toList());
+
+        mergedAreas.forEach(missingAreas::remove);
+
         if (!missingAreas.isEmpty()) {
             throw BusinessException.builder()
                     .message("Load factor file {0} is missing areas {1} for group {2}")
-                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString(), groupClusterKey.groupe))
+                    .errorMessageArguments(List.of(
+                            tsFilePath.getFileName().toString(),
+                            missingAreas.toString(),
+                            groupClusterKey.groupe))
                     .build();
-        } else {
-            log.info("Load factor file {} for group {} contains all expected areas (merged headers)", tsFilePath.getFileName(), groupClusterKey.groupe);
+        }
+
+        log.info("Load factor file {} for group {} contains all expected areas",
+                tsFilePath.getFileName(), groupClusterKey.groupe);
+    }
+
+    private void mergeSpecificTrajectoryWithActualOther(String horizon, GroupClusterKey groupClusterKey, Integer studyId, Path tsFilePath, Set<String> mergedAreas) {
+        List<TrajectoryEntity> existingTrajectories = trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name());
+
+        for (TrajectoryEntity traj : existingTrajectories) {
+
+            if (OTHERS_AREA.equalsIgnoreCase(traj.getArea())) continue;
+
+            try {
+                Path existingTrajectoryPath = trajectoryService.buildTrajectoryPath(traj.getFileName(), TrajectoryType.MISC_LOAD);
+
+                Path existingTsPath = getLoadFactorByGroupPath(horizon, existingTrajectoryPath, groupClusterKey);
+
+                if (!Files.exists(existingTsPath)) {
+                    throw BusinessException.builder()
+                            .message("Load factor file not found for group {0}: expected at {1}")
+                            .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
+                            .build();
+                }
+                List<String> header = readHeaderAreas(horizon, existingTrajectoryPath, groupClusterKey);
+
+                if (header.contains(traj.getArea().toLowerCase())) {
+                    mergedAreas.add(traj.getArea().toLowerCase());
+                }
+            } catch (Exception e) {
+                log.warn("Skipping trajectory {}: {}", traj.getFileName(), e.getMessage());
+            }
         }
     }
 
-    private List<String> mergedAllHeadersOfAllLoadFactorMiscTrajectories(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey, Integer studyId) throws IOException {
-        // Read header of the current file
-        List<String> headerAreas = readHeaderAreas(horizon, trajectoryFilePath, groupClusterKey);
+    private static boolean verifySpecificAreatTsFile(GroupClusterKey groupClusterKey, List<String> expectedAreas, String selectedArea, List<String> currentHeader, Path tsFilePath) {
+        if (!OTHERS_AREA.equalsIgnoreCase(selectedArea)) {
 
-        // Merge headers from existing misc load trajectories for this study/horizon (read from DB)
-        Set<String> mergedHeaderSet = new LinkedHashSet<>(headerAreas);
+            String area = selectedArea.toLowerCase();
 
-        List<TrajectoryEntity> existingTrajectories = trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name());
-        Set<Path> processedPaths = new HashSet<>();
-        for (TrajectoryEntity traj : existingTrajectories) {
-            try {
-                Path existingTrajectoryFilePath = trajectoryService.buildTrajectoryPath(traj.getFileName(), TrajectoryType.MISC_LOAD);
-                Path existingPath = getLoadFactorByGroupPath(horizon, existingTrajectoryFilePath, groupClusterKey);
-                if (processedPaths.contains(existingPath)) continue;
-                processedPaths.add(existingPath);
-                if (Files.exists(existingPath)) {
-                    List<String> otherHeader = readHeaderAreas(horizon, existingTrajectoryFilePath, groupClusterKey);
-                    mergedHeaderSet.addAll(otherHeader);
-                }
-            } catch (Exception e) {
-                log.warn("Could not read header for trajectory {}: {}", traj.getFileName(), e.getMessage());
+            // ✅ Vérif 2 : présence dans le fichier
+            if (!currentHeader.contains(area)) {
+                throw BusinessException.builder()
+                        .message("Load factor file {0} is missing area {1} for group {2}")
+                        .errorMessageArguments(List.of(
+                                tsFilePath.getFileName().toString(),
+                                selectedArea,
+                                groupClusterKey.groupe))
+                        .build();
             }
-        }
+            // ✅ Vérif 1 : cohérence IP
+            if (!expectedAreas.contains(area)) {
+                throw BusinessException.builder()
+                        .message("Area {0} is not expected for group {1}")
+                        .errorMessageArguments(List.of(
+                                selectedArea,
+                                groupClusterKey.groupe))
+                        .build();
+            }
 
-        return new ArrayList<>(mergedHeaderSet);
+            log.info("Load factor file {} for group {} contains expected area {}",
+                    tsFilePath.getFileName(), groupClusterKey.groupe, selectedArea);
+
+            return true;
+        }
+        return false;
     }
 
     public static List<String> readHeaderAreas(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey) throws IOException {
@@ -336,11 +388,28 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     }
 
     public static Path getLoadFactorByGroupPath(String horizon, Path trajectoryFilePath, GroupClusterKey groupClusterKey) {
-        return trajectoryFilePath
-                .resolve(groupClusterKey.groupe)
-                .resolve(groupClusterKey.cluster)// for biomass group the file is in small biomass subfolder
-                .resolve("load_factor_" + groupClusterKey.cluster + "_" + horizon + ".csv");
+        Path groupPath = trajectoryFilePath.resolve(groupClusterKey.groupe);
 
+        String cluster;
+
+        if (groupClusterKey.cluster != null && !groupClusterKey.cluster.isEmpty()) {
+            cluster = groupClusterKey.cluster;
+        } else {
+            try (Stream<Path> paths = Files.list(groupPath)) {
+                cluster = paths
+                        .filter(Files::isDirectory)
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("No cluster directory found under " + groupPath))
+                        .getFileName()
+                        .toString();
+            } catch (IOException e) {
+                throw new RuntimeException("Error reading directory " + groupPath, e);
+            }
+        }
+
+        return groupPath
+                .resolve(cluster)
+                .resolve("load_factor_" + cluster + "_" + horizon + ".csv");
     }
 
     public record GroupClusterKey(String groupe, String cluster) {

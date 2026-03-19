@@ -41,7 +41,7 @@ import static com.rte_france.antares.datamanager_back.service.thermal.impl.Therm
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class TrajectoryServiceImplTest {
@@ -1833,7 +1833,7 @@ class TrajectoryServiceImplTest {
 
         GroupAreaMiscCapacity capacity1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
         GroupAreaMiscCapacity capacity2 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area2";} public String getCluster(){return "cluster1";} };
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(List.of(capacity1, capacity2));
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString())).thenReturn(List.of(capacity1, capacity2));
 
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of());
 
@@ -1842,7 +1842,7 @@ class TrajectoryServiceImplTest {
                 .fileName("file1")
                 .horizon("2030-2031")
                 .type(TrajectoryType.MISC_LOAD.name())
-                .area("FR")
+                .area(OTHERS_AREA)
                 .build();
 
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(selectingTrajectory));
@@ -1865,7 +1865,7 @@ class TrajectoryServiceImplTest {
 
         GroupAreaMiscCapacity capacity1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
         GroupAreaMiscCapacity capacity2 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area2";} public String getCluster(){return "cluster1";} };
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(List.of(capacity1, capacity2));
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString())).thenReturn(List.of(capacity1, capacity2));
 
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of());
 
@@ -1899,10 +1899,10 @@ class TrajectoryServiceImplTest {
                 .fileName("file1")
                 .horizon("2030-2031")
                 .type(TrajectoryType.MISC_LOAD.name())
-                .area("FR")
+                .area(OTHERS_AREA)
                 .build();
 
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR"))
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, OTHERS_AREA))
                 .thenReturn(Collections.emptyList());
 
         when(trajectoryRepository.findById(1)).thenReturn(Optional.of(trajectory));
@@ -1911,7 +1911,7 @@ class TrajectoryServiceImplTest {
 
         spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(miscClusterCapacityRepository, times(1)).findByStudyIdAndArea(studyId, "FR");
+        verify(miscClusterCapacityRepository, times(1)).findByStudyIdAndArea(studyId, OTHERS_AREA);
         verifyNoMoreInteractions(miscClusterCapacityRepository);
     }
 
@@ -1931,7 +1931,7 @@ class TrajectoryServiceImplTest {
                 new GroupAreaMiscCapacity() { public String getGroupe(){return "group2";} public String getArea(){return "area2";} public String getCluster(){return "cluster2";} }
         );
 
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR"))
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString()))
                 .thenReturn(capacities);
 
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
@@ -1939,7 +1939,7 @@ class TrajectoryServiceImplTest {
                 .fileName("file2")
                 .horizon("2030-2031")
                 .type(TrajectoryType.MISC_LOAD.name())
-                .area("FR")
+                .area(OTHERS_AREA)
                 .build();
 
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
@@ -1961,7 +1961,7 @@ class TrajectoryServiceImplTest {
 
         spyService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(miscClusterCapacityRepository, times(1)).findByStudyIdAndArea(studyId, "FR");
+        verify(miscClusterCapacityRepository, times(1)).findByStudyIdAndArea(eq(studyId), anyString());
         verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
         verify(trajectoryRepository, times(1)).findById(1);
     }
@@ -1972,20 +1972,20 @@ class TrajectoryServiceImplTest {
         Integer trajectoryId = 1;
 
         GroupAreaMiscCapacity capacity1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(List.of(capacity1));
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString())).thenReturn(List.of(capacity1));
 
         TrajectoryEntity selectingTrajectory = TrajectoryEntity.builder()
                 .id(trajectoryId)
                 .fileName("file1")
                 .horizon("2030-2031")
                 .type(TrajectoryType.MISC_LOAD.name())
-                .area("FR")
+                .area(OTHERS_AREA)
                 .build();
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(selectingTrajectory));
 
         // two existing trajectories with same filename -> duplicate path
-        TrajectoryEntity existing1 = TrajectoryEntity.builder().id(2).fileName("file2").horizon("2030-2031").type(TrajectoryType.MISC_LOAD.name()).area("FR").build();
-        TrajectoryEntity existing2 = TrajectoryEntity.builder().id(3).fileName("file2").horizon("2030-2031").type(TrajectoryType.MISC_LOAD.name()).area("FR").build();
+        TrajectoryEntity existing1 = TrajectoryEntity.builder().id(2).fileName("file2").horizon("2030-2031").type(TrajectoryType.MISC_LOAD.name()).area(OTHERS_AREA).build();
+        TrajectoryEntity existing2 = TrajectoryEntity.builder().id(3).fileName("file2").horizon("2030-2031").type(TrajectoryType.MISC_LOAD.name()).area(OTHERS_AREA).build();
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existing1));
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, "2030-2031", TrajectoryType.MISC_LOAD.name()))
                 .thenReturn(List.of(existing1, existing2));
@@ -2010,7 +2010,7 @@ class TrajectoryServiceImplTest {
         Integer trajectoryId = 1;
 
         GroupAreaMiscCapacity capacity1 = new GroupAreaMiscCapacity() { public String getGroupe(){return "group1";} public String getArea(){return "area1";} public String getCluster(){return "cluster1";} };
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(List.of(capacity1));
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString())).thenReturn(List.of(capacity1));
 
         TrajectoryEntity selectingTrajectory = TrajectoryEntity.builder()
                 .id(trajectoryId)
@@ -2093,7 +2093,7 @@ class TrajectoryServiceImplTest {
                 .fileName("fileLF")
                 .horizon("2030-2031")
                 .type(TrajectoryType.MISC_LOAD.name())
-                .area("FR")
+                .area(OTHERS_AREA)
                 .build();
 
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
@@ -2211,13 +2211,13 @@ class TrajectoryServiceImplTest {
                 .fileName("fileLF")
                 .horizon("2030-2031")
                 .type(TrajectoryType.MISC_LOAD.name())
-                .area("FR")
+                .area(OTHERS_AREA)
                 .build();
 
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
 
         // no previously stored installed capacity for study+area
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(Collections.emptyList());
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString())).thenReturn(Collections.emptyList());
 
         Path root = Files.createTempDirectory(tempDir, "traj");
         Path dir = root.resolve("group1").resolve("cluster1");
@@ -2247,7 +2247,7 @@ class TrajectoryServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)).thenReturn(List.of(existingLf));
-        when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR")).thenReturn(Collections.emptyList());
+        when(miscClusterCapacityRepository.findByStudyIdAndArea(eq(studyId), anyString())).thenReturn(Collections.emptyList());
 
         Path root = Files.createTempDirectory(tempDir, "traj");
         Path dir = root.resolve("group1").resolve("cluster1");

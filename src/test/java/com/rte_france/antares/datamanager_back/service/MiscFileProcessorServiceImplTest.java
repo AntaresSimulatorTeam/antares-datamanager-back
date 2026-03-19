@@ -733,7 +733,7 @@ class MiscFileProcessorServiceImplTest {
         String horizon = "2030-2031";
         String trajectoryToUse = "load_factor_test";
         Integer studyId = 1;
-        String areaParam = "";
+        String areaParam = "OTHERS";
 
         // Prepare DB projection results: two areas for the same group/cluster
         GroupAreaMiscCapacity e1 = new GroupAreaMiscCapacity() {
@@ -772,7 +772,7 @@ class MiscFileProcessorServiceImplTest {
         String horizon = "2030-2031";
         String trajectoryToUse = "load_factor_test";
         Integer studyId = 1;
-        String areaParam = "";
+        String areaParam = "OTHERS";
 
         GroupAreaMiscCapacity e1 = new GroupAreaMiscCapacity() {
             public String getGroupe() { return "group1"; }
@@ -804,7 +804,7 @@ class MiscFileProcessorServiceImplTest {
         String horizon = "2030-2031";
         String trajectoryToUse = "load_factor_test";
         Integer studyId = 1;
-        String areaParam = "";
+        String areaParam = "OTHERS";
 
         when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, areaParam))
                 .thenReturn(List.of(buildGroup("group1", "cluster1", "AREA1")));
@@ -838,7 +838,7 @@ class MiscFileProcessorServiceImplTest {
         String horizon = "2030-2031";
         String trajectoryToUse = "load_factor_test";
         Integer studyId = 1;
-        String areaParam = "";
+        String areaParam = "OTHERS";
 
         when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, areaParam))
                 .thenReturn(List.of(buildGroup("group1", "cluster1", "AREA1"), buildGroup("group1", "cluster1", "AREA2")));
@@ -849,14 +849,14 @@ class MiscFileProcessorServiceImplTest {
         Files.createDirectories(groupDir);
         Files.writeString(groupDir.resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
 
-        TrajectoryEntity tA = TrajectoryEntity.builder().fileName("tA").build();
-        TrajectoryEntity tB = TrajectoryEntity.builder().fileName("tB").build();
+        TrajectoryEntity tA = TrajectoryEntity.builder().fileName("tA").area("AREA2").build();
+        TrajectoryEntity tB = TrajectoryEntity.builder().fileName("tB").area("AREA2_PART").build();
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
                 .thenReturn(List.of(tA, tB));
 
         Path baseA = tempDir.resolve("baseA");
         Files.createDirectories(baseA.resolve("group1").resolve("cluster1"));
-        Files.writeString(baseA.resolve("group1").resolve("cluster1").resolve("load_factor_group1_" + horizon + ".csv"), "AREA2_PART;AREA2\n1;2\n");
+        Files.writeString(baseA.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA2_PART;AREA2\n1;2\n");
 
         Path baseB = tempDir.resolve("baseB");
         Files.createDirectories(baseB.resolve("group1").resolve("cluster1"));
