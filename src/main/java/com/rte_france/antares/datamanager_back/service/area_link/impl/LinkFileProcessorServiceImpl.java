@@ -68,7 +68,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name()), horizon, TrajectoryType.LINK.name()
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.LINK.name(), null), horizon, TrajectoryType.LINK.name()
         );
         String createdBy = userService.getCurrentUserDetails().getNni();
 
