@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
+import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import org.mockito.stubbing.Answer;
@@ -583,6 +584,17 @@ public class ResFileProcessorServiceImplTest {
                     dataRow.createCell(5).setCellValue(200);
                 }
 
+                wb.write(out);
+            }
+            return file;
+        }
+
+        private Path createMockInvalidHeaderExcelFile(Path tempDir, String fileName) throws Exception {
+            Path file = tempDir.resolve(fileName);
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet1");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("InvalidColumn");
                 wb.write(out);
             }
             return file;
