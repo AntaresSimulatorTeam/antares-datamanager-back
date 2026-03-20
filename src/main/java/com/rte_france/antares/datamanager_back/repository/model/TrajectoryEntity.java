@@ -106,6 +106,11 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<com.rte_france.antares.datamanager_back.repository.model.MiscLoadFactoryEntity> miscLoadFactoryEntities;
 
+    // Ajout des relations pour RES
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity> resClusterCapacityEntities;
+
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",
             joinColumns = @JoinColumn(name = "trajectory_id"),

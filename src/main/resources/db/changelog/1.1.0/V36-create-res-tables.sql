@@ -8,6 +8,7 @@ CREATE TABLE res_cluster_capacity
     area              VARCHAR(20),
     groupe             VARCHAR(40),
     cluster           VARCHAR(40),
+    pecd_zone         VARCHAR(10),
     category          VARCHAR(20) DEFAULT 'power',
     capacity_by_year  numeric,
     trajectory_id     INTEGER,
