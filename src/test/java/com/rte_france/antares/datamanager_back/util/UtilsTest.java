@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
@@ -378,43 +379,43 @@ class UtilsTest {
     }
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_areaType_stripsPrefixAndExtension() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("areas_BP_2020-2021.xlsx", TrajectoryType.AREA.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("areas_BP_2020-2021.xlsx", TrajectoryType.AREA.name(), null);
         assertEquals("BP_2020-2021", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_linkType_stripsPrefixAndExtension() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("links_scenario.xlsx", TrajectoryType.LINK.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("links_scenario.xlsx", TrajectoryType.LINK.name(), null);
         assertEquals("scenario", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalCapacityType_stripsPrefixAndExtension() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("thermal_capacity.xlsx", TrajectoryType.THERMAL_CAPACITY.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("thermal_capacity.xlsx", TrajectoryType.THERMAL_CAPACITY.name(), null);
         assertEquals("capacity", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalCommonParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_ALF34.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_ALF34.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(), null);
         assertEquals("ALF34", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalEconomicCostParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("costs_ALF34.xlsx", TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("costs_ALF34.xlsx", TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name(), null);
         assertEquals("ALF34", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalDsrClusterType_stripsPrefixAndExtensionAndKeepsInnerDots() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_DSR_ALF34.xlsx", TrajectoryType.DSR.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_DSR_ALF34.xlsx", TrajectoryType.DSR.name(), null);
         assertEquals("ALF34", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_shouldTechnicalException_fileNameIsBlank() {
-        assertThrows(NullPointerException.class, () -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(null, TrajectoryType.DSR.name()));
+        assertThrows(NullPointerException.class, () -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(null, TrajectoryType.DSR.name(), null));
     }
 
     @Test void testValidDateFormat() {

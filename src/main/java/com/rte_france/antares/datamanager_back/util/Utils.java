@@ -93,7 +93,7 @@ public class Utils {
     }
 
     public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType(), null).equals(trajectoryEntity.getFileName())
                 && (trajectoryEntity.getLastModificationContentDate()
                 .truncatedTo(ChronoUnit.SECONDS)
                 .isEqual(Files.getLastModifiedTime(path)
@@ -143,7 +143,7 @@ public class Utils {
             createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
         String checksum = computeChecksumByType(path, trajectoryType, horizon, area, technology);
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name(), technology))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
@@ -221,7 +221,7 @@ public class Utils {
         return fileName.replaceFirst("(?i)^cluster_[^_]+_", "");
     }
 
-    public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
+    public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType, String technology) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
             throw TechnicalException.builder().message("Empty fileName").build();
