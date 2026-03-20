@@ -609,7 +609,7 @@ class ThermalFileProcessorServiceImplTest {
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
             utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(
                             anyString(),
-                            eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())))
+                            eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()), any()))
                     .thenReturn("thermal_common_parameters_test");
 
             utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(file), eq(existing)))
@@ -934,7 +934,7 @@ class ThermalFileProcessorServiceImplTest {
 
         // Mock static Utils.buildTrajectory
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
-            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString(), any()))
                     .thenAnswer(inv -> {
                         String fileName = inv.getArgument(0);
                         // simulate Utils: return name without extension
@@ -979,7 +979,7 @@ class ThermalFileProcessorServiceImplTest {
 
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
             // Static name helper not strictly needed in this branch, but keep consistent
-            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString(), any()))
                     .thenAnswer(inv -> {
                         String fileName = inv.getArgument(0);
                         int dot = fileName.lastIndexOf('.');
@@ -1024,7 +1024,7 @@ class ThermalFileProcessorServiceImplTest {
                 .build();
 
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
-            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString(), any()))
                     .thenReturn("thermal_costs_rates_existing");
 
             utilsMock.when(() -> Utils.calculateThermalCostTrajectoryChecksum(eq(costs), eq(rates)))
