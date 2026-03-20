@@ -107,7 +107,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String DSR_PREFIX = "cluster_dsr_";
     private static final String DSR_CAPACITY_PREFIX = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
-    private static final String RES_CAPACITY_PREFIX = "installedres_";
+    public static final String RES_CAPACITY_PREFIX = "installedres_";
     private static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
     private static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
@@ -507,7 +507,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> "FR".equals(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX + technologyPrefix);
+            case RES_CAPACITY -> "FR".equals(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
             case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             default -> true;
@@ -872,7 +872,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area, String technology) throws IOException {
+    public Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area, String technology) throws IOException {
         String basePath = antaresDataManagerProperties.getNasDirectory();
         String subPath = antaresDataManagerProperties.getTrajectoryFilePath();
         Path baseDirectory = Path.of(basePath).resolve(subPath)

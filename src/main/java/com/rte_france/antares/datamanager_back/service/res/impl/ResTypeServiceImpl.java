@@ -5,8 +5,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity;
 import com.rte_france.antares.datamanager_back.service.res.ResTypeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor

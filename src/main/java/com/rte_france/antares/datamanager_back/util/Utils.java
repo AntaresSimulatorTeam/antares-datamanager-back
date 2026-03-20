@@ -21,7 +21,6 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -35,14 +34,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
+import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
 
 
 /**
@@ -59,7 +57,6 @@ public class Utils {
     private static final String THERMAL_SPECIFIC_PREFIX = "specific_param_";
     private static final String THERMAL_ECONOMIC_PREFIX = "economic_param_";
     private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
-    private static final String STS_PREFIX = "cluster_";
     private static final String DSR_PREFIX = "cluster_DSR_";
     private static final String DSR_CAPACITY_MODULATION = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedMisc_";
@@ -86,17 +83,17 @@ public class Utils {
 
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType(), null).equals(trajectoryEntity.getFileName())
+                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), null));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType(), null).equals(trajectoryEntity.getFileName())
+                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), null));
     }
 
     public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
+        return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType(), null).equals(trajectoryEntity.getFileName())
                 && (trajectoryEntity.getLastModificationContentDate()
                 .truncatedTo(ChronoUnit.SECONDS)
                 .isEqual(Files.getLastModifiedTime(path)
@@ -144,9 +141,9 @@ public class Utils {
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
             createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
-        String checksum = computeChecksumByType(path, trajectoryType, horizon, area);
+        String checksum = computeChecksumByType(path, trajectoryType, horizon, area, technology);
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name(), technology))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
@@ -224,7 +221,7 @@ public class Utils {
         return fileName.replaceFirst("(?i)^cluster_[^_]+_", "");
     }
 
-    public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType) {
+    public static String getFileNameWithoutExtensionAndWithoutPrefix(String fileName, String trajectoryType, String technology) {
         Objects.requireNonNull(fileName);
         if (fileName.isBlank()) {
             throw TechnicalException.builder().message("Empty fileName").build();
@@ -250,6 +247,8 @@ public class Utils {
             prefix = DSR_CAPACITY_MODULATION;
         } else if (Objects.equals(trajectoryType, TrajectoryType.MISC_CAPACITY.toString())) {
             prefix = MISC_CAPACITY_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.RES_CAPACITY.toString())) {
+            prefix = RES_CAPACITY_PREFIX;
         } else {
             prefix = "";
         }
@@ -403,9 +402,10 @@ public class Utils {
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
      */
-    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws IOException {
+    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area, String technology) throws IOException {
         return switch (type) {
             case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
+            case RES_CAPACITY -> "FR".equals(area) && (technology == null || technology.isEmpty()) ? "NA" : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
@@ -750,7 +750,12 @@ public class Utils {
         return false;
     }
 
-    public static void checkMissingColumns(Sheet sheet, String[] expectedColumns, String trajectoryName, String type) {
+    public static void checkMissingColumns(
+            Sheet sheet,
+            String[] expectedColumns,
+            String trajectoryName,
+            String type
+    ) {
         Row headerRow = sheet.getRow(0);
         List<String> missingColumns = new ArrayList<>();
         if (headerRow == null) {
@@ -774,7 +779,9 @@ public class Utils {
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
-            throw BusinessException.builder().message("Missing columns " + missingList + " in " + type + " trajectory " + trajectoryName).build();
+            throw BusinessException.builder()
+                    .message("Missing columns " + missingList + " in " + type + " trajectory " + trajectoryName)
+                    .build();
         }
     }
 
@@ -854,6 +861,15 @@ public class Utils {
         return HexFormat.of().formatHex(digest.digest());
     }
 
+    private static String getErrorMessageLabelFromType(TrajectoryType type) {
+        return switch (type) {
+            case DSR -> "DSR cluster";
+            case MISC_CAPACITY -> "MISC";
+            case RES_CAPACITY -> "RES";
+            default -> "trajectory";
+        };
+    }
+
     public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
         boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
         if (hasNoAreaOfTrajectoryAreaInFile) {
@@ -866,20 +882,201 @@ public class Utils {
         }
     }
 
-    private static String getErrorMessageLabelFromType(TrajectoryType type) {
-        return switch (type) {
-            case DSR -> "DSR cluster";
-            case MISC_CAPACITY -> "MISC";
-            default -> "trajectory";
-        };
-    }
-
     public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
                     .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName) {
+        if (technologyParam != null && !technologyParam.isBlank() && !fileTechnologies.contains(technologyParam.toLowerCase())) {
+            String label = getErrorMessageLabelFromType(trajectoryType);
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(technologyParam, label, trajectoryFileName))
+                    .message("Selected technology {0} is not present in the 'node' column of {1} trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    public static List<Path> findFilesFromDepthWithPrefix(Path directoryPath, String prefix, int depth, String technology) throws IOException {
+        try (Stream<Path> stream = Files.walk(directoryPath, depth)) {
+            List<Path> files = stream
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                        if (technology != null && !technology.isEmpty()) {
+                            return name.startsWith(prefix) && name.contains(technology) && name.endsWith(".xlsx");
+                        } else {
+                            return name.startsWith(prefix) && name.endsWith(".xlsx");
+                        }
+                    })
+                    .collect(Collectors.toList());
+
+            if (files.isEmpty()) {
+                throw new IOException("No files found matching criteria in directory: " + directoryPath);
+            }
+
+            return files;
+        }
+    }
+
+    public static int getRealLastColumn(Row row) {
+        int last = -1;
+        short max = row.getLastCellNum(); // nombre "déclaré" de cellules
+
+        for (int c = 0; c < max; c++) {
+            Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                last = c;
+            }
+        }
+        return last + 1;
+    }
+
+    public static int getYearColIndex(int lastCol, Row header, String horizonYear, int yearColIndex) {
+
+        for (int c = 5; c < lastCol; c++) {
+
+            Cell cell = header.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+            if (cell == null) continue;
+
+            String value = switch (cell.getCellType()) {
+                case STRING -> cell.getStringCellValue().trim();
+                case NUMERIC -> {
+                    double num = cell.getNumericCellValue();
+                    if (num == Math.floor(num)) yield String.valueOf((long) num);
+                    yield String.valueOf(num);
+                }
+                case FORMULA -> {
+                    // On récupère le résultat de la formule
+                    try {
+                        double num = cell.getNumericCellValue();
+                        if (num == Math.floor(num)) yield String.valueOf((long) num);
+                        yield String.valueOf(num);
+                    } catch (Exception e) {
+                        yield cell.getStringCellValue().trim();
+                    }
+                }
+                default -> "";
+            };
+
+            if (horizonYear.equals(value)) {
+                return c;
+            }
+        }
+
+        return yearColIndex;
+    }
+
+    public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse) {
+        if (!"FR".equalsIgnoreCase(areaParam) &&
+                !startsWithIgnoreCase(trajectoryToUse, RES_CAPACITY_PREFIX)) {
+
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(RES_CAPACITY_PREFIX))
+                    .message("The trajectory file name must start with {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    public Sheet getFirstSheetOrThrow(Workbook workbook, Path filePath) {
+        if (workbook.getNumberOfSheets() == 0) {
+            throw BusinessException.builder()
+                    .message("InstalledRes file has no sheet: " + filePath.getFileName())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return workbook.getSheetAt(0);
+    }
+
+    public Row getHeaderOrThrow(Sheet sheet, Path filePath) {
+        Row header = sheet.getRow(0);
+        if (header == null) {
+            throw BusinessException.builder()
+                    .message("Missing header in InstalledRes file: " + filePath.getFileName())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return header;
+    }
+
+    public void validateHeaderColumns(
+            Row header,
+            Sheet sheet,
+            String[] requiredColumns,
+            String trajectoryToUse
+    ) {
+        int lastCol = getRealLastColumn(header);
+        if (lastCol < 6) {
+            throw BusinessException.builder()
+                    .message("InstalledRes header is invalid")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        checkMissingColumns(sheet, requiredColumns, trajectoryToUse, TrajectoryType.RES_CAPACITY.name());
+    }
+
+    public int resolveYearColumnIndex(Row header, String horizon, String trajectoryToUse) {
+        String horizonYear = horizon.split("-")[1];
+        int yearColIndex = getYearColIndex(getRealLastColumn(header), header, horizonYear, -1);
+
+        if (yearColIndex == -1) {
+            throw BusinessException.builder()
+                    .message("Horizon '" + horizon + "' does not exist in Installed power trajectory " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return yearColIndex;
+    }
+
+    public String getStringCell(Row row, int index) {
+        return Optional.ofNullable(getCellValue(row, index))
+                .map(Object::toString)
+                .orElse(null);
+    }
+
+    public static String toSnakeCase(String input) {
+        if (input == null) {
+            return null;
+        }
+        return input.trim()
+                .toLowerCase()
+                .replaceAll("\\s+", "_");
+    }
+
+    public void validateAreas(
+            List<String> studyAreas,
+            String selectedArea,
+            List<String> fileAreas,
+            String trajectoryToUse
+    ) {
+        validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.RES_CAPACITY, trajectoryToUse);
+        validateSelectedAreaPresence(selectedArea, fileAreas, TrajectoryType.RES_CAPACITY, trajectoryToUse);
+    }
+
+    public void validateInvalidCombos(Set<String> invalidCombos, String trajectoryToUse) {
+        if (!invalidCombos.isEmpty()) {
+            String combos = String.join(", ", invalidCombos);
+            throw BusinessException.builder()
+                    .message("Values for node/group/cluster %s are not numeric in Res trajectory %s"
+                            .formatted(combos, trajectoryToUse))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    public void validateEmptyRows(boolean allRowsEmpty) {
+        if (allRowsEmpty) {
+            throw BusinessException.builder()
+                    .message("No area found in RES Installed power trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

@@ -8,6 +8,8 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 
 import java.io.FileOutputStream;
@@ -20,11 +22,15 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
+import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class UtilsTest {
     @TempDir
@@ -277,8 +283,8 @@ class UtilsTest {
             }
         }
 
-        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null);
-        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null);
+        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null, null);
+        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null, null);
 
         assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
     }
@@ -361,7 +367,7 @@ class UtilsTest {
 
         TechnicalException ex = assertThrows(
                 TechnicalException.class,
-                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null)
+                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null, null)
         );
 
         assertTrue(
@@ -371,43 +377,43 @@ class UtilsTest {
     }
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_areaType_stripsPrefixAndExtension() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("areas_BP_2020-2021.xlsx", TrajectoryType.AREA.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("areas_BP_2020-2021.xlsx", TrajectoryType.AREA.name(), null);
         assertEquals("BP_2020-2021", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_linkType_stripsPrefixAndExtension() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("links_scenario.xlsx", TrajectoryType.LINK.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("links_scenario.xlsx", TrajectoryType.LINK.name(), null);
         assertEquals("scenario", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalCapacityType_stripsPrefixAndExtension() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("thermal_capacity.xlsx", TrajectoryType.THERMAL_CAPACITY.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("thermal_capacity.xlsx", TrajectoryType.THERMAL_CAPACITY.name(), null);
         assertEquals("capacity", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalCommonParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_ALF34.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("common_param_ALF34.xlsx", TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(), null);
         assertEquals("ALF34", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalEconomicCostParamType_stripsPrefixAndExtensionAndKeepsInnerDots() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("costs_ALF34.xlsx", TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("costs_ALF34.xlsx", TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name(), null);
         assertEquals("ALF34", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_thermalDsrClusterType_stripsPrefixAndExtensionAndKeepsInnerDots() {
-        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_DSR_ALF34.xlsx", TrajectoryType.DSR.name());
+        String name = Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_DSR_ALF34.xlsx", TrajectoryType.DSR.name(), null);
         assertEquals("ALF34", name);
     }
 
     @Test
     void getFileNameWithoutExtensionAndWithoutPrefix_shouldTechnicalException_fileNameIsBlank() {
-        assertThrows(NullPointerException.class, () -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(null, TrajectoryType.DSR.name()));
+        assertThrows(NullPointerException.class, () -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(null, TrajectoryType.DSR.name(), null));
     }
 
     @Test void testValidDateFormat() {
@@ -923,5 +929,693 @@ class UtilsTest {
         assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
         assertTrue(ex.getMessage().contains("Capacity modulation"));
     }
-    
+
+    @Test
+    void shouldNotThrowWhenTechnologyIsPresent() {
+        // Given
+        String technologyParam = "solar";
+        List<String> fileTechnologies = List.of("solar", "wind");
+
+        // When / Then
+        assertDoesNotThrow(() ->
+                Utils.validateTechnologyPresence(
+                        technologyParam,
+                        fileTechnologies,
+                        TrajectoryType.RES_CAPACITY,
+                        "file.xlsx"
+                )
+        );
+    }
+
+    @Test
+    void shouldNotThrowWhenTechnologyParamIsBlank() {
+        // Given
+        String technologyParam = "   "; // blank
+        List<String> fileTechnologies = List.of("solar", "wind");
+
+        // When / Then
+        assertDoesNotThrow(() ->
+                Utils.validateTechnologyPresence(
+                        technologyParam,
+                        fileTechnologies,
+                        TrajectoryType.RES_CAPACITY,
+                        "file.xlsx"
+                )
+        );
+    }
+
+    @Test
+    void shouldNotThrowWhenTechnologyParamIsNull() {
+        // Given
+        String technologyParam = null;
+        List<String> fileTechnologies = List.of("solar", "wind");
+
+        // When / Then
+        assertDoesNotThrow(() ->
+                Utils.validateTechnologyPresence(
+                        technologyParam,
+                        fileTechnologies,
+                        TrajectoryType.RES_CAPACITY,
+                        "file.xlsx"
+                )
+        );
+    }
+
+    @Test
+    void shouldThrowWhenTechnologyIsMissing() {
+        // Given
+        String technologyParam = "hydro";
+        List<String> fileTechnologies = List.of("solar", "wind");
+
+        // When / Then
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.validateTechnologyPresence(
+                        technologyParam,
+                        fileTechnologies,
+                        TrajectoryType.RES_CAPACITY,
+                        "file.xlsx"
+                )
+        );
+
+        assertThat(ex.getMessage())
+                .contains("Selected technology")
+                .contains("is not present in the 'node' column");
+    }
+
+    @Test
+    void shouldMatchTechnologyIgnoringCase() {
+        // Given
+        String technologyParam = "SOLAR";
+        List<String> fileTechnologies = List.of("solar", "wind");
+
+        // When / Then
+        assertDoesNotThrow(() ->
+                Utils.validateTechnologyPresence(
+                        technologyParam,
+                        fileTechnologies,
+                        TrajectoryType.RES_CAPACITY,
+                        "file.xlsx"
+                )
+        );
+    }
+
+    @Test
+    void shouldFindFilesWithPrefixAtDepth1() throws IOException {
+        // Given
+        Path file1 = Files.createFile(tempDir.resolve("prefix_test.xlsx"));
+        Files.createFile(tempDir.resolve("other.xlsx"));
+
+        // When
+        List<Path> result = Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 1, null);
+
+        // Then
+        assertThat(result)
+                .containsExactly(file1)
+                .hasSize(1);
+    }
+
+    @Test
+    void shouldFindFilesInSubdirectoriesWithinDepth() throws IOException {
+        // Given
+        Path subDir = Files.createDirectory(tempDir.resolve("sub"));
+        Path file1 = Files.createFile(subDir.resolve("prefix_data.xlsx"));
+
+        // When
+        List<Path> result = Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 2, null);
+
+        // Then
+        assertThat(result)
+                .containsExactly(file1)
+                .hasSize(1);
+    }
+
+    @Test
+    void shouldFindFilesWithTechnologyInSubdirectoriesWithinDepth() throws IOException {
+        // Given
+        Path subDir = Files.createDirectory(tempDir.resolve("sub"));
+        Path file1 = Files.createFile(subDir.resolve("prefix_data.xlsx"));
+        Path file2 = Files.createFile(subDir.resolve("prefix_solar.xlsx"));
+
+        // When
+        List<Path> result = Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 2, "solar");
+
+        // Then
+        assertThat(result)
+                .containsExactly(file2)
+                .hasSize(1);
+    }
+
+    @Test
+    void shouldNotFindFilesDeeperThanAllowedDepth() throws IOException {
+        // Given
+        Path subDir = Files.createDirectory(tempDir.resolve("sub"));
+        Path deepDir = Files.createDirectory(subDir.resolve("deep"));
+        Files.createFile(deepDir.resolve("prefix_hidden.xlsx"));
+
+        // When & Then : Vérifie que IOException est levée si aucun fichier trouvé
+        assertThatThrownBy(() -> Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 1, null))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("No files found matching criteria in directory: " + tempDir);
+    }
+
+    @Test
+    void shouldIgnoreFilesWithWrongExtension() throws IOException {
+        // Given
+        Files.createFile(tempDir.resolve("prefix_test.txt"));
+        Files.createFile(tempDir.resolve("prefix_test.csv"));
+
+        // When & Then : Vérifie que IOException est levée si aucun fichier trouvé
+        assertThatThrownBy(() -> Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 1, null))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("No files found matching criteria in directory: " + tempDir);
+    }
+
+    @Test
+    void shouldIgnoreFilesWithWrongPrefix() throws IOException {
+        // Given
+        Files.createFile(tempDir.resolve("wrongprefix.xlsx"));
+
+        // When & Then : Vérifie que IOException est levée si aucun fichier trouvé
+        assertThatThrownBy(() -> Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 1, null))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("No files found matching criteria in directory: " + tempDir);
+    }
+
+    @Test
+    void shouldBeCaseInsensitiveOnPrefix() throws IOException {
+        // Given
+        Path file = Files.createFile(tempDir.resolve("Prefix_Upper.xlsx"));
+
+        // When
+        List<Path> result = Utils.findFilesFromDepthWithPrefix(tempDir, "prefix", 1, null);
+
+        // Then
+        assertThat(result)
+                .containsExactly(file)
+                .hasSize(1);
+    }
+
+        @Test
+        void shouldReturn1WhenOnlyFirstCellIsFilled() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row row = sheet.createRow(0);
+
+            row.createCell(0).setCellValue("A");
+
+            int result = Utils.getRealLastColumn(row);
+
+            assertThat(result).isEqualTo(1);
+        }
+
+        @Test
+        void shouldReturn3WhenLastNonBlankCellIsAtIndex2() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row row = sheet.createRow(0);
+
+            row.createCell(0).setCellValue("A");
+            row.createCell(1).setBlank();
+            row.createCell(2).setCellValue("C");
+
+            int result = Utils.getRealLastColumn(row);
+
+            assertThat(result).isEqualTo(3);
+        }
+
+        @Test
+        void shouldIgnoreTrailingBlankCells() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row row = sheet.createRow(0);
+
+            row.createCell(0).setCellValue("A");
+            row.createCell(1).setCellValue("B");
+            row.createCell(2).setBlank();
+            row.createCell(3).setBlank();
+
+            int result = Utils.getRealLastColumn(row);
+
+            assertThat(result).isEqualTo(2);
+        }
+
+        @Test
+        void shouldReturn0WhenAllCellsAreBlank() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row row = sheet.createRow(0);
+
+            row.createCell(0).setBlank();
+            row.createCell(1).setBlank();
+
+            int result = Utils.getRealLastColumn(row);
+
+            assertThat(result).isEqualTo(0);
+        }
+
+        @Test
+        void shouldReturn0WhenRowHasNoCells() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row row = sheet.createRow(0);
+
+            int result = Utils.getRealLastColumn(row);
+
+            assertThat(result).isEqualTo(0);
+        }
+
+        @Test
+        void shouldHandleMixedTypesCorrectly() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row row = sheet.createRow(0);
+
+            row.createCell(0).setCellValue(42);
+            row.createCell(1).setCellValue(true);
+            row.createCell(2).setBlank();
+            row.createCell(3).setCellValue("text");
+
+            int result = Utils.getRealLastColumn(row);
+
+            assertThat(result).isEqualTo(4);
+        }
+
+        @Test
+        void shouldReturnColumnIndexWhenStringMatches() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            header.createCell(5).setCellValue("2025");
+            header.createCell(6).setCellValue("2030");
+
+            int result = Utils.getYearColIndex(7, header, "2030", -1);
+
+            assertThat(result).isEqualTo(6);
+        }
+
+        @Test
+        void shouldReturnColumnIndexWhenNumericMatches() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            header.createCell(5).setCellValue(2025);
+            header.createCell(6).setCellValue(2030);
+
+            int result = Utils.getYearColIndex(7, header, "2025", -1);
+
+            assertThat(result).isEqualTo(5);
+        }
+
+        @Test
+        void shouldReturnColumnIndexWhenFormulaEvaluatesToNumeric() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            Cell cell = header.createCell(5);
+            cell.setCellFormula("2000+25"); // = 2025
+
+            FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+            evaluator.evaluateFormulaCell(cell);
+
+            int result = Utils.getYearColIndex(6, header, "2025", -1);
+
+            assertThat(result).isEqualTo(5);
+        }
+
+        @Test
+        void shouldReturnDefaultValueWhenNoMatchFound() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            header.createCell(5).setCellValue("2025");
+            header.createCell(6).setCellValue("2030");
+
+            int result = Utils.getYearColIndex(7, header, "2040", -1);
+
+            assertThat(result).isEqualTo(-1);
+        }
+
+        @Test
+        void shouldSkipBlankCells() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            header.createCell(5).setBlank();
+            header.createCell(6).setCellValue("2030");
+
+            int result = Utils.getYearColIndex(7, header, "2030", -1);
+
+            assertThat(result).isEqualTo(6);
+        }
+
+        @Test
+        void shouldHandleFormulaReturningString() {
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            Cell cell = header.createCell(5);
+            cell.setCellFormula("\"2025\""); // formule renvoyant une STRING
+
+            FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
+            evaluator.evaluateFormulaCell(cell);
+
+            int result = Utils.getYearColIndex(6, header, "2025", -1);
+
+            assertThat(result).isEqualTo(5);
+        }
+
+        @Test
+        void validatePrefixIfNeeded_shouldNotThrowWhenAreaIsFR() {
+            // Given
+            String areaParam = "FR";
+            String trajectory = "whatever.xlsx";
+
+            // When / Then
+            assertThatNoException()
+                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(areaParam, trajectory));
+        }
+
+        @Test
+        void validatePrefixIfNeeded_shouldThrowWhenPrefixDoesNotMatch() {
+            // Given
+            String areaParam = "ES";
+            String trajectory = "wrongprefix_2025.xlsx";
+
+            // When
+            BusinessException ex = catchThrowableOfType(
+                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory),
+                    BusinessException.class
+            );
+
+            // Then
+            assertThat(ex).isNotNull();
+            assertThat(ex.getMessage())
+                    .contains("must start with");
+        }
+
+        @Test
+        void validatePrefixIfNeeded_shouldThrowWhenAreaIsNotFRAndPrefixMissing() {
+            // Given
+            String areaParam = "BE";
+            String trajectory = "capacity_2030.xlsx";
+
+            // When
+            BusinessException ex = catchThrowableOfType(
+                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory),
+                    BusinessException.class
+            );
+
+            // Then
+            assertThat(ex).isNotNull();
+            assertThat(ex.getErrorMessageArguments())
+                    .containsExactly(RES_CAPACITY_PREFIX);
+        }
+
+
+
+    @Test
+    void getFirstSheetOrThrow_shouldReturnFirstSheetWhenWorkbookHasSheets() {
+        // Given
+        Workbook wb = new XSSFWorkbook();
+        Sheet expectedSheet = wb.createSheet("FirstSheet");
+        Path filePath = Path.of("test.xlsx");
+
+        // When
+        Sheet result = Utils.getFirstSheetOrThrow(wb, filePath);
+
+        // Then
+        assertThat(result).isSameAs(expectedSheet);
+    }
+
+    @Test
+    void getFirstSheetOrThrow_shouldThrowWhenWorkbookHasNoSheets() {
+        // Given
+        Workbook wb = new XSSFWorkbook(); // no sheet created
+        Path filePath = Path.of("empty.xlsx");
+
+        // When
+        BusinessException ex = catchThrowableOfType(
+                () -> Utils.getFirstSheetOrThrow(wb, filePath),
+                BusinessException.class
+        );
+
+        // Then
+        assertThat(ex).isNotNull();
+        assertThat(ex.getMessage())
+                .contains("InstalledRes file has no sheet")
+                .contains("empty.xlsx");
+        assertThat(ex.getHttpStatus().value()).isEqualTo(400);
+    }
+
+    @Test
+    void getFirstSheetOrThrow_shouldIncludeFileNameInErrorMessage() {
+        // Given
+        Workbook wb = new XSSFWorkbook();
+        Path filePath = Path.of("myTrajectory.xlsx");
+
+        // When
+        BusinessException ex = catchThrowableOfType(
+                () -> Utils.getFirstSheetOrThrow(wb, filePath),
+                BusinessException.class
+        );
+
+        // Then
+        assertThat(ex.getMessage()).contains("myTrajectory.xlsx");
+    }
+
+        @Test
+        void shouldReturnHeaderWhenRow0Exists() {
+            // Given
+            XSSFWorkbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row expectedHeader = sheet.createRow(0);
+            Path filePath = Path.of("test.xlsx");
+
+            // When
+            Row result = Utils.getHeaderOrThrow(sheet, filePath);
+
+            // Then
+            assertThat(result).isSameAs(expectedHeader);
+        }
+
+        @Test
+        void shouldThrowWhenHeaderIsMissing() {
+            // Given
+            XSSFWorkbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet(); // no row created
+            Path filePath = Path.of("missingHeader.xlsx");
+
+            // When
+            BusinessException ex = catchThrowableOfType(
+                    () -> Utils.getHeaderOrThrow(sheet, filePath),
+                    BusinessException.class
+            );
+
+            // Then
+            assertThat(ex).isNotNull();
+            assertThat(ex.getMessage())
+                    .contains("Missing header")
+                    .contains("missingHeader.xlsx");
+            assertThat(ex.getHttpStatus().value()).isEqualTo(400);
+        }
+
+        @Test
+        void shouldIncludeFileNameInErrorMessage() {
+            // Given
+            XSSFWorkbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Path filePath = Path.of("headerFile.xlsx");
+
+            // When
+            BusinessException ex = catchThrowableOfType(
+                    () -> Utils.getHeaderOrThrow(sheet, filePath),
+                    BusinessException.class
+            );
+
+            // Then
+            assertThat(ex.getMessage()).contains("headerFile.xlsx");
+        }
+
+    @Test
+    void shouldNotThrowWhenHeaderIsValidAndColumnsPresent() {
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class, Mockito.CALLS_REAL_METHODS)) {
+
+            // Given
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            // simulate 6 columns minimum
+            header.createCell(0).setCellValue("A");
+            header.createCell(1).setCellValue("B");
+            header.createCell(2).setCellValue("C");
+            header.createCell(3).setCellValue("D");
+            header.createCell(4).setCellValue("E");
+            header.createCell(5).setCellValue("F");
+
+            String[] required = {"A", "B"};
+
+            // Mock checkMissingColumns to do nothing
+            utilities.when(() -> Utils.checkMissingColumns(
+                    Mockito.eq(sheet),
+                    Mockito.eq(required),
+                    Mockito.anyString(),
+                    Mockito.anyString()
+            )).thenAnswer(inv -> null);
+
+            // When / Then
+            assertThatNoException()
+                    .isThrownBy(() -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"));
+        }
+    }
+
+    @Test
+    void shouldThrowWhenHeaderHasLessThanSixColumns() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row header = sheet.createRow(0);
+
+        // Only 3 columns
+        header.createCell(0).setCellValue("A");
+        header.createCell(1).setCellValue("B");
+        header.createCell(2).setCellValue("C");
+
+        String[] required = {"A", "B"};
+
+        BusinessException ex = catchThrowableOfType(
+                () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"),
+                BusinessException.class
+        );
+
+        assertThat(ex).isNotNull();
+        assertThat(ex.getMessage()).contains("InstalledRes header is invalid");
+        assertThat(ex.getHttpStatus().value()).isEqualTo(400);
+    }
+
+    @Test
+    void shouldThrowWhenRequiredColumnsAreMissing() {
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class, Mockito.CALLS_REAL_METHODS)) {
+
+            // Given
+            Workbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            // 6 colonnes valides
+            for (int i = 0; i < 6; i++) {
+                header.createCell(i).setCellValue("X");
+            }
+
+            String[] required = {"col1", "col2"};
+
+            // Mock checkMissingColumns to throw
+            utilities.when(() -> Utils.checkMissingColumns(
+                    Mockito.eq(sheet),
+                    Mockito.eq(required),
+                    Mockito.anyString(),
+                    Mockito.anyString()
+            )).thenThrow(
+                    BusinessException.builder()
+                            .message("Missing columns")
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build()
+            );
+
+            // When
+            BusinessException ex = catchThrowableOfType(
+                    () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"),
+                    BusinessException.class
+            );
+
+            // Then
+            assertThat(ex).isNotNull();
+            assertThat(ex.getMessage()).contains("Missing columns");
+        }
+    }
+
+    @Test
+    void shouldReturnYearColumnIndexWhenFound() {
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class, Mockito.CALLS_REAL_METHODS)) {
+
+            // Given
+            XSSFWorkbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            // Mock getRealLastColumn
+            utilities.when(() -> Utils.getRealLastColumn(header))
+                    .thenReturn(10);
+
+            // Mock getYearColIndex
+            utilities.when(() -> Utils.getYearColIndex(10, header, "2030", -1))
+                    .thenReturn(7);
+
+            // When
+            int result = Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA");
+
+            // Then
+            assertThat(result).isEqualTo(7);
+        }
+    }
+
+    @Test
+    void shouldThrowWhenYearColumnNotFound() {
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class, Mockito.CALLS_REAL_METHODS)) {
+
+            // Given
+            XSSFWorkbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            utilities.when(() -> Utils.getRealLastColumn(header))
+                    .thenReturn(10);
+
+            utilities.when(() -> Utils.getYearColIndex(10, header, "2030", -1))
+                    .thenReturn(-1);
+
+            // When
+            BusinessException ex = catchThrowableOfType(
+                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA"),
+                    BusinessException.class
+            );
+
+            // Then
+            assertThat(ex).isNotNull();
+            assertThat(ex.getMessage())
+                    .contains("Horizon '2025-2030' does not exist")
+                    .contains("trajectoryA");
+            assertThat(ex.getHttpStatus().value()).isEqualTo(400);
+        }
+    }
+
+    @Test
+    void shouldExtractHorizonYearCorrectly() {
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class, Mockito.CALLS_REAL_METHODS)) {
+
+            // Given
+            XSSFWorkbook wb = new XSSFWorkbook();
+            Sheet sheet = wb.createSheet();
+            Row header = sheet.createRow(0);
+
+            utilities.when(() -> Utils.getRealLastColumn(header))
+                    .thenReturn(10);
+
+            // We check that the method extracts "2035" from "2020-2035"
+            utilities.when(() -> Utils.getYearColIndex(10, header, "2035", -1))
+                    .thenReturn(4);
+
+            // When
+            int result = Utils.resolveYearColumnIndex(header, "2020-2035", "trajectoryB");
+
+            // Then
+            assertThat(result).isEqualTo(4);
+        }
+    }
 }
