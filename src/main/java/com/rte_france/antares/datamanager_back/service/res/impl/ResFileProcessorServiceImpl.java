@@ -365,6 +365,33 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return null;
     }
 
+    private ResClusterCapacityEntity buildEntity(
+            Boolean toUse,
+            String area,
+            String group,
+            String cluster,
+            BigDecimal capacityByYear,
+            boolean isOffshoreTechnology,
+            String col2,
+            String col4
+    ) {
+        ResClusterCapacityEntity entity = ResClusterCapacityEntity.builder()
+                .toUse(toUse)
+                .area(area)
+                .groupe(group)
+                .cluster(cluster)
+                .capacityByYear(capacityByYear)
+                .build();
+
+        if (isOffshoreTechnology) {
+            entity.setPecdZone(col2);
+        } else {
+            entity.setCategory(col4);
+        }
+
+        return entity;
+    }
+
     private void appendChecksum(
             ResRowProcessingResult result,
             String area,
