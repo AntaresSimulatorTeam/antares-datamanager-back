@@ -71,7 +71,34 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
     private static final String INSTALLED_MISC_PREFIX = "installedMisc_";
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "Category"};
-    private static final Set<String> VALID_GROUPS = Set.of("biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic");
+
+    // Group constants
+    private static final String GROUP_BIOMASS = "biomass";
+    private static final String GROUP_BIOGAS = "biogas";
+    private static final String GROUP_GEOTHERMAL = "geothermal";
+    private static final String GROUP_OTHER = "other";
+    private static final String GROUP_WASTE = "waste";
+    private static final String GROUP_WAVE = "wave";
+    private static final String GROUP_HYDROKINETIC = "hydrokinetic";
+
+    // Cluster constants
+    private static final String CLUSTER_BIOMASS = "Small biomass";
+    private static final String CLUSTER_BIOGAS = "biogas";
+    private static final String CLUSTER_GEOTHERMAL = "geothermal";
+    private static final String CLUSTER_OTHER = "other";
+    private static final String CLUSTER_WASTE = "waste";
+    private static final String CLUSTER_WAVE = "wave";
+    private static final String CLUSTER_HYDROKINETIC = "hydrokinetic";
+
+    private static final Set<String> VALID_GROUPS = Set.of(
+            GROUP_BIOMASS, GROUP_BIOGAS, GROUP_GEOTHERMAL, GROUP_OTHER,
+            GROUP_WASTE, GROUP_WAVE, GROUP_HYDROKINETIC
+    );
+
+    // Error message constants
+    private static final String ERROR_LOAD_FACTOR_NOT_FOUND = "Load factor file not found for group {0}: expected at {1}";
+    private static final String ERROR_LOAD_FACTOR_MISSING_AREAS = "Load factor file {0} is missing areas {1} for group {2}";
+    private static final String ERROR_LOAD_FACTOR_EMPTY = "Load factor file {0} for group {1} is empty";
 
 
     @Transactional
@@ -294,6 +321,8 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                             tsFilePath.getFileName().toString(),
                             missingAreas.toString(),
                             groupClusterKey.groupe))
+                    .message(ERROR_LOAD_FACTOR_MISSING_AREAS)
+                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString(), groupClusterKey.groupe))
                     .build();
         }
 
@@ -374,7 +403,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                             .toList();
                 } else {
                     throw BusinessException.builder()
-                            .message("Load factor file {0} for group {1} is empty")
+                            .message(ERROR_LOAD_FACTOR_EMPTY)
                             .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
                             .build();
                 }
@@ -382,7 +411,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         } else {
             throw BusinessException.builder()
-                    .message("Load factor file not found for group {0}: expected at {1}")
+                    .message(ERROR_LOAD_FACTOR_NOT_FOUND)
                     .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
                     .build();
         }
