@@ -3,6 +3,8 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+
+import java.math.BigDecimal;
 import java.nio.file.attribute.PosixFilePermissions;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
@@ -1282,22 +1284,6 @@ class MiscFileProcessorServiceImplTest {
             assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
             assertThat(result.getMiscClusterCapacityEntities().get(0).getCapacityByYear())
                     .isEqualByComparingTo(BigDecimal.valueOf(200));
-        }
-
-        @Test
-        void shouldHandleNullCategory() throws Exception {
-            AreaEntity fr = new AreaEntity();
-            fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
-
-            createInstalledWorkbook(Collections.singletonList(
-                    new Object[]{true, "FR", "biomass", "c", null, 100}
-            ), 2030);
-
-            assertThatThrownBy(() ->
-                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
-                    .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("can't be empty");
         }
 
         @Test

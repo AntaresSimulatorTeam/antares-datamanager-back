@@ -537,11 +537,11 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         String group = Optional.ofNullable(getCellValue(row, 2)).map(Object::toString).orElse(null);
 
         String cluster = Optional.ofNullable(getCellValue(row, 3)).map(Object::toString).orElse(null);
-        String category = CategoryEnum.POWER.name();
+        String category = CategoryEnum.POWER.name().toLowerCase(); // default category since only power is currently expected in Misc, can be extended later if needed
 
         if (toUse == null || area == null || group == null || cluster == null) {
             throw BusinessException.builder()
-                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory {0}")
+                    .message("ToUse, Area, Group, Cluster values can't be empty in Misc trajectory {0}")
                     .errorMessageArguments(List.of(context.getTrajectoryToUse()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
