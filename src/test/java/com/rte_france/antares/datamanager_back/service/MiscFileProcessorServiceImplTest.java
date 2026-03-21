@@ -21,6 +21,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.*;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.file.*;
@@ -790,8 +791,7 @@ class MiscFileProcessorServiceImplTest {
 
         Path groupDir = tempDir.resolve("group1").resolve("cluster1");
         Files.createDirectories(groupDir);
-        Path csv = groupDir.resolve("load_factor_cluster1_" + horizon + ".csv");
-        Files.writeString(csv, "AREA1;AREA2;OTHER\n1;2;3\n");
+        Files.writeString(groupDir.resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1;AREA2;OTHER\n1;2;3\n");
 
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -920,5 +920,658 @@ class MiscFileProcessorServiceImplTest {
                 .hasMessageContaining("Load factor file not found");
     }
 
-}
+    @Nested
+    class LoadFactorWithInstalledPower {
 
+        @Test
+        void shouldVerifyLoadFactorTsFilesWithInstalledPowerAndSpecificArea() throws Exception {
+            String horizon = "2029-2030";
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            AreaEntity de = new AreaEntity();
+            de.setName("DE");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+
+            createLoadFactorStructure(horizon, "biomass", "Small biomass", "FR;DE");
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
+
+            TrajectoryEntity result = service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR");
+
+            assertThat(result).isNotNull();
+            assertThat(result.getType()).isEqualTo(TrajectoryType.MISC_LOAD.name());
+        }
+
+        @Test
+        void shouldVerifyLoadFactorTsFilesWithInstalledPowerAndOthersArea() throws Exception {
+            String horizon = "2029-2030";
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createLoadFactorStructure(horizon, "biomass", "Small biomass", "FR;DE");
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "OTHERS"))
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
+
+            TrajectoryEntity result = service.processLoadFactorMiscFile("loadFactor", horizon, 1, "OTHERS");
+
+            assertThat(result).isNotNull();
+            assertThat(result.getArea()).isEqualTo("OTHERS");
+        }
+
+        @Test
+        void shouldThrowWhenLoadFactorMissingAreaForSpecificArea() throws Exception {
+            String horizon = "2029-2030";
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createLoadFactorStructure(horizon, "biomass", "Small biomass", "DE");
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
+
+            assertThatThrownBy(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("missing area");
+        }
+    }
+
+    @Nested
+    class ReadHeaderAreas {
+
+        @Test
+        void shouldReadHeaderAreasSuccessfully() throws Exception {
+            String horizon = "2029-2030";
+            Path root = createLoadFactorStructure(horizon, "biomass", "Small biomass", "FR;DE;IT");
+
+            List<String> header = MiscFileProcessorServiceImpl.readHeaderAreas(
+                    horizon,
+                    root,
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
+            );
+
+            assertThat(header).containsExactly("fr", "de", "it");
+        }
+
+        @Test
+        void shouldThrowWhenTsFileNotFound() throws IOException {
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+
+            assertThatThrownBy(() ->
+                    MiscFileProcessorServiceImpl.readHeaderAreas(
+                            "2029-2030",
+                            root,
+                            new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Load factor file not found");
+        }
+
+        @Test
+        void shouldThrowWhenTsFileIsEmpty() throws Exception {
+            String horizon = "2029-2030";
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+
+            Path csvFile = groupDir.resolve("load_factor_Small biomass_2029-2030.csv");
+            Files.createFile(csvFile);
+
+            assertThatThrownBy(() ->
+                    MiscFileProcessorServiceImpl.readHeaderAreas(
+                            horizon,
+                            root,
+                            new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("empty");
+        }
+    }
+
+    @Nested
+    class GetLoadFactorByGroupPath {
+
+        @Test
+        void shouldGetLoadFactorPathWithClusterProvided() throws IOException {
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+
+            Path result = MiscFileProcessorServiceImpl.getLoadFactorByGroupPath(
+                    "2029-2030",
+                    root,
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
+            );
+
+            assertThat(result).isNotNull();
+            assertThat(result.toString()).contains("biomass");
+            assertThat(result.toString()).contains("Small biomass");
+            assertThat(result.toString()).contains("load_factor_");
+        }
+
+        @Test
+        void shouldGetLoadFactorPathWithoutClusterProvided() throws Exception {
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+            Path groupDir = root.resolve("biomass");
+            Path clusterDir = groupDir.resolve("Small biomass");
+            Files.createDirectories(clusterDir);
+
+            Path result = MiscFileProcessorServiceImpl.getLoadFactorByGroupPath(
+                    "2029-2030",
+                    root,
+                    new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "")
+            );
+
+            assertThat(result).isNotNull();
+            assertThat(result.toString()).contains("Small biomass");
+        }
+
+        @Test
+        void shouldThrowWhenClusterDirectoryNotFound() throws IOException {
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+            Path groupDir = root.resolve("biomass");
+            Files.createDirectories(groupDir);
+
+            assertThatThrownBy(() ->
+                    MiscFileProcessorServiceImpl.getLoadFactorByGroupPath(
+                            "2029-2030",
+                            root,
+                            new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "")
+                    ))
+                    .isInstanceOf(RuntimeException.class);
+        }
+    }
+
+    @Nested
+    class VerifyLoadFactorWithoutInstalledPower {
+
+        @Test
+        void shouldVerifyAllGroupFilesExist() throws Exception {
+            String horizon = "2029-2030";
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+
+            List<String> groups = List.of("biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic");
+            List<String> clusters = List.of("Small biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic");
+
+            for (int i = 0; i < groups.size(); i++) {
+                Path dir = root.resolve(groups.get(i)).resolve(clusters.get(i));
+                Files.createDirectories(dir);
+                Path csv = dir.resolve("load_factor_" + clusters.get(i) + "_" + horizon + ".csv");
+                Files.writeString(csv, "FR;DE\n1;2");
+            }
+
+            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR")).thenReturn(List.of());
+
+            assertDoesNotThrow(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR")
+            );
+        }
+
+        @Test
+        void shouldThrowWhenAreaNotFoundInSpecificGroup() throws Exception {
+            String horizon = "2029-2030";
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+
+            List<String> groups = List.of("biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic");
+            List<String> clusters = List.of("Small biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic");
+
+            for (int i = 0; i < groups.size(); i++) {
+                Path dir = root.resolve(groups.get(i)).resolve(clusters.get(i));
+                Files.createDirectories(dir);
+                Path csv = dir.resolve("load_factor_" + clusters.get(i) + "_" + horizon + ".csv");
+                // Omit area "FR" in the first group
+                String header = i == 0 ? "DE\n1" : "FR;DE\n1;2";
+                Files.writeString(csv, header);
+            }
+
+            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR")).thenReturn(List.of());
+
+            assertThatThrownBy(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("missing area");
+        }
+    }
+
+    @Nested
+    class ProcessMiscCapacityRow {
+
+        @Test
+        void shouldSkipRowWhenToUseIsFalse() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createInstalledWorkbook(Arrays.asList(
+                    new Object[]{false, "FR", "biomass", "c", "cat", 100},
+                    new Object[]{true, "FR", "biomass", "c", "cat", 200}
+            ), 2030);
+
+            TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+            assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+            assertThat(result.getMiscClusterCapacityEntities().get(0).getCapacityByYear())
+                    .isEqualByComparingTo(BigDecimal.valueOf(200));
+        }
+
+        @Test
+        void shouldHandleNullCategory() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createInstalledWorkbook(Collections.singletonList(
+                    new Object[]{true, "FR", "biomass", "c", null, 100}
+            ), 2030);
+
+            assertThatThrownBy(() ->
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("can't be empty");
+        }
+
+        @Test
+        void shouldHandleStringNumericValue() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            Path file = Files.createTempFile(tempDir, "installedMisc_", ".xlsx");
+            try (Workbook wb = new XSSFWorkbook()) {
+                Sheet s = wb.createSheet("InstalledMisc");
+
+                Row header = s.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("Group");
+                header.createCell(3).setCellValue("Cluster");
+                header.createCell(4).setCellValue("Category");
+                header.createCell(5).setCellValue(2030);
+
+                Row r = s.createRow(1);
+                r.createCell(0).setCellValue(true);
+                r.createCell(1).setCellValue("FR");
+                r.createCell(2).setCellValue("biomass");
+                r.createCell(3).setCellValue("c");
+                r.createCell(4).setCellValue("cat");
+                r.createCell(5).setCellValue("123.45");
+
+                try (OutputStream os = Files.newOutputStream(file)) {
+                    wb.write(os);
+                }
+            }
+
+            when(trajectoryService.getTrajectoryFilePath(any(), anyString(), any())).thenReturn(file);
+            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(tempDir);
+
+            TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+            assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+            assertThat(result.getMiscClusterCapacityEntities().get(0).getCapacityByYear())
+                    .isEqualByComparingTo(BigDecimal.valueOf(123.45));
+        }
+
+        @Test
+        void shouldSkipRowWhenAreaNotMatchingParam() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            AreaEntity de = new AreaEntity();
+            de.setName("DE");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+
+            createInstalledWorkbook(Arrays.asList(
+                    new Object[]{true, "DE", "biomass", "c", "cat", 100},
+                    new Object[]{true, "FR", "biomass", "c", "cat", 200}
+            ), 2030);
+
+            TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+            assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+            assertThat(result.getMiscClusterCapacityEntities().get(0).getArea()).isEqualTo("FR");
+        }
+
+        @Test
+        void shouldSkipRowWhenAreaIsNotInStudyAreasAndOthersParam() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createInstalledWorkbook(Arrays.asList(
+                    new Object[]{true, "XX", "biomass", "c", "cat", 100},
+                    new Object[]{true, "FR", "biomass", "c", "cat", 200}
+            ), 2030);
+
+            TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "OTHERS", false);
+
+            assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+            assertThat(result.getMiscClusterCapacityEntities().get(0).getArea()).isEqualTo("FR");
+        }
+    }
+
+    @Nested
+    class VersionManagement {
+
+        @Test
+        void shouldSetVersionToOneForNewTrajectory() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createInstalledWorkbook(Collections.singletonList(
+                    new Object[]{true, "FR", "biomass", "c", "cat", 100}
+            ), 2030);
+
+            TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+            assertThat(result.getVersion()).isEqualTo(1);
+        }
+
+        @Test
+        void shouldIncrementVersionWhenChecksumDiffers() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            TrajectoryEntity existing = new TrajectoryEntity();
+            existing.setChecksum("OLD_CHECKSUM");
+            existing.setVersion(3);
+
+            when(trajectoryRepository
+                    .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                            anyString(), anyString(), anyString(), anyString(), any()))
+                    .thenReturn(Optional.of(existing));
+
+            createInstalledWorkbook(Collections.singletonList(
+                    new Object[]{true, "FR", "biomass", "c", "cat", 100}
+            ), 2030);
+
+            TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+            assertThat(result.getVersion()).isEqualTo(4);
+        }
+    }
+
+    @Nested
+    class VerifySpecificAreaTsFile {
+
+        @Test
+        void shouldThrowWhenSelectedAreaNotInExpectedAreas() throws Exception {
+            String horizon = "2029-2030";
+            
+            // Configurer pour que expectedAreas = [DE, IT] mais selectedArea = FR
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
+                    .thenReturn(Arrays.asList(
+                            buildGroup("biomass", "Small biomass", "DE"),
+                            buildGroup("biomass", "Small biomass", "IT")
+                    ));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+
+            // Créer le fichier TS avec la zone FR (qui est demandée mais pas attendue)
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "FR;DE;IT\n1;2;3\n");
+
+            assertThatThrownBy(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("not expected");
+        }
+
+        @Test
+        void shouldThrowWhenAreaMissingInFile() throws Exception {
+            String horizon = "2029-2030";
+            
+            // Configurer pour que expectedAreas = [FR] mais le fichier n'a pas FR
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+
+            // Créer le fichier TS sans la zone FR
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "DE;IT\n1;2\n");
+
+            assertThatThrownBy(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("missing area");
+        }
+
+        @Test
+        void shouldSucceedWhenAreaIsExpectedAndInHeader() throws Exception {
+            String horizon = "2029-2030";
+            
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_");
+            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "FR;DE\n1;2\n");
+
+            when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            assertDoesNotThrow(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, 1, "FR")
+            );
+        }
+    }
+
+    @Nested
+    class MergeSpecificTrajectoryWithActualOther {
+
+        @Test
+        void shouldLogWarningWhenExistingTsFileNotFoundButContinue() throws Exception {
+            String horizon = "2029-2030";
+            Integer studyId = 1;
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "OTHERS"))
+                    .thenReturn(Arrays.asList(
+                            buildGroup("biomass", "Small biomass", "FR"),
+                            buildGroup("biomass", "Small biomass", "DE")
+                    ));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_main_");
+            when(trajectoryService.buildTrajectoryPath("loadFactor", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            // Créer le fichier TS principal avec FR et DE
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "FR;DE\n1;2\n");
+
+            // Créer une trajectoire existante sans fichier TS (exception sera attrapée et loggée)
+            TrajectoryEntity existingTraj = TrajectoryEntity.builder()
+                    .fileName("existingLoadFactor")
+                    .area("IT")
+                    .build();
+
+            when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
+                    .thenReturn(List.of(existingTraj));
+
+            Path existingRoot = Files.createTempDirectory(tempDir, "misc_load_existing_");
+            when(trajectoryService.buildTrajectoryPath("existingLoadFactor", TrajectoryType.MISC_LOAD))
+                    .thenReturn(existingRoot);
+
+            when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            // Le test doit réussir car l'exception est attrapée et loggée (pas levée)
+            assertDoesNotThrow(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, studyId, "OTHERS")
+            );
+
+            verify(trajectoryRepository, atLeastOnce()).save(any());
+        }
+
+        @Test
+        void shouldContinueWhenExistingTsFileNotFoundAndCatchedException() throws Exception {
+            String horizon = "2029-2030";
+            Integer studyId = 1;
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "OTHERS"))
+                    .thenReturn(Arrays.asList(
+                            buildGroup("biomass", "Small biomass", "FR"),
+                            buildGroup("biomass", "Small biomass", "DE")
+                    ));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_main2_");
+            when(trajectoryService.buildTrajectoryPath("loadFactor", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            // Créer le fichier TS principal
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "FR;DE\n1;2\n");
+
+            // Créer une trajectoire existante avec un fichier TS valide
+            TrajectoryEntity existingTraj = TrajectoryEntity.builder()
+                    .fileName("existingLoadFactor")
+                    .area("IT")
+                    .build();
+
+            when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
+                    .thenReturn(List.of(existingTraj));
+
+            Path existingRoot = Files.createTempDirectory(tempDir, "misc_load_existing2_");
+            when(trajectoryService.buildTrajectoryPath("existingLoadFactor", TrajectoryType.MISC_LOAD))
+                    .thenReturn(existingRoot);
+
+            // Créer le fichier TS existant
+            Path existingGroupDir = existingRoot.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(existingGroupDir);
+            Files.writeString(existingGroupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "IT;FR\n3;4\n");
+
+            when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            // Le test doit réussir en fusionnant les headers
+            assertDoesNotThrow(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, studyId, "OTHERS")
+            );
+
+            verify(trajectoryRepository, atLeastOnce()).save(any());
+        }
+
+        @Test
+        void shouldMergeMultipleExistingTrajectoryHeaders() throws Exception {
+            String horizon = "2029-2030";
+            Integer studyId = 1;
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "OTHERS"))
+                    .thenReturn(Arrays.asList(
+                            buildGroup("biomass", "Small biomass", "FR"),
+                            buildGroup("biomass", "Small biomass", "DE")
+                    ));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_main3_");
+            when(trajectoryService.buildTrajectoryPath("loadFactor", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            // Créer le fichier TS principal
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "FR;DE\n1;2\n");
+
+            // Créer deux trajectoires existantes
+            TrajectoryEntity traj1 = TrajectoryEntity.builder()
+                    .fileName("traj1")
+                    .area("IT")
+                    .build();
+            TrajectoryEntity traj2 = TrajectoryEntity.builder()
+                    .fileName("traj2")
+                    .area("ES")
+                    .build();
+
+            when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
+                    .thenReturn(Arrays.asList(traj1, traj2));
+
+            Path root1 = Files.createTempDirectory(tempDir, "misc_load_traj1_");
+            Path root2 = Files.createTempDirectory(tempDir, "misc_load_traj2_");
+
+            when(trajectoryService.buildTrajectoryPath("traj1", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root1);
+            when(trajectoryService.buildTrajectoryPath("traj2", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root2);
+
+            // Créer les fichiers TS existants
+            Path groupDir1 = root1.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir1);
+            Files.writeString(groupDir1.resolve("load_factor_Small biomass_" + horizon + ".csv"), "IT;FR\n3;4\n");
+
+            Path groupDir2 = root2.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir2);
+            Files.writeString(groupDir2.resolve("load_factor_Small biomass_" + horizon + ".csv"), "ES;DE\n5;6\n");
+
+            when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            // Le test doit réussir en fusionnant tous les headers
+            assertDoesNotThrow(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, studyId, "OTHERS")
+            );
+
+            verify(trajectoryRepository, atLeastOnce()).save(any());
+        }
+
+        @Test
+        void shouldSkipOthersAreaTrajectories() throws Exception {
+            String horizon = "2029-2030";
+            Integer studyId = 1;
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "OTHERS"))
+                    .thenReturn(Arrays.asList(
+                            buildGroup("biomass", "Small biomass", "FR"),
+                            buildGroup("biomass", "Small biomass", "DE")
+                    ));
+
+            Path root = Files.createTempDirectory(tempDir, "misc_load_main4_");
+            when(trajectoryService.buildTrajectoryPath("loadFactor", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root);
+
+            // Créer le fichier TS principal
+            Path groupDir = root.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir);
+            Files.writeString(groupDir.resolve("load_factor_Small biomass_" + horizon + ".csv"), "FR;DE\n1;2\n");
+
+            // Créer trajectoires incluant une avec area=OTHERS (qui doit être ignorée)
+            TrajectoryEntity traj1 = TrajectoryEntity.builder()
+                    .fileName("traj1")
+                    .area("OTHERS")
+                    .build();
+            TrajectoryEntity traj2 = TrajectoryEntity.builder()
+                    .fileName("traj2")
+                    .area("IT")
+                    .build();
+
+            when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.MISC_LOAD.name()))
+                    .thenReturn(Arrays.asList(traj1, traj2));
+
+            Path root2 = Files.createTempDirectory(tempDir, "misc_load_traj2_");
+
+            when(trajectoryService.buildTrajectoryPath("traj2", TrajectoryType.MISC_LOAD))
+                    .thenReturn(root2);
+
+            // Créer le fichier TS existant pour traj2
+            Path groupDir2 = root2.resolve("biomass").resolve("Small biomass");
+            Files.createDirectories(groupDir2);
+            Files.writeString(groupDir2.resolve("load_factor_Small biomass_" + horizon + ".csv"), "IT;FR\n3;4\n");
+
+            when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            // Le test doit réussir sans traiter la trajectoire OTHERS
+            assertDoesNotThrow(() ->
+                    service.processLoadFactorMiscFile("loadFactor", horizon, studyId, "OTHERS")
+            );
+
+            verify(trajectoryRepository, atLeastOnce()).save(any());
+        }
+    }
+}

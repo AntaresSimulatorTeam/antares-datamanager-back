@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
@@ -2260,5 +2261,118 @@ class TrajectoryServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () -> spyService.controlesMiscOnImportInstalledPower(studyId, List.of(imported1, imported2), "FR"));
         assertTrue(exception.getMessage().toLowerCase().contains("missing") || exception.getMessage().toLowerCase().contains("manqu"));
+    }
+
+    @Test
+    void buildMergedLoadFactorHeaders_addsAreaToUppercaseWhenTrajectoryAreaFoundInHeaderAreas(@TempDir Path tempDir) throws IOException {
+        Integer studyId = 1;
+        Integer trajectoryId = 10;
+
+        // Create a load factor trajectory with specific area (not OTHERS_AREA)
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .fileName("loadFactorFile")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area("FR")  // Specific area, not OTHERS_AREA
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
+                .thenReturn(List.of(loadFactorTrajectory));
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        // Create CSV with 'fr' (lowercase) which should match 'FR' trajectory area when lowercased
+        Files.writeString(dir.resolve("load_factor_cluster1_2030-2031.csv"), "fr;de;it\n1;2;3\n");
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("loadFactorFile"), eq(TrajectoryType.MISC_LOAD));
+
+        try {
+            // Call method using reflection since buildMergedLoadFactorHeaders is private
+            java.lang.reflect.Method method = TrajectoryServiceImpl.class.getDeclaredMethod(
+                    "buildMergedLoadFactorHeaders",
+                    List.class,
+                    Set.class
+            );
+            method.setAccessible(true);
+
+            Set<MiscFileProcessorServiceImpl.GroupClusterKey> keys = new HashSet<>();
+            keys.add(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1"));
+
+            @SuppressWarnings("unchecked")
+            Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> result =
+                    (Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>>) method.invoke(
+                            spyService,
+                            List.of(loadFactorTrajectory),
+                            keys
+                    );
+
+            // Verify that the result contains the uppercase area 'FR'
+            assertNotNull(result);
+            assertTrue(result.containsKey(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1")));
+            Set<String> areas = result.get(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1"));
+            assertTrue(areas.contains("FR"), "Result should contain uppercase 'FR' area");
+            // Verify it only contains FR, not all areas (since trajectory is not OTHERS_AREA)
+            assertEquals(1, areas.size(), "Should only contain the trajectory area 'FR'");
+        } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+            fail("Reflection error: " + e.getMessage(), e);
+        }
+    }
+
+    @Test
+    void buildMergedLoadFactorHeaders_addsAllHeaderAreasWhenTrajectoryIsOthersArea(@TempDir Path tempDir) throws IOException {
+        Integer trajectoryId = 10;
+
+        // Create a load factor trajectory with OTHERS_AREA
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .fileName("loadFactorFile")
+                .horizon("2030-2031")
+                .type(TrajectoryType.MISC_LOAD.name())
+                .area(OTHERS_AREA)  // OTHERS_AREA special case
+                .build();
+
+        Path root = Files.createTempDirectory(tempDir, "traj");
+        Path dir = root.resolve("group1").resolve("cluster1");
+        Files.createDirectories(dir);
+        // Create CSV with multiple areas
+        Files.writeString(dir.resolve("load_factor_cluster1_2030-2031.csv"), "fr;de;it\n1;2;3\n");
+
+        TrajectoryServiceImpl spyService = Mockito.spy(trajectoryService);
+        doReturn(root).when(spyService).buildTrajectoryPath(eq("loadFactorFile"), eq(TrajectoryType.MISC_LOAD));
+
+        try {
+            // Call method using reflection since buildMergedLoadFactorHeaders is private
+            java.lang.reflect.Method method = TrajectoryServiceImpl.class.getDeclaredMethod(
+                    "buildMergedLoadFactorHeaders",
+                    List.class,
+                    Set.class
+            );
+            method.setAccessible(true);
+
+            Set<MiscFileProcessorServiceImpl.GroupClusterKey> keys = new HashSet<>();
+            keys.add(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1"));
+
+            @SuppressWarnings("unchecked")
+            Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> result =
+                    (Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>>) method.invoke(
+                            spyService,
+                            List.of(loadFactorTrajectory),
+                            keys
+                    );
+
+            // Verify that the result contains all header areas (lowercased in result)
+            assertNotNull(result);
+            assertTrue(result.containsKey(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1")));
+            Set<String> areas = result.get(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1"));
+            assertTrue(areas.contains("fr"), "Result should contain 'fr'");
+            assertTrue(areas.contains("de"), "Result should contain 'de'");
+            assertTrue(areas.contains("it"), "Result should contain 'it'");
+            assertEquals(3, areas.size(), "Should contain all three areas for OTHERS_AREA trajectory");
+        } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+            fail("Reflection error: " + e.getMessage(), e);
+        }
     }
 }
