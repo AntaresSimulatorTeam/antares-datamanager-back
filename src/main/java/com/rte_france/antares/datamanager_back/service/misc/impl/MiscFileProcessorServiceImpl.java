@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
 import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.CategoryEnum;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
@@ -69,8 +70,9 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     private final TrajectoryServiceImpl trajectoryService;
 
     private static final String INSTALLED_MISC_PREFIX = "installedMisc_";
-    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "ToUse", "Area", "Group", "Cluster", "Category"};
+    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "Category"};
+    private static final Set<String> VALID_GROUPS = Set.of("biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic");
+
 
     @Transactional
     @Override
@@ -145,10 +147,10 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 throw BusinessException.builder().message("No area found in Misc trajectory " + filePath.getFileName()).httpStatus(HttpStatus.BAD_REQUEST).build();
             }
 
-            validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.MISC_CAPACITY, trajectoryToUse);
-
             // The selected area must be present in the file's 'node' column, except when area equals OTHERS
             validateSelectedAreaPresence(areaParam, fileAreas, TrajectoryType.MISC_CAPACITY, trajectoryToUse);
+
+            validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.MISC_CAPACITY, trajectoryToUse);
 
             if (!invalidCombos.isEmpty()) {
                 String combos = String.join(", ", invalidCombos);
@@ -504,13 +506,23 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         result.getFileAreas().add(area);
 
         String group = Optional.ofNullable(getCellValue(row, 2)).map(Object::toString).orElse(null);
-        String cluster = Optional.ofNullable(getCellValue(row, 3)).map(Object::toString).orElse(null);
-        String category = Optional.ofNullable(getCellValue(row, 4)).map(Object::toString).orElse(null);
 
-        if (toUse == null || area == null || group == null || cluster == null || category == null) {
+        String cluster = Optional.ofNullable(getCellValue(row, 3)).map(Object::toString).orElse(null);
+        String category = CategoryEnum.POWER.name();
+
+        if (toUse == null || area == null || group == null || cluster == null) {
             throw BusinessException.builder()
-                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory "
-                            + context.getTrajectoryToUse())
+                    .message("ToUse, Area, Group, Cluster and Category values can't be empty in Misc trajectory {0}")
+                    .errorMessageArguments(List.of(context.getTrajectoryToUse()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Check if group is a valid group
+        if (!VALID_GROUPS.contains(group.toLowerCase().trim())) {
+            throw BusinessException.builder()
+                    .message("Group '{0}' is not a valid group. Valid groups are: {1} in Misc trajectory {2}")
+                    .errorMessageArguments(List.of(group, String.join(", ", VALID_GROUPS), context.getTrajectoryToUse()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

@@ -333,13 +333,13 @@ class ThermalFileProcessorServiceImplTest {
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
-                        .category(ThermalCategoryEnum.POWER)
+                        .category(CategoryEnum.POWER)
                         .toUse(true)
                         .build(),
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
-                        .category(ThermalCategoryEnum.NUMBER)
+                        .category(CategoryEnum.NUMBER)
                         .toUse(false)
                         .build()
         );
@@ -359,14 +359,14 @@ class ThermalFileProcessorServiceImplTest {
         List<ThermalClusterCapacityEntity> entities = List.of(
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
-                        .category(ThermalCategoryEnum.POWER)
+                        .category(CategoryEnum.POWER)
                         .toUse(true)
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster2").thermalTechnology(thermalTechnologyPower).build())
                         .build(),
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster2").thermalTechnology(thermalTechnologyNumber).build())
-                        .category(ThermalCategoryEnum.NUMBER)
+                        .category(CategoryEnum.NUMBER)
                         .toUse(true)
                         .build()
         );
@@ -384,13 +384,13 @@ class ThermalFileProcessorServiceImplTest {
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
-                        .category(ThermalCategoryEnum.POWER)
+                        .category(CategoryEnum.POWER)
                         .toUse(true)
                         .build(),
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
-                        .category(ThermalCategoryEnum.NUMBER)
+                        .category(CategoryEnum.NUMBER)
                         .toUse(true)
                         .build()
         );
@@ -406,7 +406,7 @@ class ThermalFileProcessorServiceImplTest {
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
-                        .category(ThermalCategoryEnum.NUMBER)
+                        .category(CategoryEnum.NUMBER)
                         .toUse(true)
                         .build()
         );
@@ -424,7 +424,7 @@ class ThermalFileProcessorServiceImplTest {
                 ThermalClusterCapacityEntity.builder()
                         .area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("Cluster1").build())
-                        .category(ThermalCategoryEnum.POWER)
+                        .category(CategoryEnum.POWER)
                         .toUse(true)
                         .build()
         );

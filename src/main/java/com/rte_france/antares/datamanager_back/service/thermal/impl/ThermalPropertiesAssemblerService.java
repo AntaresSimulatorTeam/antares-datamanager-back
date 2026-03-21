@@ -262,7 +262,7 @@ public class ThermalPropertiesAssemblerService {
         // max POWER capacity
         OptionalDouble maxPowerOpt = thermalClusterCapacities.stream()
                 .filter(Objects::nonNull)
-                .filter(cap -> cap.getCategory() == ThermalCategoryEnum.POWER)
+                .filter(cap -> cap.getCategory() == CategoryEnum.POWER)
                 .map(ThermalClusterCapacityEntity::getValue)
                 .filter(Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
@@ -271,7 +271,7 @@ public class ThermalPropertiesAssemblerService {
         // max unit count
         OptionalDouble unitCountOpt = thermalClusterCapacities.stream()
                 .filter(Objects::nonNull)
-                .filter(cap -> cap.getCategory() == ThermalCategoryEnum.NUMBER)
+                .filter(cap -> cap.getCategory() == CategoryEnum.NUMBER)
                 .map(ThermalClusterCapacityEntity::getValue)
                 .filter(Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
