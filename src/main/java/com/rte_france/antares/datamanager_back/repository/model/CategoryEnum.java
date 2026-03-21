@@ -1,6 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
-public enum ThermalCategoryEnum {
+public enum CategoryEnum {
     POWER,
     NUMBER
 }

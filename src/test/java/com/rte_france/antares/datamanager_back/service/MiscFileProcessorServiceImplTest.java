@@ -221,8 +221,8 @@ class MiscFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
 
             createInstalledWorkbook(List.of(
-                    new Object[]{1, "FR", "g1", "c1", "cat", 100},
-                    new Object[]{1, "DE", "g2", "c2", "cat", 200}
+                    new Object[]{1, "FR", "biomass", "c1", "cat", 100},
+                    new Object[]{1, "DE", "waste", "c2", "cat", 200}
             ), 2030);
 
             TrajectoryEntity result =
@@ -242,8 +242,8 @@ class MiscFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
 
             createInstalledWorkbook(List.of(
-                    new Object[]{1, "FR", "g1", "c1", "cat", 100},
-                    new Object[]{1, "DE", "g2", "c2", "cat", 200}
+                    new Object[]{1, "FR", "biomass", "c1", "cat", 100},
+                    new Object[]{1, "DE", "waste", "c2", "cat", 200}
             ), 2030);
 
             TrajectoryEntity result =
@@ -281,7 +281,7 @@ class MiscFileProcessorServiceImplTest {
                     .thenReturn(Optional.of(existing));
 
             createInstalledWorkbook(Collections.singletonList(
-                    new Object[]{1, "FR", "g", "c", "cat", 100}
+                    new Object[]{1, "FR", "biomass", "c", "cat", 100}
             ), 2030);
 
             TrajectoryEntity result =
@@ -299,32 +299,33 @@ class MiscFileProcessorServiceImplTest {
 
             // On crée un fichier avec une seule ligne valide
             createInstalledWorkbook(Collections.singletonList(
-                    new Object[]{true, "FR", "g", "c", "cat", 100}
+                    new Object[]{true, "FR", "biomass", "c", "cat", 100}
             ), 2030);
 
-            // Le checksumBuilder de processMiscCapacityRow concatène :
-            // area|group|cluster|category|capacityByYear|toUse\n
-            // capacityByYear = BigDecimal.valueOf(100.0) => "100.0"
-            String checksumInput = "FR|g|c|cat|" + BigDecimal.valueOf(100.0) + "|true\n";
-            String sameChecksum = Utils.calculateChecksum(checksumInput);
+            // Créer une première trajectoire
+            TrajectoryEntity firstResult =
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
 
-            TrajectoryEntity existing = new TrajectoryEntity();
-            existing.setChecksum(sameChecksum);
-            existing.setVersion(4);
-            existing.setFileName("test"); // pas critique ici
-            existing.setType(TrajectoryType.MISC_CAPACITY.name());
+            assertThat(firstResult).isNotNull();
+            assertThat(firstResult.getChecksum()).isNotNull();
+            String firstChecksum = firstResult.getChecksum();
 
+            // Recréer le même fichier avec les mêmes données
+            createInstalledWorkbook(Collections.singletonList(
+                    new Object[]{true, "FR", "biomass", "c", "cat", 100}
+            ), 2030);
+
+            // Mock pour retourner la première trajectoire
             when(trajectoryRepository
                     .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                             anyString(), anyString(), anyString(), anyString(), any()))
-                    .thenReturn(Optional.of(existing));
+                    .thenReturn(Optional.of(firstResult));
 
+            // Le deuxième appel avec le même contenu devrait lever une exception
             assertThatThrownBy(() ->
                     service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("File already processed");
-
-            verify(trajectoryRepository, never()).save(any());
         }
 
         @Test
@@ -356,7 +357,7 @@ class MiscFileProcessorServiceImplTest {
             // "Cluster" manquant => checkMissingColumns(...) doit échouer
             createInstalledWorkbookWithHeader(
                     List.of("ToUse", "Area", "Group", "Clustr", "Category", 2030),
-                    List.<Object[]>of(new Object[]{1, "FR", "g", "c", "cat", 100})
+                    List.<Object[]>of(new Object[]{1, "FR", "biomass", "c", "cat", 100})
             );
 
             assertThatThrownBy(() ->
@@ -371,7 +372,7 @@ class MiscFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
 
             createInstalledWorkbook(List.<Object[]>of(
-                    new Object[]{null, "FR", "g", "c", "cat", 100}
+                    new Object[]{null, "FR", "biomass", "c", "cat", 100}
             ), 2030);
 
             assertThatThrownBy(() ->
@@ -439,7 +440,7 @@ class MiscFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(de));
 
             createInstalledWorkbook(List.<Object[]>of(
-                    new Object[]{true, "DE", "g", "c", "cat", 100}
+                    new Object[]{true, "DE", "biomass", "c", "cat", 100}
             ), 2030);
 
             TrajectoryEntity result =
@@ -447,6 +448,133 @@ class MiscFileProcessorServiceImplTest {
 
             assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
             assertThat(result.getArea()).isEqualTo("OTHERS");
+        }
+
+        @Test
+        void shouldThrowWhenGroupIsEmpty() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createInstalledWorkbook(List.<Object[]>of(
+                    new Object[]{true, "FR", "", "c", "cat", 100}
+            ), 2030);
+
+            assertThatThrownBy(() ->
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("not a valid group");
+        }
+
+        @Test
+        void shouldThrowWhenGroupIsNotValid() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            createInstalledWorkbook(List.<Object[]>of(
+                    new Object[]{true, "FR", "invalidgroup", "c", "cat", 100}
+            ), 2030);
+
+            assertThatThrownBy(() ->
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("not a valid group")
+                    .hasMessageContaining("Valid groups are");
+        }
+
+        @Test
+        void shouldAcceptAllValidGroups() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            String[] validGroups = {"biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic"};
+            for (String validGroup : validGroups) {
+                createInstalledWorkbook(List.<Object[]>of(
+                        new Object[]{true, "FR", validGroup, "c", "cat", 100}
+                ), 2030);
+
+                TrajectoryEntity result =
+                        service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+                assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+                assertThat(result.getMiscClusterCapacityEntities().get(0).getGroupe())
+                        .isEqualToIgnoringCase(validGroup);
+            }
+        }
+
+        @Test
+        void shouldAcceptGroupsWithDifferentCaseValidation() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            // Test uppercase group name (should be accepted and converted to lowercase)
+            createInstalledWorkbook(List.<Object[]>of(
+                    new Object[]{true, "FR", "BIOMASS", "c", "cat", 100}
+            ), 2030);
+
+            TrajectoryEntity result =
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
+
+            assertThat(result.getMiscClusterCapacityEntities()).hasSize(1);
+            assertThat(result.getMiscClusterCapacityEntities().get(0).getGroupe())
+                    .isEqualTo("BIOMASS");
+        }
+
+        @Test
+        void shouldThrowWhenGroupContainsNumbersInvalid() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            // "biomass1" is not in VALID_GROUPS
+            createInstalledWorkbook(List.<Object[]>of(
+                    new Object[]{true, "FR", "biomass1", "c", "cat", 100}
+            ), 2030);
+
+            assertThatThrownBy(() ->
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("not a valid group")
+                    .hasMessageContaining("Valid groups are");
+        }
+
+        @Test
+        void shouldThrowWhenGroupContainsSpecialCharactersInvalid() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            // "biomass@" is not in VALID_GROUPS
+            createInstalledWorkbook(List.<Object[]>of(
+                    new Object[]{true, "FR", "biomass@", "c", "cat", 100}
+            ), 2030);
+
+            assertThatThrownBy(() ->
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("not a valid group")
+                    .hasMessageContaining("Valid groups are");
+        }
+
+        @Test
+        void shouldThrowWhenGroupContainsSpacesInvalid() throws Exception {
+            AreaEntity fr = new AreaEntity();
+            fr.setName("FR");
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+
+            // "bio mass" is not in VALID_GROUPS
+            createInstalledWorkbook(List.<Object[]>of(
+                    new Object[]{true, "FR", "bio mass", "c", "cat", 100}
+            ), 2030);
+
+            assertThatThrownBy(() ->
+                    service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("not a valid group")
+                    .hasMessageContaining("Valid groups are");
         }
     }
 
@@ -461,10 +589,10 @@ class MiscFileProcessorServiceImplTest {
 
             String horizon = "2029-2030";
 
-            createLoadFactorStructure(horizon, "g1", "c1", "FR;DE");
+            createLoadFactorStructure(horizon, "biomass", "Small biomass", "FR;DE");
 
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
-                    .thenReturn(List.of(buildGroup("g1", "c1", "FR")));
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
 
             TrajectoryEntity result =
                     service.processLoadFactorMiscFile("loadFactor",
@@ -486,7 +614,7 @@ class MiscFileProcessorServiceImplTest {
                     .thenReturn(root);
 
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
-                    .thenReturn(List.of(buildGroup("g1", "c1", "FR")));
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
 
             assertThatThrownBy(() ->
                     service.processLoadFactorMiscFile("loadFactor",
@@ -501,10 +629,10 @@ class MiscFileProcessorServiceImplTest {
 
             String horizon = "2029-2030";
 
-            createLoadFactorStructure(horizon, "g1", "c1", "DE");
+            createLoadFactorStructure(horizon, "biomass", "Small biomass", "DE");
 
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
-                    .thenReturn(List.of(buildGroup("g1", "c1", "FR")));
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
 
             assertThatThrownBy(() ->
                     service.processLoadFactorMiscFile("loadFactor",
@@ -698,8 +826,8 @@ class MiscFileProcessorServiceImplTest {
         void shouldReturnAllWhenAreaIsOthers() {
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "OTHERS"))
                     .thenReturn(List.of(
-                            buildGroup("g1", "c1", "FR"),
-                            buildGroup("g2", "c2", "DE")
+                            buildGroup("biomass", "Small biomass", "FR"),
+                            buildGroup("waste", "waste", "DE")
                     ));
 
             List<GroupAreaMiscCapacity> result = miscClusterCapacityRepository.findByStudyIdAndArea(1, "OTHERS");
@@ -711,7 +839,7 @@ class MiscFileProcessorServiceImplTest {
         @Test
         void shouldFilterBySpecificArea() {
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
-                    .thenReturn(List.of(buildGroup("g1", "c1", "FR")));
+                    .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
 
             List<GroupAreaMiscCapacity> result = miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR");
 

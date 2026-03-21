@@ -66,8 +66,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
-                        cap(refIncluded, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
-                        cap(refIncluded, ThermalCategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
+                        cap(refIncluded, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(refIncluded, CategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -111,8 +111,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
-                        cap(refWithNullName, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
-                        cap(refWithNullName, ThermalCategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
+                        cap(refWithNullName, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(refWithNullName, CategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -144,10 +144,10 @@ class ThermalPropertiesAssemblerServiceTest {
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
                         // unit count = 3 (max), power = 600 (max) => nominal = 600/3 = 200
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 500.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 600.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -220,10 +220,10 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(), // max NUMBER = 3
-                        cap(gasRef, ThermalCategoryEnum.POWER, 0.415, null).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, null).toBuilder().area("FR").build()  // max POWER = 500
+                        cap(gasRef, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(), // max NUMBER = 3
+                        cap(gasRef, CategoryEnum.POWER, 0.415, null).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 500.0, null).toBuilder().area("FR").build()  // max POWER = 500
                 ))
                 .build();
 
@@ -263,8 +263,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
-                        cap(nucRef, ThermalCategoryEnum.POWER, 1200.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(nucRef, CategoryEnum.POWER, 1200.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -298,8 +298,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -333,13 +333,13 @@ class ThermalPropertiesAssemblerServiceTest {
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
                         // NUMBER capacities → max = 3
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.NUMBER, 3.0, null).toBuilder().area("FR").build(),
 
                         // POWER capacities
-                        cap(gasRef, ThermalCategoryEnum.POWER, 0.0, true).toBuilder().area("FR").build(),  // zero value (ignored for nominal)
-                        cap(gasRef, ThermalCategoryEnum.POWER, 500.0, true).toBuilder().area("FR").build(), // valid nominal (toUse = true)
-                        cap(gasRef, ThermalCategoryEnum.POWER, 600.0, false).toBuilder().area("FR").build() // higher but disabled
+                        cap(gasRef, CategoryEnum.POWER, 0.0, true).toBuilder().area("FR").build(),  // zero value (ignored for nominal)
+                        cap(gasRef, CategoryEnum.POWER, 500.0, true).toBuilder().area("FR").build(), // valid nominal (toUse = true)
+                        cap(gasRef, CategoryEnum.POWER, 600.0, false).toBuilder().area("FR").build() // higher but disabled
                 ))
                 .build();
 
@@ -380,8 +380,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(), // unit count = 3
-                        cap(gasRef, ThermalCategoryEnum.POWER, 1000.0, true).toBuilder().area("FR").build() // max POWER
+                        cap(gasRef, CategoryEnum.NUMBER, 3.0, true).toBuilder().area("FR").build(), // unit count = 3
+                        cap(gasRef, CategoryEnum.POWER, 1000.0, true).toBuilder().area("FR").build() // max POWER
                 ))
                 .build();
 
@@ -413,7 +413,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -443,7 +443,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -501,7 +501,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder()
                                 .area("AREA_FR")
                                 .fuel("GAS")
                                 .build()
@@ -569,7 +569,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder()
                                 .area("AT") // Area AT
                                 .fuel("GAS")
                                 .build()
@@ -613,7 +613,7 @@ class ThermalPropertiesAssemblerServiceTest {
         assertThat(dto.getCo2()).isNull();
     }
 
-    private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, ThermalCategoryEnum cat, double value, Boolean toUse) {
+    private static ThermalClusterCapacityEntity cap(ThermalClusterRef ref, CategoryEnum cat, double value, Boolean toUse) {
         return ThermalClusterCapacityEntity.builder()
                 .thermalClusterRef(ref)
                 .category(cat)
@@ -690,7 +690,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true)
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true)
                                 .toBuilder().area("FR").build(),
                         ThermalClusterCapacityEntity.builder()
                                 .thermalClusterRef(gasRef)
@@ -762,7 +762,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true)
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true)
                                 .toBuilder().area("FR").build(),
                         ThermalClusterCapacityEntity.builder()
                                 .thermalClusterRef(gasRef)
@@ -848,7 +848,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -893,7 +893,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -939,7 +939,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder()
                                 .area("FR")
                                 .fuel("GAS")
                                 .build()
@@ -989,7 +989,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder()
                                 .area("fr")
                                 .fuel("Gas")
                                 .build()
@@ -1047,7 +1047,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder()
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder()
                                 .area("FR")
                                 .fuel("GAS") // fuel is in capacity
                                 .build()
@@ -1091,8 +1091,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 200.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 200.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -1150,8 +1150,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -1203,8 +1203,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
-                        cap(gasRef, ThermalCategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
-                        cap(gasRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 
@@ -1269,7 +1269,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var capTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
-                        cap(standardRef, ThermalCategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                        cap(standardRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
                 ))
                 .build();
 

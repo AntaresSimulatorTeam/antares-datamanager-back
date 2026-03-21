@@ -28,7 +28,7 @@ public final class ThermalClusterCapacityEntity extends ThermalBaseEntity {
 
     @Column(name = "category")
     @Enumerated(EnumType.STRING)
-    private ThermalCategoryEnum category;
+    private CategoryEnum category;
 
     @Size(max = 10)
     @Column(name = "month_year")

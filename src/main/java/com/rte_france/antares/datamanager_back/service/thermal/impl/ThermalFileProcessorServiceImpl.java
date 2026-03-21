@@ -21,11 +21,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -472,9 +469,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 boolean toUse = row.getCell(0).getNumericCellValue() == 1;
                 if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
 
-                ThermalCategoryEnum category = categoryStr.equals(ThermalCategoryEnum.POWER.name().toLowerCase())
-                        ? ThermalCategoryEnum.POWER
-                        : ThermalCategoryEnum.NUMBER;
+                CategoryEnum category = categoryStr.equals(CategoryEnum.POWER.name().toLowerCase())
+                        ? CategoryEnum.POWER
+                        : CategoryEnum.NUMBER;
 
                 double value = capacityValue(row, i, horizon, trajectoryName, category);
 
@@ -525,7 +522,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         return missingAreas;
     }
 
-    private static double capacityValue(Row row, int i, String horizon, String trajectoryFileName, ThermalCategoryEnum category) {
+    private static double capacityValue(Row row, int i, String horizon, String trajectoryFileName, CategoryEnum category) {
         Cell cell = row.getCell(i);
         if (cell == null || cell.getCellType() == CellType.BLANK) {
             throw BusinessException.builder()
@@ -547,7 +544,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             }
         }
 
-        if (category == ThermalCategoryEnum.NUMBER && value <= 0) {
+        if (category == CategoryEnum.NUMBER && value <= 0) {
             throw BusinessException.builder()
                     .message("NUMBER values do not be <= 0 in THERMAL Installed Power trajectory " + trajectoryFileName)
                     .build();
@@ -651,10 +648,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         for (Map.Entry<String, List<ThermalClusterCapacityEntity>> entry : grouped.entrySet()) {
             Optional<ThermalClusterCapacityEntity> power = entry.getValue().stream()
-                    .filter(e -> e.getCategory() == ThermalCategoryEnum.POWER)
+                    .filter(e -> e.getCategory() == CategoryEnum.POWER)
                     .findFirst();
             Optional<ThermalClusterCapacityEntity> number = entry.getValue().stream()
-                    .filter(e -> e.getCategory() == ThermalCategoryEnum.NUMBER)
+                    .filter(e -> e.getCategory() == CategoryEnum.NUMBER)
                     .findFirst();
 
             if (power.isEmpty() || number.isEmpty()) {
