@@ -1558,7 +1558,7 @@ class UtilsTest {
                     .thenReturn(7);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA");
+            int result = Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", false);
 
             // Then
             assertThat(result).isEqualTo(7);
@@ -1582,7 +1582,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA"),
+                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", false),
                     BusinessException.class
             );
 
@@ -1612,7 +1612,7 @@ class UtilsTest {
                     .thenReturn(4);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2020-2035", "trajectoryB");
+            int result = Utils.resolveYearColumnIndex(header, "2020-2035", "trajectoryB", false);
 
             // Then
             assertThat(result).isEqualTo(4);
