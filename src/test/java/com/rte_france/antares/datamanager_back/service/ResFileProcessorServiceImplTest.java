@@ -3,6 +3,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +26,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Row;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -216,6 +219,48 @@ public class ResFileProcessorServiceImplTest {
 
             assertThat(trajectory).isNotNull();
             assertThat(trajectory.getVersion()).isEqualTo(2);
+        }
+
+        @Test
+        void shouldThrowWhenAlreadyProcessedSameContent(@TempDir Path tempRoot) throws Exception {
+            // On crée un fichier avec une seule ligne valide
+            createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx",List.of("AT", "AT"), "solar_pv", true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName("AT");
+            }}));
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{setNni("testUser");}});
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            
+            // Créer une première trajectoire
+            // WHEN
+            TrajectoryEntity firstResult = resFileProcessorServiceImpl.processInstalledResFile(
+                    "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, "AT", "solar_pv", false
+            );
+
+            assertThat(firstResult).isNotNull();
+            assertThat(firstResult.getChecksum()).isNotNull();
+
+            // Recréer le même fichier avec les mêmes données
+            createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx",List.of("AT", "AT"), "solar_pv", true);
+
+            // Mock pour retourner la première trajectoire
+            when(trajectoryRepository
+                    .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                            anyString(), anyString(), anyString(), anyString(), any()))
+                    .thenReturn(Optional.of(firstResult));
+
+            // Le deuxième appel avec le même contenu devrait lever une exception
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processInstalledResFile(
+                            "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, "AT", "solar_pv", false
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("File already processed");
         }
 
         @Test
