@@ -588,17 +588,6 @@ public class ResFileProcessorServiceImplTest {
             return file;
         }
 
-        private Path createMockInvalidHeaderExcelFile(Path tempDir, String fileName) throws Exception {
-            Path file = tempDir.resolve(fileName);
-            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                Sheet sheet = wb.createSheet("Sheet1");
-                Row header = sheet.createRow(0);
-                header.createCell(0).setCellValue("InvalidColumn");
-                wb.write(out);
-            }
-            return file;
-        }
-
         private Path createMockOffshoreExcelFile(Path tempDir, String fileName, String area, boolean isNumericalValue) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
