@@ -80,7 +80,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         // Find existing trajectory for same file name/horizon/type
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(), null),
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()),
                 horizon,
                 TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()
         );
@@ -119,7 +119,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         String trajectoryTypeName = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name();
-        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryTypeName, null);
+        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryTypeName);
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, trajectoryTypeName);
 
         TrajectoryEntity trajectory;
@@ -395,7 +395,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name(), null),
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.THERMAL_CAPACITY.name()),
                 TrajectoryType.THERMAL_CAPACITY.name(),
                 horizon,
                 area,
