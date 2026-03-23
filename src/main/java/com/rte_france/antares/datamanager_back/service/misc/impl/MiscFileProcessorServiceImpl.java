@@ -476,17 +476,6 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 ));
     }
 
-    private static int getYearColIndex(int lastCol, Row header, String horizonYear, int yearColIndex) {
-        for (int c = 5; c < lastCol; c++) {
-            Integer headerVal = (int) header.getCell(c).getNumericCellValue();
-            if (horizonYear.equals(String.valueOf(headerVal).trim())) {
-                yearColIndex = c;
-                break;
-            }
-        }
-        return yearColIndex;
-    }
-
     private TrajectoryEntity buildMiscTrajectory(String horizon, String areaParam, StringBuilder checksumBuilder, Path filePath, List<MiscClusterCapacityEntity> entities) throws IOException {
         String checksum = calculateChecksum(checksumBuilder.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, TrajectoryType.MISC_CAPACITY);
