@@ -905,7 +905,19 @@ public class Utils {
     }
 
     public static List<Path> findFilesFromDepthWithPrefix(Path directoryPath, String prefix, int depth, String technology) throws IOException {
-        try (Stream<Path> stream = Files.walk(directoryPath, depth)) {
+
+        // Ensure the base directory is trusted and exists
+        if (directoryPath == null || !Files.isDirectory(directoryPath)) {
+            throw BusinessException.builder()
+                    .message("No FR res capacity file found in directory: " + directoryPath)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Normalize and verify the directory to avoid traversal outside allowed root
+        Path normalizedBase = directoryPath.toRealPath();
+        
+        try (Stream<Path> stream = Files.walk(normalizedBase, depth)) {
             List<Path> files = stream
                     .filter(Files::isRegularFile)
                     .filter(path -> {
