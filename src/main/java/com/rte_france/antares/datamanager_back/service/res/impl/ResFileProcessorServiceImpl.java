@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
@@ -58,6 +59,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private final UserService userService;
     private final AreaRepository areaRepository;
 
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
+
     private final TrajectoryServiceImpl trajectoryService;
 
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
@@ -100,7 +103,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 checksumBuilder.append(result.getChecksumBuilder());
 
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw BusinessException.builder()
+                        .message("Could not import RES installed power trajectory")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         }
 
@@ -121,7 +127,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         );
 
         if (isFR) {
-            Path folderPath = directoryPath.resolve(trajectoryToUse);
+            Path folderPath = directoryPath.resolve(trajectoryToUse).normalize();
             
             List<Path> files;
             try {
@@ -139,11 +145,13 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             validatePrefixIfNeeded(areaParam, trajectoryToUse);
             
             String fileName = trajectoryToUse.endsWith(".xlsx") ? trajectoryToUse : trajectoryToUse + ".xlsx";
-            Path filePath = directoryPath.resolve(fileName);
-
-            // Vérifier si le fichier existe
-            if (!Files.exists(filePath)) {
-                throw new IOException("File not found: " + filePath);
+            Path filePath = directoryPath.resolve(fileName).normalize();
+            
+            if (!filePath.startsWith(directoryPath)) {
+                throw BusinessException.builder()
+                        .message("File not found: " + filePath)
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
             
             return List.of(filePath);
@@ -171,8 +179,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String[] requiredColumns = isOffshoreTechnology ? REQUIRED_OFFSHORE_CLUSTER_COLUMNS : REQUIRED_CLUSTER_COLUMNS;
 
             validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse);
-
-            int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryToUse);
+            
+            int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryToUse, isCivilYear);
 
             ResRowProcessingContext context = new ResRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse, technology);
 
@@ -250,10 +258,19 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         BigDecimal capacityByYear = BigDecimal.valueOf(numericValue.doubleValue());
 
-        ResClusterCapacityEntity entity = buildEntity(
-                toUse, area, group, cluster, capacityByYear,
-                isOffshoreTechnology, col2, col4
-        );
+        ResClusterCapacityEntity entity = ResClusterCapacityEntity.builder()
+                .toUse(toUse)
+                .area(area)
+                .groupe(group)
+                .cluster(cluster)
+                .capacityByYear(capacityByYear)
+                .build();
+
+        if (isOffshoreTechnology) {
+            entity.setPecdZone(col2);
+        } else {
+            entity.setCategory(col4);
+        }
 
         result.getEntities().add(entity);
         appendChecksum(result, area, group, cluster, isOffshoreTechnology ? col2 : col4, capacityByYear, toUse);
@@ -285,10 +302,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
         
         // 2. Filtre par technology
-        if (technologyParam != null && !technologyParam.isBlank()) {
-            if (!technologyParam.equalsIgnoreCase(technologyStr)) {
-                return false;
-            }
+        if (technologyParam != null && !technologyParam.isBlank() && !technologyParam.equalsIgnoreCase(technologyStr)) {
+            return false;
         }
         
         result.getFileTechnologies().add(technologyParam);
@@ -340,33 +355,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         result.getInvalidCombos().add(combo);
         return null;
-    }
-
-    private ResClusterCapacityEntity buildEntity(
-            Boolean toUse,
-            String area,
-            String group,
-            String cluster,
-            BigDecimal capacityByYear,
-            boolean isOffshoreTechnology,
-            String col2,
-            String col4
-    ) {
-        ResClusterCapacityEntity entity = ResClusterCapacityEntity.builder()
-                .toUse(toUse)
-                .area(area)
-                .groupe(group)
-                .cluster(cluster)
-                .capacityByYear(capacityByYear)
-                .build();
-
-        if (isOffshoreTechnology) {
-            entity.setPecdZone(col2);
-        } else {
-            entity.setCategory(col4);
-        }
-
-        return entity;
     }
 
     private void appendChecksum(
