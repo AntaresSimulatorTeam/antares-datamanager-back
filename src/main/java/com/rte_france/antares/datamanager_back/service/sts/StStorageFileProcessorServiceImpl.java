@@ -94,7 +94,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology, Boolean hasSeries) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name(), null), TrajectoryType.STS.name(), horizon, areaParam, technology);
+        Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()), TrajectoryType.STS.name(), horizon, areaParam, technology);
 
         TrajectoryEntity trajectory;
         if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
@@ -261,7 +261,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("series");
 
-        Path trajectoryDir = findChildDirectoryIgnoreCase(techDir, getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name(), null));
+        Path trajectoryDir = findChildDirectoryIgnoreCase(techDir, getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()));
         Path clusterSeriesDir = findChildDirectoryIgnoreCase(trajectoryDir, clusterName);
 
         return clusterSeriesDir.resolve(areaParam).normalize();
