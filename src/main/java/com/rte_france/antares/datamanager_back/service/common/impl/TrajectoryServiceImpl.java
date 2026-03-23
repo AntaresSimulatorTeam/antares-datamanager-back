@@ -578,8 +578,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-        checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
-
+        Set<String> supportedTypes = Set.of(
+                "AREA",
+                "LINK",
+                "LOAD",
+                "THERMAL_CAPACITY",
+                "THERMAL_TECHNICAL_SPECIFIC_PARAMETER",
+                "THERMAL_TECHNICAL_MODULATION_PARAMETER",
+                "THERMAL_TECHNICAL_COMMON_PARAMETER",
+                "THERMAL_ECONOMIC_PARAMETER",
+                "THERMAL_ECONOMIC_COST_PARAMETER",
+                "MISC_CAPACITY",
+                "MISC_LOAD"
+        );
+        if(supportedTypes.contains(trajectory.getType())) {
+            checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
+        }
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
