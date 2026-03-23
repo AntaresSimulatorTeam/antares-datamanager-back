@@ -1,9 +1,9 @@
-package com.rte_france.antares.datamanager_back.service.res;
+package com.rte_france.antares.datamanager_back.service;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -17,7 +17,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
