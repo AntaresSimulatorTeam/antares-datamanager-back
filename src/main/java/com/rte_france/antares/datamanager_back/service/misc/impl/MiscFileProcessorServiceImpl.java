@@ -266,7 +266,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String checksum = calculateDirectoryChecksum(trajectoryFilePath);
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.MISC_LOAD.name(), null))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.MISC_LOAD.name()))// file name without extension
                 .fileSize(Files.size(trajectoryFilePath))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
@@ -593,7 +593,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name(), null),
+                getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()),
                 trajectoryType.name(),
                 horizon,
                 area,
