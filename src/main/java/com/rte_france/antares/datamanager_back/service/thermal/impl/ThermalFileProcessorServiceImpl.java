@@ -544,9 +544,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
             }
         }
 
-        if (category == CategoryEnum.NUMBER && value <= 0) {
+        if (category == CategoryEnum.NUMBER && value < 0) {
             throw BusinessException.builder()
-                    .message("NUMBER values do not be <= 0 in THERMAL Installed Power trajectory " + trajectoryFileName)
+                    .message("NUMBER values do not be < 0 in THERMAL Installed Power trajectory: {0}")
+                    .errorMessageArguments(List.of(trajectoryFileName))
                     .build();
         }
 

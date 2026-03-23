@@ -5,9 +5,11 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -280,12 +282,10 @@ public class ThermalPropertiesAssemblerService {
         // nominal capacity (max POWER / unitCount) ---
         if (maxPowerOpt.isPresent()) {
             double maxPower = maxPowerOpt.getAsDouble();
-            double nominalCapacity = maxPower;
 
-            if (unitCountOpt.isPresent() && unitCountOpt.getAsDouble() != 0.0) {
-                nominalCapacity = maxPower / unitCountOpt.getAsDouble();
-            }
+            validatedUnitCountMax(thermalClusterCapacities, unitCountOpt);
 
+            double nominalCapacity = maxPower / unitCountOpt.getAsDouble();
             nominalCapacity = Math.round(nominalCapacity * 10.0) / 10.0;
             builder.nominalCapacity(nominalCapacity);
         }
@@ -309,6 +309,27 @@ public class ThermalPropertiesAssemblerService {
                 .flatMap(Optional::stream)
                 .findFirst()
                 .ifPresent(builder::group);
+    }
+
+    private static void validatedUnitCountMax(List<ThermalClusterCapacityEntity> thermalClusterCapacities, OptionalDouble unitCountOpt) {
+        if (unitCountOpt.isEmpty() || unitCountOpt.getAsDouble() == 0.0) {
+            String clusterRefName = thermalClusterCapacities.stream()
+                    .map(ThermalClusterCapacityEntity::getThermalClusterRef)
+                    .filter(Objects::nonNull)
+                    .map(ThermalClusterRef::getName)
+                    .findFirst()
+                    .orElse("unknown");
+            String trajectoryName = thermalClusterCapacities.stream()
+                    .map(ThermalClusterCapacityEntity::getTrajectory)
+                    .filter(Objects::nonNull)
+                    .map(TrajectoryEntity::getFileName)
+                    .findFirst()
+                    .orElse("unknown");
+            throw BusinessException.builder()
+                    .message("Failed to generate study. unit count must not be zero for thermal cluster: {0} in trajectory: {1}")
+                    .errorMessageArguments(List.of(clusterRefName, trajectoryName))
+                    .build();
+        }
     }
 
     private void buildFromCommonParameters(List<ThermalCommonParameterEntity> thermalCommonParameters, ThermalClusterGenerationDto.ThermalClusterGenerationDtoBuilder builder) {

@@ -2323,7 +2323,7 @@ class TrajectoryServiceImplTest {
             assertNotNull(result);
             assertTrue(result.containsKey(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1")));
             Set<String> areas = result.get(new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1"));
-            assertTrue(areas.contains("FR"), "Result should contain uppercase 'FR' area");
+            assertTrue(areas.contains("fr"), "Result should contain uppercase 'fr' area");
             // Verify it only contains FR, not all areas (since trajectory is not OTHERS_AREA)
             assertEquals(1, areas.size(), "Should only contain the trajectory area 'FR'");
         } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
