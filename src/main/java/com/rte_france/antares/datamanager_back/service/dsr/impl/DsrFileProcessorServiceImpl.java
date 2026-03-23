@@ -312,7 +312,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
     private TrajectoryEntity buildDsrClusterTrajectory(Path trajectoryFilePath, String horizon, String areaParam, Boolean hasSeries) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR.name(), null);
+        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR.name());
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(fileName, TrajectoryType.DSR.name(), horizon, areaParam, null);
 
         TrajectoryEntity trajectory;
