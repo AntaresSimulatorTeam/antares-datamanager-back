@@ -1,4 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.res;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -12,17 +13,23 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Row;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import org.mockito.stubbing.Answer;
 
 @ExtendWith(MockitoExtension.class)
 public class ResFileProcessorServiceImplTest {
@@ -176,6 +183,43 @@ public class ResFileProcessorServiceImplTest {
         }
 
         @Test
+        void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx",List.of("AT", "AT"), "solar_pv", true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName("FR");
+            }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName("AT");
+            }}));
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{setNni("testUser");}});
+
+            var trajectoryEntity = new TrajectoryEntity();
+            trajectoryEntity.setType(TrajectoryType.RES_CAPACITY.name());
+            trajectoryEntity.setArea("AT");
+            trajectoryEntity.setFileName("test");
+            trajectoryEntity.setVersion(1);
+            trajectoryEntity.setHorizon("2029-2030");
+            trajectoryEntity.setChecksum("ABC123");
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    any(), any(), any(), any(), any()))
+                    .thenReturn(Optional.of(trajectoryEntity));
+            when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+            // WHEN
+            TrajectoryEntity trajectory = resFileProcessorServiceImpl.processInstalledResFile(
+                    "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, "AT", "solar_pv", false
+            );
+
+            assertThat(trajectory).isNotNull();
+            assertThat(trajectory.getVersion()).isEqualTo(2);
+        }
+
+        @Test
         void throwsExceptionForDefaultAreaWhenHorizonIsWrong(@TempDir Path tempRoot) throws Exception {
             // GIVEN : Créer la structure de dossiers temporaire
             Path frDir = tempRoot.resolve("FR");
@@ -228,7 +272,7 @@ public class ResFileProcessorServiceImplTest {
         }
 
         @Test
-        void throwsExceptionWhenDefaultAreaAndTechnologyFileColumnsAreWrong(@TempDir Path tempRoot) throws Exception {
+        void throwsExceptionWhenDefaultAreaAndTechnologyOffshoreFileColumnsAreWrong(@TempDir Path tempRoot) throws Exception {
             // GIVEN : Créer la structure de dossiers temporaire
             Path frDir = tempRoot.resolve("FR"); 
             Files.createDirectories(frDir);  
@@ -251,6 +295,35 @@ public class ResFileProcessorServiceImplTest {
             BusinessException exception = assertThrows(BusinessException.class, () ->
                     resFileProcessorServiceImpl.processInstalledResFile(
                             "BP_23_REF", "2029-2030", 1, "FR", "Wind Offshore", false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("Missing columns"));
+        }
+
+        @Test
+        void throwsExceptionWhenDefaultAreaAndTechnologyOnshoreFileColumnsAreWrong(@TempDir Path tempRoot) throws Exception {
+            // GIVEN : Créer la structure de dossiers temporaire
+            Path frDir = tempRoot.resolve("FR");
+            Files.createDirectories(frDir);
+
+            Path nestedDir = frDir.resolve("BP_23_REF");
+            Files.createDirectories(nestedDir);
+
+            // Créer les fichiers mocks dans nestedDir
+            createMockOffshoreExcelFileWithWrongColumns(nestedDir, "installedRES_wind_onshore_BP23_Aref.xlsx");
+
+            // Mock normalizeAndValidateDirectory pour renvoyer frDir (le code ajoutera .resolve("BP_23_REF") dessus)
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName("FR");
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processInstalledResFile(
+                            "BP_23_REF", "2029-2030", 1, "FR", "Wind Onshore", false
                     )
             );
             assertTrue(exception.getMessage().contains("Missing columns"));
