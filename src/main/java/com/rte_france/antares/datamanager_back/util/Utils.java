@@ -916,7 +916,7 @@ public class Utils {
                             return name.startsWith(prefix) && name.endsWith(".xlsx");
                         }
                     })
-                    .collect(Collectors.toList());
+                    .toList();
 
             if (files.isEmpty()) {
                 throw new IOException("No files found matching criteria in directory: " + directoryPath);
