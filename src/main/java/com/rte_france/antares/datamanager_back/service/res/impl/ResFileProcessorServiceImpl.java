@@ -383,18 +383,18 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .append(toUse).append("\n");
     }
     
-    private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType) {
+    private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()),
                 trajectoryType.name(),
                 horizon,
                 area,
-                null);
+                technology);
     }
 
     private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, StringBuilder checksumBuilder, Path filePath, List<ResClusterCapacityEntity> entities) throws IOException {
         String checksum = calculateChecksum(checksumBuilder.toString());
-        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, TrajectoryType.RES_CAPACITY);
+        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, TrajectoryType.RES_CAPACITY, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology);
 
         if (existingTrajectory.isPresent() && existingTrajectory.get().getChecksum() != null) {
