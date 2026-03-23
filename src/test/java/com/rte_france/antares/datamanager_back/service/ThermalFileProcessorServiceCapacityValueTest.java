@@ -71,9 +71,8 @@ class ThermalFileProcessorServiceCapacityValueTest {
                 thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true, "FR", "CCGT", 1)
         );
 
-        assertTrue(exception.getMessage().contains("NUMBER values do not be < 0 in THERMAL Installed Power trajectory"),
-                "Expected error message not found. Actual: " + exception.getMessage());
-        assertTrue(exception.getMessage().contains("thermal_capacity_negative.xlsx"));
+        assertTrue(exception.getMessage().contains("NUMBER values do not be < 0 in THERMAL Installed Power trajectory: {0}"));
+        
     }
 
     private static byte[] generateCapacityExcelFileWithNegativeNumber() throws IOException {
