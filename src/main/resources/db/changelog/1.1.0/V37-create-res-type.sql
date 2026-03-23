@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS res_type (
 ALTER TABLE res_type
     ALTER COLUMN id SET DEFAULT nextval('res_type_sequence');
 
-INSERT INTO res_type (label) VALUES ('Offshore Wind');
-INSERT INTO res_type (label) VALUES ('Onshore Wind');
+INSERT INTO res_type (label) VALUES ('Wind Offshore');
+INSERT INTO res_type (label) VALUES ('Wind Onshore');
 INSERT INTO res_type (label) VALUES ('Solar PV');
 INSERT INTO res_type (label) VALUES ('Solar Thermo');
 

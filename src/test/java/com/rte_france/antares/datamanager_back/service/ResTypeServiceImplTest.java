@@ -25,8 +25,8 @@ class ResTypeServiceImplTest {
 
     @Test
     void getAllResTypesReturnsAllEntities() {
-        ResTypeEntity a = ResTypeEntity.builder().id(1).label("Offshore Wind").build();
-        ResTypeEntity b = ResTypeEntity.builder().id(2).label("Onshore Wind").build();
+        ResTypeEntity a = ResTypeEntity.builder().id(1).label("Wind Offshore").build();
+        ResTypeEntity b = ResTypeEntity.builder().id(2).label("Wind Onshore").build();
 
         when(resTypeRepository.findAll()).thenReturn(List.of(a, b));
 
