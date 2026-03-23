@@ -928,7 +928,17 @@ class TrajectoryServiceImplTest {
 
         // Then
         assertEquals(3, result.size());
-        assertEquals("BP23_A_ref_FR_v2", result.getFirst().getFileName());
+        Set<String> expected = Set.of(
+                "BP23_A_ref_FR",
+                "BP23_A_ref_FR_v2",
+                "BP23_A_ref_FR_v3"
+        );
+
+        Set<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .collect(Collectors.toSet());
+
+        assertEquals(expected, actual);
     }
 
     @Test
