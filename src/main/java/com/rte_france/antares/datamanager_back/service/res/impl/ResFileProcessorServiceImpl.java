@@ -168,7 +168,15 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             boolean isCivilYear
     ) throws IOException {
 
-        try (InputStream is = Files.newInputStream(filePath);
+        // Validate that the file path is trusted and points to a regular file
+        if (filePath == null || !Files.isRegularFile(filePath)) {
+            throw new IllegalArgumentException("Invalid or non-existent file path.");
+        }
+
+        // Normalize the path to avoid traversal or symlink tricks
+        Path normalizedFile = filePath.toRealPath();
+
+        try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
 
             Sheet sheet = getFirstSheetOrThrow(workbook, filePath);

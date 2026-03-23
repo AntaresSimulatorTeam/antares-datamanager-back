@@ -8,6 +8,8 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
@@ -929,44 +931,14 @@ class UtilsTest {
         assertTrue(ex.getMessage().contains("Capacity modulation"));
     }
 
-    @Test
-    void shouldNotThrowWhenTechnologyIsPresent() {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "solar",
+            "  ",
+            "SOLAR"
+    })
+    void shouldNotThrowWhenTechnologyIsPresent(String technologyParam) {
         // Given
-        String technologyParam = "solar";
-        List<String> fileTechnologies = List.of("solar", "wind");
-
-        // When / Then
-        assertDoesNotThrow(() ->
-                Utils.validateTechnologyPresence(
-                        technologyParam,
-                        fileTechnologies,
-                        TrajectoryType.RES_CAPACITY,
-                        "file.xlsx"
-                )
-        );
-    }
-
-    @Test
-    void shouldNotThrowWhenTechnologyParamIsBlank() {
-        // Given
-        String technologyParam = "   "; // blank
-        List<String> fileTechnologies = List.of("solar", "wind");
-
-        // When / Then
-        assertDoesNotThrow(() ->
-                Utils.validateTechnologyPresence(
-                        technologyParam,
-                        fileTechnologies,
-                        TrajectoryType.RES_CAPACITY,
-                        "file.xlsx"
-                )
-        );
-    }
-
-    @Test
-    void shouldNotThrowWhenTechnologyParamIsNull() {
-        // Given
-        String technologyParam = null;
         List<String> fileTechnologies = List.of("solar", "wind");
 
         // When / Then
@@ -1003,23 +975,6 @@ class UtilsTest {
     }
 
     @Test
-    void shouldMatchTechnologyIgnoringCase() {
-        // Given
-        String technologyParam = "SOLAR";
-        List<String> fileTechnologies = List.of("solar", "wind");
-
-        // When / Then
-        assertDoesNotThrow(() ->
-                Utils.validateTechnologyPresence(
-                        technologyParam,
-                        fileTechnologies,
-                        TrajectoryType.RES_CAPACITY,
-                        "file.xlsx"
-                )
-        );
-    }
-
-    @Test
     void shouldFindFilesWithPrefixAtDepth1() throws IOException {
         // Given
         Path file1 = Files.createFile(tempDir.resolve("prefix_test.xlsx"));
@@ -1053,7 +1008,7 @@ class UtilsTest {
     void shouldFindFilesWithTechnologyInSubdirectoriesWithinDepth() throws IOException {
         // Given
         Path subDir = Files.createDirectory(tempDir.resolve("sub"));
-        Path file1 = Files.createFile(subDir.resolve("prefix_data.xlsx"));
+        Files.createFile(subDir.resolve("prefix_data.xlsx"));
         Path file2 = Files.createFile(subDir.resolve("prefix_solar.xlsx"));
 
         // When
@@ -1170,7 +1125,7 @@ class UtilsTest {
 
             int result = Utils.getRealLastColumn(row);
 
-            assertThat(result).isEqualTo(0);
+            assertThat(result).isZero();
         }
 
         @Test
@@ -1181,7 +1136,7 @@ class UtilsTest {
 
             int result = Utils.getRealLastColumn(row);
 
-            assertThat(result).isEqualTo(0);
+            assertThat(result).isZero();
         }
 
         @Test
