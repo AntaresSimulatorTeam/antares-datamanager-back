@@ -58,7 +58,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     @Override
     public TrajectoryEntity processThermalEconomicParameterFile(Path trajectoryFilePath, String horizon, List<ThermalEconomicCo2Entity> thermalEconomicCo2Entities, List<ThermalEconomicEnerContentEntity> thermalEconomicEnerContentEntities, TrajectoryType trajectoryType) throws IOException {
         String trajectoryTypeName = trajectoryType != null ? trajectoryType.name() : TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name();
-        String trajectoryFileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), trajectoryTypeName, null);
+        String trajectoryFileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), trajectoryTypeName);
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         // Find existing trajectory for same file name/horizon/type
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryFileName, horizon, trajectoryTypeName);
