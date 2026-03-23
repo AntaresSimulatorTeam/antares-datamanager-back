@@ -166,7 +166,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     public TrajectoryEntity buildDsrCapacityModulationTrajectory(Path trajectoryFilePath, String horizon) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR_CAPACITY_MODULATION.name(), null);
+        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR_CAPACITY_MODULATION.name());
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(fileName, TrajectoryType.DSR_CAPACITY_MODULATION.name(), horizon, null, null);
 
         TrajectoryEntity trajectory;
