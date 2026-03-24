@@ -591,7 +591,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.MISC_CAPACITY,
                 TrajectoryType.MISC_LOAD
         );
-        if(supportedTypes.contains(trajectory.getType())) {
+        if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
         existingLink.ifPresent(studyTrajectoryRepository::delete);
