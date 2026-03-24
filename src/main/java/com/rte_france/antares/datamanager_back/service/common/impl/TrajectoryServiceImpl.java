@@ -578,18 +578,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String userNni = userService.getCurrentUserDetails().getNni();
 
-        Set<String> supportedTypes = Set.of(
-                "AREA",
-                "LINK",
-                "LOAD",
-                "THERMAL_CAPACITY",
-                "THERMAL_TECHNICAL_SPECIFIC_PARAMETER",
-                "THERMAL_TECHNICAL_MODULATION_PARAMETER",
-                "THERMAL_TECHNICAL_COMMON_PARAMETER",
-                "THERMAL_ECONOMIC_PARAMETER",
-                "THERMAL_ECONOMIC_COST_PARAMETER",
-                "MISC_CAPACITY",
-                "MISC_LOAD"
+        Set<TrajectoryType> supportedTypes = Set.of(
+                TrajectoryType.AREA,
+                TrajectoryType.LINK,
+                TrajectoryType.LOAD,
+                TrajectoryType.THERMAL_CAPACITY,
+                TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER,
+                TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER,
+                TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,
+                TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
+                TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
+                TrajectoryType.MISC_CAPACITY,
+                TrajectoryType.MISC_LOAD
         );
         if(supportedTypes.contains(trajectory.getType())) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
