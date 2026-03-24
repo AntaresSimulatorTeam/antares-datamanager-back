@@ -81,15 +81,6 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     private static final String GROUP_WAVE = "wave";
     private static final String GROUP_HYDROKINETIC = "hydrokinetic";
 
-    // Cluster constants
-    private static final String CLUSTER_BIOMASS = "Small biomass";
-    private static final String CLUSTER_BIOGAS = "biogas";
-    private static final String CLUSTER_GEOTHERMAL = "geothermal";
-    private static final String CLUSTER_OTHER = "other";
-    private static final String CLUSTER_WASTE = "waste";
-    private static final String CLUSTER_WAVE = "wave";
-    private static final String CLUSTER_HYDROKINETIC = "hydrokinetic";
-
     private static final Set<String> VALID_GROUPS = Set.of(
             GROUP_BIOMASS, GROUP_BIOGAS, GROUP_GEOTHERMAL, GROUP_OTHER,
             GROUP_WASTE, GROUP_WAVE, GROUP_HYDROKINETIC
@@ -237,7 +228,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
             if (!Files.exists(tsFilePath)) {
                 throw BusinessException.builder()
-                        .message("Load factor file not found for group {0}: expected at {1}")
+                        .message(ERROR_LOAD_FACTOR_NOT_FOUND)
                         .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
                         .build();
             } else {
@@ -316,13 +307,12 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         if (!missingAreas.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Load factor file {0} is missing areas {1} for group {2}")
                     .errorMessageArguments(List.of(
                             tsFilePath.getFileName().toString(),
                             missingAreas.toString(),
                             groupClusterKey.groupe))
                     .message(ERROR_LOAD_FACTOR_MISSING_AREAS)
-                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString(), groupClusterKey.groupe))
+                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString().toUpperCase(), groupClusterKey.groupe))
                     .build();
         }
 
@@ -344,7 +334,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
                 if (!Files.exists(existingTsPath)) {
                     throw BusinessException.builder()
-                            .message("Load factor file not found for group {0}: expected at {1}")
+                            .message(ERROR_LOAD_FACTOR_NOT_FOUND)
                             .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), groupClusterKey.groupe))
                             .build();
                 }
@@ -539,7 +529,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         // Check if group is a valid group
         if (!VALID_GROUPS.contains(group.toLowerCase().trim())) {
             throw BusinessException.builder()
-                    .message("Group '{0}' is not a valid group. Valid groups are: {1} in Misc trajectory {2}")
+                    .message("Group {0} is not a valid group. Valid groups are: {1} in Misc trajectory {2}")
                     .errorMessageArguments(List.of(group, String.join(", ", VALID_GROUPS), context.getTrajectoryToUse()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
