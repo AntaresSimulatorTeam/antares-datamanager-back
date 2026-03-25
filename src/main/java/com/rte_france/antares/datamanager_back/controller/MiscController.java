@@ -41,7 +41,7 @@ public class MiscController {
         ), HttpStatus.CREATED);
     }
 
-    @Operation(summary = "import installed misc trajectory to database ")
+    @Operation(summary = "import load factor misc trajectory to database ")
     @PostMapping("/load-factor-misc")
     public ResponseEntity<TrajectoryDTO> uploadLoadFactorMiscTrajectory(
             @RequestParam("area") String area,
