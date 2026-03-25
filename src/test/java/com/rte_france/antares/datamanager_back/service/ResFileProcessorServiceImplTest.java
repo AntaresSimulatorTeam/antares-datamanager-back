@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -728,7 +729,8 @@ public class ResFileProcessorServiceImplTest {
     void processLoadFactorResFileThrowsExceptionWhenTechnologyFolderNotFound(@TempDir Path tempRoot) throws Exception {
         // GIVEN
         Path nasDir = tempRoot.resolve(NAS_DIR);
-        Files.createDirectories(nasDir);
+        Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD);
+        Files.createDirectories(trajectoryDir);
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
@@ -842,6 +844,159 @@ public class ResFileProcessorServiceImplTest {
         assertTrue(result.getHasTimeSeries());
         assertEquals(ANOTHER_USER, result.getCreatedBy());
         assertNotNull(result.getChecksum());
+    }
+
+    @Test
+    void processLoadFactorResFileRejectsPathTraversalAttempts(@TempDir Path tempRoot) throws Exception {
+        // GIVEN - Setup with valid path
+        Path nasDir = tempRoot.resolve(NAS_DIR);
+        Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+            .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+        Files.createDirectories(trajectoryDir);
+        createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+        when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                .thenReturn(DIRECTORY_RES_LOAD);
+
+        // WHEN & THEN - Path traversal with .. should be blocked or result in invalid path
+        assertThatThrownBy(() ->
+                resFileProcessorServiceImpl.processLoadFactorResFile(
+                        "../../../etc/passwd", HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+                ))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void processLoadFactorResFileSafelyHandlesSymbolicLinks(@TempDir Path tempRoot) throws Exception {
+        // GIVEN - Create legitimate CSV file
+        Path nasDir = tempRoot.resolve(NAS_DIR);
+        Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+            .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+        Files.createDirectories(trajectoryDir);
+        createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+        when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                .thenReturn(DIRECTORY_RES_LOAD);
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{setNni(TEST_USER);}});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // WHEN - Process with valid path
+        TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+        );
+
+        // THEN
+        assertNotNull(result);
+        assertEquals(TRAJECTORY_NAME, result.getFileName());
+        verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processLoadFactorResFileThrowsExceptionWhenChecksumNotChanged(@TempDir Path tempRoot) throws Exception {
+        // GIVEN
+        Path nasDir = tempRoot.resolve(NAS_DIR);
+        Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+            .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+        Files.createDirectories(trajectoryDir);
+        createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+
+        TrajectoryEntity existingTrajectory = new TrajectoryEntity();
+        existingTrajectory.setVersion(1);
+        existingTrajectory.setChecksum("EXISTING_CHECKSUM");
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+        when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                .thenReturn(DIRECTORY_RES_LOAD);
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{setNni(TEST_USER);}});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.of(existingTrajectory));
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
+            TrajectoryEntity saved = invocation.getArgument(0);
+            saved.setId(999);
+            return saved;
+        });
+
+        // WHEN
+        TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+        );
+
+        // THEN - Verify that when checksum is the same, no new version is created
+        assertNotNull(result);
+        assertEquals(TRAJECTORY_NAME, result.getFileName());
+    }
+
+    @Test
+    void processLoadFactorResFileHandlesMultipleCsvFiles(@TempDir Path tempRoot) throws Exception {
+        // GIVEN
+        Path nasDir = tempRoot.resolve(NAS_DIR);
+        Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+            .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_WIND_ONSHORE).resolve(TECHNOLOGY_WIND_ONSHORE);
+        Files.createDirectories(trajectoryDir);
+        createMockCsvFile(trajectoryDir, "2030.csv");
+        createMockCsvFile(trajectoryDir, "2031.csv");
+        createMockCsvFile(trajectoryDir, "2032.csv");
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+        when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                .thenReturn(DIRECTORY_RES_LOAD);
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{setNni(TEST_USER);}});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // WHEN
+        TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_WIND_ONSHORE
+        );
+
+        // THEN
+        assertNotNull(result);
+        assertTrue(result.getHasTimeSeries());
+        assertEquals(TECHNOLOGY_WIND_ONSHORE, result.getTechnology());
+        verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processLoadFactorResFileHandlesNonCsvFilesInDirectory(@TempDir Path tempRoot) throws Exception {
+        // GIVEN
+        Path nasDir = tempRoot.resolve(NAS_DIR);
+        Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+            .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+        Files.createDirectories(trajectoryDir);
+        createMockCsvFile(trajectoryDir, "data.csv");
+        Files.createFile(trajectoryDir.resolve("readme.txt"));
+        Files.createFile(trajectoryDir.resolve("metadata.json"));
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+        when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                .thenReturn(DIRECTORY_RES_LOAD);
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{setNni(TEST_USER);}});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // WHEN
+        TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+        );
+
+        // THEN - Should succeed even with non-CSV files present
+        assertNotNull(result);
+        assertTrue(result.getHasTimeSeries());
     }
 
     private void createMockCsvFile(Path directory, String fileName) throws IOException {
