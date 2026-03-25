@@ -120,22 +120,44 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     @Override
     public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws Exception {
-        Path trajectoryFilePath = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+        
+        Path trajectoryFilePath = basePath
                 .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
                 .resolve(trajectoryToUse)
                 .resolve(technology).resolve(technology)
                 .normalize();
+
+        // Validate path to prevent directory traversal attacks
+        validatePathSecurity(basePath, trajectoryFilePath, trajectoryToUse);
+        
         checkExistingTs(trajectoryFilePath, trajectoryToUse);
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
         return trajectoryRepository.save(trajectory);
     }
 
+    private static void validatePathSecurity(Path basePath, Path trajectoryFilePath, String trajectoryToUse) throws IOException {
+
+        if (!basePath.endsWith("/")) {
+            basePath = basePath.resolve("");
+        }
+        if (!trajectoryFilePath.startsWith(basePath)) {
+            throw BusinessException.builder()
+                    .message("Invalid trajectory path: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
     private static void checkExistingTs(Path trajectoryFilePath, String trajectoryToUse) throws IOException {
         // technologyPath directory must contain at least one ts .csv file
         if(Files.exists(trajectoryFilePath)) {
+            // Ensure the path is real and validated before using Files.walk
+            Path realPath = trajectoryFilePath.toRealPath();
+            
             //find csv files in technologyPath directory
-            try (var filesStream = Files.walk(trajectoryFilePath, 1)) {
+            try (var filesStream = Files.walk(realPath, 1)) {
                 boolean hasCsv = filesStream
                         .filter(Files::isRegularFile)
                         .anyMatch(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"));
