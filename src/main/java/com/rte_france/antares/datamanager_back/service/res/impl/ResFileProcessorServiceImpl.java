@@ -24,6 +24,10 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
@@ -63,10 +67,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private final TrajectoryServiceImpl trajectoryService;
 
-    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "ToUse", "Area", "Group", "Cluster", "Category"};
-    protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
-            "ToUse", "Area", "Group", "Cluster", "PECD_Zone"};
+    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "Category"};
+    protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "PECD_Zone"};
     protected static final String OFFSHORE = "offshore";
 
     @Transactional
@@ -111,11 +113,87 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
         // Le dernier fichier traité donne le dossier ou fichier de référence
-        Path referencePath = files.size() == 1 ? files.get(0) : files.get(0).getParent();
+        Path referencePath = files.size() == 1 ? files.getFirst() : files.getFirst().getParent();
 
         return saveTrajectory(horizon, areaParam, technology, referencePath, allEntities, checksumBuilder);
     }
 
+    @Override
+    public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws Exception {
+        Path trajectoryFilePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                .resolve(trajectoryToUse)
+                .resolve(technology).resolve(technology)
+                .normalize();
+        checkExistingTs(trajectoryFilePath, trajectoryToUse);
+        TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
+        return trajectoryRepository.save(trajectory);
+    }
+
+    private static void checkExistingTs(Path trajectoryFilePath, String trajectoryToUse) throws IOException {
+        // technologyPath directory must contain at least one ts .csv file
+        if(Files.exists(trajectoryFilePath)) {
+            //find csv files in technologyPath directory
+            try (var filesStream = Files.walk(trajectoryFilePath, 1)) {
+                boolean hasCsv = filesStream
+                        .filter(Files::isRegularFile)
+                        .anyMatch(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"));
+                if (!hasCsv) {
+                    throw BusinessException.builder()
+                            .message("No csv file found in technology folder for load factor misc trajectory: " + trajectoryToUse)
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+        } else {
+            throw BusinessException.builder()
+                    .message("No technology folder found for load factor misc trajectory: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private TrajectoryEntity buildLoadFactorMiscTrajectory(String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws Exception {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+        String checksum = calculateDirectoryChecksum(trajectoryFilePath);
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .fileSize(Files.size(trajectoryFilePath))
+                .creationDate(LocalDateTime.now())
+                .createdBy(createdBy)
+                .checksum(checksum)
+                .lastModificationContentDate(LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(Files.getLastModifiedTime(trajectoryFilePath).toMillis()),
+                        ZoneId.systemDefault()))
+                .horizon(civilToChevalHorizon(horizon))
+                .area(area)
+                .technology(technology)
+                .type(TrajectoryType.RES_LOAD.name())
+                .hasTimeSeries(true)
+                .build();
+
+        var existingTrajectory = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                trajectoryToUse,
+                TrajectoryType.RES_LOAD.name(),
+                horizon,
+                area,
+                technology);
+
+        if (existingTrajectory.isPresent()) {
+            if (existingTrajectory.get().getChecksum().equals(checksum)) {
+                throwAlreadyProcessedFileException(trajectoryFilePath);
+            } else {
+                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
+            }
+        } else {
+            trajectory.setVersion(1);
+        }
+
+        return trajectory;
+    }
     private List<Path> resolveFiles(String trajectoryToUse, String areaParam, String technology) throws IOException {
 
         boolean isFR = "FR".equalsIgnoreCase(areaParam);
