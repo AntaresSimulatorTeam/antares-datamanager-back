@@ -26,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
+import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1253,7 +1254,7 @@ class UtilsTest {
 
             // When / Then
             assertThatNoException()
-                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(areaParam, trajectory));
+                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX));
         }
 
         @Test
@@ -1264,7 +1265,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory),
+                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX),
                     BusinessException.class
             );
 
@@ -1282,7 +1283,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory),
+                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX),
                     BusinessException.class
             );
 

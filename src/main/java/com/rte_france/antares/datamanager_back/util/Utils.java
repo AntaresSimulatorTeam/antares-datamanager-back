@@ -868,7 +868,8 @@ public class Utils {
         return switch (type) {
             case DSR -> "DSR cluster";
             case MISC_CAPACITY -> "MISC";
-            case RES_CAPACITY -> "RES";
+            case RES_CAPACITY -> "RES Installed power";
+            case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological repartition";
             default -> "trajectory";
         };
     }
@@ -989,12 +990,14 @@ public class Utils {
         return yearColIndex;
     }
 
-    public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse) {
-        if (!"FR".equalsIgnoreCase(areaParam) &&
-                !startsWithIgnoreCase(trajectoryToUse, RES_CAPACITY_PREFIX)) {
+    public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse, TrajectoryType trajectoryType, String prefix) {
+        if ((!"FR".equalsIgnoreCase(areaParam) &&
+                !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_CAPACITY) || 
+                (!startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION)
+                ) {
 
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(RES_CAPACITY_PREFIX))
+                    .errorMessageArguments(List.of(prefix))
                     .message("The trajectory file name must start with {0}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -1089,10 +1092,11 @@ public class Utils {
         }
     }
 
-    public void validateEmptyRows(boolean allRowsEmpty) {
+    public void validateEmptyRows(boolean allRowsEmpty, TrajectoryType trajectoryType) {
+        String label = getErrorMessageLabelFromType(trajectoryType);
         if (allRowsEmpty) {
             throw BusinessException.builder()
-                    .message("No area found in RES Installed power trajectory")
+                    .message("No area found in "+ label +" trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
