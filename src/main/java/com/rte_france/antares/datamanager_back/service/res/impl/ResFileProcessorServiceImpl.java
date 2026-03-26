@@ -123,6 +123,68 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
+    @Transactional
+    @Override
+    public TrajectoryEntity processTechnologyDistributionResFile(
+            String trajectoryToUse,
+            String horizon,
+            Integer studyId,
+            String areaParam,
+            String technology,
+            boolean isCivilYear
+    ) throws IOException {
+
+        List<String> studyAreas = loadStudyAreas(studyId);
+        String technologyParam = technology != null ? toSnakeCase(technology): null;
+
+        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
+                TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                areaParam,
+                null
+        );
+
+        validatePrefixIfNeeded(areaParam, trajectoryToUse);
+
+        String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
+        Path filePath = directoryPath.resolve(fileName).normalize();
+
+        if (!filePath.startsWith(directoryPath)) {
+            throw BusinessException.builder()
+                    .message("File not found: " + filePath)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        ResRowProcessingResult aggregated = null;
+        try {
+            ResRowProcessingResult result = processResCapacityFile(
+                    filePath,
+                    filePath.getFileName().toString(),
+                    horizon,
+                    areaParam,
+                    technologyParam,
+                    studyAreas,
+                    isCivilYear,
+                    TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
+            );
+
+            if (aggregated == null) {
+                aggregated = result;
+            } else {
+                aggregated = aggregated.merge(result);
+            }
+
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message("Could not import RES installed power trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+
+        return saveTrajectory(horizon, areaParam, technology, filePath, aggregated, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
+    }
+
     private static void validatePathSecurity(Path basePath, Path trajectoryFilePath, String trajectoryToUse) throws IOException {
 
         if (!basePath.endsWith("/")) {
@@ -622,67 +684,4 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         
         return trajectoryRepository.save(trajectory);
     }
-
-    @Transactional
-    @Override
-    public TrajectoryEntity processTechnologyDistributionResFile(
-            String trajectoryToUse,
-            String horizon,
-            Integer studyId,
-            String areaParam,
-            String technology,
-            boolean isCivilYear
-    ) throws IOException {
-
-        List<String> studyAreas = loadStudyAreas(studyId);
-        String technologyParam = technology != null ? toSnakeCase(technology): null;
-
-        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
-                TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
-                areaParam,
-                null
-        );
-
-        validatePrefixIfNeeded(areaParam, trajectoryToUse);
-
-        String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
-        Path filePath = directoryPath.resolve(fileName).normalize();
-
-        if (!filePath.startsWith(directoryPath)) {
-            throw BusinessException.builder()
-                    .message("File not found: " + filePath)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        ResRowProcessingResult aggregated = null;
-            try {
-                ResRowProcessingResult result = processResCapacityFile(
-                        filePath,
-                        filePath.getFileName().toString(),
-                        horizon,
-                        areaParam,
-                        technologyParam,
-                        studyAreas,
-                        isCivilYear,
-                        TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
-                );
-
-                if (aggregated == null) {
-                    aggregated = result;
-                } else {
-                    aggregated = aggregated.merge(result);
-                }
-
-            } catch (IOException e) {
-                throw BusinessException.builder()
-                        .message("Could not import RES installed power trajectory")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-            
-
-        return saveTrajectory(horizon, areaParam, technology, filePath, aggregated, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
-    }
-
 }
