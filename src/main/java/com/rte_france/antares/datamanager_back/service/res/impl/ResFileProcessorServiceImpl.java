@@ -31,6 +31,7 @@ import java.time.ZoneId;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
+import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -143,7 +144,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 null
         );
 
-        validatePrefixIfNeeded(areaParam, trajectoryToUse);
+        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX);
 
         String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
         Path filePath = directoryPath.resolve(fileName).normalize();
@@ -290,7 +291,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             return files;
 
         } else {
-            validatePrefixIfNeeded(areaParam, trajectoryToUse);
+            validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX);
             
             String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
             Path filePath = directoryPath.resolve(fileName).normalize();
@@ -405,7 +406,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             }
         }
 
-        validateEmptyRows(allRowsEmpty);
+        validateEmptyRows(allRowsEmpty, trajectoryType);
 
         return result;
     }
@@ -476,11 +477,13 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         
         // Check if pecd_zone starts with default area
         // Check if groupe is equal to technology
-        if (!pecdZone.startsWith(context.getAreaParam())) return;
-        result.getFileAreas().add(context.getAreaParam());
+        if (context.getAreaParam() != null ) {
+            result.addArea(area);
+            if (!area.equalsIgnoreCase(context.getAreaParam())) return;
+        }
         
         if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
-        result.getFileTechnologies().add(context.getTechnology());
+        result.addTechnologies(context.getTechnology());
 
         validateEmptyRequiredColumns(context, requiredColumns, group, cluster, pecdZone, pecdTechno);
 
@@ -612,7 +615,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 technology);
     }
 
-    private <T> TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
+    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
         String checksum = calculateChecksum(result.getChecksum().toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
