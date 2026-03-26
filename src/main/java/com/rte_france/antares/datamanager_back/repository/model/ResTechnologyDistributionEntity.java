@@ -31,8 +31,8 @@ public class ResTechnologyDistributionEntity {
     @Column(name = "pecd_technology")
     private String pecdTechnology;
 
-    @Column(name = "capacity_by_year", precision = 4, scale = 2)
-    private BigDecimal capacityByYear;
+    @Column(name = "capacity_by_year")
+    private Integer capacityByYear;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id")
