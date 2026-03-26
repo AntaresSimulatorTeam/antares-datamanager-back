@@ -1048,7 +1048,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFile(Path tempDir, String fileName, List<String> areas, String technology, boolean isNumericValues) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                Sheet sheet0 = wb.createSheet("Sheet0");
+                wb.createSheet("Sheet0");
                 // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
                 wb.setSheetOrder("Sheet1", 1);
@@ -1087,7 +1087,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFileWithNull(Path tempDir, String fileName, List<String> areas, String technology) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                Sheet sheet0 = wb.createSheet("Sheet0");
+                wb.createSheet("Sheet0");
                 // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
                 wb.setSheetOrder("Sheet1", 1);
@@ -1120,7 +1120,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFileWithoutDataRow(Path tempDir, String fileName) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                Sheet sheet0 = wb.createSheet("Sheet0");
+                wb.createSheet("Sheet0");
                 // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
                 wb.setSheetOrder("Sheet1", 1);
@@ -1142,7 +1142,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFileWithMissingColumns(Path tempDir, String fileName, List<String> areas, String technology) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                Sheet sheet0 = wb.createSheet("Sheet0");
+                wb.createSheet("Sheet0");
                 // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
                 wb.setSheetOrder("Sheet1", 1);
