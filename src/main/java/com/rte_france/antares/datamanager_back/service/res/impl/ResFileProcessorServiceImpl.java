@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
@@ -41,8 +40,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
-
-    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final TrajectoryServiceImpl trajectoryService;
 
