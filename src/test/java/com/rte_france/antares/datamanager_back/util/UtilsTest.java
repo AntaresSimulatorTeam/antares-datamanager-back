@@ -1290,7 +1290,7 @@ class UtilsTest {
             // Then
             assertThat(ex).isNotNull();
             assertThat(ex.getErrorMessageArguments())
-                    .containsExactly(RES_CAPACITY_PREFIX);
+                    .containsExactly(RES_TECHNOLOGY_DISTRIBUTION_PREFIX);
         }
 
 
