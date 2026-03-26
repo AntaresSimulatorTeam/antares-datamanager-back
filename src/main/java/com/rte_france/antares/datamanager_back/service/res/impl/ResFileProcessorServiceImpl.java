@@ -692,28 +692,54 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private ResRowProcessingResult merge(ResRowProcessingResult left, ResRowProcessingResult right) {
         return switch (left) {
-            case ResRowProcessingCapacityResult capacityLeft -> switch (right) {
-                case ResRowProcessingCapacityResult capacityRight -> {
-                     capacityLeft.entities().addAll(capacityRight.entities());
-                     capacityLeft.checksum().append(capacityRight.checksum());
-                     capacityLeft.fileAreas().addAll(capacityRight.fileAreas());
-                     capacityLeft.fileTechnologies().addAll(capacityRight.fileTechnologies());
-                     capacityLeft.invalidCombos().addAll(capacityRight.invalidCombos());
-                     yield capacityLeft;
+            case ResRowProcessingCapacityResult(
+                    var entitiesLeft,
+                    var checksumLeft,
+                    var fileAreasLeft,
+                    var fileTechLeft,
+                    var invalidCombosLeft) -> switch (right) {
+                case ResRowProcessingCapacityResult(
+                        var entitiesRight,
+                        var checksumRight,
+                        var fileAreasRight,
+                        var fileTechRight,
+                        var invalidCombosRight
+                ) -> {
+                    entitiesLeft.addAll(entitiesRight);
+                    checksumLeft.append(checksumRight);
+                    fileAreasLeft.addAll(fileAreasRight);
+                    fileTechLeft.addAll(fileTechRight);
+                    invalidCombosLeft.addAll(invalidCombosRight);
+                     yield left;
                 }
                 case ResRowProcessingTechnologyDistributionResult ignored ->  throw new IllegalArgumentException("Cannot merge different result types");
             };
 
-            case ResRowProcessingTechnologyDistributionResult distributionLeft -> switch (right) {
-                case ResRowProcessingTechnologyDistributionResult distributionRight -> {
-                    distributionLeft.entities().addAll(distributionRight.entities());
-                    distributionLeft.checksum().append(distributionRight.checksum());
-                    distributionLeft.fileAreas().addAll(distributionRight.fileAreas());
-                    distributionLeft.fileTechnologies().addAll(distributionRight.fileTechnologies());
-                    distributionLeft.invalidCombos().addAll(distributionRight.invalidCombos());
-                    yield distributionLeft;
+            case ResRowProcessingTechnologyDistributionResult(
+                    var entitiesLeft,
+                    var checksumLeft,
+                    var fileAreasLeft,
+                    var fileTechLeft,
+                    var invalidCombosLeft
+            ) -> switch (right) {
+
+                case ResRowProcessingTechnologyDistributionResult(
+                        var entitiesRight,
+                        var checksumRight,
+                        var fileAreasRight,
+                        var fileTechRight,
+                        var invalidCombosRight
+                ) -> {
+                    entitiesLeft.addAll(entitiesRight);
+                    checksumLeft.append(checksumRight);
+                    fileAreasLeft.addAll(fileAreasRight);
+                    fileTechLeft.addAll(fileTechRight);
+                    invalidCombosLeft.addAll(invalidCombosRight);
+                    yield left;
                 }
-                case ResRowProcessingCapacityResult ignored ->  throw new IllegalArgumentException("Cannot merge different result types");
+
+                case ResRowProcessingCapacityResult ignored ->
+                        throw new IllegalArgumentException("Cannot merge different result types");
             };
         };
     }

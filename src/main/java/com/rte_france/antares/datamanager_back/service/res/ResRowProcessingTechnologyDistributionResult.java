@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.res;
 
-import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
 
 import java.util.List;
