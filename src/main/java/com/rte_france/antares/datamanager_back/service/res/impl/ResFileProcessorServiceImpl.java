@@ -47,12 +47,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private final TrajectoryServiceImpl trajectoryService;
 
+    protected static final String GROUP_COLUMN = "Group";
+    protected static final String CLUSTER_COLUMN = "Cluster";
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "ToUse", "Area", "Group", "Cluster", "Category"};
+            "ToUse", "Area", GROUP_COLUMN, CLUSTER_COLUMN, "Category"};
     protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
-            "ToUse", "Area", "Group", "Cluster", "PECD_Zone"};
+            "ToUse", "Area", GROUP_COLUMN, CLUSTER_COLUMN, "PECD_Zone"};
     protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
-            "Group", "Cluster", "PECD_Zone", "Techno_PECD"};
+            GROUP_COLUMN, CLUSTER_COLUMN, "PECD_Zone", "Techno_PECD"};
     protected static final String OFFSHORE = "offshore";
     protected static final String FILE_FORMAT = ".xlsx";
 
