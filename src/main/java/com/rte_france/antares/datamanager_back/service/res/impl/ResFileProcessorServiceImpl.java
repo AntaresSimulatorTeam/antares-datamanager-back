@@ -90,7 +90,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 if (aggregated == null) {
                     aggregated = result;
                 } else {
-                    aggregated = aggregated.merge(result);
+                    aggregated = merge(aggregated, result);
                 }
 
             } catch (IOException e) {
@@ -174,7 +174,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (aggregated == null) {
                 aggregated = result;
             } else {
-                aggregated = aggregated.merge(result);
+                aggregated = merge(aggregated, result);
             }
 
         } catch (IOException e) {
@@ -355,11 +355,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
-            validateAreas(studyAreas, areaParam, result.getFileAreas(), trajectoryToUse, trajectoryType);
+            validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
             if (technology != null) {
-                validateTechnologyPresence(technology, result.getFileTechnologies(), trajectoryType, trajectoryToUse);
+                validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse);
             }
-            validateInvalidCombos(result.getInvalidCombos(), trajectoryToUse);
+            validateInvalidCombos(result.invalidCombos(), trajectoryToUse);
 
             return result;
         }
@@ -374,7 +374,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     ) {
         boolean allRowsEmpty = true;
         ResRowProcessingResult result;
-        
         if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
             result = new ResRowProcessingTechnologyDistributionResult(
                     new ArrayList<>(),
@@ -392,6 +391,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     new HashSet<>()
             );
         }
+        
         Iterator<Row> rows = sheet.rowIterator();
         rows.next(); // skip header
 
@@ -401,9 +401,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (!ExcelCommonValidator.isRowEmpty(row)) {
                 allRowsEmpty = false;
                 if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
-                    processResDistributionCapacityRow(context, result, row, requiredColumns);
+                    processResDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
                 } else {
-                    processResIPCapacityRow(context, result, row, isOffshore, requiredColumns);   
+                    processResIPCapacityRow(context, (ResRowProcessingCapacityResult) result, row, isOffshore, requiredColumns);   
                 }
             }
         }
@@ -415,7 +415,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private void processResIPCapacityRow(
             ResRowProcessingContext context,
-            ResRowProcessingResult result,
+            ResRowProcessingCapacityResult result,
             Row row,
             boolean isOffshoreTechnology,
             String[] requiredColumns
@@ -464,7 +464,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private void processResDistributionCapacityRow(
             ResRowProcessingContext context,
-            ResRowProcessingResult result,
+            ResRowProcessingTechnologyDistributionResult result,
             Row row,
             String[] requiredColumns
     ) {
@@ -582,11 +582,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             try {
                 return Double.parseDouble(str);
             } catch (NumberFormatException ignored) {
-                result.getInvalidCombos().add(combo);
+                result.invalidCombos().add(combo);
             }
         }
 
-        result.getInvalidCombos().add(combo);
+        result.invalidCombos().add(combo);
         return null;
     }
 
@@ -599,7 +599,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             Number capacityByYear,
             Boolean toUse
     ) {
-        result.getChecksum()
+        result.checksum()
                 .append(area).append("|")
                 .append(group).append("|")
                 .append(cluster).append("|")
@@ -618,7 +618,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
-        String checksum = calculateChecksum(result.getChecksum().toString());
+        String checksum = calculateChecksum(result.checksum().toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
 
@@ -688,5 +688,33 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
         
         return trajectoryRepository.save(trajectory);
+    }
+
+    private ResRowProcessingResult merge(ResRowProcessingResult left, ResRowProcessingResult right) {
+        return switch (left) {
+            case ResRowProcessingCapacityResult capacityLeft -> switch (right) {
+                case ResRowProcessingCapacityResult capacityRight -> {
+                     capacityLeft.entities().addAll(capacityRight.entities());
+                     capacityLeft.checksum().append(capacityRight.checksum());
+                     capacityLeft.fileAreas().addAll(capacityRight.fileAreas());
+                     capacityLeft.fileTechnologies().addAll(capacityRight.fileTechnologies());
+                     capacityLeft.invalidCombos().addAll(capacityRight.invalidCombos());
+                     yield capacityLeft;
+                }
+                case ResRowProcessingTechnologyDistributionResult ignored ->  throw new IllegalArgumentException("Cannot merge different result types");
+            };
+
+            case ResRowProcessingTechnologyDistributionResult distributionLeft -> switch (right) {
+                case ResRowProcessingTechnologyDistributionResult distributionRight -> {
+                    distributionLeft.entities().addAll(distributionRight.entities());
+                    distributionLeft.checksum().append(distributionRight.checksum());
+                    distributionLeft.fileAreas().addAll(distributionRight.fileAreas());
+                    distributionLeft.fileTechnologies().addAll(distributionRight.fileTechnologies());
+                    distributionLeft.invalidCombos().addAll(distributionRight.invalidCombos());
+                    yield distributionLeft;
+                }
+                case ResRowProcessingCapacityResult ignored ->  throw new IllegalArgumentException("Cannot merge different result types");
+            };
+        };
     }
 }
