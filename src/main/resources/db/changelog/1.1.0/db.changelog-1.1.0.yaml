@@ -80,5 +80,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V36-create-res-tables.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V37-create-res-type.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V38-alter-pecd-technology-V37-create-res-type.sql.sql
 
 

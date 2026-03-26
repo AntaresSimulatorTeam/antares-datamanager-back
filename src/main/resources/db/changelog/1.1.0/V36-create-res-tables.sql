@@ -53,7 +53,7 @@ CREATE TABLE res_technology_distribution
     groupe             VARCHAR(40),
     cluster           VARCHAR(40),
     pecd_zone         VARCHAR(10),
-    pecd_technology   VARCHAR(20),
+    pecd_technology   VARCHAR(10),
     capacity_by_year  numeric,
     trajectory_id     INTEGER,
     PRIMARY KEY (id)
