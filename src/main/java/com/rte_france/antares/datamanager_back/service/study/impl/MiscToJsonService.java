@@ -1,14 +1,16 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
+import com.rte_france.antares.datamanager_back.repository.model.MiscGroupEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -29,24 +31,35 @@ public class MiscToJsonService {
         }
 
         Map<String, Object> miscDataMap = new LinkedHashMap<>();
+        Map<String, Double> capacityByGroup = new LinkedHashMap<>();
+        Map<String, Set<String>> seriesByGroup = new LinkedHashMap<>();
 
         for (MiscGenerationDTO dto : areaDtos) {
             String group = dto.getGroupe();
-            if (group == null) continue;
+            if (group == null) {
+                continue;
+            }
+
+            capacityByGroup.merge(group, dto.getCapacity() == null ? 0d : dto.getCapacity(), Double::sum);
+
+            List<String> sourceSeries = dto.getMiscGenTsList() == null ? Collections.emptyList() : dto.getMiscGenTsList();
+            List<String> filteredSeries = sourceSeries.stream()
+                    .filter(fileName -> MiscGroupEnum.matchesSeriesForGroup(fileName, group))
+                    .toList();
+
+            seriesByGroup.computeIfAbsent(group, ignored -> new LinkedHashSet<>()).addAll(filteredSeries);
+        }
+
+        for (Map.Entry<String, Double> entry : capacityByGroup.entrySet()) {
+            String group = entry.getKey();
 
             Map<String, Object> propertiesMap = new LinkedHashMap<>();
-            propertiesMap.put("capacity", dto.getCapacity());
+            propertiesMap.put("capacity", entry.getValue());
             propertiesMap.put("group", group);
 
             Map<String, Object> groupData = new LinkedHashMap<>();
             groupData.put(PROPERTIES, propertiesMap);
-
-            // Filter series for this group
-            List<String> series = dto.getMiscGenTsList().stream()
-                    .filter(fileName -> fileName.toUpperCase().contains("_" + group.toUpperCase() + "."))
-                    .collect(Collectors.toList());
-
-            groupData.put("series", series);
+            groupData.put("series", List.copyOf(seriesByGroup.getOrDefault(group, Collections.emptySet())));
 
             miscDataMap.put(group, groupData);
             log.info("MISC group added {} for area {}", group, areaName);

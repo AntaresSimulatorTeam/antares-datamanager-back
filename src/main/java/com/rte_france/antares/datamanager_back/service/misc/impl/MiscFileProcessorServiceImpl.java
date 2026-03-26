@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRep
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.CategoryEnum;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.MiscGroupEnum;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
@@ -71,20 +72,6 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
     private static final String INSTALLED_MISC_PREFIX = "installedMisc_";
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "Category"};
-
-    // Group constants
-    private static final String GROUP_BIOMASS = "biomass";
-    private static final String GROUP_BIOGAS = "biogas";
-    private static final String GROUP_GEOTHERMAL = "geothermal";
-    private static final String GROUP_OTHER = "other";
-    private static final String GROUP_WASTE = "waste";
-    private static final String GROUP_WAVE = "wave";
-    private static final String GROUP_HYDROKINETIC = "hydrokinetic";
-
-    private static final Set<String> VALID_GROUPS = Set.of(
-            GROUP_BIOMASS, GROUP_BIOGAS, GROUP_GEOTHERMAL, GROUP_OTHER,
-            GROUP_WASTE, GROUP_WAVE, GROUP_HYDROKINETIC
-    );
 
     // Error message constants
     private static final String ERROR_LOAD_FACTOR_NOT_FOUND = "Load factor file not found for group {0}: expected at {1}";
@@ -216,13 +203,13 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         log.warn("No group found for study id {} and area {} in misc cluster capacity table, at least one group is expected to check load factor file(s)", studyId, area);
         //check that all files exist
         List<GroupClusterKey> groupClusterKeyList = List.of(
-                new GroupClusterKey("biomass", ""),
-                new GroupClusterKey("biogas", ""),
-                new GroupClusterKey("geothermal", ""),
-                new GroupClusterKey("other", ""),
-                new GroupClusterKey("waste", ""),
-                new GroupClusterKey("wave", ""),
-                new GroupClusterKey("hydrokinetic", "")
+                new GroupClusterKey(MiscGroupEnum.BIOMASS.value(), ""),
+                new GroupClusterKey(MiscGroupEnum.BIOGAS.value(), ""),
+                new GroupClusterKey(MiscGroupEnum.GEOTHERMAL.value(), ""),
+                new GroupClusterKey(MiscGroupEnum.OTHER.value(), ""),
+                new GroupClusterKey(MiscGroupEnum.WASTE.value(), ""),
+                new GroupClusterKey(MiscGroupEnum.WAVE.value(), ""),
+                new GroupClusterKey(MiscGroupEnum.HYDROKINETIC.value(), "")
         );
         groupClusterKeyList.forEach(groupClusterKey -> {
             Path tsFilePath = getLoadFactorByGroupPath(horizon, trajectoryFilePath, groupClusterKey);
@@ -527,10 +514,10 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         }
 
         // Check if group is a valid group
-        if (!VALID_GROUPS.contains(group.toLowerCase().trim())) {
+        if (!MiscGroupEnum.isValidInputGroup(group)) {
             throw BusinessException.builder()
                     .message("Group {0} is not a valid group. Valid groups are: {1} in Misc trajectory {2}")
-                    .errorMessageArguments(List.of(group, String.join(", ", VALID_GROUPS), context.getTrajectoryToUse()))
+                    .errorMessageArguments(List.of(group, String.join(", ", MiscGroupEnum.LOAD_FACTOR_GROUPS), context.getTrajectoryToUse()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

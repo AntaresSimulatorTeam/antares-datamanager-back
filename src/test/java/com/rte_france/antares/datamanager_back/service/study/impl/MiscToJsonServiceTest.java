@@ -97,4 +97,37 @@ class MiscToJsonServiceTest {
         Map<String, Object> biogasData = (Map<String, Object>) result.get("Biogas");
         assertEquals(List.of("FR_BIOGAS.UUID.arrow"), biogasData.get("series"));
     }
+
+    @Test
+    void buildMiscDataMap_shouldMergeOtherWaveAndHydrokineticIntoOther() {
+        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put("FR", List.of(
+                MiscGenerationDTO.builder()
+                        .capacity(10.0)
+                        .groupe("other")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"))
+                        .build(),
+                MiscGenerationDTO.builder()
+                        .capacity(20.0)
+                        .groupe("other")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"))
+                        .build(),
+                MiscGenerationDTO.builder()
+                        .capacity(30.0)
+                        .groupe("other")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"))
+                        .build()
+        ));
+
+        Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
+
+        assertEquals(1, result.size());
+        assertTrue(result.containsKey("other"));
+
+        Map<String, Object> otherData = (Map<String, Object>) result.get("other");
+        Map<String, Object> otherProps = (Map<String, Object>) otherData.get("properties");
+        assertEquals(60.0, otherProps.get("capacity"));
+        assertEquals("other", otherProps.get("group"));
+        assertEquals(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"), otherData.get("series"));
+    }
 }
