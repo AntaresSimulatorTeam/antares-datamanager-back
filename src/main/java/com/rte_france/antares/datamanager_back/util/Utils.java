@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
+import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
 
 
 /**
@@ -249,6 +250,8 @@ public class Utils {
             prefix = MISC_CAPACITY_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.RES_CAPACITY.toString())) {
             prefix = RES_CAPACITY_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.toString())) {
+            prefix = RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
         } else {
             prefix = "";
         }
@@ -404,7 +407,7 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area, String technology) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY -> getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION -> getFileChecksum(path.toString());
             case RES_CAPACITY -> "FR".equals(area) && (technology == null || technology.isEmpty()) ? "NA" : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
@@ -998,14 +1001,14 @@ public class Utils {
         }
     }
 
-    public Sheet getFirstSheetOrThrow(Workbook workbook, Path filePath) {
-        if (workbook.getNumberOfSheets() == 0) {
+    public Sheet getSheetOrThrow(Workbook workbook, Path filePath, int index) {
+        if (workbook.getNumberOfSheets() == index) {
             throw BusinessException.builder()
                     .message("InstalledRes file has no sheet: " + filePath.getFileName())
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return workbook.getSheetAt(0);
+        return workbook.getSheetAt(index);
     }
 
     public Row getHeaderOrThrow(Sheet sheet, Path filePath) {
@@ -1068,10 +1071,11 @@ public class Utils {
             List<String> studyAreas,
             String selectedArea,
             List<String> fileAreas,
-            String trajectoryToUse
+            String trajectoryToUse,
+            TrajectoryType trajectoryType
     ) {
-        validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.RES_CAPACITY, trajectoryToUse);
-        validateSelectedAreaPresence(selectedArea, fileAreas, TrajectoryType.RES_CAPACITY, trajectoryToUse);
+        validateTrajectoryAreasPresence(studyAreas, fileAreas, trajectoryType, trajectoryToUse);
+        validateSelectedAreaPresence(selectedArea, fileAreas, trajectoryType, trajectoryToUse);
     }
 
     public void validateInvalidCombos(Set<String> invalidCombos, String trajectoryToUse) {

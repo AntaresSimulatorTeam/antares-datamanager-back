@@ -1302,7 +1302,7 @@ class UtilsTest {
         Path filePath = Path.of("test.xlsx");
 
         // When
-        Sheet result = Utils.getFirstSheetOrThrow(wb, filePath);
+        Sheet result = Utils.getSheetOrThrow(wb, filePath, 0);
 
         // Then
         assertThat(result).isSameAs(expectedSheet);
@@ -1316,7 +1316,7 @@ class UtilsTest {
 
         // When
         BusinessException ex = catchThrowableOfType(
-                () -> Utils.getFirstSheetOrThrow(wb, filePath),
+                () -> Utils.getSheetOrThrow(wb, filePath, 0),
                 BusinessException.class
         );
 
@@ -1336,7 +1336,7 @@ class UtilsTest {
 
         // When
         BusinessException ex = catchThrowableOfType(
-                () -> Utils.getFirstSheetOrThrow(wb, filePath),
+                () -> Utils.getSheetOrThrow(wb, filePath, 0),
                 BusinessException.class
         );
 

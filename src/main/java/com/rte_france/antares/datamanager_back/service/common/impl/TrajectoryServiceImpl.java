@@ -109,7 +109,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
     public static final String RES_CAPACITY_PREFIX = "installedres_";
     private static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
-    private static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
+    public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional

@@ -6,12 +6,12 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.res.ResFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.res.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -38,27 +38,6 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @Service
 @RequiredArgsConstructor
 public class ResFileProcessorServiceImpl implements ResFileProcessorService {
-
-    @Getter
-    @RequiredArgsConstructor
-    static class ResRowProcessingContext {
-        private final List<String> studyAreas;
-        private final String areaParam;
-        private final int yearColIndex;
-        private final String trajectoryToUse;
-        private final String technology;
-    }
-
-    @Getter
-    @RequiredArgsConstructor
-    static class ResRowProcessingResult {
-        private final List<ResClusterCapacityEntity> entities;
-        private final StringBuilder checksumBuilder;
-        private final List<String> fileAreas;
-        private final List<String> fileTechnologies;
-        private final Set<String> invalidCombos;
-    }
-
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
@@ -67,9 +46,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private final TrajectoryServiceImpl trajectoryService;
 
-    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "Category"};
-    protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "PECD_Zone"};
+    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
+            "ToUse", "Area", "Group", "Cluster", "Category"};
+    protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
+            "ToUse", "Area", "Group", "Cluster", "PECD_Zone"};
+    protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
+            "Group", "Cluster", "PECD_Zone", "Techno_PECD"};
     protected static final String OFFSHORE = "offshore";
+    protected static final String FILE_FORMAT = ".xlsx";
 
     @Transactional
     @Override
@@ -83,12 +67,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     ) throws IOException {
 
         List<String> studyAreas = loadStudyAreas(studyId);
-        List<ResClusterCapacityEntity> allEntities = new ArrayList<>();
-        StringBuilder checksumBuilder = new StringBuilder();
         String technologyParam = technology != null ? toSnakeCase(technology): null;
 
         List<Path> files = resolveFiles(trajectoryToUse, areaParam, technologyParam);
-
+        ResRowProcessingResult aggregated = null;
         for (Path file : files) {
             try {
                 ResRowProcessingResult result = processResCapacityFile(
@@ -98,11 +80,15 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                         areaParam,
                         technologyParam,
                         studyAreas,
-                        isCivilYear
+                        isCivilYear,
+                        TrajectoryType.RES_CAPACITY
                 );
 
-                allEntities.addAll(result.getEntities());
-                checksumBuilder.append(result.getChecksumBuilder());
+                if (aggregated == null) {
+                    aggregated = result;
+                } else {
+                    aggregated = aggregated.merge(result);
+                }
 
             } catch (IOException e) {
                 throw BusinessException.builder()
@@ -113,9 +99,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
         // Le dernier fichier traité donne le dossier ou fichier de référence
-        Path referencePath = files.size() == 1 ? files.getFirst() : files.getFirst().getParent();
+        Path referencePath = files.size() == 1 ? files.get(0) : files.get(0).getParent();
 
-        return saveTrajectory(horizon, areaParam, technology, referencePath, allEntities, checksumBuilder);
+        return saveTrajectory(horizon, areaParam, technology, referencePath, aggregated, TrajectoryType.RES_CAPACITY);
     }
 
     @Override
@@ -244,7 +230,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         } else {
             validatePrefixIfNeeded(areaParam, trajectoryToUse);
             
-            String fileName = trajectoryToUse.endsWith(".xlsx") ? trajectoryToUse : trajectoryToUse + ".xlsx";
+            String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
             Path filePath = directoryPath.resolve(fileName).normalize();
             
             if (!filePath.startsWith(directoryPath)) {
@@ -265,7 +251,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String areaParam,
             String technology,
             List<String> studyAreas,
-            boolean isCivilYear
+            boolean isCivilYear,
+            TrajectoryType trajectoryType
     ) throws IOException {
 
         // Validate that the file path is trusted and points to a regular file
@@ -278,25 +265,34 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
-
-            Sheet sheet = getFirstSheetOrThrow(workbook, filePath);
-            Row header = getHeaderOrThrow(sheet, filePath);
             
-            boolean isOffshoreTechnology = trajectoryToUse.contains(OFFSHORE);
-
-            String[] requiredColumns = isOffshoreTechnology ? REQUIRED_OFFSHORE_CLUSTER_COLUMNS : REQUIRED_CLUSTER_COLUMNS;
+            int indexSheet = 0;
+            String[] requiredColumns = REQUIRED_CLUSTER_COLUMNS;
+            boolean isOffshoreTechnology = false;
+            if (trajectoryType == TrajectoryType.RES_CAPACITY) {
+                isOffshoreTechnology = trajectoryToUse.contains(OFFSHORE);
+                if (isOffshoreTechnology) {
+                    requiredColumns = REQUIRED_OFFSHORE_CLUSTER_COLUMNS;
+                }
+            }
+            if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
+                indexSheet = 1;
+                requiredColumns = REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS;
+            }
+            Sheet sheet = getSheetOrThrow(workbook, filePath, indexSheet);
+            Row header = getHeaderOrThrow(sheet, filePath);
 
             validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse);
             
             int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryToUse, isCivilYear);
 
             ResRowProcessingContext context = new ResRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse, technology);
+            
+            ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
-            ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology);
-
-            validateAreas(studyAreas, areaParam, result.getFileAreas(), trajectoryToUse);
+            validateAreas(studyAreas, areaParam, result.getFileAreas(), trajectoryToUse, trajectoryType);
             if (technology != null) {
-                validateTechnologyPresence(technology, result.getFileTechnologies(), TrajectoryType.RES_CAPACITY, trajectoryToUse);
+                validateTechnologyPresence(technology, result.getFileTechnologies(), trajectoryType, trajectoryToUse);
             }
             validateInvalidCombos(result.getInvalidCombos(), trajectoryToUse);
 
@@ -307,18 +303,30 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private ResRowProcessingResult processRows(
             Sheet sheet,
             ResRowProcessingContext context,
-            boolean isOffshore
+            boolean isOffshore,
+            String[] requiredColumns,
+            TrajectoryType trajectoryType
     ) {
         boolean allRowsEmpty = true;
-
-        List<ResClusterCapacityEntity> entities = new ArrayList<>();
-        List<String> fileAreas = new ArrayList<>();
-        List<String> fileTechnologies = new ArrayList<>();
-        Set<String> invalidCombos = new LinkedHashSet<>();
-        StringBuilder checksumBuilder = new StringBuilder();
-
-        ResRowProcessingResult result = new ResRowProcessingResult(entities, checksumBuilder, fileAreas, fileTechnologies, invalidCombos);
-
+        ResRowProcessingResult result;
+        
+        if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
+            result = new ResRowProcessingTechnologyDistributionResult(
+                    new ArrayList<>(),
+                    new StringBuilder(),
+                    new ArrayList<>(),
+                    new ArrayList<>(),
+                    new HashSet<>()
+            );
+        } else {
+            result = new ResRowProcessingCapacityResult(
+                    new ArrayList<>(),
+                    new StringBuilder(),
+                    new ArrayList<>(),
+                    new ArrayList<>(),
+                    new HashSet<>()
+            );
+        }
         Iterator<Row> rows = sheet.rowIterator();
         rows.next(); // skip header
 
@@ -327,7 +335,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             if (!ExcelCommonValidator.isRowEmpty(row)) {
                 allRowsEmpty = false;
-                processResCapacityRow(context, result, row, isOffshore);
+                if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
+                    processResDistributionCapacityRow(context, result, row, requiredColumns);
+                } else {
+                    processResIPCapacityRow(context, result, row, isOffshore, requiredColumns);   
+                }
             }
         }
 
@@ -336,11 +348,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return result;
     }
 
-    private void processResCapacityRow(
+    private void processResIPCapacityRow(
             ResRowProcessingContext context,
             ResRowProcessingResult result,
             Row row,
-            boolean isOffshoreTechnology
+            boolean isOffshoreTechnology,
+            String[] requiredColumns
     ) {
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
@@ -357,7 +370,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (!shouldProcessArea(context, result, area, group)) return;
 
-        validateEmptyRequiredColumns(context, isOffshoreTechnology, toUse, area, col2, col3, col4);
+        validateEmptyRequiredColumns(context, requiredColumns, toUse, area, col2, col3, col4);
 
         String combo = "%s/%s/%s".formatted(area, group, cluster);
 
@@ -380,8 +393,53 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             entity.setCategory(col4);
         }
 
-        result.getEntities().add(entity);
+        result.addEntity(entity);
         appendChecksum(result, area, group, cluster, isOffshoreTechnology ? col2 : col4, capacityByYear, toUse);
+    }
+
+    private void processResDistributionCapacityRow(
+            ResRowProcessingContext context,
+            ResRowProcessingResult result,
+            Row row,
+            String[] requiredColumns
+    ) {
+        if (ExcelCommonValidator.isRowEmpty(row)) return;
+
+        // Lecture des colonnes principales
+        String group = getStringCell(row, 0);
+        String cluster = getStringCell(row, 1);
+        String area = getStringCell(row, 2);
+        String pecdZone = getStringCell(row, 3);
+        String pecdTechno = getStringCell(row, 4);
+        
+        // Check if pecd_zone starts with default area
+        // Check if groupe is equal to technology
+        if (!pecdZone.startsWith(context.getAreaParam())) return;
+        result.getFileAreas().add(context.getAreaParam());
+        
+        if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
+        result.getFileTechnologies().add(context.getTechnology());
+
+        validateEmptyRequiredColumns(context, requiredColumns, group, cluster, pecdZone, pecdTechno);
+
+        String combo = "%s/%s/%s".formatted(pecdZone, group, cluster);
+
+        Number numericValue = parseNumericValue(row, context.getYearColIndex(), combo, result);
+        if (numericValue == null) return;
+        
+        int capacityByYear = numericValue.intValue();
+
+        ResTechnologyDistributionEntity entity = ResTechnologyDistributionEntity.builder()
+                .area(area)
+                .groupe(group)
+                .cluster(cluster)
+                .pecdZone(pecdZone)
+                .pecdTechnology(pecdTechno)
+                .capacityByYear(capacityByYear)
+                .build();
+
+        result.addEntity(entity);
+        appendChecksum(result, group, cluster, pecdZone, pecdTechno, capacityByYear, true);
     }
 
     private boolean shouldProcessArea(ResRowProcessingContext context, ResRowProcessingResult result, String area, String technology) {
@@ -394,7 +452,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         // 1. Filtre par area
         if (areaParam != null) {
-            result.getFileAreas().add(area);
+            result.addArea(area);
 
             // Cas normal : areaParam != OTHERS
             if (!OTHERS_AREA.equalsIgnoreCase(areaParam)
@@ -414,26 +472,26 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             return false;
         }
         
-        result.getFileTechnologies().add(technologyParam);
+        result.addTechnologies(technologyParam);
         return true;
     }
 
     private void validateEmptyRequiredColumns(
             ResRowProcessingContext context,
-            boolean isOffshoreTechnology,
-            Boolean toUse,
-            String area,
-            String col2,
-            String col3,
-            String col4
+            String[] requiredColumns,
+            Object... values
     ) {
-        if (toUse == null || area == null || col2 == null || col3 == null || col4 == null) {
-            String[] required = isOffshoreTechnology
-                    ? REQUIRED_OFFSHORE_CLUSTER_COLUMNS
-                    : REQUIRED_CLUSTER_COLUMNS;
+        List<String> missing = new ArrayList<>();
 
+        for (int i = 0; i < requiredColumns.length; i++) {
+            if (values[i] == null) {
+                missing.add(requiredColumns[i]);
+            }
+        }
+
+        if (!missing.isEmpty()) {
             throw BusinessException.builder()
-                    .message(String.join(", ", required)
+                    .message(String.join(", ", missing)
                             + " values can't be empty in Res trajectory "
                             + context.getTrajectoryToUse())
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -471,10 +529,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String group,
             String cluster,
             String categoryOrZone,
-            BigDecimal capacityByYear,
+            Number capacityByYear,
             Boolean toUse
     ) {
-        result.getChecksumBuilder()
+        result.getChecksum()
                 .append(area).append("|")
                 .append(group).append("|")
                 .append(cluster).append("|")
@@ -492,10 +550,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 technology);
     }
 
-    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, StringBuilder checksumBuilder, Path filePath, List<ResClusterCapacityEntity> entities) throws IOException {
-        String checksum = calculateChecksum(checksumBuilder.toString());
-        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, TrajectoryType.RES_CAPACITY, technology);
-        TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology);
+    private <T> TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
+        String checksum = calculateChecksum(result.getChecksum().toString());
+        Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
+        TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
 
         if (existingTrajectory.isPresent() && existingTrajectory.get().getChecksum() != null) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
@@ -510,13 +568,24 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             trajectory.setVersion(1);
         }
 
-        entities.forEach(e -> e.setTrajectory(trajectory));
+        switch (result) {
+            case ResRowProcessingCapacityResult cap -> {
+                cap.entities().forEach(e -> e.setTrajectory(trajectory));
+                trajectory.setResClusterCapacityEntities(cap.entities());
+            }
+
+            case ResRowProcessingTechnologyDistributionResult dist -> {
+                dist.entities().forEach(e -> e.setTrajectory(trajectory));
+                trajectory.setResTechnologyDistributionCapacityEntities(dist.entities());
+            }
+        }
+
         return trajectory;
     }
 
-    private TrajectoryEntity buildInstalledResTrajectory(Path trajectoryFilePath, String horizon, String area, String technology) throws IOException {
+    private TrajectoryEntity buildInstalledResTrajectory(Path trajectoryFilePath, String horizon, String area, String technology, TrajectoryType trajectoryType) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.RES_CAPACITY, area, technology, null);
+        return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, area, technology, null);
     }
 
     private List<String> loadStudyAreas(Integer studyId) {
@@ -526,25 +595,94 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .toList();
     }
 
-    private TrajectoryEntity saveTrajectory(
+    public TrajectoryEntity saveTrajectory(
             String horizon,
             String areaParam,
             String technology,
             Path filePath,
-            List<ResClusterCapacityEntity> entities,
-            StringBuilder checksumBuilder
+            ResRowProcessingResult result,
+            TrajectoryType trajectoryType
     ) throws IOException {
         TrajectoryEntity trajectory = buildResTrajectory(
                 horizon,
                 areaParam,
                 technology,
-                checksumBuilder,
                 filePath,
-                entities
+                trajectoryType,
+                result
         );
 
-        trajectory.setResClusterCapacityEntities(entities);
+        switch (result) {
+            case ResRowProcessingCapacityResult cap ->
+                    trajectory.setResClusterCapacityEntities(cap.entities());
+
+            case ResRowProcessingTechnologyDistributionResult dist ->
+                    trajectory.setResTechnologyDistributionCapacityEntities(dist.entities());
+        }
+        
         return trajectoryRepository.save(trajectory);
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processTechnologyDistributionResFile(
+            String trajectoryToUse,
+            String horizon,
+            Integer studyId,
+            String areaParam,
+            String technology,
+            boolean isCivilYear
+    ) throws IOException {
+
+        List<String> studyAreas = loadStudyAreas(studyId);
+        String technologyParam = technology != null ? toSnakeCase(technology): null;
+
+        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
+                TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                areaParam,
+                null
+        );
+
+        validatePrefixIfNeeded(areaParam, trajectoryToUse);
+
+        String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
+        Path filePath = directoryPath.resolve(fileName).normalize();
+
+        if (!filePath.startsWith(directoryPath)) {
+            throw BusinessException.builder()
+                    .message("File not found: " + filePath)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        ResRowProcessingResult aggregated = null;
+            try {
+                ResRowProcessingResult result = processResCapacityFile(
+                        filePath,
+                        filePath.getFileName().toString(),
+                        horizon,
+                        areaParam,
+                        technologyParam,
+                        studyAreas,
+                        isCivilYear,
+                        TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
+                );
+
+                if (aggregated == null) {
+                    aggregated = result;
+                } else {
+                    aggregated = aggregated.merge(result);
+                }
+
+            } catch (IOException e) {
+                throw BusinessException.builder()
+                        .message("Could not import RES installed power trajectory")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            
+
+        return saveTrajectory(horizon, areaParam, technology, filePath, aggregated, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
     }
 
 }

@@ -7,6 +7,6 @@ public interface ResFileProcessorService {
     TrajectoryEntity processInstalledResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology, boolean isCivilYear) throws IOException;
 
     TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws Exception;
-
-
+    
+    TrajectoryEntity processTechnologyDistributionResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology, boolean isCivilYear) throws IOException;
 }
