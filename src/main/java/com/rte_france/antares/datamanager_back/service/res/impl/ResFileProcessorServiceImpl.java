@@ -320,7 +320,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         // Validate that the file path is trusted and points to a regular file
         if (filePath == null || !Files.isRegularFile(filePath)) {
-            throw new IllegalArgumentException("Invalid or non-existent file path.");
+            throw BusinessException.builder()
+                    .message("File not found: " + filePath)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
 
         // Normalize the path to avoid traversal or symlink tricks
