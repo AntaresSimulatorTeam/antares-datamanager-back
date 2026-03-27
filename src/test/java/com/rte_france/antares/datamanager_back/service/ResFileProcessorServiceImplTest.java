@@ -22,10 +22,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -1641,6 +1643,59 @@ public class ResFileProcessorServiceImplTest {
             );
 
             assertEquals("Could not import RES technology distribution trajectory", ex.getMessage());
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenResFileCannotBeImported(@TempDir Path tempRoot) throws Exception {
+            // GIVEN
+            String trajectory = "repartition_techno_pv_BP23_Aref";
+            String horizon = "2029-2030";
+            Integer studyId = 1;
+            String area = "AT";
+            String tech = "solar_pv";
+
+            // Le fichier attendu par la méthode
+            Path fakeFile = tempRoot.resolve("repartition_techno_pv_BP23_Aref.xlsx");
+            createMockResExcelFile(tempRoot, "repartition_techno_pv_BP23_Aref.xlsx", List.of(area), "solar_pv", true);
+
+            // Mock du répertoire (IMPORTANT : renvoyer le dossier, pas le fichier)
+            when(trajectoryService.normalizeAndValidateDirectory(
+                    eq(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION),
+                    eq(area),
+                    isNull()
+            )).thenReturn(tempRoot);
+
+            // Mock de loadStudyAreas
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(area);
+            }}));
+
+            ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
+
+            // Mock du processResCapacityFile qui doit lancer IOException
+            doThrow(new IOException("boom"))
+                    .when(spy)
+                    .processResCapacityFile(
+                            eq(fakeFile),
+                            anyString(),
+                            eq(horizon),
+                            eq(area),
+                            any(),
+                            anyList(),
+                            eq(false),
+                            eq(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION)
+                    );
+
+            // WHEN + THEN
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> spy.processTechnologyDistributionResFile(
+                            trajectory, horizon, studyId, area, tech, false
+                    )
+            );
+
+            assertEquals("Could not import RES technology distribution trajectory", ex.getMessage());
+            assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         }
     }
 }
