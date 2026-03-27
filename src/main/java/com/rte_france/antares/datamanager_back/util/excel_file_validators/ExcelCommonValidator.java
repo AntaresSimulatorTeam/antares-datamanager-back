@@ -441,8 +441,8 @@ public class ExcelCommonValidator {
                         .build();
             }
 
-            //CSV with comma delimiter
-            String delimiter = ",";
+            // Dynamic delimiter detection
+            String delimiter = headerLine.contains(";") ? ";" : ",";
             String[] headers = headerLine.split(delimiter, -1);
             int lastColumn = headers.length;
 
@@ -457,7 +457,7 @@ public class ExcelCommonValidator {
                     if (valueStr.isEmpty()) continue; // blanks allowed
 
                     try {
-                        //replace comma with dot for decimal parsing
+                        // replace comma with dot for decimal parsing to support both formats regardless of delimiter
                         Double.parseDouble(valueStr.replace(',', '.'));
                     } catch (NumberFormatException e) {
                         String clusterName = headers[colIndex].trim();
