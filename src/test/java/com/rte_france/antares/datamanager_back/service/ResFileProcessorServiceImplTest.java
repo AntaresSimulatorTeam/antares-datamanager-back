@@ -3,39 +3,36 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
+import org.mockito.stubbing.Answer;
 
-import java.nio.file.Path;
-import java.nio.file.Files;
 import java.io.IOException;
-import java.util.Collections;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Row;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import org.mockito.stubbing.Answer;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ResFileProcessorServiceImplTest {
@@ -758,6 +755,37 @@ public class ResFileProcessorServiceImplTest {
                     )
             );
             assertTrue(exception.getMessage().contains("values can't be empty in Res trajectory"));
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws Exception {
+            List<String> areas = List.of(AREA_AT, AREA_AT);
+            createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
+            
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            // Given
+            ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
+            // On mock la méthode interne pour forcer une IOException
+            doThrow(new IOException("boom"))
+                    .when(spy)
+                    .processResCapacityFile(
+                            Mockito.any(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyList(),
+                            Mockito.anyBoolean(),
+                            Mockito.any()
+                    );
+
+            // When + Then
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> spy.processInstalledResFile("installedRES_solar_pv_BP23_Aref", "2029-2030", 1, "AT", "solar", false)
+            );
+
+            assertEquals("Could not process RES installed power trajectory", ex.getMessage());
         }
     }
 
@@ -1566,6 +1594,52 @@ public class ResFileProcessorServiceImplTest {
                     )
             );
             assertTrue(exception.getMessage().contains("No area found in"));
+        }
+
+        @Test
+        void shouldThrowWhenNoFileFoundInTechnologyDistributionRootDirectory(@TempDir Path tempRoot) throws Exception {
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}));
+
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processTechnologyDistributionResFile(
+                            "repartition_techno_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "solar_pv", false
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("File not found:");
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws IOException {
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            // Given
+            ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
+            // On mock la méthode interne pour forcer une IOException
+            doThrow(new IOException("boom"))
+                    .when(spy)
+                    .processResCapacityFile(
+                            Mockito.any(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyList(),
+                            Mockito.anyBoolean(),
+                            Mockito.any()
+                    );
+
+            // When + Then
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> spy.processTechnologyDistributionResFile("repartition_techno_pv_BP23_Aref", "2029-2030", 1, "FR", "solar", false)
+            );
+
+            assertEquals("Could not import RES technology distribution trajectory", ex.getMessage());
         }
     }
 }
