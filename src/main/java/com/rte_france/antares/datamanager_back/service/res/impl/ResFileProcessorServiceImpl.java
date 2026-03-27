@@ -177,7 +177,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         } catch (IOException e) {
             throw BusinessException.builder()
-                    .message("Could not import RES installed power trajectory")
+                    .message("Could not import RES technology distribution trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -307,7 +307,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
     }
 
-    private ResRowProcessingResult processResCapacityFile(
+    public ResRowProcessingResult processResCapacityFile(
             Path filePath,
             String trajectoryToUse,
             String horizon,
