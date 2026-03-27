@@ -65,7 +65,7 @@ public class ResController {
     }
 
     @Operation(summary = "import technology distribution RES trajectory to database ")
-    @PostMapping("/technology-distribution")
+    @PostMapping("/technology-distribution-res")
     public ResponseEntity<TrajectoryDTO> uploadTechnologyDistributionResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) String technology,
