@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.res;
+package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.repository.ResTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity;
