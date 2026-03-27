@@ -157,9 +157,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     .build();
         }
 
-        ResRowProcessingResult aggregated = null;
+        ResRowProcessingResult result = null;
         try {
-            ResRowProcessingResult result = processResCapacityFile(
+            result = processResCapacityFile(
                     filePath,
                     filePath.getFileName().toString(),
                     horizon,
@@ -169,13 +169,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     isCivilYear,
                     TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
             );
-
-            if (aggregated == null) {
-                aggregated = result;
-            } else {
-                aggregated = merge(aggregated, result);
-            }
-
         } catch (IOException e) {
             throw BusinessException.builder()
                     .message("Could not import RES technology distribution trajectory")
@@ -184,7 +177,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
 
-        return saveTrajectory(horizon, areaParam, technology, filePath, aggregated, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
+        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
     }
 
     private static void validatePathSecurity(Path basePath, Path trajectoryFilePath, String trajectoryToUse) throws IOException {
@@ -717,32 +710,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 case ResRowProcessingTechnologyDistributionResult ignored ->  throw new IllegalArgumentException("Cannot merge different result types");
             };
 
-            case ResRowProcessingTechnologyDistributionResult(
-                    var entitiesLeft,
-                    var checksumLeft,
-                    var fileAreasLeft,
-                    var fileTechLeft,
-                    var invalidCombosLeft
-            ) -> switch (right) {
-
-                case ResRowProcessingTechnologyDistributionResult(
-                        var entitiesRight,
-                        var checksumRight,
-                        var fileAreasRight,
-                        var fileTechRight,
-                        var invalidCombosRight
-                ) -> {
-                    entitiesLeft.addAll(entitiesRight);
-                    checksumLeft.append(checksumRight);
-                    fileAreasLeft.addAll(fileAreasRight);
-                    fileTechLeft.addAll(fileTechRight);
-                    invalidCombosLeft.addAll(invalidCombosRight);
-                    yield left;
-                }
-
-                case ResRowProcessingCapacityResult ignored ->
-                        throw new IllegalArgumentException("Cannot merge different result types");
-            };
+            default -> right;
         };
     }
 }
