@@ -286,7 +286,7 @@ public class ResFileProcessorServiceImplTest {
         }
 
         @Test
-        void successfulProcessingWhenOtherAreaWithoutTechnology(@TempDir Path tempRoot) throws Exception {
+        void successfulProcessingWhenSpecificAreaWithoutTechnology(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
@@ -313,6 +313,39 @@ public class ResFileProcessorServiceImplTest {
             assertNotNull(result);
             assertEquals("solar_pv_BP23_Aref", result.getFileName());
             assertEquals(2, result.getResClusterCapacityEntities().size());
+            verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
+        @Test
+        void successfulProcessingWhenOtherAreaWithoutTechnology(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            List<String> areas = List.of(AREA_AT, AREA_IT, AREA_FR);
+            createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_IT);
+            }}));
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni("testUser");
+            }});
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // WHEN
+            TrajectoryEntity result = resFileProcessorServiceImpl.processInstalledResFile(
+                    "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, "OTHERS", null, false
+            );
+
+            // THEN
+            assertNotNull(result);
+            assertEquals("solar_pv_BP23_Aref", result.getFileName());
+            assertEquals(3, result.getResClusterCapacityEntities().size());
             verify(trajectoryRepository).save(any(TrajectoryEntity.class));
         }
 
