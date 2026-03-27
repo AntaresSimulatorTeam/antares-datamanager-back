@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -347,43 +349,19 @@ class ResControllerTest {
 
             verifyNoMoreInteractions(resFileProcessorService);
         }
-
-        @Test
-        void uploadTechnologyDistributionResTrajectory_returnsBadRequest_whenHorizonFormatIsInvalid() throws Exception {
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "2029",
+                "20292030",
+                "abcd-efgh",
+        })
+        void uploadTechnologyDistributionResTrajectory_returnsBadRequest_whenHorizonFormatIsInvalid(String horizon) throws Exception {
             mockMvc.perform(post("/v1/trajectory/technology-distribution-res")
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                             .param("area", "FR")
                             .param("technology", "wind")
                             .param("trajectoryToUse", "repartition_techno_BP23_Aref")
-                            .param("horizon", "2029")
-                            .param("studyId", "1"))
-                    .andExpect(status().isBadRequest());
-
-            verifyNoMoreInteractions(resFileProcessorService);
-        }
-
-        @Test
-        void uploadTechnologyDistributionResTrajectory_returnsBadRequest_whenHorizonMissingDash() throws Exception {
-            mockMvc.perform(post("/v1/trajectory/technology-distribution-res")
-                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                            .param("area", "FR")
-                            .param("technology", "wind")
-                            .param("trajectoryToUse", "repartition_techno_BP23_Aref")
-                            .param("horizon", "20292030")
-                            .param("studyId", "1"))
-                    .andExpect(status().isBadRequest());
-
-            verifyNoMoreInteractions(resFileProcessorService);
-        }
-
-        @Test
-        void uploadTechnologyDistributionResTrajectory_returnsBadRequest_whenHorizonContainsNonDigits() throws Exception {
-            mockMvc.perform(post("/v1/trajectory/technology-distribution-res")
-                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                            .param("area", "FR")
-                            .param("technology", "wind")
-                            .param("trajectoryToUse", "repartition_techno_BP23_Aref")
-                            .param("horizon", "abcd-efgh")
+                            .param("horizon", horizon)
                             .param("studyId", "1"))
                     .andExpect(status().isBadRequest());
 
