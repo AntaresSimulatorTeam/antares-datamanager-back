@@ -321,7 +321,7 @@ class ThermalParamModulationServiceImplTest {
 
         BufferedReader reader = new BufferedReader(new StringReader(data));
 
-        thermalParamModulationService.processFileLines(reader, columns, writers);
+        thermalParamModulationService.processFileLines(reader, columns, writers, ";");
         thermalParamModulationService.closeAll(writers);
 
         // Vérifie le contenu
@@ -344,7 +344,7 @@ class ThermalParamModulationServiceImplTest {
 
         BufferedReader reader = new BufferedReader(new StringReader(data));
 
-        thermalParamModulationService.processFileLines(reader, columns, writers);
+        thermalParamModulationService.processFileLines(reader, columns, writers, ";");
         thermalParamModulationService.closeAll(writers);
 
         assertLinesMatch(List.of("VALUE"), Files.readAllLines(outA));
@@ -365,7 +365,7 @@ class ThermalParamModulationServiceImplTest {
 
         BufferedReader reader = new BufferedReader(new StringReader(data));
 
-        thermalParamModulationService.processFileLines(reader, columns, writers);
+        thermalParamModulationService.processFileLines(reader, columns, writers, ";");
         thermalParamModulationService.closeAll(writers);
 
         assertLinesMatch(List.of("ONLYA"), Files.readAllLines(outA));
@@ -405,14 +405,20 @@ class ThermalParamModulationServiceImplTest {
     }
 
     @Test
-    void testEmptyFile_returnsEmpty() throws IOException {
+    void splitCmAndMrParamFiles_shouldHandleCommaDelimiter() throws IOException {
+        Path file = tempDir.resolve("comma.csv");
+        Files.writeString(file, "c0,c1,A,B\n1,2,VALA,VALB\n3,4,VALA2,VALB2");
 
-        Path file = tempDir.resolve("empty.csv");
-        Files.writeString(file, "");
+        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, Set.of("A", "B"));
 
-        List<Path> result = thermalParamModulationService.splitCmAndMrParamFiles(file, Set.of("a"));
+        assertEquals(2, result.size());
+        Path fileA = result.stream().filter(p -> p.getFileName().toString().contains("A")).findFirst().orElseThrow();
+        Path fileB = result.stream().filter(p -> p.getFileName().toString().contains("B")).findFirst().orElseThrow();
 
-        assertTrue(result.isEmpty());
+        // ThermalParamModulationServiceImpl.processFileLines does NOT write a header.
+        // It only writes values.
+        assertLinesMatch(List.of("VALA", "VALA2"), Files.readAllLines(fileA));
+        assertLinesMatch(List.of("VALB", "VALB2"), Files.readAllLines(fileB));
     }
 
     @Test

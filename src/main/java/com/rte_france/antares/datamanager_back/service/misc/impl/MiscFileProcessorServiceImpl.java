@@ -375,7 +375,8 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             try (Scanner scanner = new Scanner(tsFilePath)) {
                 if (scanner.hasNextLine()) {
                     String headerLine = scanner.nextLine();
-                    return Arrays.stream(headerLine.split(";"))
+                    String delimiter = headerLine.contains(";") ? ";" : ",";
+                    return Arrays.stream(headerLine.split(delimiter))
                             .map(s -> s.strip().replace("\"", "").toLowerCase())
                             .toList();
                 } else {

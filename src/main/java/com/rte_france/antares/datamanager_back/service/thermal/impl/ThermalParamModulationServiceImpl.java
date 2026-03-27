@@ -172,7 +172,8 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         try (var reader = Files.newBufferedReader(normalized, StandardCharsets.UTF_8)) {
             String header = reader.readLine();
             if (header != null) {
-                String[] columns = header.split(";");
+                String delimiter = header.contains(";") ? ";" : ",";
+                String[] columns = header.split(delimiter);
                 return Arrays.stream(columns)
                         .skip(2)
                         .map(String::toLowerCase)// Ignore DATE_HEURE et heure
@@ -273,7 +274,8 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
                 return generatedFiles;
             }
 
-            String[] columns = header.split(";");
+            String delimiter = header.contains(";") ? ";" : ",";
+            String[] columns = header.split(delimiter);
 
             if (columns.length <= 2) {
                 return generatedFiles;
@@ -283,7 +285,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
 
             try {
                 writers = createWriters(columns, file, tmpDir, generatedFiles, allowedClusters);
-                processFileLines(reader, columns, writers);
+                processFileLines(reader, columns, writers, delimiter);
             } finally {
                 if (writers != null) closeAll(writers);
             }
@@ -316,13 +318,13 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
     }
 
 
-    public void processFileLines(BufferedReader reader, String[] columns, Map<Integer, BufferedWriter> writers) throws IOException {
+    public void processFileLines(BufferedReader reader, String[] columns, Map<Integer, BufferedWriter> writers, String delimiter) throws IOException {
         String line;
 
         while ((line = reader.readLine()) != null) {
             if (line.isBlank()) continue;
 
-            String[] fields = line.split(";");
+            String[] fields = line.split(delimiter);
             if (fields.length < 2) continue;
 
             for (int i = 2; i < columns.length; i++) {

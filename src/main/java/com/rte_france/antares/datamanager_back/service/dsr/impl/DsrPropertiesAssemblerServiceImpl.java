@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.mapper.DsrMapper;
 import com.rte_france.antares.datamanager_back.repository.model.DsrCapacityModulationEntity;
 import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity;
@@ -17,6 +18,7 @@ import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSerie
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
@@ -199,17 +201,18 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                 throw new IOException(ex);
             }
         } else if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
-            try {
-                matrix = localReader.readFromTxt(file);
-            } catch (Exception ex) {
-                throw new IOException(ex);
-            }
+            throw BusinessException.builder()
+                    .message("Generation error capacity modulation files should have .xlsx extension .csv or .txt not supported")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         } else {
             return generatedFiles;
         }
 
         if (matrix.columns().isEmpty()) {
-            return generatedFiles;
+            throw TechnicalException.builder()
+                    .message("The matrix of the capacity modulation file is empty: " + file.getFileName())
+                    .build();
         }
 
         Path tmpDir = Files.createTempDirectory("dsr_param_modulation_split_",
