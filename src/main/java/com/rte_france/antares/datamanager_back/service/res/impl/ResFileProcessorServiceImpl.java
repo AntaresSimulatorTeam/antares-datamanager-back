@@ -94,11 +94,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     }
                 })
                 .reduce(this::merge)
-                .orElseThrow(() -> BusinessException.builder()
-                        .message("Could not import RES installed power trajectory")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build()
-                );
+                .orElse(null);
 
         // Le dernier fichier traité donne le dossier ou fichier de référence
         Path referencePath = files.size() == 1 ? files.get(0) : files.get(0).getParent();
