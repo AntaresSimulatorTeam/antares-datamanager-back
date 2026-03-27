@@ -328,8 +328,6 @@ public class ResFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                setName(AREA_AT);
-            }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -350,7 +348,7 @@ public class ResFileProcessorServiceImplTest {
         }
 
         @Test
-        void successfulProcessingWhenOtherAreaWithTechnology(@TempDir Path tempRoot) throws Exception {
+        void successfulProcessingWhenSpecificAreaWithTechnology(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
             createMockResExcelFile(tempRoot, "installedRES_solar_thermo_BP23_Aref.xlsx", List.of(AREA_FR, AREA_AT), "solar_thermo", true);
@@ -461,6 +459,48 @@ public class ResFileProcessorServiceImplTest {
                     ))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("File already processed");
+        }
+
+        @Test
+        void shouldThrowWhenNoFileFoundInFRDirectory(@TempDir Path tempRoot) throws Exception {
+            Path frDir = tempRoot.resolve(AREA_FR);
+            Files.createDirectories(frDir);
+
+            Path nestedDir = frDir.resolve(BP_23_REF);
+            Files.createDirectories(nestedDir);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}));
+            
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processInstalledResFile(
+                            "BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("No FR res capacity file found in directory:");
+        }
+
+        @Test
+        void shouldThrowWhenNoFileFoundInIPRootDirectory(@TempDir Path tempRoot) throws Exception {
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}));
+
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processInstalledResFile(
+                            "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "solar_pv", false
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("File not found:");
         }
 
         @Test
