@@ -38,7 +38,6 @@ public class DsrPropertiesAssemblerServiceImpl implements DsrGenerationAssembler
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
-    private static final String INTERMEDIARY_PREFIX = ".csv";
 
 @Override
 public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
@@ -75,13 +74,14 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
 }
 
     private static @NonNull List<String> getClusterModulationFiles(List<String> modulationFiles, String clusterKey, String nameKey) {
+        String clusterSuffix = "_" + clusterKey + ".";
+        String nameSuffix = (nameKey != null) ? "_" + nameKey + "." : null;
+
         return modulationFiles.stream()
                 .filter(fileName -> {
-                    int csvIndex = fileName.indexOf(INTERMEDIARY_PREFIX);
-                    if (csvIndex == -1) return false;
-                    String baseFileName = fileName.substring(0, csvIndex + 4);
-                    return baseFileName
-                            .endsWith("_" + clusterKey + INTERMEDIARY_PREFIX) || (nameKey != null && baseFileName.endsWith("_" + nameKey + INTERMEDIARY_PREFIX));
+                    String lowerFileName = fileName.toLowerCase();
+                    return lowerFileName.contains(clusterSuffix.toLowerCase()) ||
+                            (nameSuffix != null && lowerFileName.contains(nameSuffix.toLowerCase()));
                 })
                 .toList();
     }
@@ -192,13 +192,20 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
         var localReader = (this.timeSeriesReader != null)
                 ? this.timeSeriesReader
                 : new TimeSeriesReader();
-        if (!fileName.endsWith(".xlsx")) {
-            return generatedFiles;
-        }
-        try {
-            matrix = localReader.readFromXlsx(file, horizon);
-        } catch (Exception ex) {
+        if (fileName.endsWith(".xlsx")) {
+            try {
+                matrix = localReader.readFromXlsx(file, horizon);
+            } catch (Exception ex) {
                 throw new IOException(ex);
+            }
+        } else if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
+            try {
+                matrix = localReader.readFromTxt(file);
+            } catch (Exception ex) {
+                throw new IOException(ex);
+            }
+        } else {
+            return generatedFiles;
         }
 
         if (matrix.columns().isEmpty()) {
@@ -224,6 +231,9 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
             if (bwOpt.isEmpty()) continue;
 
             try (BufferedWriter bw = bwOpt.get()) {
+                // Write a header (column name) so that NasFileService (using readFromTxt) correctly identifies it as a header
+                bw.write(clusterName);
+                bw.newLine();
                 for (double value : column.values()) {
                     bw.write(String.valueOf(value));
                     bw.newLine();
