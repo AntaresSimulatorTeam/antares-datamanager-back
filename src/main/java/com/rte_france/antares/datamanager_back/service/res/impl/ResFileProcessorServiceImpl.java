@@ -73,33 +73,31 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         String technologyParam = technology != null ? toSnakeCase(technology): null;
 
         List<Path> files = resolveFiles(trajectoryToUse, areaParam, technologyParam);
-        ResRowProcessingResult aggregated = null;
-        for (Path file : files) {
-            try {
-                ResRowProcessingResult result = processResCapacityFile(
-                        file,
-                        file.getFileName().toString(),
-                        horizon,
-                        areaParam,
-                        technologyParam,
-                        studyAreas,
-                        isCivilYear,
-                        TrajectoryType.RES_CAPACITY
-                );
-
-                if (aggregated == null) {
-                    aggregated = result;
-                } else {
-                    aggregated = merge(aggregated, result);
-                }
-
-            } catch (IOException e) {
-                throw BusinessException.builder()
+        ResRowProcessingResult aggregated = files.stream()
+                .map(file -> {
+                    try {
+                        return processResCapacityFile(
+                                file,
+                                file.getFileName().toString(),
+                                horizon,
+                                areaParam,
+                                technologyParam,
+                                studyAreas,
+                                isCivilYear,
+                                TrajectoryType.RES_CAPACITY);
+                    } catch (IOException e) {
+                        throw BusinessException.builder()
+                                .message("Could not process RES installed power trajectory")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
+                })
+                .reduce(this::merge)
+                .orElseThrow(() -> BusinessException.builder()
                         .message("Could not import RES installed power trajectory")
                         .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-        }
+                        .build()
+                );
 
         // Le dernier fichier traité donne le dossier ou fichier de référence
         Path referencePath = files.size() == 1 ? files.get(0) : files.get(0).getParent();
