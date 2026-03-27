@@ -62,6 +62,7 @@ public class ResFileProcessorServiceImplTest {
     private static final String WIND_OFFSHORE_LABEL = "Wind Offshore";
     private static final String WIND_ONSHORE_LABEL = "Wind Onshore";
     private static final int STUDY_ID = 1;
+    protected static final String FILE_NOT_FOUND = "File not found: ";
 
     @InjectMocks
     private ResFileProcessorServiceImpl resFileProcessorServiceImpl;
@@ -497,7 +498,7 @@ public class ResFileProcessorServiceImplTest {
                             "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "solar_pv", false
                     ))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("File not found:");
+                    .hasMessageContaining(FILE_NOT_FOUND);
         }
 
         @Test
@@ -1611,7 +1612,7 @@ public class ResFileProcessorServiceImplTest {
                             "repartition_techno_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "solar_pv", false
                     ))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("File not found:");
+                    .hasMessageContaining(FILE_NOT_FOUND);
         }
 
         @Test
