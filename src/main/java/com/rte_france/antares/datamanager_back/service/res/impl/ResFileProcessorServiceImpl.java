@@ -57,6 +57,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             GROUP_COLUMN, CLUSTER_COLUMN, "PECD_Zone", "Techno_PECD"};
     protected static final String OFFSHORE = "offshore";
     protected static final String FILE_FORMAT = ".xlsx";
+    protected static final String FILE_NOT_FOUND = "File not found: ";
 
     @Transactional
     @Override
@@ -151,7 +152,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (!filePath.startsWith(directoryPath)) {
             throw BusinessException.builder()
-                    .message("File not found: " + filePath)
+                    .message(FILE_NOT_FOUND + filePath)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -298,7 +299,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             
             if (!filePath.startsWith(directoryPath)) {
                 throw BusinessException.builder()
-                        .message("File not found: " + filePath)
+                        .message(FILE_NOT_FOUND + filePath)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -321,7 +322,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         // Validate that the file path is trusted and points to a regular file
         if (filePath == null || !Files.isRegularFile(filePath)) {
             throw BusinessException.builder()
-                    .message("File not found: " + filePath)
+                    .message(FILE_NOT_FOUND + filePath)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
