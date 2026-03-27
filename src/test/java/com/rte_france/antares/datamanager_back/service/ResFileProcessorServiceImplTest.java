@@ -243,7 +243,7 @@ public class ResFileProcessorServiceImplTest {
 
             // THEN
             assertNotNull(result);
-            assertEquals("solar_pv_BP23_Aref", result.getFileName());
+            assertEquals(BP_23_REF, result.getFileName());
             assertEquals(1, result.getResClusterCapacityEntities().size());
             verify(trajectoryRepository).save(any(TrajectoryEntity.class));
         }

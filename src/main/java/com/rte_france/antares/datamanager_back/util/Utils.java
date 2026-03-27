@@ -143,8 +143,9 @@ public class Utils {
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
             createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
         String checksum = computeChecksumByType(path, trajectoryType, horizon, area, technology);
+        String fileName = trajectoryType == TrajectoryType.RES_CAPACITY && Objects.equals(area, "FR") && (technology != null && !technology.isEmpty()) ? path.getParent().getFileName().toString() : path.getFileName().toString();
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(fileName, trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
