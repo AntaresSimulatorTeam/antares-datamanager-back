@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;

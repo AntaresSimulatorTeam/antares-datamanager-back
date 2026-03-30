@@ -1,9 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.sts;
 
-
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-
-import java.io.IOException;
 
 public interface StStorageFileProcessorService {
 

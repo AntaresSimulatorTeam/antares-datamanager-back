@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.service.area_link;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
