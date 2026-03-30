@@ -31,6 +31,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -232,5 +233,91 @@ class MiscGenerationAssemblerServiceImplTest {
             assertEquals(MiscGroupEnum.OTHER.value(), dto.getGroupe());
             assertEquals(List.of("FR_other.UUID.arrow"), dto.getMiscGenTsList());
         });
+    }
+
+    @Test
+    void assembleMiscProperties_shouldProcessNonOtherAreaWhenLoadTrajectoryHasFileName() throws IOException {
+        StudyEntity study = new StudyEntity();
+        study.setId(1);
+        study.setHorizon("2030-2031");
+
+        TrajectoryEntity capacityTrajectory = new TrajectoryEntity();
+        capacityTrajectory.setId(100);
+        capacityTrajectory.setType("MISC_CAPACITY");
+        capacityTrajectory.setArea("FR");
+        capacityTrajectory.setHorizon("2030-2031");
+
+        MiscClusterCapacityEntity biogas = new MiscClusterCapacityEntity();
+        biogas.setArea("FR");
+        biogas.setGroupe("biogas");
+        biogas.setCluster("cluster_biogas");
+        biogas.setCapacityByYear(BigDecimal.valueOf(10.0));
+        capacityTrajectory.setMiscClusterCapacityEntities(List.of(biogas));
+
+        TrajectoryEntity loadTrajectory = new TrajectoryEntity();
+        loadTrajectory.setType("MISC_LOAD");
+        loadTrajectory.setArea("FR");
+        loadTrajectory.setFileName("misc_load_fr");
+
+        study.setTrajectories(Set.of(capacityTrajectory, loadTrajectory));
+
+        String trajectoryRoot = "traj";
+        String miscLoadDir = "misc_load";
+        String outputDir = "misc_gen_ts";
+        Path basePath = tempDir.resolve(trajectoryRoot).resolve(miscLoadDir).resolve("misc_load_fr");
+        Path biogasFile = basePath.resolve("biogas").resolve("cluster_biogas").resolve("load_factor_cluster_biogas_2030-2031.csv");
+        Files.createDirectories(biogasFile.getParent());
+        Files.createFile(biogasFile);
+
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> groupMap = new LinkedHashMap<>();
+        groupMap.put(new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "cluster_biogas"), List.of("FR"));
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryRoot);
+        when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn(miscLoadDir);
+        when(antaresDataManagerProperties.getMiscGenTsOutputDirectory()).thenReturn(outputDir);
+        when(miscFileProcessorService.getAreasByGroupClusterByTrajectoryId(100)).thenReturn(groupMap);
+        when(timeSeriesReader.readFromTxt(biogasFile)).thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("FR", new double[]{0.2, 0.4}))));
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_biogas"), eq(outputDir))).thenReturn("FR_biogas.UUID.arrow");
+
+        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+
+        verify(miscFileProcessorService, times(1)).getAreasByGroupClusterByTrajectoryId(100);
+        verify(nasFileService, times(1)).saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_biogas"), eq(outputDir));
+        assertTrue(result.containsKey("FR"));
+        assertEquals(List.of("FR_biogas.UUID.arrow"), result.get("FR").get(0).getMiscGenTsList());
+    }
+
+    @Test
+    void assembleMiscProperties_shouldSkipNonOtherAreaWhenLoadTrajectoryFileNameIsNull() throws IOException {
+        StudyEntity study = new StudyEntity();
+        study.setId(1);
+        study.setHorizon("2030-2031");
+
+        TrajectoryEntity capacityTrajectory = new TrajectoryEntity();
+        capacityTrajectory.setId(101);
+        capacityTrajectory.setType("MISC_CAPACITY");
+        capacityTrajectory.setArea("FR");
+
+        MiscClusterCapacityEntity biogas = new MiscClusterCapacityEntity();
+        biogas.setArea("FR");
+        biogas.setGroupe("biogas");
+        biogas.setCluster("cluster_biogas");
+        biogas.setCapacityByYear(BigDecimal.valueOf(10.0));
+        capacityTrajectory.setMiscClusterCapacityEntities(List.of(biogas));
+
+        TrajectoryEntity loadTrajectory = new TrajectoryEntity();
+        loadTrajectory.setType("MISC_LOAD");
+        loadTrajectory.setArea("FR");
+        loadTrajectory.setFileName(null);
+
+        study.setTrajectories(Set.of(capacityTrajectory, loadTrajectory));
+
+        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+
+        verify(miscFileProcessorService, never()).getAreasByGroupClusterByTrajectoryId(anyInt());
+        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
+        assertTrue(result.containsKey("FR"));
+        assertTrue(result.get("FR").get(0).getMiscGenTsList().isEmpty());
     }
 }
