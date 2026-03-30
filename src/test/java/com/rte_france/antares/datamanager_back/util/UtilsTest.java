@@ -57,7 +57,7 @@ class UtilsTest {
 
 
     @Test
-    void isSameFileWithSameContent_returnsTrueForIdenticalFile() throws IOException {
+    void isSameFileWithSameContent_returnsTrueForIdenticalFile() throws Exception {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setHorizon("2030-2031");
@@ -72,7 +72,7 @@ class UtilsTest {
     }
 
     @Test
-    void isSameFileWithSameContent_returnsFalseForDifferentFile() throws IOException {
+    void isSameFileWithSameContent_returnsFalseForDifferentFile() throws Exception {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setFileName("differentFile");

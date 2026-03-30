@@ -83,14 +83,14 @@ public class Utils {
     }
 
 
-    public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws Exception {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), null));
+                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
     }
 
-    public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws Exception {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), null));
+                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
     }
 
     public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
@@ -145,8 +145,8 @@ public class Utils {
      * @throws IOException if an I/O error occurs
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
-            createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
-        String checksum = computeChecksumByType(path, trajectoryType, horizon, area, technology);
+            createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws Exception {
+        String checksum = computeChecksumByType(path, trajectoryType, horizon, area);
         String fileName = getFilePath(trajectoryType, area, technology, path);
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(fileName, trajectoryType.name()))// file name without extension
@@ -172,7 +172,7 @@ public class Utils {
      * @param trajectoryEntity The TrajectoryEntity to compare the file to.
      * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
      */
-    public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity) throws Exception {
         if (isSameFileWithDifferentContent(path, trajectoryEntity)) {
             log.info("File already processed but with different content : {}", path.getFileName());
             return true;
@@ -410,10 +410,10 @@ public class Utils {
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
      */
-    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area, String technology) throws IOException {
+    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws Exception {
         return switch (type) {
             case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION -> getFileChecksum(path.toString());
-            case RES_CAPACITY -> "FR".equals(area) && (technology == null || technology.isEmpty()) ? "NA" : getFileChecksum(path.toString());
+            case RES_CAPACITY -> "FR".equals(area) ? calculateDirectoryChecksum(path) : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";

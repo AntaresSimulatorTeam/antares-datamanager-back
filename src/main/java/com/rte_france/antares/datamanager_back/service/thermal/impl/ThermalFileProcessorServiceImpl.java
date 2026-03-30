@@ -73,10 +73,9 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @param list    The list of thermal common parameter entities.
      * @param type    The type of trajectory.
      * @return The saved trajectory entity.
-     * @throws IOException If an error occurs while processing the file.
      */
     @Override
-    public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws IOException {
+    public TrajectoryEntity processThermalCommonParameterFile(Path path, String horizon, List<ThermalCommonParameterEntity> list, TrajectoryType type) throws Exception {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         // Find existing trajectory for same file name/horizon/type
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
@@ -109,13 +108,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
      * @throws IOException If an error occurs while processing the file.
      */
     @Override
-    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws IOException {
+    public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws Exception {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology, null), thermalClusterCapacityDto, type);
     }
 
     @Override
-    public TrajectoryEntity processThermalEconomicCostsAndRatesFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, List<ThermalCostsRateEntity> thermalEconomicRates, TrajectoryType type) throws IOException {
+    public TrajectoryEntity processThermalEconomicCostsAndRatesFile(Path path, String horizon, List<ThermalCostTypeEntity> thermalEconomicCosts, List<ThermalCostsRateEntity> thermalEconomicRates, TrajectoryType type) throws Exception {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         String trajectoryTypeName = TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name();

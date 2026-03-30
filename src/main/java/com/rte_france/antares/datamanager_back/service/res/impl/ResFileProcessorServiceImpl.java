@@ -68,12 +68,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String areaParam,
             String technology,
             boolean isCivilYear
-    ) throws IOException {
+    ) throws Exception {
 
         List<String> studyAreas = loadStudyAreas(studyId);
         String technologyParam = technology != null ? toSnakeCase(technology): null;
-
-        List<Path> files = resolveFiles(trajectoryToUse, areaParam, technologyParam);
+        boolean isFR = "FR".equalsIgnoreCase(areaParam);
+        List<Path> files = resolveFiles(isFR, trajectoryToUse, areaParam, technologyParam);
         ResRowProcessingResult aggregated = files.stream()
                 .map(file -> {
                     try {
@@ -97,7 +97,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .orElse(null);
 
         // Le dernier fichier traité donne le dossier ou fichier de référence
-        Path referencePath = files.size() == 1 ? files.get(0) : files.get(0).getParent();
+        Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
 
         return saveTrajectory(horizon, areaParam, technology, referencePath, aggregated, TrajectoryType.RES_CAPACITY);
     }
@@ -144,7 +144,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String areaParam,
             String technology,
             boolean isCivilYear
-    ) throws IOException {
+    ) throws Exception {
 
         List<String> studyAreas = loadStudyAreas(studyId);
         String technologyParam = technology != null ? toSnakeCase(technology): null;
@@ -313,9 +313,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         return trajectory;
     }
-    private List<Path> resolveFiles(String trajectoryToUse, String areaParam, String technology) throws IOException {
-
-        boolean isFR = "FR".equalsIgnoreCase(areaParam);
+    private List<Path> resolveFiles(boolean isFR, String trajectoryToUse, String areaParam, String technology) throws IOException {
 
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_CAPACITY,
@@ -508,7 +506,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
         result.addEntity(entity);
-        appendChecksum(result, area, group, cluster, isOffshoreTechnology ? col2 : col4, capacityByYear, toUse);
     }
 
     private void processResDistributionCapacityRow(
@@ -555,7 +552,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .build();
 
         result.addEntity(entity);
-        appendChecksum(result, group, cluster, pecdZone, pecdTechno, capacityByYear, true);
     }
 
     private boolean shouldProcessArea(ResRowProcessingContext context, ResRowProcessingResult result, String area, String technology) {
@@ -638,24 +634,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         result.invalidCombos().add(combo);
         return null;
     }
-
-    private void appendChecksum(
-            ResRowProcessingResult result,
-            String area,
-            String group,
-            String cluster,
-            String categoryOrZone,
-            Number capacityByYear,
-            Boolean toUse
-    ) {
-        result.checksum()
-                .append(area).append("|")
-                .append(group).append("|")
-                .append(cluster).append("|")
-                .append(categoryOrZone).append("|")
-                .append(capacityByYear).append("|")
-                .append(toUse).append("\n");
-    }
     
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
@@ -666,7 +644,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 technology);
     }
 
-    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
+    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws Exception {
         String checksum = calculateChecksum(result.checksum().toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
@@ -699,7 +677,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return trajectory;
     }
 
-    private TrajectoryEntity buildInstalledResTrajectory(Path trajectoryFilePath, String horizon, String area, String technology, TrajectoryType trajectoryType) throws IOException {
+    private TrajectoryEntity buildInstalledResTrajectory(Path trajectoryFilePath, String horizon, String area, String technology, TrajectoryType trajectoryType) throws Exception {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, area, technology, null);
     }
@@ -718,7 +696,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             Path filePath,
             ResRowProcessingResult result,
             TrajectoryType trajectoryType
-    ) throws IOException {
+    ) throws Exception {
         TrajectoryEntity trajectory = buildResTrajectory(
                 horizon,
                 areaParam,
