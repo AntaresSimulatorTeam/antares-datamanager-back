@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.never;
@@ -319,5 +321,121 @@ class MiscGenerationAssemblerServiceImplTest {
         verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
         assertTrue(result.containsKey("FR"));
         assertTrue(result.get("FR").get(0).getMiscGenTsList().isEmpty());
+    }
+
+    @Test
+    void splitMiscGenLoadFiles_shouldUseXlsxReaderWithHorizon() throws IOException {
+        Path xlsxFile = tempDir.resolve("load_factor_wave.xlsx");
+        Files.createFile(xlsxFile);
+
+        String outputDir = "misc_gen_ts";
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("AT", new double[]{0.1, 0.2}),
+                new TimeSeriesMatrixColumn("BE", new double[]{0.3, 0.4})
+        ));
+
+        when(timeSeriesReader.readFromXlsx(xlsxFile, "2030-2031")).thenReturn(matrix);
+        when(antaresDataManagerProperties.getMiscGenTsOutputDirectory()).thenReturn(outputDir);
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("AT_wave"), eq(outputDir))).thenReturn("AT_wave.UUID.arrow");
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("BE_wave"), eq(outputDir))).thenReturn("BE_wave.UUID.arrow");
+
+        List<Path> results = miscGenerationAssemblerService.splitMiscGenLoadFiles(xlsxFile, Set.of("AT", "BE"), "2030-2031", "wave");
+
+        verify(timeSeriesReader, times(1)).readFromXlsx(xlsxFile, "2030-2031");
+        assertEquals(2, results.size());
+    }
+
+    @Test
+    void splitMiscGenLoadFiles_shouldReturnEmptyListForUnsupportedExtension() throws IOException {
+        Path unsupported = tempDir.resolve("load_factor_wave.json");
+        Files.createFile(unsupported);
+
+        List<Path> results = miscGenerationAssemblerService.splitMiscGenLoadFiles(unsupported, Set.of("AT"), "2030-2031", "wave");
+
+        assertTrue(results.isEmpty());
+        verify(timeSeriesReader, never()).readFromTxt(any(Path.class));
+        verify(timeSeriesReader, never()).readFromXlsx(any(Path.class), anyString());
+        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
+    }
+
+    @Test
+    void splitMiscGenLoadFiles_shouldWrapRuntimeReaderExceptionIntoIOException() throws IOException {
+        Path csvFile = tempDir.resolve("load_factor_wave_2030-2031.csv");
+        Files.createFile(csvFile);
+
+        RuntimeException cause = new RuntimeException("boom");
+        when(timeSeriesReader.readFromTxt(csvFile)).thenThrow(cause);
+
+        IOException thrown = assertThrows(IOException.class,
+                () -> miscGenerationAssemblerService.splitMiscGenLoadFiles(csvFile, Set.of("AT"), "2030-2031", "wave"));
+
+        assertSame(cause, thrown.getCause());
+    }
+
+    @Test
+    void assembleMiscProperties_shouldResolveGroupsByStudyIdWhenCapacityTrajectoryIdIsNull() throws IOException {
+        StudyEntity study = new StudyEntity();
+        study.setId(77);
+        study.setHorizon("2030-2031");
+
+        TrajectoryEntity capacityTrajectory = new TrajectoryEntity();
+        capacityTrajectory.setType("MISC_CAPACITY");
+        capacityTrajectory.setArea("FR");
+        capacityTrajectory.setHorizon("2030-2031");
+
+        MiscClusterCapacityEntity biogas = new MiscClusterCapacityEntity();
+        biogas.setArea("FR");
+        biogas.setGroupe("biogas");
+        biogas.setCluster("cluster_biogas");
+        biogas.setCapacityByYear(BigDecimal.valueOf(12.0));
+        capacityTrajectory.setMiscClusterCapacityEntities(List.of(biogas));
+
+        TrajectoryEntity loadTrajectory = new TrajectoryEntity();
+        loadTrajectory.setType("MISC_LOAD");
+        loadTrajectory.setArea("FR");
+        loadTrajectory.setFileName("misc_load_fr");
+
+        study.setTrajectories(Set.of(capacityTrajectory, loadTrajectory));
+
+        String trajectoryRoot = "traj";
+        String miscLoadDir = "misc_load";
+        String outputDir = "misc_gen_ts";
+        Path basePath = tempDir.resolve(trajectoryRoot).resolve(miscLoadDir).resolve("misc_load_fr");
+        Path biogasFile = basePath.resolve("biogas").resolve("cluster_biogas").resolve("load_factor_cluster_biogas_2030-2031.csv");
+        Files.createDirectories(biogasFile.getParent());
+        Files.createFile(biogasFile);
+
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> groupMap = new LinkedHashMap<>();
+        groupMap.put(new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "cluster_biogas"), List.of("FR"));
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryRoot);
+        when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn(miscLoadDir);
+        when(antaresDataManagerProperties.getMiscGenTsOutputDirectory()).thenReturn(outputDir);
+        when(miscFileProcessorService.getAreasByGroupClusterByStudyId(77, "FR")).thenReturn(groupMap);
+        when(timeSeriesReader.readFromTxt(biogasFile)).thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("FR", new double[]{0.2, 0.4}))));
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_biogas"), eq(outputDir))).thenReturn("FR_biogas.UUID.arrow");
+
+        miscGenerationAssemblerService.assembleMiscProperties(study);
+
+        verify(miscFileProcessorService, times(1)).getAreasByGroupClusterByStudyId(77, "FR");
+        verify(miscFileProcessorService, never()).getAreasByGroupClusterByTrajectoryId(anyInt());
+    }
+
+    @Test
+    void splitMiscGenLoadFiles_shouldIgnoreEmptyOrNonMatchingColumns() throws IOException {
+        Path csvFile = tempDir.resolve("load_factor_wave_2030-2031.csv");
+        Files.createFile(csvFile);
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("", new double[]{0.1, 0.2}),
+                new TimeSeriesMatrixColumn("AT", new double[]{0.3, 0.4})
+        ));
+        when(timeSeriesReader.readFromTxt(csvFile)).thenReturn(matrix);
+
+        List<Path> results = miscGenerationAssemblerService.splitMiscGenLoadFiles(csvFile, Set.of("BE"), "2030-2031", "wave");
+
+        assertTrue(results.isEmpty());
+        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
     }
 }

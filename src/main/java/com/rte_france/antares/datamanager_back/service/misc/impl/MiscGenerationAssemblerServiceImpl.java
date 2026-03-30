@@ -365,7 +365,7 @@ public class MiscGenerationAssemblerServiceImpl  implements MiscGenerationAssemb
                 return localReader.readFromTxt(file);
             }
             return null;
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             throw new IOException(ex);
         }
     }
