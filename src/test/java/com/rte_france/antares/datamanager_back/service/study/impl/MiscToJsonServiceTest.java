@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MiscToJsonServiceTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private MiscToJsonService miscToJsonService;
 
@@ -59,6 +63,7 @@ class MiscToJsonServiceTest {
 
         // When
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
+        printProducedJson("buildMiscDataMap_shouldOrganizeByGroup", result);
 
         // Then
         assertEquals(2, result.size());
@@ -92,9 +97,10 @@ class MiscToJsonServiceTest {
 
         // When
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
+        printProducedJson("buildMiscDataMap_shouldFilterSeriesByGroupCaseInsensitive", result);
 
         // Then
-        Map<String, Object> biogasData = (Map<String, Object>) result.get("Biogas");
+        Map<String, Object> biogasData = (Map<String, Object>) result.get("biogas");
         assertEquals(List.of("FR_BIOGAS.UUID.arrow"), biogasData.get("series"));
     }
 
@@ -105,21 +111,22 @@ class MiscToJsonServiceTest {
                 MiscGenerationDTO.builder()
                         .capacity(10.0)
                         .groupe("other")
-                        .miscGenTsList(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"))
+                        .miscGenTsList(List.of("FR_other.UUID.arrow"))
                         .build(),
                 MiscGenerationDTO.builder()
                         .capacity(20.0)
-                        .groupe("other")
-                        .miscGenTsList(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"))
+                        .groupe("wave")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow"))
                         .build(),
                 MiscGenerationDTO.builder()
                         .capacity(30.0)
-                        .groupe("other")
-                        .miscGenTsList(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"))
+                        .groupe("hydrokinetic")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow"))
                         .build()
         ));
 
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
+        printProducedJson("buildMiscDataMap_shouldMergeOtherWaveAndHydrokineticIntoOther", result);
 
         assertEquals(1, result.size());
         assertTrue(result.containsKey("other"));
@@ -128,6 +135,45 @@ class MiscToJsonServiceTest {
         Map<String, Object> otherProps = (Map<String, Object>) otherData.get("properties");
         assertEquals(60.0, otherProps.get("capacity"));
         assertEquals("other", otherProps.get("group"));
-        assertEquals(List.of("FR_other.UUID.arrow", "FR_wave.UUID.arrow", "FR_hydrokinetic.UUID.arrow"), otherData.get("series"));
+        assertEquals(List.of("FR_other.UUID.arrow"), otherData.get("series"));
+    }
+
+    @Test
+    void buildMiscDataMap_shouldNotDuplicateSeriesForAggregatedOtherGroup() {
+        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put("FR", List.of(
+                MiscGenerationDTO.builder()
+                        .capacity(5.0)
+                        .groupe("other")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow"))
+                        .build(),
+                MiscGenerationDTO.builder()
+                        .capacity(7.0)
+                        .groupe("hydrokinetic")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow"))
+                        .build(),
+                MiscGenerationDTO.builder()
+                        .capacity(9.0)
+                        .groupe("wave")
+                        .miscGenTsList(List.of("FR_other.UUID.arrow"))
+                        .build()
+        ));
+
+        Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
+        printProducedJson("buildMiscDataMap_shouldNotDuplicateSeriesForAggregatedOtherGroup", result);
+
+        assertEquals(1, result.size());
+        Map<String, Object> otherData = (Map<String, Object>) result.get("other");
+        assertEquals(List.of("FR_other.UUID.arrow"), otherData.get("series"));
+    }
+
+    // Temporary debug output to inspect generated payloads before push.
+    private void printProducedJson(String testName, Map<String, Object> payload) {
+        try {
+            String json = OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(payload);
+            System.out.printf("%n[%s] Produced JSON:%n%s%n", testName, json);
+        } catch (JsonProcessingException e) {
+            System.out.printf("%n[%s] Could not serialize payload as JSON, raw payload: %s%n", testName, payload);
+        }
     }
 }
