@@ -109,7 +109,11 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Selected area FR is not present in the 'node' column of STS trajectory cluster_battery_test.xlsx");
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Selected area {0} is not present in the 'node' column of STS trajectory {1}");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("FR", "cluster_battery_test.xlsx");
+                });
     }
 
     @Test
@@ -236,7 +240,11 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "OTHERS_AREA", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Selected area OTHERS_AREA is not present in the 'node' column of STS trajectory cluster_battery_test.xlsx");
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Selected area {0} is not present in the 'node' column of STS trajectory {1}");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("OTHERS_AREA", "cluster_battery_test.xlsx");
+                });
     }
 
     @Test
@@ -338,7 +346,8 @@ class StStorageFileProcessorServiceImplTest {
                 )
         );
 
-        assertTrue(ex.getMessage().contains("Selected area " + areaParam));
+        assertThat(ex.getMessage()).contains("Selected area {0}");
+        assertThat(ex.getErrorMessageArguments()).contains(areaParam);
     }
 
     @Test
@@ -587,6 +596,90 @@ class StStorageFileProcessorServiceImplTest {
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
                 .hasMessageContaining("No valid cluster group found in the trajectory");
+    }
+
+    @Test
+    void shouldBuildStsOptionalFilesPathForSeriesSuccessfully() throws IOException {
+        // GIVEN
+        String technology = "battery";
+        String trajectoryFileName = "cluster_battery_test.xlsx";
+        Path trajectoryFilePath = Path.of(trajectoryFileName);
+        String areaParam = "FR";
+        String clusterName = "cluster1";
+        // getFileNameWithoutExtensionAndWithoutPrefix("cluster_battery_test.xlsx", "STS")
+        // removeClusterPrefix("cluster_battery_test.xlsx") -> "test.xlsx"
+        // remove extension -> "test"
+        String trajectoryNameWithoutPrefix = "test";
+
+        Path stsRoot = tempDir.resolve("trajectories").resolve("STS");
+        Path techDir = stsRoot.resolve(technology);
+        Path seriesDir = techDir.resolve("series");
+        Path trajectoryDir = seriesDir.resolve(trajectoryNameWithoutPrefix);
+        Path clusterDir = trajectoryDir.resolve(clusterName);
+        Files.createDirectories(clusterDir);
+
+        // WHEN
+        Path result = service.buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, clusterName, "series");
+
+        // THEN
+        assertThat(result).isEqualTo(clusterDir.resolve(areaParam).normalize());
+    }
+
+    @Test
+    void shouldBuildStsOptionalFilesPathForConstraintsSuccessfully() throws IOException {
+        // GIVEN
+        String technology = "battery";
+        Path trajectoryFilePath = Path.of("STS_battery_test.xlsx");
+        String areaParam = "FR";
+        String clusterName = "cluster1";
+
+        Path stsRoot = tempDir.resolve("trajectories").resolve("STS");
+        Path techDir = stsRoot.resolve(technology);
+        Path constraintsDir = techDir.resolve("constraints");
+        Files.createDirectories(constraintsDir);
+
+        // WHEN
+        Path result = service.buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, clusterName, "constraints");
+
+        // THEN
+        assertThat(result).isEqualTo(constraintsDir);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTechnologyDirectoryNotFound() {
+        // GIVEN
+        String technology = "unknown_tech";
+        Path trajectoryFilePath = Path.of("STS_test.xlsx");
+
+        Path stsRoot = tempDir.resolve("trajectories").resolve("STS");
+        try {
+            Files.createDirectories(stsRoot);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // WHEN / THEN
+        assertThatThrownBy(() ->
+                service.buildStsOptionalFilesPath(trajectoryFilePath, "FR", technology, "cluster1", "series")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Directory not found under");
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidOptionalFilesType() throws IOException {
+        // GIVEN
+        String technology = "battery";
+        Path trajectoryFilePath = Path.of("STS_test.xlsx");
+
+        Path stsRoot = tempDir.resolve("trajectories").resolve("STS");
+        Path techDir = stsRoot.resolve(technology);
+        Files.createDirectories(techDir);
+
+        // WHEN / THEN
+        assertThatThrownBy(() ->
+                service.buildStsOptionalFilesPath(trajectoryFilePath, "FR", technology, "cluster1", "invalid_type")
+        ).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid optionalFilesType: invalid_type");
     }
 
     private Path createWorkbookWithMissingClusterName(String horizon) throws IOException {

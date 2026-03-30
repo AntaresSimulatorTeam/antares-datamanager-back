@@ -927,7 +927,7 @@ public class Utils {
 
         // Normalize and verify the directory to avoid traversal outside allowed root
         Path normalizedBase = directoryPath.toRealPath();
-        
+
         try (Stream<Path> stream = Files.walk(normalizedBase, depth)) {
             List<Path> files = stream
                     .filter(Files::isRegularFile)
@@ -999,7 +999,7 @@ public class Utils {
 
     public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse, TrajectoryType trajectoryType, String prefix) {
         if ((!"FR".equalsIgnoreCase(areaParam) &&
-                !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_CAPACITY) || 
+                !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_CAPACITY) ||
                 (!startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION)
                 ) {
 
