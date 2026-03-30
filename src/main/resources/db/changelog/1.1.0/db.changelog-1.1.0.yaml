@@ -82,5 +82,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V37-create-res-type.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V38-alter-pecd-technology.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V39-add-constraints-path-st-storage.sql
 
 

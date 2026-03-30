@@ -60,6 +60,10 @@ public class StStorageEntity {
     @Column(name="ts_path")
     String tsPath;
 
+    @Column(name="constraints_path")
+    String constraintsPath;
+
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;

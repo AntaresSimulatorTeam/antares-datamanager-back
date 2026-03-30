@@ -38,6 +38,11 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
+    private static final Integer SERIES_INDEX = 11;
+    private static final Integer CONSTRAINTS_INDEX = 12;
+    private static final String ELECTRICAL_VEHICLE = "EV";
+    private static final String SERIES_FILES = "series";
+    private static final String CONSTRAINTS_FILES = "constraints";
 
 
     @Transactional
@@ -68,7 +73,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
     public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
-        Path root = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath()).resolve(antaresDataManagerProperties.getStsDirectory());
+        Path root = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getStsDirectory());
 
         if (!Files.exists(root) || !Files.isDirectory(root)) {
             throw new NoSuchFileException("STS root not found: " + root);
@@ -207,23 +214,36 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
     }
 
-    private StStorageEntity mapRowToEntity(Row row, Path trajectoryFilePath, String technology, String rowArea, String clusterName, String trajectoryFileName) throws IOException {
+    private StStorageEntity mapRowToEntity(Row row, Path trajectoryFilePath, String technology, String areaName, String clusterName, String trajectoryFileName) throws IOException {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         // Series/TS files handling
-        Boolean series = getBooleanCell(row, 11);
-        if (Boolean.TRUE.equals(series)) {
-            Path stsTs = buildStsTimeSeriesPath(trajectoryFilePath, rowArea, technology, clusterName);
-            if (isTsFileMissing(stsTs)) {
+        Boolean filesForSeries = getBooleanCell(row, SERIES_INDEX);
+        if (Boolean.TRUE.equals(filesForSeries)) {
+            Path stsTsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, SERIES_FILES);
+            if (isOptionalStsFileMissing(stsTsPath, SERIES_FILES, null)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryFileName))
                         .message("Can not import : Missing TS for trajectory {0}")
                         .build();
             }
-            stStorageEntity.setTsPath(stsTs.toString());
+            stStorageEntity.setTsPath(stsTsPath.toString());
         }
-
-        stStorageEntity.setArea(rowArea);
+        Boolean stsConstraintsFlag = getBooleanCell(row, CONSTRAINTS_INDEX);
+        if(technology.equals(ELECTRICAL_VEHICLE) && Boolean.TRUE.equals(stsConstraintsFlag)) {
+            // Constraints/parameters and Ts files handling
+                Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, CONSTRAINTS_FILES);
+                if (isOptionalStsFileMissing(constraintsPath, CONSTRAINTS_FILES, trajectoryFileName)) {
+                    throw BusinessException.builder()
+                            .message("Missing Additional constraint trajectory {0} for EV/{1}")
+                            .errorMessageArguments(List.of(trajectoryFileName,areaName))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                String constraintsCapacityPath = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name()) + ".xlsx";
+                stStorageEntity.setConstraintsPath(constraintsCapacityPath);
+        }
+        stStorageEntity.setArea(areaName);
         stStorageEntity.setName(clusterName);
         stStorageEntity.setGroupe(getStringCellValue(row, 2));
         stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
@@ -234,8 +254,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
         stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 9));
         stStorageEntity.setEnabled(getBooleanCell(row, 10));
-        stStorageEntity.setSeries(series);
-        stStorageEntity.setConstraintsFlag(getBooleanCell(row, 12));
+        stStorageEntity.setSeries(filesForSeries);
+        stStorageEntity.setConstraintsFlag(stsConstraintsFlag);
         return stStorageEntity;
     }
 
@@ -246,55 +266,73 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 .collect(Collectors.toSet());
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
             throw BusinessException.builder()
-                    .message("Selected area " + areaParam + " is not present in the 'node' column of STS trajectory " + trajectoryFileName)
+                    .message("Selected area {0} is not present in the 'node' column of STS trajectory {1}")
+                    .errorMessageArguments(List.of(areaParam, trajectoryFileName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
 
-    public Path buildStsTimeSeriesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName) throws IOException {
-        // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
+    public Path buildStsOptionalFilesPath(Path trajectoryFilePath, String areaParam, String technology, String clusterName, String optionalFilesType) throws IOException {
+
 
         Path root = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                 .resolve(antaresDataManagerProperties.getStsDirectory());
+        Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve(optionalFilesType);
+        if(SERIES_FILES.equals(optionalFilesType)) {
+            // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
+            Path trajectoryDir = findChildDirectoryIgnoreCase(techDir, getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()));
+            Path clusterSeriesDir = findChildDirectoryIgnoreCase(trajectoryDir, clusterName);
+            return clusterSeriesDir.resolve(areaParam).normalize();
+        }
 
-        Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("series");
+        else if(CONSTRAINTS_FILES.equals(optionalFilesType)) {
+            // \\\'STS\\<techno>\\constraints\\
+            return techDir;
+        }
 
-        Path trajectoryDir = findChildDirectoryIgnoreCase(techDir, getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()));
-        Path clusterSeriesDir = findChildDirectoryIgnoreCase(trajectoryDir, clusterName);
-
-        return clusterSeriesDir.resolve(areaParam).normalize();
+        throw new IllegalArgumentException("Invalid optionalFilesType: " + optionalFilesType);
     }
 
-    private static boolean isTsFileMissing(Path stsTs) {
-            if (!Files.exists(stsTs) || !Files.isDirectory(stsTs)) {
-                log.warn("ST Storage series directory not found: {}", stsTs);
-                return true;
-            }
-            File[] files = stsTs.toFile().listFiles();
-            if (files == null || files.length == 0) {
-                log.warn("Unable to list files in ST Storage series directory: {}", stsTs);
-                return true;
-            }
+    private static boolean isOptionalStsFileMissing(Path pathForFilesSts, String optionalFilesType, String trajectoryFileName) {
+        if (!Files.exists(pathForFilesSts) || !Files.isDirectory(pathForFilesSts)) {
+            log.warn("ST Storage series directory not found: {}", pathForFilesSts);
+            return true;
+        }
 
-            String[] required = {"inflows.xlsx", "lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
-            boolean hasAll = true;
-            for (String req : required) {
-                boolean found = Arrays.stream(files).anyMatch(f -> f.getName().equalsIgnoreCase(req));
-                if (!found) {
-                    hasAll = false;
-                    break;
-                }
-            }
-            if (!hasAll) {
-                log.warn("ST Storage series directory missing required files: {}", stsTs);
-                return true;
-            }
+        File[] files = pathForFilesSts.toFile().listFiles();
+        if (files == null || files.length == 0) {
+            log.warn("Unable to list files in ST Storage series directory: {}", pathForFilesSts);
+            return true;
+        }
+
+        if (SERIES_FILES.equals(optionalFilesType)) {
+            String[] requiredFiles = {"inflows.xlsx", "lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
+            return areRequiredFilesMissing(files, requiredFiles);
+        }
+
+        if (CONSTRAINTS_FILES.equals(optionalFilesType)) {
+            String constraintsCapacityFile = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name())+ ".xlsx";
+            String[] requiredFiles = {"Additional-constraints.xlsx", constraintsCapacityFile};
+            return areRequiredFilesMissing(files, requiredFiles);
+        }
+
         return false;
     }
 
-
+    private static boolean areRequiredFilesMissing(File[] files, String[] requiredFiles) {
+        boolean hasAll = true;
+        for (String req : requiredFiles) {
+            boolean found = Arrays.stream(files)
+                    .anyMatch(f -> f.getName().equalsIgnoreCase(req));
+            if (!found) {
+                hasAll = false;
+                break;
+            }
+        }
+        return !hasAll;
+    }
     private boolean isRowEmpty(Row row) {
         for (int c = 0; c <= 12; c++) {
             Cell cell = row.getCell(c);
