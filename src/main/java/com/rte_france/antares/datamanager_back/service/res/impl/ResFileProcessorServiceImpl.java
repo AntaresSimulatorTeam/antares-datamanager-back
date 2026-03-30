@@ -645,7 +645,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws Exception {
-        String checksum = calculateChecksum(result.checksum().toString());
+        String checksum = computeChecksumByType(filePath, trajectoryType, horizon, areaParam);
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
 

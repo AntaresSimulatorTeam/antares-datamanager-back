@@ -61,7 +61,7 @@ class AreaFileProcessorServiceImplTest {
         }
 
         @Test
-        void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+        void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws Exception {
             when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             var trajectoryEntity = mock(TrajectoryEntity.class);
             trajectoryEntity.setType(TrajectoryType.AREA.name());
@@ -76,7 +76,7 @@ class AreaFileProcessorServiceImplTest {
         }
 
     @Test
-    void processAreaFile_whenAreaExistsInBDD() throws IOException {
+    void processAreaFile_whenAreaExistsInBDD() throws Exception {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         var trajectoryEntity = mock(TrajectoryEntity.class);
         trajectoryEntity.setType(TrajectoryType.AREA.name());
@@ -96,7 +96,7 @@ class AreaFileProcessorServiceImplTest {
     }
 
         @Test
-        void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
+        void processAreaFile_whenTrajectoryDoesNotExist() throws Exception {
             when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
 

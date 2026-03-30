@@ -171,6 +171,10 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
             // save trajectory
             return trajectoryRepository.save(trajectory);
+        } catch (Exception e) {
+            throw BusinessException.builder()
+                    .message("Could not process installedMisc file: " + e.getMessage())
+                    .build();
         }
     }
 
@@ -454,7 +458,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 ));
     }
 
-    private TrajectoryEntity buildMiscTrajectory(String horizon, String areaParam, StringBuilder checksumBuilder, Path filePath, List<MiscClusterCapacityEntity> entities) throws IOException {
+    private TrajectoryEntity buildMiscTrajectory(String horizon, String areaParam, StringBuilder checksumBuilder, Path filePath, List<MiscClusterCapacityEntity> entities) throws Exception {
         String checksum = calculateChecksum(checksumBuilder.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, TrajectoryType.MISC_CAPACITY);
         TrajectoryEntity trajectory = buildInstalledMiscTrajectory(filePath, horizon, areaParam);
@@ -578,7 +582,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 null);
     }
 
-    private TrajectoryEntity buildInstalledMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws IOException {
+    private TrajectoryEntity buildInstalledMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws Exception {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.MISC_CAPACITY, area, null, null);
     }

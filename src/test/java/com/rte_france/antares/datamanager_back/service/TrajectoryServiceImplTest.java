@@ -104,7 +104,7 @@ class TrajectoryServiceImplTest {
 
 
     @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTYpeIsAREA() throws IOException {
+    void processTrajectory_returnsEntityWhenTrajectoryTYpeIsAREA() throws Exception {
         Path path = mock(Path.class);
         Mockito.when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
@@ -117,7 +117,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsLINK() throws IOException {
+    void processTrajectory_returnsEntityWhenTrajectoryTypeIsLINK() throws Exception {
         Path path = mock(Path.class);
         Mockito.when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
@@ -130,7 +130,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processThermalCapacityTrajectory_returnsEntityWhenValidDataProvided() throws IOException {
+    void processThermalCapacityTrajectory_returnsEntityWhenValidDataProvided() throws Exception {
         String trajectoryToUse = "thermal_BE_PEMMDB23_26avril";
         String horizon = "2023-2024";
         Integer studyId = 1;
@@ -1497,7 +1497,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processThermalCommonParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters() throws IOException {
+    void processThermalCommonParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters() throws Exception {
         String trajectoryToUse = "thermal_common_parameters";
         String horizon = "2025";
         Integer studyId = 1;
@@ -1515,7 +1515,7 @@ class TrajectoryServiceImplTest {
 
 
     @Test
-    void processThermalCommonParameterTrajectory_shouldThrowBusinessExceptionWhenParamsAreEmpty() throws IOException {
+    void processThermalCommonParameterTrajectory_shouldThrowBusinessExceptionWhenParamsAreEmpty() throws Exception {
         String trajectoryToUse = "thermal_common_parameters";
         String horizon = "2025";
         Integer studyId = 1;
@@ -1610,7 +1610,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void processThermalModulationParameterTrajectory_must_CheckCmFilesAndCreateTrajectory(@TempDir Path tempDir) throws IOException {
+    void processThermalModulationParameterTrajectory_must_CheckCmFilesAndCreateTrajectory(@TempDir Path tempDir) throws Exception {
         String trajectoryToUse = "modulation_trajectory";
         String paramModulationDir = "thermal";
         String horizon = "2025";
@@ -1689,7 +1689,7 @@ class TrajectoryServiceImplTest {
 
     // java
     @Test
-    void processThermalEconomicParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters(@TempDir Path tempDir) throws IOException {
+    void processThermalEconomicParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters(@TempDir Path tempDir) throws Exception {
         String trajectoryToUse = "economic_trajectory";
         String horizon = "2023-2024";
         Integer studyId = 1;

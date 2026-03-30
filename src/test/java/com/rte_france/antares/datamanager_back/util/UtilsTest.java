@@ -86,7 +86,7 @@ class UtilsTest {
     }
 
     @Test
-    void isSameFileWithDifferentContent_returnsTrueForDifferentContent() throws IOException {
+    void isSameFileWithDifferentContent_returnsTrueForDifferentContent() throws Exception {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setHorizon("2030-2031");
@@ -101,7 +101,7 @@ class UtilsTest {
     }
 
     @Test
-    void isSameFileWithDifferentContent_returnsFalseForIdenticalFile() throws IOException {
+    void isSameFileWithDifferentContent_returnsFalseForIdenticalFile() throws Exception {
         Path path = Path.of("src/test/resources/area/testFile.xlsx");
         TrajectoryEntity trajectoryEntity = new TrajectoryEntity();
         trajectoryEntity.setHorizon("2030-2031");
@@ -248,7 +248,7 @@ class UtilsTest {
     }
 
     @Test
-    void computeLinkChecksum_changesWhenParametersSheetChanges() throws IOException {
+    void computeLinkChecksum_changesWhenParametersSheetChanges() throws Exception {
 
         var horizon = "2030-2031";
         TrajectoryEntity trajectoryEntity = TrajectoryEntity.builder().horizon(horizon).type(TrajectoryType.LINK.name()).build();
@@ -285,8 +285,8 @@ class UtilsTest {
             }
         }
 
-        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null, null);
-        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null, null);
+        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null);
+        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null);
 
         assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
     }
@@ -369,7 +369,7 @@ class UtilsTest {
 
         TechnicalException ex = assertThrows(
                 TechnicalException.class,
-                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null, null)
+                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null)
         );
 
         assertTrue(

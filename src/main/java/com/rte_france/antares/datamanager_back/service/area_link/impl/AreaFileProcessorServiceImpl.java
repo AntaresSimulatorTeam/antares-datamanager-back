@@ -43,7 +43,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @SuppressWarnings("java:S2083")
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {
+    public TrajectoryEntity processAreaFile(Path path, String horizon) throws Exception {
         checkIfHorizonExist(path, horizon, TrajectoryType.AREA.name());
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon, TrajectoryType.AREA.name());
         AreasValidator.validateAreaColumns(path, horizon);

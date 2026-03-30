@@ -47,7 +47,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
     @Transactional
     @Override
-    public TrajectoryEntity processDsrClusterFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area) throws IOException {
+    public TrajectoryEntity processDsrClusterFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area) throws Exception {
         // Check trajectory file name prefix
         boolean prefixMatch = startsWithIgnoreCase(trajectoryToUse, DSR_PREFIX);
         if (!prefixMatch) {
@@ -309,7 +309,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         return results;
     }
 
-    private TrajectoryEntity buildDsrClusterTrajectory(Path trajectoryFilePath, String horizon, String areaParam, Boolean hasSeries) throws IOException {
+    private TrajectoryEntity buildDsrClusterTrajectory(Path trajectoryFilePath, String horizon, String areaParam, Boolean hasSeries) throws Exception {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR.name());

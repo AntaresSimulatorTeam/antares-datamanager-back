@@ -956,11 +956,13 @@ class ThermalFileProcessorServiceImplTest {
             assertSame(savedTrajectory, result);
             utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()), times(1));
             verify(thermalEconomicCostAndRateService, times(1)).saveThermalEconomicCostAndRateTrajectory(builtTrajectory, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Test
-    void processThermalEconomicCostsAndRatesFile_shouldIncrementVersionWhenExistingWithDifferentContent() throws IOException {
+    void processThermalEconomicCostsAndRatesFile_shouldIncrementVersionWhenExistingWithDifferentContent() throws Exception {
         // Arrange
         Path path = Paths.get("thermal_costs_rates_existing.xlsx");
         String horizon = "2030";

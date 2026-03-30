@@ -16,7 +16,7 @@ public interface ThermalEconomicService {
 
     List<ThermalEconomicEnerContentEntity> buildThermalEconomicEnerContentParameterValuesList(String fileName, String horizon, Integer studyId, Sheet enerSheet) throws IOException;
 
-    TrajectoryEntity processThermalEconomicParameterFile(Path trajectoryFilePath, String horizon, List<ThermalEconomicCo2Entity> thermalEconomicCo2Entities,List<ThermalEconomicEnerContentEntity> thermalEconomicEnerContentEntities , TrajectoryType trajectoryType) throws IOException;
+    TrajectoryEntity processThermalEconomicParameterFile(Path trajectoryFilePath, String horizon, List<ThermalEconomicCo2Entity> thermalEconomicCo2Entities,List<ThermalEconomicEnerContentEntity> thermalEconomicEnerContentEntities , TrajectoryType trajectoryType) throws Exception;
 
 }
 

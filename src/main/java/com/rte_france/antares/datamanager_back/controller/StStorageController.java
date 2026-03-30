@@ -35,7 +35,7 @@ public class StStorageController {
                                                                          @RequestParam(value = "technology") String technology,
                                                                          @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
                                                                          @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                                         @RequestParam("studyId") Integer studyId, @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+                                                                         @RequestParam("studyId") Integer studyId, @RequestParam("isCivilYear") boolean isCivilYear) throws Exception {
 
         return new ResponseEntity<>(toTrajectoryDTO
                 (stStorageFileProcessorService.processStStorageFile(trajectoryToUse, horizon, studyId, isCivilYear, area, technology)),

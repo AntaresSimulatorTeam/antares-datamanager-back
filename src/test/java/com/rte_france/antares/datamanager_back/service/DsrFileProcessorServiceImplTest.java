@@ -111,7 +111,7 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldCreateTrajectoryAndEntitiesSuccessfully() throws IOException {
+    void shouldCreateTrajectoryAndEntitiesSuccessfully() throws Exception {
         Path xlsx = createValidWorkbook("2030", false);
         placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
 
@@ -139,7 +139,7 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws IOException {
+    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws Exception {
         Path xlsx = createValidWorkbook("2030", false);
         placeInCluster(xlsx, "cluster_DSR_test.xlsx");
 
@@ -259,7 +259,7 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldProcessWhenOTHERSAreaAndSomeStudyAreasMissing() throws IOException {
+    void shouldProcessWhenOTHERSAreaAndSomeStudyAreasMissing() throws Exception {
         // study has FR and DE
         when(areaRepository.findAllByStudyId(anyInt()))
                 .thenReturn(List.of(

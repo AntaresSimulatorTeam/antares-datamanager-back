@@ -205,7 +205,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws Exception {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse, "");
 
         return switch (trajectoryType) {
@@ -227,7 +227,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @throws IOException if an I/O error occurs
      */
     @Transactional
-    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
+    public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws Exception {
         if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(CAPACITY_PREFIX)) {
             throw BusinessException.builder()
                     .message("The trajectory file name must start with '" + CAPACITY_PREFIX + "'")
@@ -249,7 +249,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     @Transactional
     @Override
-    public TrajectoryEntity processThermalCommonParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processThermalCommonParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws Exception {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse, "");
         var params = thermalFileProcessorService.buildThermalCommonParameterValuesList(trajectoryFilePath, horizon, studyId);
         if (CollectionUtils.isEmpty(params)) {
@@ -279,7 +279,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     @Transactional
     @Override
-    public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
+    public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws Exception {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName, "");
         var params = thermalSpecificProcessorService.buildThermalSpecificParameterValueList(trajectoryName, trajectoryFilePath, horizon, area, studyId);
         if (CollectionUtils.isEmpty(params)) {
@@ -351,7 +351,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processThermalModulationParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws Exception {
         Path trajectoryFilePath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
 
         String cmFileName = "CM_" + trajectoryToUse + "_" + horizon + ".csv";
@@ -394,7 +394,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processThermalEconomicCostTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws Exception {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, trajectoryToUse, "");
         String oneYearHorizon = horizon.split("-")[1];
         thermalControlService.verifyCostsTrajectory(oneYearHorizon, trajectoryFilePath, trajectoryToUse, studyId);
@@ -411,7 +411,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     @Override
-    public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws Exception {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, trajectoryToUse, "");
         final String fileName = trajectoryFilePath.getFileName().toString();
 

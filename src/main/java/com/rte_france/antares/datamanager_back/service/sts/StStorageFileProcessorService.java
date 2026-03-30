@@ -7,5 +7,5 @@ import java.io.IOException;
 
 public interface StStorageFileProcessorService {
 
-     TrajectoryEntity processStStorageFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException;
+     TrajectoryEntity processStStorageFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws Exception;
      }

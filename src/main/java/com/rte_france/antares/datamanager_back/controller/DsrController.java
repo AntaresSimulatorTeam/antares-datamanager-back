@@ -37,7 +37,7 @@ public class DsrController {
                                                                     @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                     @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                                     @RequestParam("studyId") Integer studyId,
-                                                                    @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+                                                                    @RequestParam("isCivilYear") boolean isCivilYear) throws Exception {
 
         return new ResponseEntity<>(toTrajectoryDTO(
                 dsrFileProcessorService.processDsrClusterFile(trajectoryToUse, horizon, studyId, isCivilYear, area)
@@ -50,7 +50,7 @@ public class DsrController {
             @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
             @Parameter(description = "example of horizon : 2020-2021") String horizon,
-            @RequestParam("studyId") Integer studyId) throws IOException {
+            @RequestParam("studyId") Integer studyId) throws Exception {
         return new ResponseEntity<>(toTrajectoryDTO(
                 dsrCapacityModulationFileProcessorService.processDsrCapacityModulationFile(trajectoryToUse, horizon, studyId)
         ), HttpStatus.CREATED);

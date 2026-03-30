@@ -60,7 +60,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws Exception {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 
         checkIfHorizonExist(path, horizon, TrajectoryType.LINK.name());

@@ -58,7 +58,7 @@ class ThermalParamModulationServiceImplTest {
 
 
     @Test
-    void processThermalModulationParameterFile_shouldSaveNewTrajectoryWhenNoExistingTrajectory(@TempDir Path tempDir) throws IOException {
+    void processThermalModulationParameterFile_shouldSaveNewTrajectoryWhenNoExistingTrajectory(@TempDir Path tempDir) throws Exception {
         String trajectoryToUse = "modulation_trajectory";
         String paramModulationDir = "thermal";
 

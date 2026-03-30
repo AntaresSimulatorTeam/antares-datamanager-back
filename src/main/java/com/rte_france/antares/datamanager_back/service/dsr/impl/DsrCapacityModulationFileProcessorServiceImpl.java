@@ -42,7 +42,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
 
     @Transactional
     @Override
-    public TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws Exception {
         // Check trajectory file name prefix
         boolean prefixMatch = startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION);
         if (!prefixMatch) {
@@ -163,7 +163,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         return trajectoryFilePath;
     }
 
-    public TrajectoryEntity buildDsrCapacityModulationTrajectory(Path trajectoryFilePath, String horizon) throws IOException {
+    public TrajectoryEntity buildDsrCapacityModulationTrajectory(Path trajectoryFilePath, String horizon) throws Exception {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.DSR_CAPACITY_MODULATION.name());

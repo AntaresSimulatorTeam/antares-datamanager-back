@@ -64,7 +64,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     // TEST 1 : Cas nominal
     // -------------------------------------------------------------------------
     @Test
-    void shouldProcessCapacityModulationFileSuccessfully() throws IOException {
+    void shouldProcessCapacityModulationFileSuccessfully() throws Exception {
         List<String> clusters = List.of("DSR_industries");
 
         Path xlsx = tempDir.resolve("cm_capacity_test.xlsx");
@@ -103,7 +103,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     // TEST 2 : Incrémentation de version
     // -------------------------------------------------------------------------
     @Test
-    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws IOException {
+    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws Exception {
         List<String> clustersInFile = List.of("DSR_industries");
 
         Path xlsx = tempDir.resolve("cm_capacity_test.xlsx");

@@ -113,7 +113,7 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldCreateTrajectoryAndEntitiesSuccessfully() throws IOException {
+    void shouldCreateTrajectoryAndEntitiesSuccessfully() throws Exception {
         Path xlsx = createValidWorkbook("2030", false);
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
@@ -142,7 +142,7 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws IOException {
+    void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists() throws Exception {
         Path xlsx = createValidWorkbook("2030", false);
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
@@ -240,7 +240,7 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldProcessWhenOTHERSAreaAndSomeStudyAreasMissing() throws IOException {
+    void shouldProcessWhenOTHERSAreaAndSomeStudyAreasMissing() throws Exception {
         // study has FR and DE
         when(areaRepository.findAllByStudyId(anyInt()))
                 .thenReturn(List.of(
@@ -393,7 +393,7 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldiSaveRowWhenSeriesIsTrueAndTsFilesExists() throws IOException {
+    void shouldiSaveRowWhenSeriesIsTrueAndTsFilesExists() throws Exception {
         String horizon = "2029-2030";
         String technology = "battery";
         String area = "FR";

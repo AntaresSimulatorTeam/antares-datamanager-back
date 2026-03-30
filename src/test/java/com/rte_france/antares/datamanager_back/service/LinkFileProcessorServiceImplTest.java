@@ -92,7 +92,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+    void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws Exception {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
@@ -105,7 +105,7 @@ class LinkFileProcessorServiceImplTest {
 
 
     @Test
-    void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
+    void processLinkFile_whenTrajectoryDoesNotExist() throws Exception {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
@@ -116,7 +116,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testProcessLinkFileWithAllZeroWarning() throws IOException {
+    void testProcessLinkFileWithAllZeroWarning() throws Exception {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
@@ -158,7 +158,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testProcessLinkFileWithUnilateralWarnings() throws IOException {
+    void testProcessLinkFileWithUnilateralWarnings() throws Exception {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
@@ -343,7 +343,7 @@ class LinkFileProcessorServiceImplTest {
 
 
     @Test
-    void testAccumulatedWarningsForAllZeros() throws IOException {
+    void testAccumulatedWarningsForAllZeros() throws Exception {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFileWar.xlsx",
@@ -383,7 +383,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testAccumulatedWarningsForAreaNotPresent() throws IOException {
+    void testAccumulatedWarningsForAreaNotPresent() throws Exception {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFileWar.xlsx",
@@ -424,7 +424,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testWarningForUnilateralValuesZero() throws IOException {
+    void testWarningForUnilateralValuesZero() throws Exception {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFileWar.xlsx",

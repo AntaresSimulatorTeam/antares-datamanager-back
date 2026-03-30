@@ -62,7 +62,7 @@ class TrajectoryServiceImplEconomicCostTest {
     }
 
     @Test
-    void processThermalEconomicCostTrajectory_shouldReturnSavedTrajectory_whenCostsPresent() throws IOException {
+    void processThermalEconomicCostTrajectory_shouldReturnSavedTrajectory_whenCostsPresent() throws Exception {
         // Arrange
         String trajectoryToUse = "economic_costs_test";
         String horizon = "2024-2025";
@@ -102,7 +102,7 @@ class TrajectoryServiceImplEconomicCostTest {
     }
 
     @Test
-    void processThermalEconomicCostTrajectory_shouldThrowBusinessException_whenCostsEmpty() throws IOException {
+    void processThermalEconomicCostTrajectory_shouldThrowBusinessException_whenCostsEmpty() throws Exception {
         // Arrange
         String trajectoryToUse = "economic_costs_empty";
         String horizon = "2030-20301";
