@@ -30,26 +30,25 @@ public class MiscToJsonService {
             return Collections.emptyMap();
         }
 
-        Map<String, Object> miscDataMap = new LinkedHashMap<>();
         Map<String, Double> capacityByGroup = new LinkedHashMap<>();
         Map<String, Set<String>> seriesByGroup = new LinkedHashMap<>();
 
         for (MiscGenerationDTO dto : areaDtos) {
-            String group = dto.getGroupe();
-            if (group == null) {
-                continue;
+            String group = MiscGroupEnum.normalizeForGenerator(dto.getGroupe());
+            double capacity = dto.getCapacity() != null ? dto.getCapacity() : 0.0;
+
+            capacityByGroup.merge(group, capacity, Double::sum);
+            seriesByGroup.computeIfAbsent(group, ignored -> new LinkedHashSet<>());
+
+            List<String> dtoSeries = dto.getMiscGenTsList();
+            if (dtoSeries != null) {
+                dtoSeries.stream()
+                        .filter(fileName -> MiscGroupEnum.matchesSeriesForGroup(fileName, group))
+                        .forEach(seriesByGroup.get(group)::add);
             }
-
-            capacityByGroup.merge(group, dto.getCapacity() == null ? 0d : dto.getCapacity(), Double::sum);
-
-            List<String> sourceSeries = dto.getMiscGenTsList() == null ? Collections.emptyList() : dto.getMiscGenTsList();
-            List<String> filteredSeries = sourceSeries.stream()
-                    .filter(fileName -> MiscGroupEnum.matchesSeriesForGroup(fileName, group))
-                    .toList();
-
-            seriesByGroup.computeIfAbsent(group, ignored -> new LinkedHashSet<>()).addAll(filteredSeries);
         }
 
+        Map<String, Object> miscDataMap = new LinkedHashMap<>();
         for (Map.Entry<String, Double> entry : capacityByGroup.entrySet()) {
             String group = entry.getKey();
 
@@ -69,3 +68,4 @@ public class MiscToJsonService {
         return miscDataMap;
     }
 }
+

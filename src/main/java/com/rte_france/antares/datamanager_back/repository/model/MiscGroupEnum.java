@@ -34,12 +34,6 @@ public enum MiscGroupEnum {
             WASTE.value
     );
 
-    private static final Set<String> OTHER_SERIES_ALIASES = Set.of(
-            OTHER.value,
-            WAVE.value,
-            HYDROKINETIC.value
-    );
-
     public static final Set<String> VALID_INPUT_GROUPS = Arrays.stream(values())
             .map(MiscGroupEnum::value)
             .collect(Collectors.toUnmodifiableSet());
@@ -71,11 +65,6 @@ public enum MiscGroupEnum {
 
         String upperName = fileName.toUpperCase(Locale.ROOT);
         String normalizedGroup = group.trim().toLowerCase(Locale.ROOT);
-
-        if (OTHER.value.equals(normalizedGroup)) {
-            return OTHER_SERIES_ALIASES.stream()
-                    .anyMatch(alias -> upperName.contains("_" + alias.toUpperCase(Locale.ROOT) + "."));
-        }
 
         return upperName.contains("_" + normalizedGroup.toUpperCase(Locale.ROOT) + ".");
     }
