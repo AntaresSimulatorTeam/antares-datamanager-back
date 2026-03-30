@@ -1144,6 +1144,205 @@ public class ResFileProcessorServiceImplTest {
             Path csvFile = directory.resolve(fileName);
             Files.writeString(csvFile, "timestamp,value\n2030-01-01,0.5\n2030-01-02,0.6\n");
         }
+
+        // ======================================================
+        // Tests for new behavior when technology is not specified
+        // ======================================================
+
+        @Test
+        void processLoadFactorResFileSucceedsWhenTechnologyNotSpecifiedAndAllFourTechnologiesExist(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Create all 4 required technologies
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME);
+            
+            // Create all 4 required technologies with CSV files
+            createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
+            createTechnologyWithCsv(trajectoryBaseDir, "solar thermo");
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), eq(null)))
+                    .thenReturn(Optional.empty());
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // WHEN - Call without technology parameter (null)
+            TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                    TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null
+            );
+
+            // THEN
+            assertNotNull(result);
+            assertEquals(TRAJECTORY_NAME, result.getFileName());
+            assertEquals(TrajectoryType.RES_LOAD.name(), result.getType());
+            assertEquals(AREA_FR, result.getArea());
+            assertNull(result.getTechnology());
+            assertEquals(1, result.getVersion());
+            assertTrue(result.getHasTimeSeries());
+            verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
+        @Test
+        void processLoadFactorResFileThrowsExceptionWhenTechnologyNotSpecifiedAndMissingTechnologies(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Create only 2 technologies (missing wind offshore and solar thermo)
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME);
+            
+            createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+
+            // WHEN & THEN
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processLoadFactorResFile(
+                            TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Missing required technologies")
+                    .hasMessageContaining("wind offshore")
+                    .hasMessageContaining("solar thermo");
+        }
+
+        @Test
+        void processLoadFactorResFileThrowsExceptionWhenTechnologyNotSpecifiedAndTechnologyFolderNotFound(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Trajectory folder doesn't exist
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD);
+            Files.createDirectories(trajectoryDir);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+
+            // WHEN & THEN
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processLoadFactorResFile(
+                            TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Trajectory folder not found");
+        }
+
+        @Test
+        void processLoadFactorResFileThrowsExceptionWhenTechnologyNotSpecifiedAndMissingCsvInOneTechnology(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Create all 4 technologies but one is missing CSV files
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME);
+            
+            createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
+            // Create solar thermo folder but without CSV
+            Path solarThermoDir = trajectoryBaseDir.resolve("solar thermo").resolve("solar thermo");
+            Files.createDirectories(solarThermoDir);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+
+            // WHEN & THEN
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processLoadFactorResFile(
+                            TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Missing required technologies")
+                    .hasMessageContaining("solar thermo");
+        }
+
+        @Test
+        void processLoadFactorResFileIncrementsVersionWhenTechnologyNotSpecifiedAndTrajectoryExists(@TempDir Path tempRoot) throws Exception {
+            // GIVEN
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME);
+            
+            createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
+            createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
+            createTechnologyWithCsv(trajectoryBaseDir, "solar thermo");
+
+            TrajectoryEntity existingTrajectory = new TrajectoryEntity();
+            existingTrajectory.setVersion(2);
+            existingTrajectory.setChecksum(CHECKSUM_DIFFERENT);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), eq(null)))
+                    .thenReturn(Optional.of(existingTrajectory));
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // WHEN
+            TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                    TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null
+            );
+
+            // THEN
+            assertNotNull(result);
+            assertEquals(3, result.getVersion());
+            assertNull(result.getTechnology());
+        }
+
+        @Test
+        void processLoadFactorResFileWhenTechnologySpecifiedIgnoresOtherTechnologies(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Only one technology with CSV
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+            Files.createDirectories(trajectoryDir);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // WHEN - Call WITH technology parameter (should use original behavior)
+            TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                    TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+            );
+
+            // THEN - Should succeed with specific technology, ignoring the rule about 4 technologies
+            assertNotNull(result);
+            assertEquals(TECHNOLOGY_SOLAR_PV, result.getTechnology());
+            assertEquals(1, result.getVersion());
+            verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
+        private void createTechnologyWithCsv(Path trajectoryBaseDir, String technology) throws IOException {
+            Path technologyDir = trajectoryBaseDir.resolve(technology).resolve(technology);
+            Files.createDirectories(technologyDir);
+            createMockCsvFile(technologyDir, technology + "_data.csv");
+        }
     }
 
     @Nested

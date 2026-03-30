@@ -107,18 +107,32 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         
-        Path trajectoryFilePath = basePath
-                .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
-                .resolve(trajectoryToUse)
-                .resolve(technology).resolve(technology)
-                .normalize();
+        // Si technology est renseignée : comportement actuel
+        if (technology != null && !technology.isBlank()) {
+            Path trajectoryFilePath = basePath
+                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                    .resolve(trajectoryToUse)
+                    .resolve(technology).resolve(technology)
+                    .normalize();
 
-        // Validate path to prevent directory traversal attacks
-        validatePathSecurity(basePath, trajectoryFilePath, trajectoryToUse);
-        
-        checkExistingTs(trajectoryFilePath, trajectoryToUse);
-        TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
-        return trajectoryRepository.save(trajectory);
+            // Validate path to prevent directory traversal attacks
+            validatePathSecurity(basePath, trajectoryFilePath, trajectoryToUse);
+            
+            checkExistingTs(trajectoryFilePath, trajectoryToUse);
+            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
+            return trajectoryRepository.save(trajectory);
+        } else {
+            // Si technology n'est pas renseignée : vérifier l'existence des 4 technologies
+            Path trajectoryFolder = basePath
+                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                    .resolve(trajectoryToUse);
+            
+            validatePathSecurity(basePath, trajectoryFolder, trajectoryToUse);
+            checkAllRequiredTechnologiesExist(trajectoryFolder, trajectoryToUse);
+            
+            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFolder, horizon, area, null);
+            return trajectoryRepository.save(trajectory);
+        }
     }
 
     @Transactional
@@ -211,6 +225,50 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         } else {
             throw BusinessException.builder()
                     .message("No technology folder found for load factor misc trajectory: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private static void checkAllRequiredTechnologiesExist(Path trajectoryFolder, String trajectoryToUse) throws IOException {
+        // List of 4 required technologies
+        String[] requiredTechnologies = {"wind onshore", "wind offshore", "solar pv", "solar thermo"};
+        List<String> missingTechnologies = new ArrayList<>();
+
+        if (!Files.exists(trajectoryFolder)) {
+            throw BusinessException.builder()
+                    .message("Trajectory folder not found for load factor misc trajectory: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        for (String technology : requiredTechnologies) {
+            Path technologyPath = trajectoryFolder.resolve(technology).resolve(technology).normalize();
+
+            if (!Files.exists(technologyPath)) {
+                missingTechnologies.add(technology);
+                continue;
+            }
+
+            // Ensure the path is real and validated before using Files.walk
+            Path realPath = technologyPath.toRealPath();
+
+            // Check if there is at least one .csv file in this technology directory
+            try (var filesStream = Files.walk(realPath, 1)) {
+                boolean hasCsv = filesStream
+                        .filter(Files::isRegularFile)
+                        .anyMatch(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"));
+                if (!hasCsv) {
+                    missingTechnologies.add(technology);
+                }
+            }
+        }
+
+        if (!missingTechnologies.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Missing required technologies for load factor misc trajectory '" + trajectoryToUse 
+                            + "'. The following technologies are required with at least one .csv file: "
+                            + String.join(", ", missingTechnologies))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

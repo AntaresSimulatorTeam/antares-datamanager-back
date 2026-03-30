@@ -44,7 +44,7 @@ public class ResController {
             @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
-            @RequestParam("technology") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String technology) throws Exception {
+            @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9_-]+$")  String technology) throws Exception {
 
         return new ResponseEntity<>(toTrajectoryDTO(resFileProcessorService.processLoadFactorResFile(trajectoryToUse, horizon, studyId, area, technology)), HttpStatus.CREATED);
     }
