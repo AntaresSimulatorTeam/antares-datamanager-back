@@ -119,7 +119,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             int yearColIndex = -1;
             String horizonYear = horizon.split("-")[1];
 
-            yearColIndex = getYearColIndex(lastCol, header, horizonYear, yearColIndex);
+            yearColIndex = getYearColIndex(REQUIRED_CLUSTER_COLUMNS.length, lastCol, header, horizonYear, yearColIndex);
             if (yearColIndex == -1) {
                 throw BusinessException.builder()
                         .message("Horizon '" + horizon + "' does not exist in the Misc trajectory " + filePath.getFileName())

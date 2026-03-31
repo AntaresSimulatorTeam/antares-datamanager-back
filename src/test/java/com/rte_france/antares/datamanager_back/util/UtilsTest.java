@@ -1165,7 +1165,7 @@ class UtilsTest {
             header.createCell(5).setCellValue("2025");
             header.createCell(6).setCellValue("2030");
 
-            int result = Utils.getYearColIndex(7, header, "2030", -1);
+            int result = Utils.getYearColIndex(5,7, header, "2030", -1);
 
             assertThat(result).isEqualTo(6);
         }
@@ -1179,7 +1179,7 @@ class UtilsTest {
             header.createCell(5).setCellValue(2025);
             header.createCell(6).setCellValue(2030);
 
-            int result = Utils.getYearColIndex(7, header, "2025", -1);
+            int result = Utils.getYearColIndex(5,7, header, "2025", -1);
 
             assertThat(result).isEqualTo(5);
         }
@@ -1196,7 +1196,7 @@ class UtilsTest {
             FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
             evaluator.evaluateFormulaCell(cell);
 
-            int result = Utils.getYearColIndex(6, header, "2025", -1);
+            int result = Utils.getYearColIndex(5,6, header, "2025", -1);
 
             assertThat(result).isEqualTo(5);
         }
@@ -1210,7 +1210,7 @@ class UtilsTest {
             header.createCell(5).setCellValue("2025");
             header.createCell(6).setCellValue("2030");
 
-            int result = Utils.getYearColIndex(7, header, "2040", -1);
+            int result = Utils.getYearColIndex(5,7, header, "2040", -1);
 
             assertThat(result).isEqualTo(-1);
         }
@@ -1224,7 +1224,7 @@ class UtilsTest {
             header.createCell(5).setBlank();
             header.createCell(6).setCellValue("2030");
 
-            int result = Utils.getYearColIndex(7, header, "2030", -1);
+            int result = Utils.getYearColIndex(5,7, header, "2030", -1);
 
             assertThat(result).isEqualTo(6);
         }
@@ -1241,7 +1241,7 @@ class UtilsTest {
             FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
             evaluator.evaluateFormulaCell(cell);
 
-            int result = Utils.getYearColIndex(6, header, "2025", -1);
+            int result = Utils.getYearColIndex(5,6, header, "2025", -1);
 
             assertThat(result).isEqualTo(5);
         }
@@ -1442,7 +1442,7 @@ class UtilsTest {
         header.createCell(1).setCellValue("B");
         header.createCell(2).setCellValue("C");
 
-        String[] required = {"A", "B"};
+        String[] required = {"A", "B", "C", "D", "E"};
 
         BusinessException ex = catchThrowableOfType(
                 () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"),
@@ -1450,7 +1450,7 @@ class UtilsTest {
         );
 
         assertThat(ex).isNotNull();
-        assertThat(ex.getMessage()).contains("InstalledRes header is invalid");
+        assertThat(ex.getMessage()).contains("Res trajectory header is invalid");
         assertThat(ex.getHttpStatus().value()).isEqualTo(400);
     }
 
@@ -1509,11 +1509,11 @@ class UtilsTest {
                     .thenReturn(10);
 
             // Mock getYearColIndex
-            utilities.when(() -> Utils.getYearColIndex(10, header, "2030", -1))
+            utilities.when(() -> Utils.getYearColIndex(5,10, header, "2030", -1))
                     .thenReturn(7);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", false);
+            int result = Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", 5,false);
 
             // Then
             assertThat(result).isEqualTo(7);
@@ -1532,12 +1532,12 @@ class UtilsTest {
             utilities.when(() -> Utils.getRealLastColumn(header))
                     .thenReturn(10);
 
-            utilities.when(() -> Utils.getYearColIndex(10, header, "2030", -1))
+            utilities.when(() -> Utils.getYearColIndex(5,10, header, "2030", -1))
                     .thenReturn(-1);
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", false),
+                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", 5,false),
                     BusinessException.class
             );
 
@@ -1563,11 +1563,11 @@ class UtilsTest {
                     .thenReturn(10);
 
             // We check that the method extracts "2035" from "2020-2035"
-            utilities.when(() -> Utils.getYearColIndex(10, header, "2035", -1))
+            utilities.when(() -> Utils.getYearColIndex(5,10, header, "2035", -1))
                     .thenReturn(4);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2020-2035", "trajectoryB", false);
+            int result = Utils.resolveYearColumnIndex(header, "2020-2035", "trajectoryB", 5,false);
 
             // Then
             assertThat(result).isEqualTo(4);

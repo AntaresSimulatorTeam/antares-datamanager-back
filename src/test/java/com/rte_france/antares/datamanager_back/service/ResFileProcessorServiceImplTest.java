@@ -64,6 +64,7 @@ public class ResFileProcessorServiceImplTest {
     private static final String WIND_ONSHORE_LABEL = "Wind Onshore";
     private static final int STUDY_ID = 1;
     protected static final String FILE_NOT_FOUND = "File not found: ";
+    private static final String ZONAL_REPARTITION_FILE_NAME = "repartition_zonal_BP23_Aref";
 
     @InjectMocks
     private ResFileProcessorServiceImpl resFileProcessorServiceImpl;
@@ -1893,6 +1894,458 @@ public class ResFileProcessorServiceImplTest {
             );
 
             assertEquals("Could not import RES technology distribution trajectory", ex.getMessage());
+            assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        }
+    }
+
+    @Nested
+    class processZonalDistributionResFile {
+        private Path createMockResExcelFile(Path tempDir, String fileName, List<String> areas, boolean isNumericValues) throws Exception {
+            Path file = tempDir.resolve(fileName);
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet0 = wb.createSheet("Sheet0");
+                Row header = sheet0.createRow(0);
+                header.createCell(0).setCellValue("Area");
+                header.createCell(1).setCellValue("PECD_zone");
+                header.createCell(2).setCellValue("Group");
+                header.createCell(3).setCellValue("2030");
+
+                // Créer une row par area fournie
+                for (int i = 0; i < areas.size(); i++) {
+                    String currentArea = areas.get(i);
+                    Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
+                    var value = isNumericValues ? (100.0 + (i * 10)) : "truc";
+                    dataRow.createCell(0).setCellValue(currentArea);
+                    dataRow.createCell(1).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(2).setCellValue("wind offshore");
+                    if (value instanceof Number n) {
+                        dataRow.createCell(3).setCellValue(n.doubleValue());
+                    } else {
+                        dataRow.createCell(3).setCellValue(String.valueOf(value));
+                    }
+                }
+
+                wb.write(out);
+            }
+            return file;
+        }
+
+        private Path createMockResExcelFileWithNull(Path tempDir, String fileName, List<String> areas) throws Exception {
+            Path file = tempDir.resolve(fileName);
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet0 = wb.createSheet("Sheet0");
+                Row header = sheet0.createRow(0);
+                header.createCell(0).setCellValue("Area");
+                header.createCell(1).setCellValue("PECD_zone");
+                header.createCell(2).setCellValue("Group");
+                header.createCell(3).setCellValue("2030");
+
+                for (int i = 0; i < areas.size(); i++) {
+                    String currentArea = areas.get(i);
+                    Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
+                    dataRow.createCell(0).setCellValue(currentArea);
+                    dataRow.createCell(1).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(2);
+                    dataRow.createCell(3).setCellValue(0.05);
+                }
+
+                wb.write(out);
+            }
+            return file;
+        }
+
+        private Path createMockResExcelFileWithoutDataRow(Path tempDir, String fileName) throws Exception {
+            Path file = tempDir.resolve(fileName);
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet0 = wb.createSheet("Sheet0");
+                Row header = sheet0.createRow(0);
+                header.createCell(0).setCellValue("Area");
+                header.createCell(1).setCellValue("PECD_zone");
+                header.createCell(2).setCellValue("Group");
+                header.createCell(3).setCellValue("2030");
+                wb.write(out);
+            }
+            return file;
+        }
+
+        private Path createMockResExcelFileWithMissingColumns(Path tempDir, String fileName, List<String> areas) throws Exception {
+            Path file = tempDir.resolve(fileName);
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet0 = wb.createSheet("Sheet0");
+                Row header = sheet0.createRow(0);
+                header.createCell(0).setCellValue("Area");
+                header.createCell(1).setCellValue("PECD_zone");
+                header.createCell(3).setCellValue("2030");
+
+                for (int i = 0; i < areas.size(); i++) {
+                    String currentArea = areas.get(i);
+                    Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
+                    dataRow.createCell(0).setCellValue(currentArea);
+                    dataRow.createCell(1).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(3).setCellValue(0.67);
+                }
+
+                wb.write(out);
+            }
+            return file;
+        }
+
+        @Test
+        void successfulProcessingWhenAreaWithoutTechnology(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            List<String> areas = List.of(AREA_FR);
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas, true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni("testUser");
+            }});
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // WHEN
+            TrajectoryEntity result = resFileProcessorServiceImpl.processZonalDistributionResFile(
+                    ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
+            );
+
+            // THEN
+            assertNotNull(result);
+            assertEquals(ZONAL_REPARTITION_FILE_NAME, result.getFileName());
+            assertEquals(1, result.getResZonalDistributionCapacityEntities().size());
+            verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
+        @Test
+        void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_FR), true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni("testUser");
+            }});
+
+            var trajectoryEntity = new TrajectoryEntity();
+            trajectoryEntity.setType(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name());
+            trajectoryEntity.setArea(AREA_FR);
+            trajectoryEntity.setFileName("test");
+            trajectoryEntity.setVersion(1);
+            trajectoryEntity.setHorizon("2029-2030");
+            trajectoryEntity.setChecksum("ABC123");
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    any(), any(), any(), any(), any()))
+                    .thenReturn(Optional.of(trajectoryEntity));
+            when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+            // WHEN
+            TrajectoryEntity trajectory = resFileProcessorServiceImpl.processZonalDistributionResFile(
+                    ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, "solar_pv", false
+            );
+
+            assertThat(trajectory).isNotNull();
+            assertThat(trajectory.getVersion()).isEqualTo(2);
+        }
+
+        @Test
+        void shouldThrowWhenAlreadyProcessedSameContent(@TempDir Path tempRoot) throws Exception {
+            // On crée un fichier avec une seule ligne valide
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_FR),  true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni("testUser");
+            }});
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // Créer une première trajectoire
+            // WHEN
+            TrajectoryEntity firstResult = resFileProcessorServiceImpl.processZonalDistributionResFile(
+                    ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
+            );
+
+            assertThat(firstResult).isNotNull();
+            assertThat(firstResult.getChecksum()).isNotNull();
+
+            // Recréer le même fichier avec les mêmes données
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_FR),  true);
+
+            // Mock pour retourner la première trajectoire
+            when(trajectoryRepository
+                    .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                            anyString(), anyString(), anyString(), anyString(), any()))
+                    .thenReturn(Optional.of(firstResult));
+
+            // Le deuxième appel avec le même contenu devrait lever une exception
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("File already processed");
+        }
+
+        @Test
+        void throwsExceptionForAreaWhenHorizonIsWrong(@TempDir Path tempRoot) throws Exception {
+            List<String> areas = List.of(AREA_FR);
+
+            // Créer les fichiers mocks dans nestedDir
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas, true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, HORIZON_2026_2027, STUDY_ID, AREA_FR, "solar_pv", false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("Horizon"));
+        }
+
+        @Test
+        void throwsExceptionWhenValuesInRequiredColumnsAreaAreaNull(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            List<String> areas = List.of(AREA_FR);
+            createMockResExcelFileWithNull(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, "solar_pv", false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("values can't be empty in Res trajectory"));
+        }
+
+        @Test
+        void throwsExceptionForAreaWhenNoAreaForArea(@TempDir Path tempRoot) throws Exception {
+            // GIVEN : Créer la structure de dossiers temporaire
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_AT, AREA_AT), true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_IT);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, "Solar PV", false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("None of the areas of trajectory AREA are present"));
+        }
+
+        @Test
+        void throwsExceptionForAreaWhenAreaSelectedNotInAREA(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            List<String> areas = List.of(AREA_AT);
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas, true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_IT);
+            }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_IT, "Solar PV", false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("Selected area {0} is not present in the 'node' column"));
+        }
+
+        @Test
+        void throwsExceptionWhenDataOnshoreAreNotNumeric(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            List<String> areas = List.of(AREA_FR);
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas,  false);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("Values for node/group/cluster FR/FR00/wind offshore are not numeric in Res trajectory "+ZONAL_REPARTITION_FILE_NAME+".xlsx"));
+        }
+
+        @Test
+        void throwsExceptionWhenMissingColumns(@TempDir Path tempRoot) throws Exception {
+            List<String> areas = List.of(AREA_FR);
+            // Créer les fichiers mocks dans nestedDir
+            createMockResExcelFileWithMissingColumns(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, "solar_pv", false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("Missing columns"));
+        }
+
+        @Test
+        void throwsExceptionWhenOnlyEmptyRows(@TempDir Path tempRoot) throws Exception {
+            // Créer les fichiers mocks dans nestedDir
+            createMockResExcelFileWithoutDataRow(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx");
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null, false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("No area found in"));
+        }
+
+        @Test
+        void shouldThrowWhenNoFileFoundInTechnologyDistributionRootDirectory(@TempDir Path tempRoot) throws Exception {
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // stubs for repository/user
+            // Autres mocks
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_AT);
+            }}));
+
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_AT, null, false
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining(FILE_NOT_FOUND);
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws IOException {
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            // Given
+            ResFileProcessorServiceImpl servicespy = spy(resFileProcessorServiceImpl);
+            // On mock la méthode interne pour forcer une IOException
+            Mockito.lenient().doThrow(new IOException("boom"))
+                    .when(servicespy)
+                    .processResCapacityFile(
+                            Mockito.any(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.any(),
+                            Mockito.anyList(),
+                            Mockito.anyBoolean(),
+                            Mockito.any()
+                    );
+
+            // When + Then
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> servicespy.processZonalDistributionResFile(ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false)
+            );
+
+            assertEquals("Could not import RES zonal distribution trajectory", ex.getMessage());
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenResFileCannotBeImported(@TempDir Path tempRoot) throws Exception {
+            // GIVEN
+            String horizon = "2029-2030";
+            Integer studyId = 1;
+            String area = AREA_AT;
+
+            // Le fichier attendu par la méthode
+            createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(area), true);
+
+            // Mock du répertoire (IMPORTANT : renvoyer le dossier, pas le fichier)
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+
+            // Mock de loadStudyAreas
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(area);
+            }}));
+
+            ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
+
+            // Mock du processResCapacityFile qui doit lancer IOException
+            Mockito.lenient().doThrow(new IOException("boom"))
+                    .when(spy)
+                    .processResCapacityFile(
+                            Mockito.any(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.anyString(),
+                            Mockito.any(),
+                            Mockito.anyList(),
+                            Mockito.anyBoolean(),
+                            Mockito.any()
+                    );
+
+            // WHEN + THEN
+            BusinessException ex = assertThrows(
+                    BusinessException.class,
+                    () -> spy.processZonalDistributionResFile(
+                            ZONAL_REPARTITION_FILE_NAME, horizon, studyId, area, null, false
+                    )
+            );
+
+            assertEquals("Could not import RES zonal distribution trajectory", ex.getMessage());
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         }
     }
