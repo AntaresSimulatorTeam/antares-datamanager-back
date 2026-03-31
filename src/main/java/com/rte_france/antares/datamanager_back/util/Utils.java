@@ -42,6 +42,7 @@ import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
+import static com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum;
 
 
 /**
@@ -85,12 +86,12 @@ public class Utils {
 
     public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), null));
+                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
     }
 
     public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), null));
+                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
     }
 
     public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
@@ -132,10 +133,6 @@ public class Utils {
         boolean isAreaNotChosen = areaLoadAlreadyChosen.isEmpty() || !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase());
         return horizon.equals(expectedHorizon) && isAreaValid && isAreaNotChosen;
     }
-    
-    private static String getFilePath(TrajectoryType trajectoryType, String area, String technology, Path path) {
-        return trajectoryType == TrajectoryType.RES_CAPACITY && Objects.equals(area, "FR") && (technology != null && !technology.isEmpty()) ? path.getParent().getFileName().toString() : path.getFileName().toString();
-    }
 
     /**
      * Builds a trajectory from the given path to a file.
@@ -146,10 +143,9 @@ public class Utils {
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
             createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
-        String checksum = computeChecksumByType(path, trajectoryType, horizon, area, technology);
-        String fileName = getFilePath(trajectoryType, area, technology, path);
+        String checksum = computeChecksumByType(path, trajectoryType, horizon, area);
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(fileName, trajectoryType.name()))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
@@ -410,10 +406,10 @@ public class Utils {
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
      */
-    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area, String technology) throws IOException {
+    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws IOException {
         return switch (type) {
             case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION -> getFileChecksum(path.toString());
-            case RES_CAPACITY -> "FR".equals(area) && (technology == null || technology.isEmpty()) ? "NA" : getFileChecksum(path.toString());
+            case RES_CAPACITY -> "FR".equals(area) ? calculateDirectoryChecksum(path) : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
@@ -838,11 +834,10 @@ public class Utils {
     }
 
     public static String calculateDirectoryChecksum(Path directory)
-            throws IOException, NoSuchAlgorithmException {
-
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            throws IOException, TechnicalException {
 
         try (Stream<Path> paths = Files.walk(directory)) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             List<Path> files = paths
                     .filter(Files::isRegularFile)
@@ -864,9 +859,12 @@ public class Utils {
                     }
                 }
             }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: " + e.getMessage())
+                    .build();
         }
-
-        return HexFormat.of().formatHex(digest.digest());
     }
 
     private static String getErrorMessageLabelFromType(TrajectoryType type) {
@@ -1105,5 +1103,11 @@ public class Utils {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+    }
+
+    public void throwTechnicalException(IOException e) {
+        throw TechnicalException.builder()
+                .message("Error processing file: " + e.getMessage())
+                .build();
     }
 }
