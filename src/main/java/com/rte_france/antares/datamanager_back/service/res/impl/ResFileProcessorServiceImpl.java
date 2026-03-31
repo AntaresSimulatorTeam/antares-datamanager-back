@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelC
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +27,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.DecimalFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -64,6 +63,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     protected static final String OFFSHORE = "offshore";
     protected static final String FILE_FORMAT = ".xlsx";
     protected static final String FILE_NOT_FOUND = "File not found: ";
+    protected static final String LITERAL_STRING = "%s/%s/%s";
 
     @Transactional
     @Override
@@ -480,31 +480,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             TrajectoryType trajectoryType
     ) {
         boolean allRowsEmpty = true;
-        ResRowProcessingResult result;
-        if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
-            result = new ResRowProcessingTechnologyDistributionResult(new ArrayList<>(),
-                    new StringBuilder(),
-                    new ArrayList<>(),
-                    new ArrayList<>(),
-                    new HashSet<>());
-        } else if (trajectoryType == TrajectoryType.RES_ZONAL_DISTRIBUTION) {
-            result = new ResRowProcessingZonalDistributionResult(
-                    new ArrayList<>(),
-                    new StringBuilder(),
-                    new ArrayList<>(),
-                    new ArrayList<>(),
-                    new HashSet<>()
-            );
-        } else {
-            result = new ResRowProcessingCapacityResult(
-                    new ArrayList<>(),
-                    new StringBuilder(),
-                    new ArrayList<>(),
-                    new ArrayList<>(),
-                    new HashSet<>()
-            );
-        }
-        
+        ResRowProcessingResult result = getResRowProcessingResult(trajectoryType);
+
         Iterator<Row> rows = sheet.rowIterator();
         rows.next(); // skip header
 
@@ -513,11 +490,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             if (!ExcelCommonValidator.isRowEmpty(row)) {
                 allRowsEmpty = false;
-                if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
-                    processResDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
-                } else if (trajectoryType == TrajectoryType.RES_ZONAL_DISTRIBUTION){
-                    processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);   
-                } else {
+                switch (trajectoryType) {
+                case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
+                        processResDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
+                case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
+                        processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
+                default -> 
                     processResIPCapacityRow(context, (ResRowProcessingCapacityResult) result, row, isOffshore, requiredColumns);
                 }
             }
@@ -525,6 +503,36 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         validateEmptyRows(allRowsEmpty, trajectoryType);
 
+        return result;
+    }
+
+    private @NonNull ResRowProcessingResult getResRowProcessingResult(TrajectoryType trajectoryType) {
+        ResRowProcessingResult result;
+        switch (trajectoryType) {
+            case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
+                    result = new ResRowProcessingTechnologyDistributionResult(new ArrayList<>(),
+                            new StringBuilder(),
+                            new ArrayList<>(),
+                            new ArrayList<>(),
+                            new HashSet<>());
+            case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
+                    result = new ResRowProcessingZonalDistributionResult(
+                            new ArrayList<>(),
+                            new StringBuilder(),
+                            new ArrayList<>(),
+                            new ArrayList<>(),
+                            new HashSet<>()
+                    );
+                    
+            default ->
+                    result = new ResRowProcessingCapacityResult(
+                            new ArrayList<>(),
+                            new StringBuilder(),
+                            new ArrayList<>(),
+                            new ArrayList<>(),
+                            new HashSet<>()
+                    );
+        }
         return result;
     }
 
@@ -552,7 +560,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         validateEmptyRequiredColumns(context, requiredColumns, toUse, area, col2, col3, col4);
 
-        String combo = "%s/%s/%s".formatted(area, group, cluster);
+        String combo = LITERAL_STRING.formatted(area, group, cluster);
 
         Number numericValue = parseNumericValue(row, context.getYearColIndex(), combo, result);
         if (numericValue == null) return;
@@ -603,7 +611,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         validateEmptyRequiredColumns(context, requiredColumns, group, cluster, pecdZone, pecdTechno);
 
-        String combo = "%s/%s/%s".formatted(pecdZone, group, cluster);
+        String combo = LITERAL_STRING.formatted(pecdZone, group, cluster);
 
         Number numericValue = parseNumericValue(row, context.getYearColIndex(), combo, result);
         if (numericValue == null) return;
@@ -644,7 +652,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         validateEmptyRequiredColumns(context, requiredColumns, area, group, pecdZone);
 
-        String combo = "%s/%s/%s".formatted(area, pecdZone, group);
+        String combo = LITERAL_STRING.formatted(area, pecdZone, group);
         
         BigDecimal numericValue = parseStringPercentValue(row, context.getYearColIndex(), combo, result);
         if (numericValue == null) return;
@@ -749,7 +757,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     ) {
         Object cellVal = getCellValue(row, yearColIndex);
 
-        if (cellVal instanceof Number num) {
+        if (cellVal instanceof Number) {
             try {
                 return new BigDecimal(cellVal.toString());
             } catch (NumberFormatException ignored) {
@@ -757,7 +765,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             }
         }
         
-        if (cellVal instanceof String str) {
+        if (cellVal instanceof String) {
             try {
                 return parsePercentage((String) cellVal);
             } catch (NumberFormatException ignored) {
