@@ -115,6 +115,10 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<ResTechnologyDistributionEntity> resTechnologyDistributionCapacityEntities;
 
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<ResZonalDistributionEntity> resZonalDistributionCapacityEntities;
+
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",
             joinColumns = @JoinColumn(name = "trajectory_id"),
