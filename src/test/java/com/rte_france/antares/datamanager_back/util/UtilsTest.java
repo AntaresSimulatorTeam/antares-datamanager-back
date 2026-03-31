@@ -948,7 +948,8 @@ class UtilsTest {
                         technologyParam,
                         fileTechnologies,
                         TrajectoryType.RES_CAPACITY,
-                        "file.xlsx"
+                        "file.xlsx",
+                        "AT"
                 )
         );
     }
@@ -966,7 +967,8 @@ class UtilsTest {
                         technologyParam,
                         fileTechnologies,
                         TrajectoryType.RES_CAPACITY,
-                        "file.xlsx"
+                        "file.xlsx",
+                        "AT"
                 )
         );
 

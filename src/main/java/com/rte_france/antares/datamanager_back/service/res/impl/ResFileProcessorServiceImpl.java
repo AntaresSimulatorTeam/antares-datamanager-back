@@ -59,7 +59,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
             GROUP_COLUMN, CLUSTER_COLUMN, PECD_ZONE_COLUMN, "Techno_PECD"};
     protected static final String[] REQUIRED_ZONAL_DISTRIBUTION_COLUMNS = {
-            AREA_COLUMN, PECD_ZONE_COLUMN, GROUP_COLUMN};
+            AREA_COLUMN, "PECD_zone", GROUP_COLUMN};
     protected static final String OFFSHORE = "offshore";
     protected static final String FILE_FORMAT = ".xlsx";
     protected static final String FILE_NOT_FOUND = "File not found: ";
@@ -464,7 +464,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
             if (technology != null && trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
-                validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse);
+                validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
             }
             validateInvalidCombos(result.invalidCombos(), trajectoryToUse);
 
@@ -665,7 +665,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .build();
 
         result.addEntity(entity);
-        appendChecksum(result, area, group, pecdZone, null, numericValue, true);
     }
 
     private boolean shouldProcessArea(ResRowProcessingContext context, ResRowProcessingResult result, String area, String technology) {
@@ -765,9 +764,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             }
         }
         
-        if (cellVal instanceof String) {
+        if (cellVal instanceof String str) {
             try {
-                return parsePercentage((String) cellVal);
+                return parsePercentage(str);
             } catch (NumberFormatException ignored) {
                 result.invalidCombos().add(combo);
             }
@@ -794,25 +793,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         // Arrondi final à 2 décimales
         return value.setScale(2, RoundingMode.HALF_UP);
-    }
-
-
-    private void appendChecksum(
-            ResRowProcessingResult result,
-            String area,
-            String group,
-            String cluster,
-            String categoryOrZone,
-            Number capacityByYear,
-            Boolean toUse
-    ) {
-        result.checksum()
-                .append(area).append("|")
-                .append(group).append("|")
-                .append(cluster).append("|")
-                .append(categoryOrZone).append("|")
-                .append(capacityByYear).append("|")
-                .append(toUse).append("\n");
     }
     
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType, String technology) {

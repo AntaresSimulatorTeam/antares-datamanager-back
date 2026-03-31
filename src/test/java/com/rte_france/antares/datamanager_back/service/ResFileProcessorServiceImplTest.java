@@ -690,7 +690,7 @@ public class ResFileProcessorServiceImplTest {
                             "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "Wind offshore", false
                     )
             );
-            assertTrue(exception.getMessage().contains("Selected technology {0} is not present in the 'node' column of"));
+            assertTrue(exception.getMessage().contains("Selected technology {1}/{0} is not present in the 'node' column of"));
         }
 
         @Test
@@ -1728,7 +1728,7 @@ public class ResFileProcessorServiceImplTest {
                             "repartition_techno_BP23_Aref", "2029-2030", 1, AREA_AT, "Wind offshore", false
                     )
             );
-            assertTrue(exception.getMessage().contains("Selected technology {0} is not present in the 'node' column of"));
+            assertTrue(exception.getMessage().contains("Selected technology {1}/{0} is not present in the 'node' column of"));
         }
 
         @Test
