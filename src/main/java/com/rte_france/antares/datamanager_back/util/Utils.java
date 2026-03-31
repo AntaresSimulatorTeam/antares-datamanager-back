@@ -879,7 +879,10 @@ public class Utils {
     }
 
     public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
+        boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream()
+                .noneMatch(sa -> fileAreas.stream()
+                        .anyMatch(fa -> fa.equalsIgnoreCase(sa)));
+
         if (hasNoAreaOfTrajectoryAreaInFile) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
@@ -901,12 +904,12 @@ public class Utils {
         }
     }
 
-    public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName) {
+    public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName, String areaParam) {
         if (technologyParam != null && !technologyParam.isBlank() && !fileTechnologies.contains(technologyParam.toLowerCase())) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(technologyParam, label, trajectoryFileName))
-                    .message("Selected technology {0} is not present in the 'node' column of {1} trajectory {2}")
+                    .errorMessageArguments(List.of(technologyParam, areaParam, label, trajectoryFileName))
+                    .message("Selected technology {1}/{0} is not present in the 'node' column of {2} trajectory {3}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
