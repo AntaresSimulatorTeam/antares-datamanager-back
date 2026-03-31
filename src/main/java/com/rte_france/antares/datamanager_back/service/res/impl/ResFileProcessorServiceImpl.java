@@ -106,7 +106,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     @Override
-    public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws Exception {
+    public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws IOException {
         Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         
@@ -202,7 +202,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String areaParam,
             String technology,
             boolean isCivilYear
-    ) throws Exception {
+    ) throws IOException {
 
         List<String> studyAreas = loadStudyAreas(studyId);
         String technologyParam = technology != null ? toSnakeCase(technology): null;
@@ -332,7 +332,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
     }
 
-    private TrajectoryEntity buildLoadFactorMiscTrajectory(String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws Exception {
+    private TrajectoryEntity buildLoadFactorMiscTrajectory(String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String checksum = calculateDirectoryChecksum(trajectoryFilePath);
 
@@ -816,7 +816,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 technology);
     }
 
-    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws Exception {
+    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
         String checksum = "FR".equals(areaParam) && trajectoryType == TrajectoryType.RES_CAPACITY ? calculateDirectoryChecksum(filePath) : calculateChecksum(result.checksum().toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
