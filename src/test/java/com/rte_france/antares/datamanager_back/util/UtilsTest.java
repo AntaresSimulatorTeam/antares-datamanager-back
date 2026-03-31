@@ -285,8 +285,8 @@ class UtilsTest {
             }
         }
 
-        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null, null);
-        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null, null);
+        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null);
+        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null);
 
         assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
     }
@@ -369,7 +369,7 @@ class UtilsTest {
 
         TechnicalException ex = assertThrows(
                 TechnicalException.class,
-                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null, null)
+                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null)
         );
 
         assertTrue(

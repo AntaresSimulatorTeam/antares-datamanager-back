@@ -339,13 +339,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
 
-    private void throwTechnicalException(IOException e) {
-        throw TechnicalException.builder()
-                .message("Error processing file: " + e.getMessage())
-                .build();
-    }
-
-
     private ThermalCommonParameterEntity buildThermalCommonParameterEntity(Row row, String clusterName, String clusterPemmdb, Row header, String trajectoryName) {
         String technology = checkNoSpecialCharacters(castString(getCellValue(row, 3)), row.getRowNum(), trajectoryName);
 
