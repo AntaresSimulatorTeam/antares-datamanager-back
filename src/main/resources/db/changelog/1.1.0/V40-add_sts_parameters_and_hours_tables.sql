@@ -6,10 +6,10 @@ CREATE TABLE st_constraints_parameters
     id              INTEGER,
     storage_id      INTEGER NOT NULL,
     name            VARCHAR(40),
-    zone            VARCHAR(40),
+    zone            VARCHAR(10),
     cluster         VARCHAR(40),
-    variable        VARCHAR(40),
-    operator        VARCHAR(40),
+    variable        VARCHAR(20),
+    operator        VARCHAR(20),
     enabled         BOOLEAN,
     PRIMARY KEY (id)
     );
