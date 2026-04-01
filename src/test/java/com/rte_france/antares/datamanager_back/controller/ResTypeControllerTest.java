@@ -458,4 +458,169 @@ class ResControllerTest {
                     .processTechnologyDistributionResFile("repartition_techno_BP23_Aref", "2029-2030", 1, "FR", "wind", false);
         }
     }
+
+    @Nested
+    class uploadZonalDistributionResTrajectory {
+        @Test
+        void uploadZonalDistributionResTrajectory_returns201_andCallsService() throws Exception {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(456);
+            entity.setFileName("BP23_Aref");
+            entity.setType("RES_ZONAL_DISTRIBUTION");
+            entity.setVersion(1);
+            entity.setArea("FR");
+            entity.setHasTimeSeries(false);
+
+            when(resFileProcessorService.processZonalDistributionResFile(
+                    "repartition_zonale_BP23_Aref",
+                    "2029-2030",
+                    1,
+                    "FR",
+                    "",
+                    false
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "FR")
+                            .param("technology", "")
+                            .param("trajectoryToUse", "repartition_zonale_BP23_Aref")
+                            .param("horizon", "2029-2030")
+                            .param("studyId", "1")
+                            .param("isCivilYear", String.valueOf(false)))
+                    .andExpect(status().isCreated())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.id").value(456))
+                    .andExpect(jsonPath("$.trajectoryName").value("BP23_Aref"))
+                    .andExpect(jsonPath("$.version").value(1))
+                    .andExpect(jsonPath("$.area").value("FR"));
+
+            verify(resFileProcessorService, times(1))
+                    .processZonalDistributionResFile("repartition_zonale_BP23_Aref", "2029-2030", 1, "FR", "", false);
+            verifyNoMoreInteractions(resFileProcessorService);
+        }
+
+        @Test
+        void uploadZonalDistributionResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds40Characters() throws Exception {
+            String longTrajectoryName = "a".repeat(41);
+
+            mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "FR")
+                            .param("technology", "")
+                            .param("trajectoryToUse", longTrajectoryName)
+                            .param("horizon", "2029-2030")
+                            .param("studyId", "1"))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoMoreInteractions(resFileProcessorService);
+        }
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "2029",
+                "20292030",
+                "abcd-efgh",
+        })
+        void uploadZonalDistributionResTrajectory_returnsBadRequest_whenHorizonFormatIsInvalid(String horizon) throws Exception {
+            mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "FR")
+                            .param("technology", "")
+                            .param("trajectoryToUse", "repartition_zonale_BP23_Aref")
+                            .param("horizon", horizon)
+                            .param("studyId", "1"))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoMoreInteractions(resFileProcessorService);
+        }
+
+        @Test
+        void uploadZonalDistributionResTrajectory_callsServiceWithCorrectParameters() throws Exception {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(789);
+            entity.setFileName("repartition_zonale_BP23_Aref");
+            entity.setType("RES_ZONAL_DISTRIBUTION");
+            entity.setVersion(1);
+            entity.setArea("DE");
+
+            when(resFileProcessorService.processZonalDistributionResFile(
+                    "repartition_zonale_BP23_Aref",
+                    "2026-2027",
+                    42,
+                    "DE",
+                    "",
+                    false
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "DE")
+                            .param("technology", "")
+                            .param("trajectoryToUse", "repartition_zonale_BP23_Aref")
+                            .param("horizon", "2026-2027")
+                            .param("studyId", "42")
+                            .param("isCivilYear", String.valueOf(false)))
+                    .andExpect(status().isCreated());
+
+            verify(resFileProcessorService, times(1))
+                    .processZonalDistributionResFile("repartition_zonale_BP23_Aref", "2026-2027", 42, "DE", "", false);
+        }
+
+        @Test
+        void uploadZonalDistributionResTrajectory_acceptsTrajectoryNameWithExactly40Characters() throws Exception {
+            String trajectoryName40Chars = "a".repeat(40);
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(999);
+            entity.setFileName(trajectoryName40Chars);
+            entity.setType("RES_ZONAL_DISTRIBUTION");
+
+            when(resFileProcessorService.processZonalDistributionResFile(
+                    trajectoryName40Chars,
+                    "2029-2030",
+                    1,
+                    "FR",
+                    "",
+                    false
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "FR")
+                            .param("technology", "")
+                            .param("trajectoryToUse", trajectoryName40Chars)
+                            .param("horizon", "2029-2030")
+                            .param("studyId", "1")
+                            .param("isCivilYear", String.valueOf(false)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id").value(999));
+
+            verify(resFileProcessorService, times(1))
+                    .processZonalDistributionResFile(trajectoryName40Chars, "2029-2030", 1, "FR", "", false);
+        }
+
+        @Test
+        void uploadZonalDistributionResTrajectory_throwsException_whenServiceFails() throws Exception {
+            when(resFileProcessorService.processZonalDistributionResFile(
+                    "repartition_zonale_BP23_Aref",
+                    "2029-2030",
+                    1,
+                    "FR",
+                    "",
+                    false
+            )).thenThrow(new RuntimeException("Service error"));
+
+            mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "FR")
+                            .param("technology", "")
+                            .param("trajectoryToUse", "repartition_zonale_BP23_Aref")
+                            .param("horizon", "2029-2030")
+                            .param("studyId", "1")
+                            .param("isCivilYear", String.valueOf(false)))
+                    .andExpect(status().isInternalServerError());
+
+            verify(resFileProcessorService, times(1))
+                    .processZonalDistributionResFile("repartition_zonale_BP23_Aref", "2029-2030", 1, "FR", "", false);
+        }
+    }
 }

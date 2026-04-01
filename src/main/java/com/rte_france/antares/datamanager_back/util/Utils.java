@@ -40,9 +40,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
-import static com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum;
+import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
 
 
 /**
@@ -253,6 +251,8 @@ public class Utils {
             prefix = RES_CAPACITY_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.toString())) {
             prefix = RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.RES_ZONAL_DISTRIBUTION.toString())) {
+            prefix = RES_ZONAL_DISTRIBUTION_PREFIX;
         } else {
             prefix = "";
         }
@@ -408,7 +408,7 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION -> getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION, RES_ZONAL_DISTRIBUTION -> getFileChecksum(path.toString());
             case RES_CAPACITY -> "FR".equals(area) ? calculateDirectoryChecksum(path) : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
@@ -873,12 +873,16 @@ public class Utils {
             case MISC_CAPACITY -> "MISC";
             case RES_CAPACITY -> "RES Installed power";
             case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological repartition";
+            case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
             default -> "trajectory";
         };
     }
 
     public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream().noneMatch(fileAreas::contains);
+        boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream()
+                .noneMatch(sa -> fileAreas.stream()
+                        .anyMatch(fa -> fa.equalsIgnoreCase(sa)));
+
         if (hasNoAreaOfTrajectoryAreaInFile) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
@@ -900,12 +904,12 @@ public class Utils {
         }
     }
 
-    public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName) {
+    public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName, String areaParam) {
         if (technologyParam != null && !technologyParam.isBlank() && !fileTechnologies.contains(technologyParam.toLowerCase())) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(technologyParam, label, trajectoryFileName))
-                    .message("Selected technology {0} is not present in the 'node' column of {1} trajectory {2}")
+                    .errorMessageArguments(List.of(technologyParam, areaParam, label, trajectoryFileName))
+                    .message("Selected technology {1}/{0} is not present in the 'node' column of {2} trajectory {3}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -958,9 +962,9 @@ public class Utils {
         return last + 1;
     }
 
-    public static int getYearColIndex(int lastCol, Row header, String horizonYear, int yearColIndex) {
+    public static int getYearColIndex(int nbRequiredColumns, int lastCol, Row header, String horizonYear, int yearColIndex) {
 
-        for (int c = 5; c < lastCol; c++) {
+        for (int c = nbRequiredColumns; c < lastCol; c++) {
 
             Cell cell = header.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell == null) continue;
@@ -1035,9 +1039,9 @@ public class Utils {
             String trajectoryToUse
     ) {
         int lastCol = getRealLastColumn(header);
-        if (lastCol < 6) {
+        if (lastCol < requiredColumns.length) {
             throw BusinessException.builder()
-                    .message("InstalledRes header is invalid")
+                    .message("Res trajectory header is invalid")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1045,9 +1049,9 @@ public class Utils {
         checkMissingColumns(sheet, requiredColumns, trajectoryToUse, TrajectoryType.RES_CAPACITY.name());
     }
 
-    public int resolveYearColumnIndex(Row header, String horizon, String trajectoryToUse, boolean isCivilYear) {
+    public int resolveYearColumnIndex(Row header, String horizon, String trajectoryToUse, int nbRequiredColumns, boolean isCivilYear) {
         String horizonYear = horizon.split("-")[1];
-        int yearColIndex = getYearColIndex(getRealLastColumn(header), header, horizonYear, -1);
+        int yearColIndex = getYearColIndex(nbRequiredColumns, getRealLastColumn(header), header, horizonYear, -1);
 
         if (yearColIndex == -1) {
             throw BusinessException.builder()

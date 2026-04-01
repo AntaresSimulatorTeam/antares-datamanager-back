@@ -44,7 +44,7 @@ public class ResController {
             @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
-            @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9_-]+$")  String technology) throws Exception {
+            @RequestParam(value = "technology", required = false) String technology) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(resFileProcessorService.processLoadFactorResFile(trajectoryToUse, horizon, studyId, area, technology)), HttpStatus.CREATED);
     }
@@ -75,6 +75,21 @@ public class ResController {
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
         var result = resFileProcessorService.processTechnologyDistributionResFile(trajectoryToUse, horizon, studyId, area, technology, isCivilYear);
+
+        return new ResponseEntity<>(toTrajectoryDTO(result), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import zonal distribution RES trajectory to database ")
+    @PostMapping("/zonal-distribution-res")
+    public ResponseEntity<TrajectoryDTO> uploadZonalDistributionResTrajectory(
+            @RequestParam("area") String area,
+            @RequestParam(value = "technology", required = false) String technology,
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId,
+            @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+
+        var result = resFileProcessorService.processZonalDistributionResFile(trajectoryToUse, horizon, studyId, area, technology, isCivilYear);
 
         return new ResponseEntity<>(toTrajectoryDTO(result), HttpStatus.CREATED);
     }
