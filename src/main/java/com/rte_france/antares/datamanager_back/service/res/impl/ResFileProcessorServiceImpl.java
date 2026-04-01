@@ -55,7 +55,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
             "ToUse", AREA_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN, "Category"};
     protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
-            "ToUse", AREA_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN, PECD_ZONE_COLUMN};
+            "ToUse", AREA_COLUMN, PECD_ZONE_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN};
     protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
             GROUP_COLUMN, CLUSTER_COLUMN, PECD_ZONE_COLUMN, "Techno_PECD"};
     protected static final String[] REQUIRED_ZONAL_DISTRIBUTION_COLUMNS = {
@@ -558,7 +558,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (!shouldProcessArea(context, result, area, group)) return;
 
-        validateEmptyRequiredColumns(context, requiredColumns, toUse, area, col2, col3, col4);
+        validateEmptyRequiredColumns(context, requiredColumns, toUse, area, col2, group, cluster);
 
         String combo = LITERAL_STRING.formatted(area, group, cluster);
 
