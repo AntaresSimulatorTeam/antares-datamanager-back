@@ -67,8 +67,10 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         try {
             String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
             List<String> saved = new ArrayList<>();
-
-            for (StsTsFile stsTsFile : StsTsFile.values()) {
+            StsTsFile[] requiredFiles = Arrays.stream(StsTsFile.values())
+                    .filter(e -> e != StsTsFile.ADDITIONAL_CONSTRAINTS)
+                    .toArray(StsTsFile[]::new);
+            for (StsTsFile stsTsFile : requiredFiles) {
                 Path inputPath = stsTsFile.resolve(tsDir);
 
                 if (!java.nio.file.Files.exists(inputPath)) {

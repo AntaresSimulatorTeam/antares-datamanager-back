@@ -43,12 +43,14 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private static final String ELECTRICAL_VEHICLE = "EV";
     private static final String SERIES_FILES = "series";
     private static final String CONSTRAINTS_FILES = "constraints";
+    private static final String EXCEL_EXTENSION = ".xlsx";
+    private static final String STS_TRAJECTORY_PREFIX = "cluster_";
 
 
     @Transactional
     @Override
     public TrajectoryEntity processStStorageFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String areaParam, String technology) throws IOException {
-        final String stsTrajectoryPrefix = "cluster_" + technology.toLowerCase() + "_";
+        final String stsTrajectoryPrefix = STS_TRAJECTORY_PREFIX+ technology.toLowerCase() + "_";
         if (!trajectoryToUse.toLowerCase().startsWith(stsTrajectoryPrefix)) {
             throw BusinessException.builder().message(" {0} Trajectory name must start with : {1} ").errorMessageArguments(List.of(trajectoryToUse, stsTrajectoryPrefix)).build();
         }
@@ -86,7 +88,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         try (Stream<Path> s = Files.list(techDir)) {
             java.util.Optional<Path> file = s.filter(Files::isRegularFile).filter(p -> {
                 String fn = p.getFileName().toString();
-                return fn.equalsIgnoreCase(trajectoryFileName + ".xlsx") || fn.equalsIgnoreCase(trajectoryFileName + ".xls");
+                return fn.equalsIgnoreCase(trajectoryFileName + EXCEL_EXTENSION) || fn.equalsIgnoreCase(trajectoryFileName + ".xls");
             }).findFirst();
 
             if (file.isPresent()) {
@@ -218,13 +220,14 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         // Series/TS files handling
-        Boolean filesForSeries = getBooleanCell(row, SERIES_INDEX);
-        if (Boolean.TRUE.equals(filesForSeries)) {
+        Boolean stsSeriesFilesFlag = getBooleanCell(row, SERIES_INDEX);
+        if (Boolean.TRUE.equals(stsSeriesFilesFlag)) {
             Path stsTsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, SERIES_FILES);
-            if (isOptionalStsFileMissing(stsTsPath, SERIES_FILES, null)) {
+            List<String> missingFiles = isOptionalStsFileMissing(stsTsPath, SERIES_FILES, null);
+            if (!missingFiles.isEmpty()) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName))
-                        .message("Can not import : Missing TS for trajectory {0}")
+                        .errorMessageArguments(List.of(String.join(", ", missingFiles), trajectoryFileName))
+                        .message("Can not import : Missing TS files: {0} for trajectory {1}")
                         .build();
             }
             stStorageEntity.setTsPath(stsTsPath.toString());
@@ -232,16 +235,18 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Boolean stsConstraintsFlag = getBooleanCell(row, CONSTRAINTS_INDEX);
         if(technology.equals(ELECTRICAL_VEHICLE) && Boolean.TRUE.equals(stsConstraintsFlag)) {
             // Constraints/parameters and Ts files handling
-                Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, CONSTRAINTS_FILES);
-                if (isOptionalStsFileMissing(constraintsPath, CONSTRAINTS_FILES, trajectoryFileName)) {
-                    throw BusinessException.builder()
-                            .message("Missing Additional constraint trajectory {0} for EV/{1}")
-                            .errorMessageArguments(List.of(trajectoryFileName,areaName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-                String constraintsCapacityPath = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name()) + ".xlsx";
-                stStorageEntity.setConstraintsPath(constraintsCapacityPath);
+            Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, CONSTRAINTS_FILES);
+            List<String> missingFiles = isOptionalStsFileMissing(constraintsPath, CONSTRAINTS_FILES, trajectoryFileName);
+            if (!missingFiles.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Missing Additional constraint files {0} for trajectory {1} for EV/{2}")
+                        .errorMessageArguments(List.of(String.join(", ", missingFiles), trajectoryFileName, areaName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            String constraintsCapacityFileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name()) + EXCEL_EXTENSION;
+                Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
+                stStorageEntity.setConstraintsPath(fullConstraintsPath.toString());
         }
         stStorageEntity.setArea(areaName);
         stStorageEntity.setName(clusterName);
@@ -254,7 +259,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
         stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 9));
         stStorageEntity.setEnabled(getBooleanCell(row, 10));
-        stStorageEntity.setSeries(filesForSeries);
+        stStorageEntity.setSeries(stsSeriesFilesFlag);
         stStorageEntity.setConstraintsFlag(stsConstraintsFlag);
         return stStorageEntity;
     }
@@ -281,57 +286,66 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 .resolve(antaresDataManagerProperties.getStsDirectory());
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve(optionalFilesType);
         if(SERIES_FILES.equals(optionalFilesType)) {
-            // \\\'STS\\<techno>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
+            // \\\'STS\\<tech>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
             Path trajectoryDir = findChildDirectoryIgnoreCase(techDir, getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()));
             Path clusterSeriesDir = findChildDirectoryIgnoreCase(trajectoryDir, clusterName);
             return clusterSeriesDir.resolve(areaParam).normalize();
         }
 
         else if(CONSTRAINTS_FILES.equals(optionalFilesType)) {
-            // \\\'STS\\<techno>\\constraints\\
+            // \\\'STS\\<tech>\\constraints\\
             return techDir;
         }
 
         throw new IllegalArgumentException("Invalid optionalFilesType: " + optionalFilesType);
     }
 
-    private static boolean isOptionalStsFileMissing(Path pathForFilesSts, String optionalFilesType, String trajectoryFileName) {
-        if (!Files.exists(pathForFilesSts) || !Files.isDirectory(pathForFilesSts)) {
-            log.warn("ST Storage series directory not found: {}", pathForFilesSts);
-            return true;
-        }
-
-        File[] files = pathForFilesSts.toFile().listFiles();
-        if (files == null || files.length == 0) {
-            log.warn("Unable to list files in ST Storage series directory: {}", pathForFilesSts);
-            return true;
-        }
-
+    private static List<String> isOptionalStsFileMissing(Path pathForFilesSts, String optionalFilesType, String trajectoryFileName) {
         if (SERIES_FILES.equals(optionalFilesType)) {
-            String[] requiredFiles = {"inflows.xlsx", "lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
+            String[] requiredFiles = StsTsFile.allFileNames();
+            if (!Files.exists(pathForFilesSts) || !Files.isDirectory(pathForFilesSts)) {
+                log.warn("ST Storage series directory not found: {}", pathForFilesSts);
+                return Arrays.asList(requiredFiles);
+            }
+
+            File[] files = pathForFilesSts.toFile().listFiles();
+            if (files == null || files.length == 0) {
+                log.warn("Unable to list files in ST Storage series directory: {}", pathForFilesSts);
+                return Arrays.asList(requiredFiles);
+            }
+
             return areRequiredFilesMissing(files, requiredFiles);
         }
 
         if (CONSTRAINTS_FILES.equals(optionalFilesType)) {
-            String constraintsCapacityFile = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name())+ ".xlsx";
-            String[] requiredFiles = {"Additional-constraints.xlsx", constraintsCapacityFile};
+            String constraintsCapacityFile = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name()) + EXCEL_EXTENSION;
+            String[] requiredFiles = {StsTsFile.ADDITIONAL_CONSTRAINTS.fileName(), constraintsCapacityFile};
+            if (!Files.exists(pathForFilesSts) || !Files.isDirectory(pathForFilesSts)) {
+                log.warn("ST Storage constraints directory not found: {}", pathForFilesSts);
+                return Arrays.asList(requiredFiles);
+            }
+
+            File[] files = pathForFilesSts.toFile().listFiles();
+            if (files == null || files.length == 0) {
+                log.warn("Unable to list files in ST Storage constraints directory: {}", pathForFilesSts);
+                return Arrays.asList(requiredFiles);
+            }
             return areRequiredFilesMissing(files, requiredFiles);
         }
 
-        return false;
+        return Collections.emptyList();
     }
 
-    private static boolean areRequiredFilesMissing(File[] files, String[] requiredFiles) {
-        boolean hasAll = true;
+    private static List<String> areRequiredFilesMissing(File[] files, String[] requiredFiles) {
+        List<String> missingFiles = new ArrayList<>();
         for (String req : requiredFiles) {
             boolean found = Arrays.stream(files)
                     .anyMatch(f -> f.getName().equalsIgnoreCase(req));
             if (!found) {
-                hasAll = false;
-                break;
+                missingFiles.add(req);
             }
         }
-        return !hasAll;
+        return missingFiles;
     }
     private boolean isRowEmpty(Row row) {
         for (int c = 0; c <= 12; c++) {
