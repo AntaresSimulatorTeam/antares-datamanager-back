@@ -8,7 +8,8 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.sts.impl.StStorageFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -42,6 +43,7 @@ class StStorageFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
     private UserService userService;
     private AreaRepository areaRepository;
+    private StStorageConstraintsFileProcessorService stStorageConstraintsFileProcessorService;
 
     private StStorageFileProcessorServiceImpl service;
 
@@ -55,12 +57,12 @@ class StStorageFileProcessorServiceImplTest {
         userService = mock(UserService.class);
         areaRepository = mock(AreaRepository.class);
 
-        // Construct service with current constructor (properties, trajectoryRepository, userService, areaRepository)
         service = new StStorageFileProcessorServiceImpl(
                 properties,
                 trajectoryRepository,
                 userService,
-                areaRepository
+                areaRepository,
+                stStorageConstraintsFileProcessorService = mock(StStorageConstraintsFileProcessorService.class)
         );
 
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
@@ -260,7 +262,7 @@ class StStorageFileProcessorServiceImplTest {
                         }}
                 ));
 
-        // file contains FR only -> missing DE but process should succeed (warning logic not persisted in current impl)
+        // the file contains FR only -> missing DE, the process should succeed (warning logic not persisted in current impl)
         Path xlsx = createValidWorkbook("2030", false);
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
 
@@ -606,9 +608,7 @@ class StStorageFileProcessorServiceImplTest {
         Path trajectoryFilePath = Path.of(trajectoryFileName);
         String areaParam = "FR";
         String clusterName = "cluster1";
-        // getFileNameWithoutExtensionAndWithoutPrefix("cluster_battery_test.xlsx", "STS")
-        // removeClusterPrefix("cluster_battery_test.xlsx") -> "test.xlsx"
-        // remove extension -> "test"
+
         String trajectoryNameWithoutPrefix = "test";
 
         Path stsRoot = tempDir.resolve("trajectories").resolve("STS");
@@ -702,15 +702,7 @@ class StStorageFileProcessorServiceImplTest {
 
         Files.createDirectories(constraintsDir);
         Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
-        // Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_ev_test.xlsx", "STS")
-        // -> removeClusterPrefix("cluster_ev_test.xlsx") -> "test.xlsx" -> "test"
-        // Wait, removeClusterPrefix("cluster_ev_test.xlsx") matches "^cluster_[^_]+_"
-        // cluster_ matches "^cluster_"
-        // ev_ matches "[^_]+_"
-        // so it replaces "cluster_ev_" with ""
-        // "cluster_ev_test.xlsx" -> "test.xlsx"
-        // Then extension removal -> "test"
-        // Then re-adding extension -> "test.xlsx"
+
         Files.createFile(constraintsDir.resolve("test.xlsx"));
 
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{

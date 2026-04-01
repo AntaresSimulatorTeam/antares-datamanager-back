@@ -1,12 +1,16 @@
-package com.rte_france.antares.datamanager_back.service.sts;
+package com.rte_france.antares.datamanager_back.service.sts.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +42,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
+    private final StStorageConstraintsFileProcessorService stStorageConstraintsFileProcessorService;
+
     private static final Integer SERIES_INDEX = 11;
     private static final Integer CONSTRAINTS_INDEX = 12;
     private static final String ELECTRICAL_VEHICLE = "EV";
@@ -245,8 +251,13 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                         .build();
             }
             String constraintsCapacityFileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name()) + EXCEL_EXTENSION;
-                Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
-                stStorageEntity.setConstraintsPath(fullConstraintsPath.toString());
+            Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
+            Path additionalConstraintsPath = constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName());
+
+            List<StConstraintsParameterEntity> stConstraintsParameterEntities = stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(additionalConstraintsPath);
+            stConstraintsParameterEntities.forEach(p->p.setStorage(stStorageEntity));
+            stStorageEntity.setParameters(stConstraintsParameterEntities);
+            stStorageEntity.setConstraintsPath(fullConstraintsPath.toString());
         }
         stStorageEntity.setArea(areaName);
         stStorageEntity.setName(clusterName);
@@ -357,10 +368,10 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
     private Boolean getBooleanCell(Row row, int idx) {
         Cell cell = row.getCell(idx);
-        if (cell == null) return null;
+        if (cell == null) return false;
         if (cell.getCellType() == CellType.BOOLEAN || cell.getCellType() == CellType.FORMULA) return cell.getBooleanCellValue();
         String s = cell.toString().trim().toLowerCase(Locale.ROOT);
-        if (s.isEmpty()) return null;
+        if (s.isEmpty()) return false;
         return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);
     }
 
