@@ -196,7 +196,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", horizon, 1, false, area, technology)
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Can not import : Missing TS for trajectory");
+                .hasMessageContaining("Can not import : Missing TS files");
     }
 
     @Test
@@ -680,6 +680,204 @@ class StStorageFileProcessorServiceImplTest {
                 service.buildStsOptionalFilesPath(trajectoryFilePath, "FR", technology, "cluster1", "invalid_type")
         ).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid optionalFilesType: invalid_type");
+    }
+
+    @Test
+    void shouldProcessEvWithConstraintsSuccessfully() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String area = "FR";
+        String clusterName = "cluster1";
+        String trajectoryToUse = "cluster_ev_test";
+        String trajectoryFileName = trajectoryToUse + ".xlsx";
+
+        Path xlsx = createWorkbookWithEvConstraints(horizon.split("-")[1], area, clusterName);
+        placeInClusters(xlsx, technology, trajectoryFileName);
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+
+        Files.createDirectories(constraintsDir);
+        Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
+        // Utils.getFileNameWithoutExtensionAndWithoutPrefix("cluster_ev_test.xlsx", "STS")
+        // -> removeClusterPrefix("cluster_ev_test.xlsx") -> "test.xlsx" -> "test"
+        // Wait, removeClusterPrefix("cluster_ev_test.xlsx") matches "^cluster_[^_]+_"
+        // cluster_ matches "^cluster_"
+        // ev_ matches "[^_]+_"
+        // so it replaces "cluster_ev_" with ""
+        // "cluster_ev_test.xlsx" -> "test.xlsx"
+        // Then extension removal -> "test"
+        // Then re-adding extension -> "test.xlsx"
+        Files.createFile(constraintsDir.resolve("test.xlsx"));
+
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology);
+
+        assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        StStorageEntity entity = trajectory.getStStorageEntities().getFirst();
+        assertThat(entity.getConstraintsFlag()).isTrue();
+        assertThat(entity.getConstraintsPath()).isNotNull();
+        assertThat(entity.getConstraintsPath()).contains("test.xlsx");
+    }
+
+    @Test
+    void shouldThrowWhenEvConstraintsAreMissing() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String area = "FR";
+        String clusterName = "cluster1";
+        String trajectoryToUse = "cluster_ev_test";
+
+        Path xlsx = createWorkbookWithEvConstraints(horizon.split("-")[1], area, clusterName);
+        placeInClusters(xlsx, technology, trajectoryToUse + ".xlsx");
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+
+        Files.createDirectories(constraintsDir);
+        // Do NOT create files
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing Additional constraint files");
+    }
+
+    @Test
+    void shouldIgnoreConstraintsWhenTechnologyIsNotEv() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "battery"; // Not EV
+        String area = "FR";
+        String clusterName = "cluster1";
+        String trajectoryFileName = "cluster_battery_test";
+
+        Path xlsx = createWorkbookWithEvConstraints(horizon.split("-")[1], area, clusterName);
+        placeInClusters(xlsx, technology, trajectoryFileName + ".xlsx");
+
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(trajectoryFileName, horizon, 1, false, area, technology);
+
+        assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        StStorageEntity entity = trajectory.getStStorageEntities().getFirst();
+        assertThat(entity.getConstraintsFlag()).isTrue();
+        assertThat(entity.getConstraintsPath()).isNull(); // Should be null because not EV
+    }
+
+    private Path createWorkbookWithEvConstraints(String horizon, String area, String cluster) throws IOException {
+        Path file = tempDir.resolve("test_ev.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet(horizon);
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue(area);
+            r.createCell(1).setCellValue(cluster);
+            r.createCell(2).setCellValue("g1");
+            for (int i = 3; i <= 8; i++) r.createCell(i).setCellValue(1.0);
+            r.createCell(9).setCellValue(true);
+            r.createCell(10).setCellValue(true);
+            r.createCell(11).setCellValue(false);
+            r.createCell(12).setCellValue(true); // Constraints TRUE
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
+    }
+
+    @Test
+    void shouldMapAllFieldsCorrectly() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "battery";
+        String area = "FR";
+        String clusterName = "cluster1";
+        String group = "g1";
+        double injection = 10.5;
+        double withdrawal = 20.7;
+        double storage = 300.0;
+        double effInj = 0.98;
+        double effWid = 0.96;
+        double initLevel = 0.5;
+
+        Path file = tempDir.resolve("full_mapping.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue(area);
+            r.createCell(1).setCellValue(clusterName);
+            r.createCell(2).setCellValue(group);
+            r.createCell(3).setCellValue(injection);
+            r.createCell(4).setCellValue(withdrawal);
+            r.createCell(5).setCellValue(storage);
+            r.createCell(6).setCellValue(effInj);
+            r.createCell(7).setCellValue(effWid);
+            r.createCell(8).setCellValue(initLevel);
+            r.createCell(9).setCellValue(true);
+            r.createCell(10).setCellValue(false);
+            r.createCell(11).setCellValue(false);
+            r.createCell(12).setCellValue(false);
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInClusters(file, technology, "cluster_battery_test.xlsx");
+
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile("cluster_battery_test", horizon, 1, false, area, technology);
+
+        assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        StStorageEntity entity = trajectory.getStStorageEntities().getFirst();
+
+        assertThat(entity.getArea()).isEqualTo(area);
+        assertThat(entity.getName()).isEqualTo(clusterName);
+        assertThat(entity.getGroupe()).isEqualTo(group);
+        assertThat(entity.getInjection()).isEqualByComparingTo(BigDecimal.valueOf(injection));
+        assertThat(entity.getWithdrawal()).isEqualByComparingTo(BigDecimal.valueOf(withdrawal));
+        assertThat(entity.getStorage()).isEqualByComparingTo(BigDecimal.valueOf(storage));
+        assertThat(entity.getEfficiencyInjection()).isEqualByComparingTo(BigDecimal.valueOf(effInj));
+        assertThat(entity.getEfficiencyWithdrawal()).isEqualByComparingTo(BigDecimal.valueOf(effWid));
+        assertThat(entity.getInitialLevel()).isEqualByComparingTo(BigDecimal.valueOf(initLevel));
+        assertThat(entity.getInitialLevelOptim()).isTrue();
+        assertThat(entity.getEnabled()).isFalse();
+        assertThat(entity.getSeries()).isFalse();
+        assertThat(entity.getConstraintsFlag()).isFalse();
     }
 
     private Path createWorkbookWithMissingClusterName(String horizon) throws IOException {
