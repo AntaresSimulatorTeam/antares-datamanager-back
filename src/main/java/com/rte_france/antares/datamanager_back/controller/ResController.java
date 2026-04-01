@@ -41,7 +41,7 @@ public class ResController {
     @PostMapping("/load-factor-res")
     public ResponseEntity<TrajectoryDTO> uploadLoadFactorResTrajectory(
             @RequestParam("area") String area,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam(value = "technology", required = false) String technology) throws IOException {
