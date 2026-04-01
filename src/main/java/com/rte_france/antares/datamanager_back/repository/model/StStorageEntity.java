@@ -2,6 +2,8 @@ package com.rte_france.antares.datamanager_back.repository.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.List;
+
 import lombok.*;
 
 @Entity(name = "StStorage")
@@ -63,6 +65,8 @@ public class StStorageEntity {
     @Column(name="constraints_path")
     String constraintsPath;
 
+    @OneToMany(mappedBy = "storage", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StConstraintsParameterEntity> parameters;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "trajectory_id", nullable = false)
