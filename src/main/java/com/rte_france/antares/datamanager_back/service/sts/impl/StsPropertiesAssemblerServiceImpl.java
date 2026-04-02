@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StStorageMapper;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
@@ -66,39 +65,36 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         }
         Path tsDir = Path.of(stsEntity.getTsPath());
 
-        try {
-            String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
-            List<String> saved = new ArrayList<>();
-            StsTsFile[] requiredFiles = Arrays.stream(StsTsFile.values())
-                    .filter(e -> e != StsTsFile.ADDITIONAL_CONSTRAINTS)
-                    .toArray(StsTsFile[]::new);
-            for (StsTsFile stsTsFile : requiredFiles) {
-                Path inputPath = stsTsFile.resolve(tsDir);
+        String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
+        List<String> saved = new ArrayList<>();
+        StsTsFile[] requiredFiles = Arrays.stream(StsTsFile.values())
+                .filter(e -> e != StsTsFile.ADDITIONAL_CONSTRAINTS)
+                .toArray(StsTsFile[]::new);
+        for (StsTsFile stsTsFile : requiredFiles) {
+            Path inputPath = stsTsFile.resolve(tsDir);
 
-                if (!java.nio.file.Files.exists(inputPath)) {
-                    throw BusinessException.builder()
-                            .message("Required STS series file not found: {0}")
-                            .errorMessageArguments(List.of(inputPath.toString()))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-
-                try {
-                    saved.add(nasFileService.saveMatrixToNas(inputPath, outputDir, horizon));
-                } catch (IllegalArgumentException e) {
-                    throw BusinessException.builder()
-                            .message(e.getMessage())
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
+            if (!java.nio.file.Files.exists(inputPath)) {
+                throw BusinessException.builder()
+                        .message("Required STS series file not found: {0}")
+                        .errorMessageArguments(List.of(inputPath.toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
 
-            return saved;
+            saved.add(saveStsMatrix(inputPath, outputDir, horizon));
+        }
 
-        } catch (IOException e) {
-            throw TechnicalException.builder()
+        return saved;
+
+    }
+
+    private String saveStsMatrix(Path inputPath, String outputDir, String horizon) {
+        try {
+            return nasFileService.saveMatrixToNas(inputPath, outputDir, horizon);
+        } catch (IllegalArgumentException | IOException e) {
+            throw BusinessException.builder()
                     .message(e.getMessage())
-                    .cause(e)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
