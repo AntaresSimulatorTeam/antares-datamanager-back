@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsF
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -29,7 +28,6 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
 
         try (InputStream inputStream = Files.newInputStream(additionalConstraintsPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            {
 
                 //"parameters"
                 Sheet parametersSheet = workbook.getSheet("parameters");
@@ -38,10 +36,10 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
                 //"hours"
                 Sheet hoursSheet = workbook.getSheet("hours");
                 processHours(hoursSheet, parameters);
-            }
 
 
-            return parameters;
+
+                return parameters;
         }
 
 
