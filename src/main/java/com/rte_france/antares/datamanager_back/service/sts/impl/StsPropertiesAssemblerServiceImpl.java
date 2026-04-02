@@ -85,8 +85,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
                 try {
                     saved.add(nasFileService.saveMatrixToNas(inputPath, outputDir, horizon));
-                } catch (BusinessException e) {
-                    throw e;
                 } catch (IllegalArgumentException e) {
                     throw BusinessException.builder()
                             .message(e.getMessage())
