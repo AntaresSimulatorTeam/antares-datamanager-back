@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -320,8 +319,8 @@ class StsPropertiesAssemblerServiceImplTest {
                 .thenThrow(new IOException("NAS error"));
 
         // when / then
-        TechnicalException ex = assertThrows(
-                TechnicalException.class,
+        BusinessException ex = assertThrows(
+                BusinessException.class,
                 () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
         );
 
