@@ -101,4 +101,12 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                                             @Param("type") String type,
                                             @Param("area") String area,
                                             org.springframework.data.domain.Pageable pageable);
+    @Query("""
+        select distinct t.area
+        from Trajectory t
+        join t.scenarioEntities s
+        where s.id = :studyId
+          and t.type = :type
+    """)
+    List<String> findAreasByStudyIdAndType(Integer studyId, String type);
 }

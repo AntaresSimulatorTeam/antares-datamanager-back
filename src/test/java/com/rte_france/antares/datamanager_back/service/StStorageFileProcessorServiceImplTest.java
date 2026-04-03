@@ -45,6 +45,7 @@ class StStorageFileProcessorServiceImplTest {
     private AreaRepository areaRepository;
     private StStorageConstraintsFileProcessorService stStorageConstraintsFileProcessorService;
 
+
     private StStorageFileProcessorServiceImpl service;
 
     @TempDir
@@ -140,7 +141,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
         assertThat(trajectory.getHasTimeSeries()).isFalse();
 
-        StStorageEntity entity = trajectory.getStStorageEntities().get(0);
+        StStorageEntity entity = trajectory.getStStorageEntities().getFirst();
         assertThat(entity.getArea()).isEqualTo("FR");
         assertThat(entity.getName()).isEqualTo("cluster1");
         assertThat(entity.getInjection()).isEqualByComparingTo(BigDecimal.valueOf(10));
@@ -691,7 +692,7 @@ class StStorageFileProcessorServiceImplTest {
         String trajectoryToUse = "cluster_ev_test";
         String trajectoryFileName = trajectoryToUse + ".xlsx";
 
-        Path xlsx = createWorkbookWithEvConstraints(horizon.split("-")[1], area, clusterName);
+        Path xlsx = createWorkbookWithConstraints(horizon.split("-")[1], area, clusterName);
         placeInClusters(xlsx, technology, trajectoryFileName);
 
         Path constraintsDir = tempDir
@@ -731,7 +732,7 @@ class StStorageFileProcessorServiceImplTest {
         String clusterName = "cluster1";
         String trajectoryToUse = "cluster_ev_test";
 
-        Path xlsx = createWorkbookWithEvConstraints(horizon.split("-")[1], area, clusterName);
+        Path xlsx = createWorkbookWithConstraints(horizon.split("-")[1], area, clusterName);
         placeInClusters(xlsx, technology, trajectoryToUse + ".xlsx");
 
         Path constraintsDir = tempDir
@@ -749,35 +750,7 @@ class StStorageFileProcessorServiceImplTest {
                 .hasMessageContaining("Missing Additional constraint files");
     }
 
-    @Test
-    void shouldIgnoreConstraintsWhenTechnologyIsNotEv() throws IOException {
-        String horizon = "2029-2030";
-        String technology = "battery"; // Not EV
-        String area = "FR";
-        String clusterName = "cluster1";
-        String trajectoryFileName = "cluster_battery_test";
-
-        Path xlsx = createWorkbookWithEvConstraints(horizon.split("-")[1], area, clusterName);
-        placeInClusters(xlsx, technology, trajectoryFileName + ".xlsx");
-
-        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
-        }});
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
-
-        TrajectoryEntity trajectory = service.processStStorageFile(trajectoryFileName, horizon, 1, false, area, technology);
-
-        assertThat(trajectory).isNotNull();
-        assertThat(trajectory.getStStorageEntities()).hasSize(1);
-        StStorageEntity entity = trajectory.getStStorageEntities().getFirst();
-        assertThat(entity.getConstraintsFlag()).isTrue();
-        assertThat(entity.getConstraintsPath()).isNull(); // Should be null because not EV
-    }
-
-    private Path createWorkbookWithEvConstraints(String horizon, String area, String cluster) throws IOException {
+    private Path createWorkbookWithConstraints(String horizon, String area, String cluster) throws IOException {
         Path file = tempDir.resolve("test_ev.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);

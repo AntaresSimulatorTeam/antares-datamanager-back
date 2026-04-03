@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,6 +45,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private final AreaRepository areaRepository;
     private final StStorageConstraintsFileProcessorService stStorageConstraintsFileProcessorService;
 
+
     private static final Integer SERIES_INDEX = 11;
     private static final Integer CONSTRAINTS_INDEX = 12;
     private static final String ELECTRICAL_VEHICLE = "EV";
@@ -51,6 +53,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private static final String CONSTRAINTS_FILES = "constraints";
     private static final String EXCEL_EXTENSION = ".xlsx";
     private static final String STS_TRAJECTORY_PREFIX = "cluster_";
+    public static final String OTHERS_AREA = "OTHERS";
 
 
     @Transactional
@@ -65,7 +68,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
 
-        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1], trajectoryFilePath, areaParam, technology, studyAreas);
+        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1], trajectoryFilePath, areaParam, technology, studyAreas, studyId);
         if (stStorageEntityList.isEmpty()) {
             throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
         }
@@ -100,7 +103,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             if (file.isPresent()) {
                 return file.get();
             } else {
-                throw new NoSuchFileException("Trajectory file not found in " + techDir.toString() + " for '" + trajectoryFileName + "'");
+                throw new NoSuchFileException("Trajectory file not found in " + techDir + " for '" + trajectoryFileName + "'");
             }
         }
     }
@@ -123,7 +126,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return trajectory;
     }
 
-    private List<StStorageEntity> buildStStorageLines(String horizon, Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas) throws IOException {
+
+    private List<StStorageEntity> buildStStorageLines(String horizon, Path trajectoryFilePath, String areaParam, String technology,
+                                                      List<String> studyAreas, Integer studyId)throws IOException {
         List<StStorageEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
 
@@ -174,7 +179,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
                 validateNumericRange(row, 3, 8, rowArea, clusterName, trajectoryFileName);
 
-                StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea, clusterName, trajectoryFileName);
+                StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
+                        clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId);
                 results.add(entity);
             }
 
@@ -222,13 +228,18 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
     }
 
-    private StStorageEntity mapRowToEntity(Row row, Path trajectoryFilePath, String technology, String areaName, String clusterName, String trajectoryFileName) throws IOException {
+    private StStorageEntity mapRowToEntity(Row row, Path trajectoryFilePath, String technology, String rowAreaName, String clusterName,
+                                           String trajectoryFileName,
+                                           List<String> studyAreas,
+                                           String areaParam,
+                                           String horizon,
+                                           Integer studyId) throws IOException {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         // Series/TS files handling
         Boolean stsSeriesFilesFlag = getBooleanCell(row, SERIES_INDEX);
-        if (Boolean.TRUE.equals(stsSeriesFilesFlag)) {
-            Path stsTsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, SERIES_FILES);
+        if (stsSeriesFilesFlag) {
+            Path stsTsPath = buildStsOptionalFilesPath(trajectoryFilePath, rowAreaName, technology, clusterName, SERIES_FILES);
             List<String> missingFiles = isOptionalStsFileMissing(stsTsPath, SERIES_FILES, null);
             if (!missingFiles.isEmpty()) {
                 throw BusinessException.builder()
@@ -239,27 +250,21 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             stStorageEntity.setTsPath(stsTsPath.toString());
         }
         Boolean stsConstraintsFlag = getBooleanCell(row, CONSTRAINTS_INDEX);
-        if(technology.equals(ELECTRICAL_VEHICLE) && Boolean.TRUE.equals(stsConstraintsFlag)) {
-            // Constraints/parameters and Ts files handling
-            Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaName, technology, clusterName, CONSTRAINTS_FILES);
-            List<String> missingFiles = isOptionalStsFileMissing(constraintsPath, CONSTRAINTS_FILES, trajectoryFileName);
-            if (!missingFiles.isEmpty()) {
-                throw BusinessException.builder()
-                        .message("Missing Additional constraint files {0} for trajectory {1} for EV/{2}")
-                        .errorMessageArguments(List.of(String.join(", ", missingFiles), trajectoryFileName, areaName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-            String constraintsCapacityFileName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFileName, TrajectoryType.STS.name()) + EXCEL_EXTENSION;
-            Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
-            Path additionalConstraintsPath = constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName());
-
-            List<StConstraintsParameterEntity> stConstraintsParameterEntities = stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(additionalConstraintsPath);
-            stConstraintsParameterEntities.forEach(p->p.setStorage(stStorageEntity));
-            stStorageEntity.setParameters(stConstraintsParameterEntities);
-            stStorageEntity.setConstraintsPath(fullConstraintsPath.toString());
+        if (stsConstraintsFlag) {
+            handleStsConstraints(
+                    trajectoryFilePath,
+                    rowAreaName,
+                    technology,
+                    clusterName,
+                    trajectoryFileName,
+                    areaParam,
+                    studyAreas,
+                    stStorageEntity,
+                    horizon,
+                    studyId
+            );
         }
-        stStorageEntity.setArea(areaName);
+        stStorageEntity.setArea(rowAreaName);
         stStorageEntity.setName(clusterName);
         stStorageEntity.setGroupe(getStringCellValue(row, 2));
         stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
@@ -375,4 +380,120 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);
     }
 
+
+
+    public void handleStsConstraints(Path trajectoryFilePath,
+                                     String rowAreaName,
+                                     String technology,
+                                     String clusterName,
+                                     String trajectoryFileName,
+                                     String areaParam,
+                                     List<String> studyAreas,
+                                     StStorageEntity storage,
+                                     String horizon,
+                                     Integer studyId) throws IOException {
+
+
+        List<String> existingAreas = trajectoryRepository.findAreasByStudyIdAndType(studyId, "STS");
+
+
+        Path constraintsPath = buildStsOptionalFilesPath(
+                trajectoryFilePath,
+                rowAreaName,
+                technology,
+                clusterName,
+                CONSTRAINTS_FILES
+        );
+
+        List<String> missingFiles = isOptionalStsFileMissing(
+                constraintsPath,
+                CONSTRAINTS_FILES,
+                trajectoryFileName
+        );
+
+        if (!missingFiles.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Missing Additional constraint files {0} for trajectory {1} for EV/{2}")
+                    .errorMessageArguments(List.of(
+                            String.join(", ", missingFiles),
+                            trajectoryFileName,
+                            rowAreaName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        Path additionalConstraintsPath = constraintsPath.resolve(
+                StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()
+        );
+
+
+        List<StConstraintsParameterEntity> newParams =
+                stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
+                        additionalConstraintsPath,
+                        areaParam,
+                        studyAreas
+                );
+
+
+        boolean isOthers = OTHERS_AREA.equalsIgnoreCase(areaParam);
+        // Filters parameters by zone matching areaParam or exclusion from existing areas
+        List<StConstraintsParameterEntity> filteredNewParams = newParams.stream()
+                .filter(p -> {
+                    if (!isOthers) {
+                        return p.getZone().equalsIgnoreCase(areaParam);
+                    } else {
+
+                        return !existingAreas.contains(p.getZone());
+                    }
+                })
+                .toList();
+
+
+        filteredNewParams.forEach(p -> p.setStorage(storage));
+
+
+        mergeWithPriority(storage, filteredNewParams);
+
+
+        String constraintsCapacityFileName =
+                getFileNameWithoutExtensionAndWithoutPrefix(
+                        trajectoryFileName,
+                        TrajectoryType.STS.name()
+                ) + EXCEL_EXTENSION;
+        Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
+        storage.setConstraintsPath(fullConstraintsPath.toString());
+    }
+
+    /**
+     * Merges the new parameters into the storage entity's parameter list, ensuring that
+     * any existing parameters with the same key are replaced by the new parameters.
+     *
+     * @param storage the storage entity containing the existing list of parameters
+     * @param newParams a list of new parameters to be merged with the existing parameters
+     */
+    private void mergeWithPriority(StStorageEntity storage,
+                                   List<StConstraintsParameterEntity> newParams) {
+
+        if (storage.getParameters() == null) {
+            storage.setParameters(new ArrayList<>());
+        }
+
+        Map<String, StConstraintsParameterEntity> map = storage.getParameters().stream()
+                .collect(Collectors.toMap(
+                        this::buildKey,
+                        Function.identity(),
+                        (a, b) -> a
+                ));
+
+        for (StConstraintsParameterEntity newParam : newParams) {
+            String key = buildKey(newParam);
+            map.put(key, newParam); // remplace si doublon
+        }
+
+        storage.setParameters(new ArrayList<>(map.values()));
+    }
+
+    private String buildKey(StConstraintsParameterEntity p) {
+        return (p.getName() + "|" + p.getZone() + "|" + p.getCluster()).toLowerCase();
+    }
 }

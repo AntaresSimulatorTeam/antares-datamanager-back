@@ -1,11 +1,15 @@
 package com.rte_france.antares.datamanager_back.service.sts.impl;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -15,29 +19,37 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
+import static com.rte_france.antares.datamanager_back.util.Utils.checkMissingColumns;
 import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
+
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class StStorageConstraintsFileProcessorServiceImpl implements StStorageConstraintsFileProcessorService {
     @Override
-    public List<StConstraintsParameterEntity> processConstraintsParametersAnHoursFile(Path additionalConstraintsPath) throws IOException {
+    public List<StConstraintsParameterEntity> processConstraintsParametersAnHoursFile(Path additionalConstraintsPath, String areaParam, List<String> studyAreas) throws IOException {
         List<StConstraintsParameterEntity> parameters = new ArrayList<>();
 
         try (InputStream inputStream = Files.newInputStream(additionalConstraintsPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-                //"parameters"
+
                 Sheet parametersSheet = workbook.getSheet("parameters");
-                processParameters(parametersSheet, parameters);
-
-                //"hours"
                 Sheet hoursSheet = workbook.getSheet("hours");
-                processHours(hoursSheet, parameters);
+
+                if(parametersSheet ==null || hoursSheet == null){
+                    throw BusinessException.builder()
+                            .message("Missing parameters or hours data in STS Additional Constraints file")
+                            .build();
+                }
 
 
+                processParameters(parametersSheet, parameters, areaParam, studyAreas);
+                processHours(hoursSheet, parameters, areaParam, studyAreas);
 
                 return parameters;
         }
@@ -45,56 +57,118 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
 
     }
 
-    private void processHours(Sheet hoursSheet, List<StConstraintsParameterEntity> parameters) {
-        if (hoursSheet != null) {
-            for (Row row : hoursSheet) {
-                if (row.getRowNum() == 0) continue; // skip header
-                String paramName = Optional.ofNullable(getCellValue(row, 0))
-                        .map(Object::toString)
-                        .map(String::trim)
-                        .orElseThrow(() -> new IllegalStateException("Parameter name missing in hours sheet"));
+    private void processHours(Sheet hoursSheet, List<StConstraintsParameterEntity> parameters, String areaParam, List<String> studyAreas) {
+        if (hoursSheet == null) return;
 
-                String paramZone = Optional.ofNullable(getCellValue(row, 1))
-                        .map(Object::toString)
-                        .map(String::trim)
-                        .orElseThrow(() -> new IllegalStateException("Parameter zone missing in hours sheet"));
+        validateSheetNotEmpty(hoursSheet, "hours");
 
-                String paramCluster = Optional.ofNullable(getCellValue(row, 2))
-                        .map(Object::toString)
-                        .map(String::trim)
-                        .orElseThrow(() -> new IllegalStateException("Parameter cluster missing in hours sheet"));
+        String [] expectedColumns = {"name", "zone", "cluster", "occurrence", "start", "end"};
+        checkMissingColumns(hoursSheet,
+                expectedColumns,
+                StsTsFile.ADDITIONAL_CONSTRAINTS.fileName(),
+                TrajectoryType.STS.name());
+        Predicate<String> zoneFilter = buildZoneFilter(areaParam, studyAreas);
 
-                // Filter name + zone + cluster
-                StConstraintsParameterEntity param = parameters.stream()
-                        .filter(p -> paramName.equals(p.getName())
-                                && paramZone.equals(p.getZone())
-                                && paramCluster.equals(p.getCluster()))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "Parameter not found: name=" + paramName + ", zone=" + paramZone + ", cluster=" + paramCluster));
+        for (Row row : hoursSheet) {
+            if (row.getRowNum() == 0) continue; // skip header
+            if (isRowEmpty(row)) break;
 
-                StConstraintsHoursEntity hour = getStConstraintsHoursEntity(row, param);
-                param.getHours().add(hour);
+            Result result = getResult(row, zoneFilter);
+            if (result == null) continue;
+
+            // Filter name + zone + cluster
+            StConstraintsParameterEntity param = parameters.stream()
+                    .filter(p -> result.name().equals(p.getName())
+                            && result.zone().equals(p.getZone())
+                            && result.cluster().equals(p.getCluster()))
+                    .findFirst()
+                    .orElseThrow(() -> {throw BusinessException.builder().
+                    message( "Parameter not found: name={0}, zone={1}, cluster{2}").
+                    errorMessageArguments(List.of(result.name(), result.zone(), result.cluster())).build();});
+
+            StConstraintsHoursEntity hour = getStConstraintsHoursEntity(row, param);
+            param.getHours().add(hour);
+        }
+    }
+
+    private @Nullable Result getResult(Row row, Predicate<String> zoneFilter) {
+        String name = getStringCellValue(row, 0);
+        String zone = getStringCellValue(row, 1);
+        String cluster = getStringCellValue(row, 2);
+
+        if (!zoneFilter.test(zone)) {
+            return null;
+        }
+
+        if (isBlank(name) || isBlank(zone) || isBlank(cluster)) {
+            throw BusinessException.builder()
+                    .message("Values name, zone and cluster must not be empty in STS Additional Constraint")
+                    .build();
+        }
+        Result result = new Result(name, zone, cluster);
+        return result;
+    }
+
+    private record Result(String name, String zone, String cluster) {
+    }
+
+    private void validateSheetNotEmpty(Sheet sheet, String sheetDisplayName) {
+        boolean hasData = false;
+        for (Row row : sheet) {
+            if (row.getRowNum() == 0) continue;
+            if (!isRowEmpty(row)) {
+                hasData = true;
+                break;
             }
+        }
+        if (!hasData) {
+            throw BusinessException.builder()
+                    .message("No data found in {0} in STS Additional Constraint")
+                    .errorMessageArguments(List.of(sheetDisplayName))
+                    .build();
         }
     }
 
     private StConstraintsHoursEntity getStConstraintsHoursEntity(Row row, StConstraintsParameterEntity param) {
         StConstraintsHoursEntity hour = new StConstraintsHoursEntity();
-        hour.setOccurrence(getIntegerCellValue(row, 3, 0));
+        hour.setOccurrence(getIntegerCellValue(row, 3, param, "occurrence"));
 
-        hour.setStartHour(getIntegerCellValue(row, 4, 0));
+        hour.setStartHour(getIntegerCellValue(row, 4, param, "start"));
 
-        hour.setEndHour(getIntegerCellValue(row, 5, 0));
+        hour.setEndHour(getIntegerCellValue(row, 5, param, "end"));
 
         hour.setParameter(param);
         return hour;
     }
 
-    private void processParameters(Sheet parametersSheet, List<StConstraintsParameterEntity> parameters) {
-        if (parametersSheet != null) {
-            for (Row row : parametersSheet) {
+    private void processParameters(Sheet parametersSheet, List<StConstraintsParameterEntity> parameters, String areaParam, List<String> studyAreas) {
+        validateSheetNotEmpty(parametersSheet, "parameters");
+
+        String [] expectedColumns = {"name", "zone", "cluster", "variable", "operator", "enabled"};
+        checkMissingColumns(parametersSheet,
+                expectedColumns,
+                StsTsFile.ADDITIONAL_CONSTRAINTS.fileName(),
+                TrajectoryType.STS.name());
+        Predicate<String> zoneFilter = buildZoneFilter(areaParam, studyAreas);
+
+        for (Row row : parametersSheet) {
                 if (row.getRowNum() == 0) continue; // skip header
+                if (isRowEmpty(row)) break;
+
+                String name = getStringCellValue(row, 0);
+                String zone = getStringCellValue(row, 1);
+                String cluster = getStringCellValue(row, 2);
+
+            if (!zoneFilter.test(zone)) {
+                continue;
+            }
+
+
+            if (isBlank(name) || isBlank(zone) || isBlank(cluster)) {
+                    throw BusinessException.builder()
+                            .message("Values name, zone and cluster must not be empty in STS Additional Constraint")
+                            .build();
+                }
 
                 StConstraintsParameterEntity param = new StConstraintsParameterEntity();
                 param.setHours(new ArrayList<>());
@@ -108,7 +182,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
 
                 parameters.add(param);
             }
-        }
+
     }
 
     private String getStringCellValue(Row row, int index) {
@@ -129,17 +203,37 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
         };
     }
 
-    private int getIntegerCellValue(Row row, int index, int defaultValue) {
-        return Optional.ofNullable(getCellValue(row, index))
-                .map(obj -> {
-                    if (obj instanceof Double d) return d.intValue();
-                    try {
-                        return Integer.parseInt(obj.toString().trim());
-                    } catch (NumberFormatException e) {
-                        return defaultValue;
-                    }
-                })
-                .orElse(defaultValue);
+    private int getIntegerCellValue(Row row, int index, StConstraintsParameterEntity param, String fieldName) {
+        Object value = getCellValue(row, index);
+        if (value == null) {
+            throw BusinessException.builder()
+                    .message("Values for node {0} / cluster {1} are not numeric in STS Additional Constraint {2}")
+                    .errorMessageArguments(List.of(param.getZone(), param.getCluster(), fieldName))
+                    .build();
+        }
+
+        if (value instanceof Double d) return d.intValue();
+
+        try {
+            return Integer.parseInt(value.toString().trim());
+        } catch (NumberFormatException e) {
+            throw BusinessException.builder()
+                    .message("Values for node {0} / cluster {1} are not numeric in STS Additional Constraint {2}")
+                    .errorMessageArguments(List.of(param.getZone(), param.getCluster(), fieldName))
+                    .build();
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private Predicate<String> buildZoneFilter(String areaParam, List<String> studyAreas) {
+        if ("OTHERS".equalsIgnoreCase(areaParam)) {
+            return zone -> studyAreas != null &&
+                    studyAreas.stream().anyMatch(a -> a.equalsIgnoreCase(zone));
+        }
+        return zone -> areaParam != null && areaParam.equalsIgnoreCase(zone);
     }
 }
 
