@@ -9,5 +9,5 @@ import java.util.List;
 public interface StStorageConstraintsFileProcessorService {
 
 
-    List<StConstraintsParameterEntity> processConstraintsParametersAnHoursFile (Path additionalConstraintsPath) throws IOException;
+    List<StConstraintsParameterEntity> processConstraintsParametersAnHoursFile (Path additionalConstraintsPath, String areaName, List<String> studyAreas) throws IOException;
 }

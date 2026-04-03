@@ -52,7 +52,13 @@ values (1, 'testFile.txt', 100, '123', 'AREA', 1, 'test', '2024-06-22 19:10:25-0
        (5, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
         '2025-2026', 'CH', 'technology3'),
        (8, 'testFile.txt', 100, '123', 'LINK', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
-        '2025-2026', 'ES', 'technology4');
+        '2025-2026', 'ES', 'technology4'),
+       (9, 'testFile.txt', 100, '123', 'STS', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+        '2025-2026', 'FR', 'technology4'),
+       (10, 'testFile.txt', 100, '123', 'STS', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+        '2025-2026', 'OTHERS', 'technology4'),
+        (11, 'testFile.txt', 100, '123', 'STS', 2, 'test', '2024-06-23 19:10:25-07', '2024-06-23 19:12:25-07',
+    '2025-2026', 'AT', 'technology4');
 
 insert into public.area_config(id, district, spilled_energy_cost, unsupplied_energy_cost, area_id, trajectory_id)
 values (1, 'district1', 1.2, 40.2, 4, 1),
@@ -78,6 +84,9 @@ values (1, 1),
        (3, 1),
        (3, 4),
        (1, 8),
+       (1, 9),
+       (1, 10),
+       (1, 11),
        (3, 2);
 
 INSERT INTO public.warning_message (id, warning_code, warning_content, warning_level, creation_date, created_by,

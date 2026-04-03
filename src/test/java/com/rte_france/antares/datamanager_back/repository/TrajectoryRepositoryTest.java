@@ -118,6 +118,18 @@ class TrajectoryRepositoryTest {
         assertThat(foundEntity).isNotPresent();
     }
 
+    @Test
+    void findAreasByStudyIdAndType_shouldReturnCorrectAreas() {
+
+            Integer studyId = 1;
+            String type = "STS";
+
+            List<String> areas = trajectoryRepository.findAreasByStudyIdAndType(studyId, type);
+
+            assertThat(areas).containsExactlyInAnyOrder("FR", "OTHERS", "AT");
+    }
+
+
 }
 
 
