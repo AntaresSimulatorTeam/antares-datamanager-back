@@ -805,7 +805,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
-        String checksum = "FR".equals(areaParam) && trajectoryType == TrajectoryType.RES_CAPACITY ? calculateDirectoryChecksum(filePath) : calculateChecksum(result.checksum().toString());
+        String checksum = "FR".equals(areaParam) && trajectoryType == TrajectoryType.RES_CAPACITY ? calculateDirectoryChecksum(filePath) : getFileChecksum(filePath.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
 
