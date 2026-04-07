@@ -17,16 +17,14 @@ import java.util.stream.Stream;
 public class ThermalCostAssembler {
 
     private final ThermalCostTypeRepository thermalCostTypeRepository;
-
-    private static final Double COFF_GJ_T_MWH = 3.6;
+    private static final Double MWH_TO_GJ = 3.6;
     private static final String CO2="CO2";
-    private static final String ENERGY_VALUE_UNIT="mwht/gj";
 
-    private Double round(Double value) {
+    private Double round(Double value, Integer precision) {
         if (value == null) {
             return null;
         }
-        return BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP).doubleValue();
+        return BigDecimal.valueOf(value).setScale(precision, RoundingMode.HALF_UP).doubleValue();
     }
 
     /**
@@ -60,10 +58,10 @@ public class ThermalCostAssembler {
                 // Unit conversion factor from kg/GJ to t/MWh:
                 // 1. Multiply by 3.6 to convert from GJ to MWh (1 MWh = 3.6 GJ)
                 // 2. Divide by 1000 to convert from kg to tonnes
-                Double kgGjToTMwh = COFF_GJ_T_MWH / 1000.0;
+                Double kgGjToTMwh = MWH_TO_GJ / 1000.0;
 
                 // Final CO2 emission in t/MWh
-                dto.setCo2(round((commonParam.getCo2() * kgGjToTMwh) / efficiencyRatio));
+                dto.setCo2(round((commonParam.getCo2() * kgGjToTMwh) / efficiencyRatio,2));
             } else if (fuel != null && economicTrajectory != null) {
                 computeFallbackCo2(dto, fuel, economicTrajectory, ratioNcvHcv);
             }
@@ -74,10 +72,9 @@ public class ThermalCostAssembler {
      * Computes the fallback CO2 emissions for a given thermal cluster generation based on the provided parameters.
      * This method calculates CO2 emissions using efficiency and energy content ratios, or falls back to alternative
      * computations based on economic trajectories and CO2 cost if standard parameters are not available.
-     *
-     *      * Compute CO2 emissions from an economic emission factor when available,
-     *      * otherwise fallback to CO2 cost from thermal_cost.
-     *      * Formula: (co2 / 1000) / efficiency / NCV_HHV_ratio
+     * Compute CO2 emissions from an economic emission factor when available,
+     * otherwise fallback to CO2 cost from thermal_cost.
+     * Formula: (co2 / 1000) / efficiency / NCV_HHV_ratio
      *
      * @param dto Object representing the thermal cluster generation data where the computed CO2 emissions will be set.
      * @param fuel The fuel type associated with the thermal generation, used for retrieving economic CO2 emissions.
@@ -96,18 +93,19 @@ public class ThermalCostAssembler {
         findEconomicCo2(trajectory, fuel, horizonYear).ifPresentOrElse(economicCo2 -> {
             BigDecimal co2EmissionFuel = economicCo2.getCo2EmissionFuel();
             if (co2EmissionFuel != null) {
-                double ratio = (ratioNcvHcv != null && ratioNcvHcv != 0.0) ? ratioNcvHcv : 1.0;
+                double rationNcvHcv = (ratioNcvHcv != null && ratioNcvHcv != 0.0) ? ratioNcvHcv : 1.0;
                 // Formula: (co2EmissionFuel / 1000) / efficiency / ratioNcvHcv
-                dto.setCo2(round((co2EmissionFuel.doubleValue() / 1000.0) / efficiency / ratio));
+                dto.setCo2(round((co2EmissionFuel.doubleValue() / 1000.0) / efficiency / rationNcvHcv,2));
             }
         }, () -> {
             Double co2Cost = findCo2Cost(trajectory);
             if (co2Cost != null) {
-                double ratio = (ratioNcvHcv != null && ratioNcvHcv != 0.0) ? ratioNcvHcv : 1.0;
+                double rationNcvHcv = (ratioNcvHcv != null && ratioNcvHcv != 0.0) ? ratioNcvHcv : 1.0;
                 // Using CO2 cost from thermal_cost as a fallback if economic co2 is not found
-                dto.setCo2(round((co2Cost / 1000.0) / efficiency / ratio));
+                dto.setCo2(round((co2Cost / 1000.0) / efficiency / rationNcvHcv,2));
             }
         });
+
     }
 
     private Integer parseHorizonYear(String horizon) {
@@ -129,7 +127,6 @@ public class ThermalCostAssembler {
                 .orElseGet(List::of)
                 .stream()
                 .filter(e -> e.getFuel() != null &&
-                        fuel != null &&
                         e.getFuel().equalsIgnoreCase(fuel) &&
                         (horizonYear == null || horizonYear.equals(e.getYear()))
                 )
@@ -146,15 +143,11 @@ public class ThermalCostAssembler {
      *                       for the calculation of marginal costs.
      * @param thermalClusterCapacities List of thermal cluster capacity entities providing
      *                                  information about fuel capacities for different thermal clusters.
-     * @param economicTrajectory An entity containing economic energy content data for fuel types,
-     *                           used in the calculation of costs and efficiencies.
      * @param economicCostTrajectory A trajectory entity containing economic cost data that may
      *                                be used for the computation of fallback costs or adjustments.
-     *
      *  This method handles the absence of common parameters by defaulting to the fuels specified in the
      *  thermal cluster capacities. It then calculates the startup cost based on the fuel capacity, energy
      *  values, efficiencies, and any fixed startup costs defined in the common parameters.
-     *
      *  The final results, including the calculated startup and marginal costs, are set back into the provided
      *   DTO (dto).
      */
@@ -163,7 +156,6 @@ public class ThermalCostAssembler {
             List<ThermalCommonParameterEntity> commonParams,
             List<ThermalSpecificParametersEntity> specificParams,
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
-            ThermalEconomicEnerContentEntity economicTrajectory,
             TrajectoryEntity economicCostTrajectory
     ) {
         // Retrieve the set of fuels used in the thermal cluster capacities, filtering out null values
@@ -196,7 +188,6 @@ public class ThermalCostAssembler {
                                 entry.getValue(),
                                 specificParams,
                                 thermalClusterCapacities,
-                                economicTrajectory,
                                 economicCostTrajectory
                         )
                 );
@@ -208,7 +199,6 @@ public class ThermalCostAssembler {
             String fuel,
             List<ThermalSpecificParametersEntity> specificParams,
             List<ThermalClusterCapacityEntity> thermalClusterCapacities,
-            ThermalEconomicEnerContentEntity economicTrajectory,
             TrajectoryEntity economicCostTrajectory
     ) {
         ThermalCostEntity thermalCostEntity = findThermalCostForFuel(economicCostTrajectory, fuel);
@@ -218,14 +208,17 @@ public class ThermalCostAssembler {
             return;
         }
 
-        Double startupFuel = getStartupFuel(commonParam);
-        resolveEnergyValue(economicTrajectory);
+        int startupFuel = getStartupFuel(commonParam);
 
         ThermalSpecificParametersEntity specificParam = findMatchingSpecificParam(commonParam, specificParams, thermalClusterCapacities);
-        Double marginalCostValue = getMarginalCost(specificParam, thermalCostEntity, fuel, commonParam, dto);
-        if (marginalCostValue != null) {
-            marginalCostValue = round(marginalCostValue);
+
+        Double marginalCost = getMarginalCost(specificParam, thermalCostEntity, fuel, commonParam, dto);
+        if (marginalCost == null) {
+            return;
         }
+        int marginalCostValue = (int) Math.round(marginalCost);
+
+        marginalCostValue = Math.toIntExact(marginalCostValue);
 
         updateStartupCost(dto, commonParam, startupFuel, efficiency, marginalCostValue);
         if (dto.getMarginalCost() == null) {
@@ -248,19 +241,8 @@ public class ThermalCostAssembler {
         return efficiency > 1.0 ? efficiency / 100.0 : efficiency;
     }
 
-    private Double getStartupFuel(ThermalCommonParameterEntity commonParam) {
-        return (commonParam != null && commonParam.getStartUpFuel() != null) ? commonParam.getStartUpFuel() : 0.0;
-    }
-
-    private Double resolveEnergyValue(ThermalEconomicEnerContentEntity economicTrajectory) {
-        Double enerValue = (economicTrajectory != null && economicTrajectory.getValue() != null)
-                ? economicTrajectory.getValue().doubleValue() : 0.0;
-        if (enerValue == 0.0) {
-            return getEnergyValue(Optional.ofNullable(economicTrajectory)
-                    .map(ThermalEconomicEnerContentEntity::getTrajectory)
-                    .orElse(null));
-        }
-        return enerValue;
+    private Integer getStartupFuel(ThermalCommonParameterEntity commonParam) {
+        return Math.toIntExact(Math.round((commonParam != null && commonParam.getStartUpFuel() != null) ? commonParam.getStartUpFuel() : 0));
     }
 
     private ThermalSpecificParametersEntity findMatchingSpecificParam(
@@ -294,32 +276,33 @@ public class ThermalCostAssembler {
     private void updateStartupCost(
             ThermalClusterGenerationDto dto,
             ThermalCommonParameterEntity commonParam,
-            Double startupFuel,
+            Integer startupFuel,
             Double efficiency,
-            Double marginalCostValue
+            Integer marginalCostValue
     ) {
         if (marginalCostValue == null) {
             return;
         }
 
-        Double startupFixCost = (commonParam != null && commonParam.getStartUpFixCost() != null)
+        double startupFixCost = (commonParam != null && commonParam.getStartUpFixCost() != null)
                 ? commonParam.getStartUpFixCost() : 0.0;
-        // Formula: (startup_fuel * COFF_GJ_T_MWH * efficiency * marginal_cost )+ startup_fix_cost
-        dto.setStartupCost(round((startupFuel * COFF_GJ_T_MWH * efficiency * marginalCostValue) + startupFixCost));
-    }
+        // Formula: (startup_fuel * 1/MWH_TO_GJ * efficiency * marginal_cost) + startup_fix_cost, then multiplied by nominal capacity
 
-
-    private Double getEnergyValue(TrajectoryEntity economicTrajectory) {
-        if (economicTrajectory == null || economicTrajectory.getThermalEconomicEnerContents() == null) {
-            return 0.0;
+        if (dto.getNominalCapacity() == null) {
+            return;
         }
-        return economicTrajectory.getThermalEconomicEnerContents().stream()
-                .filter(e -> ENERGY_VALUE_UNIT.equalsIgnoreCase(e.getUnit()))
-                .map(ThermalEconomicEnerContentEntity::getValue)
-                .filter(Objects::nonNull)
-                .map(BigDecimal::doubleValue)
-                .findFirst()
-                .orElse(0.0);
+
+        int startupCostInt = Math.toIntExact(Math.round(
+                (
+                        (startupFuel * (1 / MWH_TO_GJ) * efficiency * marginalCostValue)
+                                + startupFixCost
+                )
+                        * dto.getNominalCapacity()
+        ));
+
+        dto.setStartupCost(startupCostInt);
+
+
     }
 
     private Double getMarginalCost(
@@ -332,7 +315,6 @@ public class ThermalCostAssembler {
     {
         return Optional.ofNullable(specificParam)
             .map(ThermalSpecificParametersEntity::getMarginalCost)
-            .filter(Objects::nonNull)
             .orElseGet(() -> computeFallbackMarginalCost(economicCostTrajectories, fuel, commonParam, dto));
     }
 
@@ -351,7 +333,7 @@ public class ThermalCostAssembler {
         if (efficiency != null && efficiency > 1.0) efficiency = efficiency / 100.0;
 
         if (fuelCost != null && co2Cost != null && efficiency != null && efficiency != 0.0) {
-            Double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
+            double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
             Double co2Value = dto.getCo2() != null ? dto.getCo2() : 0.0;
             // Formula: fuel / efficiency + CO2 cost * CO2 (calculated in computeCo2) + om_cost
             return (fuelCost / efficiency) + (co2Cost * co2Value) + omCost;
@@ -365,7 +347,7 @@ public class ThermalCostAssembler {
         Double omCost = 0.0;
 
         if (!commonParams.isEmpty()) {
-            ThermalCommonParameterEntity firstCommon = commonParams.get(0);
+            ThermalCommonParameterEntity firstCommon = commonParams.getFirst();
             marketBid = specificParams.stream()
                     .filter(s -> firstCommon.getThermalClusterRef() != null && s.getThermalClusterRef() != null
                             && Objects.equals(s.getThermalClusterRef().getName(), firstCommon.getThermalClusterRef().getName()))
@@ -384,9 +366,9 @@ public class ThermalCostAssembler {
         }
 
         if (marketBid != null) {
-            dto.setMarketBidCost(round(marketBid));
+            dto.setMarketBidCost(round(marketBid,3));
         } else if (dto.getMarginalCost() != null) {
-            dto.setMarketBidCost(round(dto.getMarginalCost() - omCost));
+            dto.setMarketBidCost(round(dto.getMarginalCost() - omCost,3));
         }
     }
 
