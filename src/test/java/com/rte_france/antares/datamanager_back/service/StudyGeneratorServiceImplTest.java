@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -91,6 +92,9 @@ class StudyGeneratorServiceImplTest {
     private MiscToJsonService miscToJsonService;
 
     @Mock
+    private ResToJsonService resToJsonService;
+
+    @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
@@ -101,6 +105,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private MiscGenerationAssemblerService miscGenerationAssemblerService;
+
+    @Mock
+    private ResGenerationAssemblerService resGenerationAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -153,6 +160,7 @@ class StudyGeneratorServiceImplTest {
         lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
         //Default DSR assembler returns empty map to avoid NPE in tests not focused on DSR
         lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
+        lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
 
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
@@ -171,6 +179,9 @@ class StudyGeneratorServiceImplTest {
 
         lenient().doAnswer(inv -> new DsrToJsonService().buildDsrDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(drsToJsonService).buildDsrDataMap(anyString(),anyMap());
+
+        lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
+                .when(resToJsonService).buildResDataMap(anyString(), anyMap());
     }
 
     @Test
@@ -599,4 +610,25 @@ class StudyGeneratorServiceImplTest {
         assertThat(cluster).containsKey("series");
     }
 
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeResInAreas() throws Exception {
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        Map<String, Object> cluster = new LinkedHashMap<>();
+        cluster.put("properties", Map.of("group", "wind_offshore", "capacity", 1200.0));
+        cluster.put("series", List.of("fr_wind.arrow"));
+        when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Map.of("DE", Map.of("wind_offshore", cluster)));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var json = captureGeneratedJson(1);
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(json, new TypeReference<>() {});
+        Map<String, Object> study = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areas = mapper.convertValue(study.get("areas"), new TypeReference<>() {});
+        Map<String, Object> deArea = mapper.convertValue(areas.get("DE"), new TypeReference<>() {});
+        Map<String, Object> res = mapper.convertValue(deArea.get("res"), new TypeReference<>() {});
+
+        assertThat(res).containsKey("wind_offshore");
+    }
 }

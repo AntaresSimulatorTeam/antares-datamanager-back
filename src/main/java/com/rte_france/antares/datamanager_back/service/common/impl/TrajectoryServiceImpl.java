@@ -589,7 +589,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
                 TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
                 TrajectoryType.MISC_CAPACITY,
-                TrajectoryType.MISC_LOAD
+                TrajectoryType.MISC_LOAD,
+                TrajectoryType.RES_CAPACITY,
+                TrajectoryType.RES_LOAD,
+                TrajectoryType.RES_ZONAL_DISTRIBUTION,
+                TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
         );
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
@@ -994,6 +998,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
             case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
             case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
+            case "RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION" ->
+                    log.info("No additional coherence check for RES trajectory type {} yet", type);
             default -> throw TechnicalException.builder()
                     .message("Trajectory type {0} is not supported")
                     .errorMessageArguments(List.of(type))
