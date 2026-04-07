@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -71,6 +72,9 @@ public class ResFileProcessorServiceImplTest {
 
     @Mock
     private TrajectoryServiceImpl trajectoryService;
+    
+    @Mock
+    private DefaultConfigService defaultConfigService;
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
@@ -225,7 +229,7 @@ public class ResFileProcessorServiceImplTest {
             createMockResExcelFile(nestedDir, "installedRES_solar_pv_BP23_Aref.xlsx", areas, TECHNOLOGY_SOLAR_PV, true);
 
             // Mock normalizeAndValidateDirectory pour renvoyer frDir (le code ajoutera .resolve("BP_23_REF") dessus)
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(frDir);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(STUDY_ID)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -234,6 +238,7 @@ public class ResFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
             }});
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -262,7 +267,7 @@ public class ResFileProcessorServiceImplTest {
             createMockOffshoreExcelFile(nestedDir, "installedRES_offshore_BP23_Aref.xlsx", null, true);
             createMockResExcelFile(nestedDir, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(frDir);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -271,6 +276,7 @@ public class ResFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni("testUser");
             }});
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -291,7 +297,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -322,7 +328,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_IT, AREA_FR);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -333,6 +339,7 @@ public class ResFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni("testUser");
             }});
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -353,7 +360,7 @@ public class ResFileProcessorServiceImplTest {
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
             createMockResExcelFile(tempRoot, "installedRES_solar_thermo_BP23_Aref.xlsx", List.of(AREA_FR, AREA_AT), "solar_thermo", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -364,6 +371,7 @@ public class ResFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni("testUser");
             }});
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -383,7 +391,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -395,6 +403,7 @@ public class ResFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni("testUser");
             }});
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             var trajectoryEntity = new TrajectoryEntity();
             trajectoryEntity.setType(TrajectoryType.RES_CAPACITY.name());
@@ -422,7 +431,7 @@ public class ResFileProcessorServiceImplTest {
             // On crée un fichier avec une seule ligne valide
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -432,6 +441,7 @@ public class ResFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni("testUser");
             }});
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // Créer une première trajectoire
@@ -469,31 +479,33 @@ public class ResFileProcessorServiceImplTest {
             Path nestedDir = frDir.resolve(BP_23_REF);
             Files.createDirectories(nestedDir);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
             
             assertThatThrownBy(() ->
                     resFileProcessorServiceImpl.processInstalledResFile(
                             "BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
                     ))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("No FR res capacity file found in directory:");
+                    .hasMessageContaining("No res capacity file found in directory:");
         }
 
         @Test
         void shouldThrowWhenNoFileFoundInIPRootDirectory(@TempDir Path tempRoot) throws Exception {
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             assertThatThrownBy(() ->
                     resFileProcessorServiceImpl.processInstalledResFile(
@@ -517,12 +529,13 @@ public class ResFileProcessorServiceImplTest {
             createMockOffshoreExcelFile(nestedDir, "installedRES_offshore_BP23_Aref.xlsx", null, true);
             createMockResExcelFile(nestedDir, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(frDir);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -541,10 +554,11 @@ public class ResFileProcessorServiceImplTest {
             Path nestedDir = frDir.resolve("BP_23_REF");
             Files.createDirectories(nestedDir);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(nestedDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(nestedDir);
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -552,7 +566,7 @@ public class ResFileProcessorServiceImplTest {
                             "invalid_res.xlsx", "2030", 1, AREA_FR, "Solar PV", false
                     )
             );
-            assertTrue(exception.getMessage().contains("No FR res capacity file found in directory"));
+            assertTrue(exception.getMessage().contains("No res capacity file found in directory"));
         }
 
         @Test
@@ -568,12 +582,13 @@ public class ResFileProcessorServiceImplTest {
             createMockOffshoreExcelFileWithWrongColumns(nestedDir, "installedRES_wind_offshore_BP23_Aref.xlsx");
 
             // Mock normalizeAndValidateDirectory pour renvoyer frDir (le code ajoutera .resolve("BP_23_REF") dessus)
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(frDir);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -597,12 +612,13 @@ public class ResFileProcessorServiceImplTest {
             createMockOffshoreExcelFileWithWrongColumns(nestedDir, "installedRES_wind_onshore_BP23_Aref.xlsx");
 
             // Mock normalizeAndValidateDirectory pour renvoyer frDir (le code ajoutera .resolve("BP_23_REF") dessus)
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(frDir);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -629,12 +645,13 @@ public class ResFileProcessorServiceImplTest {
             createMockOffshoreExcelFile(nestedDir, "installedRES_offshore_BP23_Aref.xlsx", null, true);
             createMockResExcelFile(nestedDir, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(frDir);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -651,7 +668,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -659,6 +676,7 @@ public class ResFileProcessorServiceImplTest {
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -675,7 +693,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -683,6 +701,7 @@ public class ResFileProcessorServiceImplTest {
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -699,7 +718,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", false);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -707,6 +726,7 @@ public class ResFileProcessorServiceImplTest {
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -722,12 +742,13 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockOffshoreExcelFile(tempRoot, "installedRES_wind_offshore_BP23_Aref.xlsx", AREA_AT, false);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -744,12 +765,13 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFileWithNull(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv");
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
             // WHEN & THEN
             BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -764,8 +786,8 @@ public class ResFileProcessorServiceImplTest {
         void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws Exception {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
-            
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
             // Given
             ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
             // On mock la méthode interne pour forcer une IOException
@@ -805,7 +827,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -841,7 +863,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
 
             // WHEN & THEN
@@ -862,7 +884,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
 
             // WHEN & THEN
@@ -889,7 +911,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -924,7 +946,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -957,7 +979,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_AT, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_AT, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(ANOTHER_USER);
@@ -991,7 +1013,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
 
             // WHEN & THEN - Path traversal with .. should be blocked or result in invalid path
@@ -1013,7 +1035,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1049,7 +1071,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1086,7 +1108,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1121,7 +1143,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1165,7 +1187,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1203,7 +1225,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
 
             // WHEN & THEN
@@ -1226,7 +1248,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
 
             // WHEN & THEN
@@ -1254,7 +1276,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
 
             // WHEN & THEN
@@ -1285,7 +1307,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1317,7 +1339,7 @@ public class ResFileProcessorServiceImplTest {
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null, false))
                     .thenReturn(DIRECTORY_RES_LOAD);
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
                 setNni(TEST_USER);
@@ -1481,7 +1503,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1510,7 +1532,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1541,7 +1563,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_FR), "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -1578,7 +1600,7 @@ public class ResFileProcessorServiceImplTest {
             // On crée un fichier avec une seule ligne valide
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_FR), "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -1624,7 +1646,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1646,7 +1668,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             createMockResExcelFileWithNull(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv");
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1667,7 +1689,7 @@ public class ResFileProcessorServiceImplTest {
             // GIVEN : Créer la structure de dossiers temporaire
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
             
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1689,7 +1711,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT);
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1713,7 +1735,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv", true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1737,7 +1759,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv", false);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1761,7 +1783,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFileWithMissingColumns(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv");
             
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1782,7 +1804,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFileWithoutDataRow(tempRoot, "repartition_techno_BP23_Aref.xlsx");
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -1800,7 +1822,7 @@ public class ResFileProcessorServiceImplTest {
 
         @Test
         void shouldThrowWhenNoFileFoundInTechnologyDistributionRootDirectory(@TempDir Path tempRoot) throws Exception {
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -1818,7 +1840,7 @@ public class ResFileProcessorServiceImplTest {
 
         @Test
         void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws IOException {
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
             // Given
             ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
             // On mock la méthode interne pour forcer une IOException
@@ -1861,7 +1883,8 @@ public class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(
                     eq(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION),
                     eq(area),
-                    isNull()
+                    isNull(),
+                    anyBoolean()
             )).thenReturn(tempRoot);
 
             // Mock de loadStudyAreas
@@ -1996,7 +2019,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas, true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2024,7 +2047,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_FR), true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -2061,7 +2084,7 @@ public class ResFileProcessorServiceImplTest {
             // On crée un fichier avec une seule ligne valide
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_FR),  true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -2107,7 +2130,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas, true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2129,7 +2152,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             createMockResExcelFileWithNull(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2150,7 +2173,7 @@ public class ResFileProcessorServiceImplTest {
             // GIVEN : Créer la structure de dossiers temporaire
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_AT, AREA_AT), true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2172,7 +2195,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_AT);
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas, true);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2196,7 +2219,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas,  false);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2220,7 +2243,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFileWithMissingColumns(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", areas);
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2241,7 +2264,7 @@ public class ResFileProcessorServiceImplTest {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFileWithoutDataRow(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx");
 
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
@@ -2259,7 +2282,7 @@ public class ResFileProcessorServiceImplTest {
 
         @Test
         void shouldThrowWhenNoFileFoundInTechnologyDistributionRootDirectory(@TempDir Path tempRoot) throws Exception {
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // stubs for repository/user
             // Autres mocks
@@ -2277,7 +2300,7 @@ public class ResFileProcessorServiceImplTest {
 
         @Test
         void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws IOException {
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
             // Given
             ResFileProcessorServiceImpl servicespy = spy(resFileProcessorServiceImpl);
             // On mock la méthode interne pour forcer une IOException
@@ -2314,7 +2337,7 @@ public class ResFileProcessorServiceImplTest {
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(area), true);
 
             // Mock du répertoire (IMPORTANT : renvoyer le dossier, pas le fichier)
-            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any(), anyBoolean())).thenReturn(tempRoot);
 
             // Mock de loadStudyAreas
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{

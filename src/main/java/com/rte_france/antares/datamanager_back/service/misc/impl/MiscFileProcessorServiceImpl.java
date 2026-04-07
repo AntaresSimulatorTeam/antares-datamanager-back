@@ -580,6 +580,6 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
     private TrajectoryEntity buildInstalledMiscTrajectory(Path trajectoryFilePath, String horizon, String area) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.MISC_CAPACITY, area, null, null);
+        return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.MISC_CAPACITY, area, null, null, false);
     }
 }

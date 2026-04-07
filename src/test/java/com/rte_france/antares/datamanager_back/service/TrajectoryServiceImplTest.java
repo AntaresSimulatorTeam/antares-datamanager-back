@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
@@ -70,6 +71,8 @@ class TrajectoryServiceImplTest {
     private ThermalParamModulationService thermalParamModulationService;
     @Mock
     private ThermalControlService thermalControlService;
+    @Mock
+    private DefaultConfigService defaultConfigService;
     @Mock
     private StudyRepository studyRepository;
     @Mock
@@ -616,6 +619,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null, null, null);
@@ -635,8 +639,9 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn("modulation");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
-        try (MockedStatic<Files> filesMock = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)) {
+        try (MockedStatic<Files> filesMock = mockStatic(Files.class, CALLS_REAL_METHODS)) {
             filesMock.when(() -> Files.getLastModifiedTime(trajectoryDirectory))
                     .thenThrow(new IOException("cannot read timestamp"));
 
@@ -711,6 +716,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getStsDirectory()).thenReturn("STS");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result =
@@ -739,6 +745,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResCapacityDirectory()).thenReturn("RES/installed power/");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, "FR", technology, null);
@@ -769,6 +776,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResCapacityDirectory()).thenReturn("RES/installed power/");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, "FR", null, null);
@@ -798,6 +806,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResCapacityDirectory()).thenReturn("RES/installed power/");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_CAPACITY, null, null, null);
@@ -823,6 +832,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_ZONAL_DISTRIBUTION, null, null, null);
@@ -859,6 +869,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, null, technology, null);
@@ -891,7 +902,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResDistributionDirectory()).thenReturn("RES/technicalParameters/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, null, null, null);
 
@@ -922,7 +934,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getResLoadDirectory()).thenReturn("RES/load factor/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.RES_LOAD, null, null, null);
 
@@ -954,7 +967,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getThermalCapacityDirectory()).thenReturn("thermal/installed power/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(true);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_CAPACITY, "FR", null, null);
 
@@ -976,7 +990,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getThermalEconomicDirectory()).thenReturn("thermal_economic/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null, null);
 
@@ -998,7 +1013,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getDsrDirectory()).thenReturn("DSR/cluster/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR, null, null, null);
 
@@ -1020,7 +1036,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getDsrCapacityDirectory()).thenReturn("DSR/capacity modulation/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
 
@@ -1042,7 +1059,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getMiscCapacityDirectory()).thenReturn("MISC/installed power/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.MISC_CAPACITY, null, null, null);
 
@@ -1064,7 +1082,8 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn("MISC/load factor/");
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.MISC_LOAD, "FR", null, null);
 
@@ -1460,14 +1479,14 @@ class TrajectoryServiceImplTest {
     @Test
     void getDirectoryByTrajectoryType_returnsLoadDirectory_whenTypeIsLoad() throws IOException {
         when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("loadDir");
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.LOAD, null, null);
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.LOAD, null, null, false);
         assertEquals("loadDir", result);
     }
 
     @Test
     void getDirectoryByTrajectoryType_returnsThermalCostDirectory_whenTypeIsThermalEconomicCostParameter() throws IOException {
         when(antaresDataManagerProperties.getThermalCostDirectory()).thenReturn("thermalCostDir");
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null);
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, false);
         assertEquals("thermalCostDir", result);
     }
 
@@ -1481,7 +1500,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getStsDirectory()).thenReturn("STS");
 
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.STS, null, "DRS");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.STS, null, "DRS", false);
         String expected = stsDir.toString();
         assertEquals(expected, result);
     }
@@ -1491,7 +1510,7 @@ class TrajectoryServiceImplTest {
     @Test
     void getDirectoryByTrajectoryType_returnsMiscCapacityDirector_whenTypeIsMisc() throws IOException {
         when(antaresDataManagerProperties.getMiscCapacityDirectory()).thenReturn("MISC/installed power");
-        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC_CAPACITY, null, null);
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC_CAPACITY, null, null, false);
         assertEquals("MISC/installed power", result);
 
     }

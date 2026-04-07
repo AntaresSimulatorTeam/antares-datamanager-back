@@ -82,14 +82,14 @@ public class Utils {
     }
 
 
-    public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean isSameFileWithSameContent(Path path, TrajectoryEntity trajectoryEntity, boolean isDefaultArea) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
+                && trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), isDefaultArea));
     }
 
-    public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
+    public static boolean isSameFileWithDifferentContent(Path path, TrajectoryEntity trajectoryEntity, boolean isDefaultArea) throws IOException {
         return getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryEntity.getType()).equals(trajectoryEntity.getFileName())
-                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea()));
+                && !trajectoryEntity.getChecksum().equals(computeChecksumByType(path, TrajectoryType.valueOf(trajectoryEntity.getType()), trajectoryEntity.getHorizon(), trajectoryEntity.getArea(), isDefaultArea));
     }
 
     public static boolean isSameTrajectory(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
@@ -140,8 +140,8 @@ public class Utils {
      * @throws IOException if an I/O error occurs
      */
     public static TrajectoryEntity buildTrajectory(Path path, int versionTrajectory, String horizon, String
-            createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries) throws IOException {
-        String checksum = computeChecksumByType(path, trajectoryType, horizon, area);
+            createdBy, TrajectoryType trajectoryType, String area, String technology, Boolean hasSeries, boolean isDefaultArea) throws IOException {
+        String checksum = computeChecksumByType(path, trajectoryType, horizon, area, isDefaultArea);
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
@@ -166,11 +166,11 @@ public class Utils {
      * @param trajectoryEntity The TrajectoryEntity to compare the file to.
      * @throws IOException If an I/O error occurs reading from the file or a malformed or unmappable byte sequence is read.
      */
-    public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity) throws IOException {
-        if (isSameFileWithDifferentContent(path, trajectoryEntity)) {
+    public static boolean checkTrajectoryVersion(Path path, TrajectoryEntity trajectoryEntity, boolean isDefaultArea) throws IOException {
+        if (isSameFileWithDifferentContent(path, trajectoryEntity, isDefaultArea)) {
             log.info("File already processed but with different content : {}", path.getFileName());
             return true;
-        } else if (isSameFileWithSameContent(path, trajectoryEntity)) {
+        } else if (isSameFileWithSameContent(path, trajectoryEntity, isDefaultArea)) {
             throw BusinessException.builder()
                     .message("File already processed  with same content : {0}")
                     .errorMessageArguments(List.of(path.getFileName().toString()))
@@ -406,10 +406,10 @@ public class Utils {
      * @return hash SHA-256 sous forme hexadécimale
      * @throws IOException en cas de fichier introuvable ou feuille absente
      */
-    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws IOException {
+    public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area, boolean isDefaultArea) throws IOException {
         return switch (type) {
             case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION, RES_ZONAL_DISTRIBUTION -> getFileChecksum(path.toString());
-            case RES_CAPACITY -> "FR".equals(area) ? calculateDirectoryChecksum(path) : getFileChecksum(path.toString());
+            case RES_CAPACITY -> isDefaultArea ? calculateDirectoryChecksum(path) : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
@@ -920,7 +920,7 @@ public class Utils {
         // Ensure the base directory is trusted and exists
         if (directoryPath == null || !Files.isDirectory(directoryPath)) {
             throw BusinessException.builder()
-                    .message("No FR res capacity file found in directory: " + directoryPath)
+                    .message("No res capacity file found in directory: " + directoryPath)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -997,8 +997,8 @@ public class Utils {
         return yearColIndex;
     }
 
-    public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse, TrajectoryType trajectoryType, String prefix) {
-        if ((!"FR".equalsIgnoreCase(areaParam) &&
+    public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse, TrajectoryType trajectoryType, String prefix, boolean isDefaultArea) {
+        if ((!isDefaultArea &&
                 !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_CAPACITY) ||
                 (!startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION)
                 ) {

@@ -316,12 +316,12 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(fileName, TrajectoryType.DSR.name(), horizon, areaParam, null);
 
         TrajectoryEntity trajectory;
-        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get(), false)) {
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon.split("-")[1], createdBy, TrajectoryType.DSR, areaParam, null, hasSeries);
+            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon.split("-")[1], createdBy, TrajectoryType.DSR, areaParam, null, hasSeries, false);
         } else {
             // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon.split("-")[1], createdBy, TrajectoryType.DSR, areaParam, null, hasSeries);
+            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon.split("-")[1], createdBy, TrajectoryType.DSR, areaParam, null, hasSeries, false);
         }
 
         return trajectory;

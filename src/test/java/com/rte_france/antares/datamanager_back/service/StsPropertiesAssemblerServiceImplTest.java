@@ -8,18 +8,16 @@ import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
-import com.rte_france.antares.datamanager_back.service.sts.impl.StsPropertiesAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
+import com.rte_france.antares.datamanager_back.service.sts.impl.StsGenerationAssemblerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
-
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -30,11 +28,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class StsPropertiesAssemblerServiceImplTest {
 
@@ -46,15 +42,15 @@ class StsPropertiesAssemblerServiceImplTest {
     Path tempDir;
 
     @InjectMocks
-    private StsPropertiesAssemblerServiceImpl stsPropertiesAssemblerService;
+    private StsGenerationAssemblerServiceImpl stsGenerationAssemblerService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        antaresDataManagerProperties = Mockito.mock(AntaresDataManagerProperties.class);
-        nasFileService = Mockito.mock(NasFileService.class);
-        ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
-        ReflectionTestUtils.setField(stsPropertiesAssemblerService, "nasFileService", nasFileService);
+        antaresDataManagerProperties = mock(AntaresDataManagerProperties.class);
+        nasFileService = mock(NasFileService.class);
+        ReflectionTestUtils.setField(stsGenerationAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
+        ReflectionTestUtils.setField(stsGenerationAssemblerService, "nasFileService", nasFileService);
     }
 
     @Test
@@ -85,7 +81,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         // When
-        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+        Map<String, StsGenerationDTO> result = stsGenerationAssemblerService.assembleStsProperties(study);
 
         // Then
         assertEquals(1, result.size());
@@ -134,7 +130,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         // When
-        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+        Map<String, StsGenerationDTO> result = stsGenerationAssemblerService.assembleStsProperties(study);
 
         // Then
         assertEquals(2, result.size());
@@ -157,7 +153,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         // When
-        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+        Map<String, StsGenerationDTO> result = stsGenerationAssemblerService.assembleStsProperties(study);
 
         // Then
         assertTrue(result.isEmpty());
@@ -181,7 +177,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         // When
-        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+        Map<String, StsGenerationDTO> result = stsGenerationAssemblerService.assembleStsProperties(study);
 
         // Then
         StsGenerationDTO dto = result.get("FR_S1");
@@ -222,7 +218,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         // When
-        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+        Map<String, StsGenerationDTO> result = stsGenerationAssemblerService.assembleStsProperties(study);
 
         // Then
         assertEquals(1, result.size());
@@ -232,7 +228,7 @@ class StsPropertiesAssemblerServiceImplTest {
 
     @Test
     void shouldReturnEmptyListWhenEntityIsNull() {
-        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(null, "2030");
+        List<String> result = stsGenerationAssemblerService.createMatrixStsTsFiles(null, "2030");
 
         assertTrue(result.isEmpty());
     }
@@ -242,7 +238,7 @@ class StsPropertiesAssemblerServiceImplTest {
         StStorageEntity entity = new StStorageEntity();
         entity.setTsPath("   ");
 
-        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030");
+        List<String> result = stsGenerationAssemblerService.createMatrixStsTsFiles(entity, "2030");
         assertTrue(result.isEmpty());
     }
 
@@ -264,7 +260,7 @@ class StsPropertiesAssemblerServiceImplTest {
         }
 
         // when
-        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon);
+        List<String> result = stsGenerationAssemblerService.createMatrixStsTsFiles(entity, horizon);
 
         // then
         assertTrue((result.size() == 5));
@@ -293,7 +289,7 @@ class StsPropertiesAssemblerServiceImplTest {
         // when / then
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
+                () -> stsGenerationAssemblerService.createMatrixStsTsFiles(entity, "2030")
         );
 
         assertTrue(ex.getMessage().contains("Required STS series file not found"));
@@ -321,7 +317,7 @@ class StsPropertiesAssemblerServiceImplTest {
         // when / then
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
+                () -> stsGenerationAssemblerService.createMatrixStsTsFiles(entity, "2030")
         );
 
         assertTrue(ex.getMessage().contains("NAS error"));
@@ -354,7 +350,7 @@ class StsPropertiesAssemblerServiceImplTest {
         // when / then
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon)
+                () -> stsGenerationAssemblerService.createMatrixStsTsFiles(entity, horizon)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());

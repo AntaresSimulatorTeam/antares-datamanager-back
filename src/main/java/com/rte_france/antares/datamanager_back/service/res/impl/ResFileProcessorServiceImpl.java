@@ -4,11 +4,13 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.DefaultLoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ResZonalDistributionEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -47,6 +49,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final TrajectoryServiceImpl trajectoryService;
+    private final DefaultConfigService defaultConfigService;
 
     protected static final String GROUP_COLUMN = "Group";
     protected static final String CLUSTER_COLUMN = "Cluster";
@@ -77,9 +80,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     ) throws IOException {
 
         List<String> studyAreas = loadStudyAreas(studyId);
+        boolean isDefaultArea = defaultConfigService.isDefaultArea(areaParam);
         String technologyParam = technology != null ? toSnakeCase(technology): null;
-        boolean isFR = "FR".equalsIgnoreCase(areaParam);
-        List<Path> files = resolveFiles(isFR, trajectoryToUse, areaParam, technologyParam);
+        
+        List<Path> files = resolveFiles(isDefaultArea, trajectoryToUse, areaParam, technologyParam);
         ResRowProcessingResult aggregated = files.stream()
                 .map(file -> {
                     try {
@@ -101,8 +105,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 })
                 .reduce(this::merge)
                 .orElse(null);
-        Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
-        return saveTrajectory(horizon, areaParam, technology, referencePath, aggregated, TrajectoryType.RES_CAPACITY);
+        Path referencePath = isDefaultArea ? files.get(0).getParent() : files.get(0);
+        return saveTrajectory(horizon, areaParam, technology, referencePath, aggregated, TrajectoryType.RES_CAPACITY, isDefaultArea);
     }
 
     @Override
@@ -113,7 +117,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         // Si technology est renseignée : comportement actuel
         if (technology != null && !technology.isBlank()) {
             Path trajectoryFilePath = basePath
-                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null, false))
                     .resolve(trajectoryToUse)
                     .resolve(technology).resolve(technology)
                     .normalize();
@@ -127,7 +131,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         } else {
             // Si technology n'est pas renseignée : vérifier l'existence des 4 technologies
             Path trajectoryFolder = basePath
-                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null, false))
                     .resolve(trajectoryToUse);
             
             validatePathSecurity(basePath, trajectoryFolder, trajectoryToUse);
@@ -155,10 +159,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
                 areaParam,
-                null
+                null,
+                false
         );
 
-        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX);
+        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false);
 
         String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
         Path filePath = directoryPath.resolve(fileName).normalize();
@@ -190,7 +195,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
 
-        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
+        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, false);
     }
 
     @Transactional
@@ -210,10 +215,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_ZONAL_DISTRIBUTION,
                 areaParam,
-                null
+                null,
+                false
         );
 
-        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_ZONAL_DISTRIBUTION, RES_ZONAL_DISTRIBUTION_PREFIX);
+        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_ZONAL_DISTRIBUTION, RES_ZONAL_DISTRIBUTION_PREFIX, false);
 
         String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
         Path filePath = directoryPath.resolve(fileName).normalize();
@@ -245,7 +251,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
 
-        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_ZONAL_DISTRIBUTION);
+        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_ZONAL_DISTRIBUTION, false);
     }
 
     private static void validatePathSecurity(Path basePath, Path trajectoryFilePath, String trajectoryToUse) throws IOException {
@@ -371,14 +377,16 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         return trajectory;
     }
-    private List<Path> resolveFiles(boolean isFR, String trajectoryToUse, String areaParam, String technology) throws IOException {
+    
+    private List<Path> resolveFiles(boolean isDefaultArea, String trajectoryToUse, String areaParam, String technology) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_CAPACITY,
-                isFR ? "FR" : areaParam,
-                null
+                areaParam,
+                null,
+                isDefaultArea
         );
 
-        if (isFR) {
+        if (isDefaultArea) {
             Path folderPath = directoryPath.resolve(trajectoryToUse).normalize();
             
             List<Path> files;
@@ -387,14 +395,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             } catch (IOException e) {
                 // Catch et lève la BusinessException comme avant
                 throw BusinessException.builder()
-                        .message("No FR res capacity file found in directory: " + folderPath)
+                        .message("No res capacity file found in directory: " + folderPath)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
             return files;
 
         } else {
-            validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX);
+            validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX, isDefaultArea);
             
             String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
             Path filePath = directoryPath.resolve(fileName).normalize();
@@ -804,10 +812,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 technology);
     }
 
-    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
-        String checksum = "FR".equals(areaParam) && trajectoryType == TrajectoryType.RES_CAPACITY ? calculateDirectoryChecksum(filePath) : getFileChecksum(filePath.toString());
+    private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result, boolean isDefaultArea) throws IOException {
+        String checksum = isDefaultArea && trajectoryType == TrajectoryType.RES_CAPACITY ? calculateDirectoryChecksum(filePath) : getFileChecksum(filePath.toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
-        TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
+        TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType, isDefaultArea);
 
         if (existingTrajectory.isPresent() && existingTrajectory.get().getChecksum() != null) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
@@ -842,9 +850,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return trajectory;
     }
 
-    private TrajectoryEntity buildInstalledResTrajectory(Path trajectoryFilePath, String horizon, String area, String technology, TrajectoryType trajectoryType) throws IOException {
+    private TrajectoryEntity buildInstalledResTrajectory(Path trajectoryFilePath, String horizon, String area, String technology, TrajectoryType trajectoryType, boolean isDefaultArea) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, area, technology, null);
+        return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, area, technology, null, isDefaultArea);
     }
 
     private List<String> loadStudyAreas(Integer studyId) {
@@ -860,7 +868,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             String technology,
             Path filePath,
             ResRowProcessingResult result,
-            TrajectoryType trajectoryType
+            TrajectoryType trajectoryType,
+            boolean isDefaultArea
     ) throws IOException {
         TrajectoryEntity trajectory = buildResTrajectory(
                 horizon,
@@ -868,7 +877,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 technology,
                 filePath,
                 trajectoryType,
-                result
+                result,
+                isDefaultArea
         );
 
         switch (result) {

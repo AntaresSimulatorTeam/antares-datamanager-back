@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -51,6 +52,9 @@ class TrajectoryServiceImplAdditionalTest {
 
     @Mock
     private LoadRepository loadRepository;
+
+    @Mock
+    private DefaultConfigService defaultConfigService;
 
     @Mock
     private UserService userService;
@@ -357,6 +361,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getLinkDirectory()).thenReturn("link");
+        when(defaultConfigService.isDefaultArea(null)).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LINK,null, "OTHER", null);
@@ -377,6 +382,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(defaultConfigService.isDefaultArea(null)).thenReturn(false);
 
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null, null);
@@ -392,7 +398,8 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area"));
+        when(defaultConfigService.isDefaultArea(null)).thenReturn(false);
+        assertThrows(BusinessException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area"));
     }
 
     @Test
@@ -408,6 +415,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+        when(defaultConfigService.isDefaultArea(null)).thenReturn(false);
 
         java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null,null);
 
@@ -428,6 +436,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+        when(defaultConfigService.isDefaultArea(null)).thenReturn(false);
 
         java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, null, null,null);
 
@@ -449,6 +458,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
+        when(defaultConfigService.isDefaultArea(null)).thenReturn(false);
 
         // Then
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA, null,null,"test");
@@ -472,7 +482,8 @@ class TrajectoryServiceImplAdditionalTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(""); // empty if not used
         when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn(""); // important!
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         // Act
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(
                 TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER,

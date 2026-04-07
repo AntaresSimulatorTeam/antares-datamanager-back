@@ -66,7 +66,7 @@ class UtilsTest {
         trajectoryEntity.setType("AREA");
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
-        boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
+        boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity, false);
 
         assertTrue(isSameFileWithSameContent);
     }
@@ -80,7 +80,7 @@ class UtilsTest {
         trajectoryEntity.setType("LOAD");
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
 
-        boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity);
+        boolean isSameFileWithSameContent = Utils.isSameFileWithSameContent(path, trajectoryEntity, false);
 
         assertFalse(isSameFileWithSameContent);
     }
@@ -95,7 +95,7 @@ class UtilsTest {
         trajectoryEntity.setChecksum("differentChecksum");
         trajectoryEntity.setType("AREA");
 
-        boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
+        boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity, false);
 
         assertTrue(isSameFileWithDifferentContent);
     }
@@ -109,7 +109,7 @@ class UtilsTest {
         trajectoryEntity.setFileSize(Files.size(path));
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(path.toString(), "2030-2031"));
         trajectoryEntity.setType("AREA");
-        boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity);
+        boolean isSameFileWithDifferentContent = Utils.isSameFileWithDifferentContent(path, trajectoryEntity, false);
 
         assertFalse(isSameFileWithDifferentContent);
     }
@@ -142,7 +142,7 @@ class UtilsTest {
         trajectoryEntity.setChecksum(Utils.computeSheetChecksum(filePath.toString(), "2030-2031"));
         trajectoryEntity.setType("AREA");
 
-        assertThrows(BusinessException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity));
+        assertThrows(BusinessException.class, () -> Utils.checkTrajectoryVersion(filePath, trajectoryEntity, false));
     }
 
     @Test
@@ -157,7 +157,7 @@ class UtilsTest {
         trajectoryEntity.setHorizon(sheetName);
         trajectoryEntity.setType("AREA");
 
-        assertTrue(Utils.checkTrajectoryVersion(Path.of(filePath), trajectoryEntity));
+        assertTrue(Utils.checkTrajectoryVersion(Path.of(filePath), trajectoryEntity, false));
     }
 
     @Test
@@ -170,7 +170,7 @@ class UtilsTest {
         trajectoryEntity.setChecksum("newChecksum");
         trajectoryEntity.setType(TrajectoryType.AREA.name());
 
-        assertFalse(Utils.checkTrajectoryVersion(tempFile, trajectoryEntity));
+        assertFalse(Utils.checkTrajectoryVersion(tempFile, trajectoryEntity, false));
     }
 
     @Test
@@ -285,8 +285,8 @@ class UtilsTest {
             }
         }
 
-        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null);
-        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null);
+        var c1 = Utils.computeChecksumByType(f1, TrajectoryType.LINK, horizon, null, false);
+        var c2 = Utils.computeChecksumByType(f2, TrajectoryType.LINK, horizon, null, false);
 
         assertNotEquals(c1, c2, "Changing parameters for the horizon should change the checksum");
     }
@@ -369,7 +369,7 @@ class UtilsTest {
 
         TechnicalException ex = assertThrows(
                 TechnicalException.class,
-                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null)
+                () -> Utils.computeChecksumByType(file, TrajectoryType.LINK, horizon, null, false)
         );
 
         assertTrue(
@@ -1256,7 +1256,7 @@ class UtilsTest {
 
             // When / Then
             assertThatNoException()
-                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX));
+                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX, true));
         }
 
         @Test
@@ -1267,7 +1267,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX),
+                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false),
                     BusinessException.class
             );
 
@@ -1285,7 +1285,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX),
+                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false),
                     BusinessException.class
             );
 

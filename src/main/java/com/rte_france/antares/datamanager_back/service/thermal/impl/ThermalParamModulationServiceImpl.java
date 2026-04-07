@@ -88,7 +88,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
 
         int version = existingOpt.isPresent() && checkParamModulationTrajectoryVersion(thermalModulationParameterEntities, existingOpt.get()) ? existingOpt.get().getVersion() : 0;
 
-        trajectory = buildTrajectory(path, version, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null, null);
+        trajectory = buildTrajectory(path, version, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null, null, false);
 
         return saveThermalParamModulationTrajectory(trajectory, thermalModulationParameterEntities, TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER);
     }

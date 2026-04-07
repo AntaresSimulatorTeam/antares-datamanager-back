@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface DefaultConfigService {
   List<DefaultLoadDTO> fetchAllDefaults();
+  boolean isDefaultArea(String area);
   List<DefaultThermalTechnologyDTO> fetchAllThermalTechnologies();
 }

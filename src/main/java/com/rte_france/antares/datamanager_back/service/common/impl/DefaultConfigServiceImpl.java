@@ -33,6 +33,13 @@ public class DefaultConfigServiceImpl implements DefaultConfigService {
                 .toList();
 
     }
+    
+    @Override
+    public boolean isDefaultArea(String area) {
+        return defaultLoadRepository.findAllByIsDefaultIsTrue()
+                .stream()
+                .anyMatch(e -> e.getName().equalsIgnoreCase(area));
+    }
 
     @Override
     public List<DefaultThermalTechnologyDTO> fetchAllThermalTechnologies() {

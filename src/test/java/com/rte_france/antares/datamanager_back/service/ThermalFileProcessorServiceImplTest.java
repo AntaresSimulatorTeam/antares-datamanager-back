@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalControlsServiceImpl;
@@ -73,6 +74,9 @@ class ThermalFileProcessorServiceImplTest {
 
     @Mock
     private ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
+    
+    @Mock
+    private DefaultConfigService defaultConfigService;
 
     @Mock
     private AreaRepository areaRepository;
@@ -181,7 +185,8 @@ class ThermalFileProcessorServiceImplTest {
         when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
                 .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
         when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
-
+        when(defaultConfigService.isDefaultArea(anyString())).thenReturn(false);
+        
         var horizon = "2025-2026";
         thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
 
@@ -612,7 +617,7 @@ class ThermalFileProcessorServiceImplTest {
                             eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())))
                     .thenReturn("thermal_common_parameters_test");
 
-            utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(file), eq(existing)))
+            utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(file), eq(existing), anyBoolean()))
                     .thenReturn(true);
 
             utilsMock.when(() -> Utils.buildTrajectory(
@@ -623,7 +628,8 @@ class ThermalFileProcessorServiceImplTest {
                             eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER),
                             isNull(),
                             isNull(),
-                            isNull()
+                            isNull(),
+                            anyBoolean()
                     ))
                     .thenReturn(built);
 
@@ -644,7 +650,8 @@ class ThermalFileProcessorServiceImplTest {
                     eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER),
                     isNull(),
                     isNull(),
-                    isNull()
+                    isNull(),
+                    anyBoolean()
             ), times(1));
 
             utilsMock.verify(() -> Utils.buildTrajectory(
@@ -655,7 +662,8 @@ class ThermalFileProcessorServiceImplTest {
                     any(),
                     any(),
                     any(),
-                    any()
+                    any(),
+                    anyBoolean()
             ), never());
 
             verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
@@ -942,7 +950,7 @@ class ThermalFileProcessorServiceImplTest {
                         return dot > 0 ? fileName.substring(0, dot) : fileName;
                     });
 
-            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()))
+            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull(), anyBoolean()))
                     .thenReturn(builtTrajectory);
 
             // Delegate save method returns final trajectory
@@ -954,7 +962,7 @@ class ThermalFileProcessorServiceImplTest {
 
             // Assert
             assertSame(savedTrajectory, result);
-            utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()), times(1));
+            utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(0), eq(horizon), eq("NNI_USER"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull(), anyBoolean()), times(1));
             verify(thermalEconomicCostAndRateService, times(1)).saveThermalEconomicCostAndRateTrajectory(builtTrajectory, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
         }
     }
@@ -987,10 +995,10 @@ class ThermalFileProcessorServiceImplTest {
                     });
 
             // Simulate Utils.checkTrajectoryVersion => true (same identifiers but different content)
-            utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(path), eq(existing))).thenReturn(true);
+            utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(path), eq(existing), anyBoolean())).thenReturn(true);
 
             // Since existingOpt.present && checkTrajectoryVersion true => buildTrajectory called with existing version
-            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()))
+            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull(), anyBoolean()))
                     .thenReturn(builtTrajectory);
 
             when(thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(eq(builtTrajectory), eq(costs), eq(rates), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER)))
@@ -1001,7 +1009,7 @@ class ThermalFileProcessorServiceImplTest {
 
             // Assert
             assertSame(savedTrajectory, result);
-            utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()), times(1));
+            utilsMock.verify(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull(), anyBoolean()), times(1));
             verify(thermalEconomicCostAndRateService, times(1)).saveThermalEconomicCostAndRateTrajectory(builtTrajectory, costs, rates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);
         }
     }

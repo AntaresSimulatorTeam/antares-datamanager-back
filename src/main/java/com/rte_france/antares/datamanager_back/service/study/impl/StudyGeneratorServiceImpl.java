@@ -49,7 +49,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
-    private final StsGenerationAssemblerService stPropertiesAssemblerService;
+    private final StsGenerationAssemblerService stsGenerationAssemblerService;
     private final DsrGenerationAssemblerService dsrPropertiesAssemblerService;
     private final MiscGenerationAssemblerService miscPropertiesAssemblerService;
 
@@ -164,7 +164,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         var areaClusterRefThermalClusterGenerationDtoMap = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity);
         log.info("Thermal cluster props found: {}", areaClusterRefThermalClusterGenerationDtoMap != null ? areaClusterRefThermalClusterGenerationDtoMap.size() : 0);
 
-        var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);
+        var areaStsClusterGenerationDtoMap = stsGenerationAssemblerService.assembleStsProperties(studyEntity);
         log.info("STS cluster props {} entries", areaStsClusterGenerationDtoMap != null ? areaStsClusterGenerationDtoMap.size() : 0);
 
         var areaDsrClusterGenerationDtoMap = dsrPropertiesAssemblerService.assembleDsrProperties(studyEntity);

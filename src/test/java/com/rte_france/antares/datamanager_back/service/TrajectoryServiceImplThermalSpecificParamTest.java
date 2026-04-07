@@ -196,7 +196,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
 
         try (MockedStatic<Utils> mocked = mockStatic(Utils.class, CALLS_REAL_METHODS)) {
 
-            mocked.when(() -> Utils.checkTrajectoryVersion(any(Path.class), eq(existing))).thenReturn(true);
+            mocked.when(() -> Utils.checkTrajectoryVersion(any(Path.class), eq(existing), anyBoolean())).thenReturn(true);
 
             TrajectoryEntity res = spyService.processThermalSpecificParameterTrajectory("specific_param_FR_test", HORIZON, "FR", 2);
 

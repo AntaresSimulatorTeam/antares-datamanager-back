@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
@@ -69,10 +70,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
 
-
     private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final LoadFileProcessorService loadFileProcessorService;
+
+    private final DefaultConfigService defaultConfigService;
 
     private final StudyRepository studyRepository;
 
@@ -309,7 +311,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : "UNKNOWN__USER";
 
-        TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null, null);
+        TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, area, null, null, false);
 
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 trajectory.getFileName(),
@@ -318,7 +320,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 area,
                 null
         );
-        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get(), false)) {
             trajectory.setVersion(existingOpt.get().getVersion() + 1);
         }
 
@@ -472,10 +474,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
-        Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
+        boolean isDefaultArea = defaultConfigService.isDefaultArea(area);
+        Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology, isDefaultArea);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
+                    .filter(path -> (isDirectoryTrajectory(path, trajectoryType, isDefaultArea) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, isDefaultArea))))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -489,11 +492,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         } 
         catch (IOException e) {
-           throw new UncheckedIOException(e);
+            throw BusinessException.builder().message("Directory not found").build();
         }
     }
 
-    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology, String area) {
+    private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology, boolean isDefaultArea) {
         String fileName = path.getFileName().toString().toLowerCase();
         String technologyPrefix = (technology == null ? "" : technology.toLowerCase() + "_");
         return switch (trajectoryType) {
@@ -507,7 +510,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> "FR".equals(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
+            case RES_CAPACITY -> isDefaultArea ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
             case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             default -> true;
@@ -849,7 +852,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //build the file path
         Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, area, null))
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, area, null, false))
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {
@@ -886,11 +889,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    public Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area, String technology) throws IOException {
+    public Path normalizeAndValidateDirectory(TrajectoryType trajectoryType, String area, String technology, boolean isDefaultArea) throws IOException {
         String basePath = antaresDataManagerProperties.getNasDirectory();
         String subPath = antaresDataManagerProperties.getTrajectoryFilePath();
         Path baseDirectory = Path.of(basePath).resolve(subPath)
-                .resolve(getDirectoryByTrajectoryType(trajectoryType, area, technology))
+                .resolve(getDirectoryByTrajectoryType(trajectoryType, area, technology, isDefaultArea))
                 .normalize();
 
         if (!baseDirectory.endsWith("/")) {
@@ -904,9 +907,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType);
     }
 
-    private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
+    private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, boolean isDefaultArea) {
         return Files.isDirectory(path) &&
-                (trajectoryType == TrajectoryType.LOAD || trajectoryType == RES_CAPACITY && "FR".equals(area) || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD || trajectoryType == TrajectoryType.RES_LOAD);
+                (trajectoryType == TrajectoryType.LOAD || trajectoryType == RES_CAPACITY && isDefaultArea || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD || trajectoryType == TrajectoryType.RES_LOAD);
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
@@ -944,12 +947,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area, String technology) throws IOException {
+    public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area, String technology, boolean isDefaultArea) throws IOException {
         return switch (trajectoryType) {
             case AREA -> antaresDataManagerProperties.getAreaDirectory();
             case LINK -> antaresDataManagerProperties.getLinkDirectory();
             case LOAD -> antaresDataManagerProperties.getLoadDirectory();
-            case THERMAL_CAPACITY -> area.equals("FR") ? Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
+            case THERMAL_CAPACITY -> isDefaultArea ? Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
                     .resolve(area)
                     .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
                     .toString();
@@ -968,7 +971,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case MISC_CAPACITY -> antaresDataManagerProperties.getMiscCapacityDirectory();
             case MISC_LOAD -> antaresDataManagerProperties.getMiscLoadDirectory();
             case RES_CAPACITY ->
-                    "FR".equals(area) ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
+                    isDefaultArea ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
                             .resolve(area)
                             .toString() : Path.of(antaresDataManagerProperties.getResCapacityDirectory())
                             .toString();

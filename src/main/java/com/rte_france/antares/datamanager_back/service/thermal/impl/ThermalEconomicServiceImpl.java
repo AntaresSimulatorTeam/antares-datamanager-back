@@ -71,10 +71,10 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
                 throwAlreadyProcessedFileException(trajectoryFilePath);
             }
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(trajectoryFilePath, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null, null);
+            trajectory = buildTrajectory(trajectoryFilePath, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null, null, false);
         } else {
             // No existing or different file -> new trajectory with version 1
-            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null, null);
+            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_PARAMETER, null, null, null, false);
         }
         trajectory.setChecksum(checksum);
         trajectory.setType(trajectoryTypeName);

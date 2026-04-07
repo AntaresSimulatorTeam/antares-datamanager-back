@@ -170,12 +170,12 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(fileName, TrajectoryType.DSR_CAPACITY_MODULATION.name(), horizon, null, null);
 
         TrajectoryEntity trajectory;
-        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
+        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get(), false)) {
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
+            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null, false);
         } else {
             // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null);
+            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, TrajectoryType.DSR_CAPACITY_MODULATION, null, null, null, false);
         }
 
         return trajectory;

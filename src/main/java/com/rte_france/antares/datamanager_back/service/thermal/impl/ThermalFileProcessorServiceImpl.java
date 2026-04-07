@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalClusterRefService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
@@ -53,6 +54,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final ThermalClusterRefService thermalClusterRefService;
+    
+    private final DefaultConfigService defaultConfigService;
 
     private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
 
@@ -86,12 +89,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         );
 
         TrajectoryEntity trajectory;
-        if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get())) {
+        if (existingOpt.isPresent() && checkTrajectoryVersion(path, existingOpt.get(), false)) {
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null, null);
+            trajectory = buildTrajectory(path, existingOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null, null, false);
         } else {
             // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null, null);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null, null, null, false);
         }
         return saveThermalCommonTrajectory(trajectory, list, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER);
     }
@@ -111,7 +114,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     @Override
     public TrajectoryEntity processThermalCapacityFile(Path path, String horizon, ThermalClusterCapacityDto thermalClusterCapacityDto, TrajectoryType type, String area, String technology) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology, null), thermalClusterCapacityDto, type);
+        boolean isDefaultArea = defaultConfigService.isDefaultArea(area);
+        return saveThermalCapacitiesTrajectory(buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_CAPACITY, area, technology, null, isDefaultArea), thermalClusterCapacityDto, type);
     }
 
     @Override
@@ -136,10 +140,10 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
             }
             // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(path, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
+            trajectory = buildTrajectory(path, existingTrajectoryOpt.get().getVersion(), horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null, false);
         } else {
             // No existing or different file -> new trajectory with version 1
-            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null);
+            trajectory = buildTrajectory(path, 0, horizon, createdBy, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER, null, null, null, false);
         }
         trajectory.setChecksum(checksum);
         return thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(trajectory, thermalEconomicCosts, thermalEconomicRates, TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER);

@@ -55,11 +55,11 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
                 .orElse("UNKNOWN_USER");
 
         int version = trajectoryEntity.map(TrajectoryEntity::getVersion).orElse(0);
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
+        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get(), false)) {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA, null, null, null), buildAreaConfigList(path, horizon));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA, null, null, null, false), buildAreaConfigList(path, horizon));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
