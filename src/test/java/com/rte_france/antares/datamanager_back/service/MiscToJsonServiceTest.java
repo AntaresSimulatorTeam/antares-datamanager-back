@@ -15,8 +15,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MiscToJsonServiceTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private MiscToJsonService miscToJsonService;
 
     @BeforeEach
@@ -64,7 +62,6 @@ class MiscToJsonServiceTest {
 
         // When
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
-        printProducedJson("buildMiscDataMap_shouldOrganizeByGroup", result);
 
         // Then
         assertEquals(2, result.size());
@@ -98,7 +95,6 @@ class MiscToJsonServiceTest {
 
         // When
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
-        printProducedJson("buildMiscDataMap_shouldFilterSeriesByGroupCaseInsensitive", result);
 
         // Then
         Map<String, Object> biogasData = (Map<String, Object>) result.get("biogas");
@@ -127,7 +123,6 @@ class MiscToJsonServiceTest {
         ));
 
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
-        printProducedJson("buildMiscDataMap_shouldMergeOtherWaveAndHydrokineticIntoOther", result);
 
         assertEquals(1, result.size());
         assertTrue(result.containsKey("other"));
@@ -161,20 +156,9 @@ class MiscToJsonServiceTest {
         ));
 
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
-        printProducedJson("buildMiscDataMap_shouldNotDuplicateSeriesForAggregatedOtherGroup", result);
 
         assertEquals(1, result.size());
         Map<String, Object> otherData = (Map<String, Object>) result.get("other");
         assertEquals(List.of("FR_other.UUID.arrow"), otherData.get("series"));
-    }
-
-    // Temporary debug output to inspect generated payloads before push.
-    private void printProducedJson(String testName, Map<String, Object> payload) {
-        try {
-            String json = OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(payload);
-            System.out.printf("%n[%s] Produced JSON:%n%s%n", testName, json);
-        } catch (JsonProcessingException e) {
-            System.out.printf("%n[%s] Could not serialize payload as JSON, raw payload: %s%n", testName, payload);
-        }
     }
 }

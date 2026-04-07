@@ -89,6 +89,7 @@ class MiscGenerationAssemblerServiceImplTest {
 
         // When
         var result = miscGenerationAssemblerService.assembleMiscProperties(study);
+        System.out.println(result);
 
         // Then
         assertEquals(1, result.size());
