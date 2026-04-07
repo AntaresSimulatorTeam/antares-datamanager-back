@@ -27,8 +27,6 @@ public class ThermalPropertiesAssemblerService {
 
     private final ThermalParamModulationService thermalParamModulationService;
 
-    private final ThermalCostTypeRepository thermalCostTypeRepository;
-
     private final ThermalCostAssembler thermalCostAssembler;
 
     public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
@@ -252,7 +250,7 @@ public class ThermalPropertiesAssemblerService {
         thermalCostAssembler.computeCo2(dto, commonParams, economicTrajectory);
 
         thermalCostAssembler.computeStartupAndMarginalCost(dto, commonParams, specificParams,
-                thermalClusterCapacities, economicTrajectory, economicCostTrajectory);
+                thermalClusterCapacities, economicCostTrajectory);
 
         thermalCostAssembler.computeMarketBidCost(dto, commonParams, specificParams);
         return dto;
