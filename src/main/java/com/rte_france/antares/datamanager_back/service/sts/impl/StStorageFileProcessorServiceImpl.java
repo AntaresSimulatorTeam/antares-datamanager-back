@@ -136,7 +136,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
 
             String[] expectedColumns = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
-            checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS.name());
+            checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
 
             boolean foundStudyArea = false;
 

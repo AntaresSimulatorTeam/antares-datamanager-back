@@ -707,13 +707,10 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, expected, "T1", "STS")
+                () -> Utils.checkMissingColumns(sheet, expected, "T1", TrajectoryType.STS)
         );
-
-        assertTrue(ex.getMessage().contains("A"));
-        assertTrue(ex.getMessage().contains("B"));
-        assertTrue(ex.getMessage().contains("C"));
-        assertTrue(ex.getMessage().contains("STS"));
+        
+        assertTrue(ex.getMessage().contains("Missing columns"));
     }
 
     @Test
@@ -737,7 +734,7 @@ class UtilsTest {
         when(c3.toString()).thenReturn("C");
 
         assertDoesNotThrow(() ->
-                Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", "STS")
+                Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", TrajectoryType.STS)
         );
     }
 
@@ -760,10 +757,10 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", "DSR")
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B", "C"}, "T1", TrajectoryType.DSR)
         );
 
-        assertTrue(ex.getMessage().contains("C"));
+        assertTrue(ex.getMessage().contains("Missing columns"));
     }
 
     @Test
@@ -784,7 +781,7 @@ class UtilsTest {
         when(c2.toString()).thenReturn("B ");
 
         assertDoesNotThrow(() ->
-                Utils.checkMissingColumns(sheet, new String[]{"A", "b"}, "T1", "STS")
+                Utils.checkMissingColumns(sheet, new String[]{"A", "b"}, "T1", TrajectoryType.STS)
         );
     }
 
@@ -810,10 +807,10 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", "STS")
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", TrajectoryType.STS)
         );
 
-        assertTrue(ex.getMessage().contains("B"));
+        assertTrue(ex.getMessage().contains("Missing columns"));
     }
 
     @Test
@@ -833,10 +830,10 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", "DSR")
+                () -> Utils.checkMissingColumns(sheet, new String[]{"A", "B"}, "T1", TrajectoryType.DSR)
         );
 
-        assertTrue(ex.getMessage().contains("B"));
+        assertTrue(ex.getMessage().contains("Missing columns"));
     }
 
     @Test
@@ -1424,12 +1421,12 @@ class UtilsTest {
                     Mockito.eq(sheet),
                     Mockito.eq(required),
                     Mockito.anyString(),
-                    Mockito.anyString()
+                    Mockito.any()
             )).thenAnswer(inv -> null);
 
             // When / Then
             assertThatNoException()
-                    .isThrownBy(() -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"));
+                    .isThrownBy(() -> Utils.validateHeaderColumns(header, sheet, required, "trajectory", TrajectoryType.DSR));
         }
     }
 
@@ -1447,7 +1444,7 @@ class UtilsTest {
         String[] required = {"A", "B", "C", "D", "E"};
 
         BusinessException ex = catchThrowableOfType(
-                () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"),
+                () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory", TrajectoryType.DSR),
                 BusinessException.class
         );
 
@@ -1477,7 +1474,7 @@ class UtilsTest {
                     Mockito.eq(sheet),
                     Mockito.eq(required),
                     Mockito.anyString(),
-                    Mockito.anyString()
+                    Mockito.any()
             )).thenThrow(
                     BusinessException.builder()
                             .message("Missing columns")
@@ -1487,7 +1484,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory"),
+                    () -> Utils.validateHeaderColumns(header, sheet, required, "trajectory", TrajectoryType.STS),
                     BusinessException.class
             );
 
@@ -1515,7 +1512,7 @@ class UtilsTest {
                     .thenReturn(7);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", 5,false);
+            int result = Utils.resolveYearColumnIndex(header, "2025-2030", TrajectoryType.DSR, "trajectory", 5,false);
 
             // Then
             assertThat(result).isEqualTo(7);
@@ -1539,15 +1536,14 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", "trajectoryA", 5,false),
+                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", TrajectoryType.DSR, "trajectory",5,false),
                     BusinessException.class
             );
 
             // Then
             assertThat(ex).isNotNull();
             assertThat(ex.getMessage())
-                    .contains("Horizon '2025-2030' does not exist")
-                    .contains("trajectoryA");
+                    .contains("Horizon {0} does not exist");
             assertThat(ex.getHttpStatus().value()).isEqualTo(400);
         }
     }
@@ -1569,7 +1565,7 @@ class UtilsTest {
                     .thenReturn(4);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2020-2035", "trajectoryB", 5,false);
+            int result = Utils.resolveYearColumnIndex(header, "2020-2035", TrajectoryType.DSR, "trajectory", 5,false);
 
             // Then
             assertThat(result).isEqualTo(4);

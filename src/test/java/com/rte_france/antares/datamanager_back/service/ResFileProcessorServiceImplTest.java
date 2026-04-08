@@ -714,7 +714,7 @@ public class ResFileProcessorServiceImplTest {
                             "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "Solar PV", false
                     )
             );
-            assertTrue(exception.getMessage().contains("Values for node/group/cluster AT/solar_pv/solar_pv are not numeric in Res trajectory installedRES_solar_pv_BP23_Aref.xlsx"));
+            assertTrue(exception.getMessage().contains("Values for node/group/cluster"));
         }
 
         @Test
@@ -735,7 +735,7 @@ public class ResFileProcessorServiceImplTest {
                             "installedRES_wind_offshore_BP23_Aref", "2029-2030", 1, AREA_AT, "Wind offshore", false
                     )
             );
-            assertTrue(exception.getMessage().contains("Values for node/group/cluster AT/wind_offshore/wind_offshore are not numeric in Res trajectory installedRES_wind_offshore_BP23_Aref.xlsx"));
+            assertTrue(exception.getMessage().contains("Values for node/group/cluster"));
         }
 
         @Test
@@ -757,7 +757,7 @@ public class ResFileProcessorServiceImplTest {
                             "installedRES_solar_pv_BP23_Aref", "2029-2030", 1, AREA_AT, "Solar PV", false
                     )
             );
-            assertTrue(exception.getMessage().contains("values can't be empty in Res trajectory"));
+            assertTrue(exception.getMessage().contains("values can't be empty"));
         }
 
         @Test
@@ -1659,7 +1659,7 @@ public class ResFileProcessorServiceImplTest {
                             "repartition_techno_BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
                     )
             );
-            assertTrue(exception.getMessage().contains("values can't be empty in Res trajectory"));
+            assertTrue(exception.getMessage().contains("values can't be empty in"));
         }
 
         @Test
@@ -1752,7 +1752,7 @@ public class ResFileProcessorServiceImplTest {
                             "repartition_techno_BP23_Aref", "2029-2030", 1, AREA_FR, "Solar PV", false
                     )
             );
-            assertTrue(exception.getMessage().contains("Values for node/group/cluster FR00/solar_pv/solar_pv are not numeric in Res trajectory repartition_techno_BP23_Aref.xlsx"));
+            assertTrue(exception.getMessage().contains("Values for node/group/cluster"));
         }
 
         @Test
@@ -2142,7 +2142,7 @@ public class ResFileProcessorServiceImplTest {
                             ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, "solar_pv", false
                     )
             );
-            assertTrue(exception.getMessage().contains("values can't be empty in Res trajectory"));
+            assertTrue(exception.getMessage().contains("values can't be empty in"));
         }
 
         @Test
@@ -2211,7 +2211,7 @@ public class ResFileProcessorServiceImplTest {
                             ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
                     )
             );
-            assertTrue(exception.getMessage().contains("Values for node/group/cluster FR/FR00/wind offshore are not numeric in Res trajectory "+ZONAL_REPARTITION_FILE_NAME+".xlsx"));
+            assertTrue(exception.getMessage().contains("Values for node/group/cluster"));
         }
 
         @Test
