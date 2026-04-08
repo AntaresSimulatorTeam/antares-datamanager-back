@@ -492,7 +492,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         } 
         catch (IOException e) {
-            throw BusinessException.builder().message("Directory not found").build();
+            return List.of();
         }
     }
 
