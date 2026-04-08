@@ -1251,7 +1251,6 @@ class UtilsTest {
         @Test
         void validatePrefixIfNeeded_shouldNotThrowWhenAreaIsFR() {
             // Given
-            String areaParam = "FR";
             String trajectory = "whatever.xlsx";
 
             // When / Then
@@ -1262,7 +1261,6 @@ class UtilsTest {
         @Test
         void validatePrefixIfNeeded_shouldThrowWhenPrefixDoesNotMatch() {
             // Given
-            String areaParam = "ES";
             String trajectory = "wrongprefix_2025.xlsx";
 
             // When
@@ -1280,7 +1278,6 @@ class UtilsTest {
         @Test
         void validatePrefixIfNeeded_shouldThrowWhenAreaIsNotFRAndPrefixMissing() {
             // Given
-            String areaParam = "BE";
             String trajectory = "capacity_2030.xlsx";
 
             // When
