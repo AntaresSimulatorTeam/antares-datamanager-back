@@ -454,11 +454,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             Sheet sheet = getSheetOrThrow(workbook, filePath, indexSheet);
             Row header = getHeaderOrThrow(sheet, filePath);
 
-            validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse);
+            validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse, trajectoryType);
             
-            int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryToUse, requiredColumns.length, isCivilYear);
+            int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryType, trajectoryToUse, requiredColumns.length, isCivilYear);
 
-            ResRowProcessingContext context = new ResRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse, technology);
+            ResRowProcessingContext context = new ResRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse, technology, trajectoryType);
             
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
@@ -466,7 +466,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (technology != null && trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
                 validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
             }
-            validateInvalidCombos(result.invalidCombos(), trajectoryToUse);
+            validateInvalidCombos(result.invalidCombos(), trajectoryToUse, trajectoryType);
 
             return result;
         }
@@ -650,7 +650,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (!area.equalsIgnoreCase(context.getAreaParam())) return;
         }
 
-        validateEmptyRequiredColumns(context, requiredColumns, area, group, pecdZone);
+        validateEmptyRequiredColumns(context, requiredColumns, area, pecdZone, group);
 
         String combo = LITERAL_STRING.formatted(area, pecdZone, group);
         
@@ -699,29 +699,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         
         result.addTechnologies(technologyParam);
         return true;
-    }
-
-    private void validateEmptyRequiredColumns(
-            ResRowProcessingContext context,
-            String[] requiredColumns,
-            Object... values
-    ) {
-        List<String> missing = new ArrayList<>();
-
-        for (int i = 0; i < requiredColumns.length; i++) {
-            if (values[i] == null) {
-                missing.add(requiredColumns[i]);
-            }
-        }
-
-        if (!missing.isEmpty()) {
-            throw BusinessException.builder()
-                    .message(String.join(", ", missing)
-                            + " values can't be empty in Res trajectory "
-                            + context.getTrajectoryToUse())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
     }
 
     private Number parseNumericValue(

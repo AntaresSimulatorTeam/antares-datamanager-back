@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.res;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -13,4 +14,5 @@ public class ResRowProcessingContext {
     private final int yearColIndex;
     private final String trajectoryToUse;
     private final String technology;
+    private final TrajectoryType trajectoryType;
 }

@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeE
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.res.ResRowProcessingContext;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -758,7 +759,7 @@ public class Utils {
             Sheet sheet,
             String[] expectedColumns,
             String trajectoryName,
-            String type
+            TrajectoryType type
     ) {
         Row headerRow = sheet.getRow(0);
         List<String> missingColumns = new ArrayList<>();
@@ -783,8 +784,10 @@ public class Utils {
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
+            String label = getErrorMessageLabelFromType(type);
             throw BusinessException.builder()
-                    .message("Missing columns " + missingList + " in " + type + " trajectory " + trajectoryName)
+                    .errorMessageArguments(List.of(missingList, label, trajectoryName))
+                    .message("Missing columns {0} in {1} trajectory {2}")
                     .build();
         }
     }
@@ -871,11 +874,35 @@ public class Utils {
         return switch (type) {
             case DSR -> "DSR cluster";
             case MISC_CAPACITY -> "MISC";
-            case RES_CAPACITY -> "RES Installed power";
-            case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological repartition";
-            case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
+            case RES_CAPACITY -> "Installed power";
+            case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological Repartition";
+            case RES_ZONAL_DISTRIBUTION -> "RES Zonal Repartition";
             default -> "trajectory";
         };
+    }
+
+    public void validateEmptyRequiredColumns(
+            ResRowProcessingContext context,
+            String[] requiredColumns,
+            Object... values
+    ) {
+        List<String> missing = new ArrayList<>();
+
+        for (int i = 0; i < requiredColumns.length; i++) {
+            if (values[i] == null) {
+                missing.add(requiredColumns[i]);
+            }
+        }
+
+        if (!missing.isEmpty()) {
+            String label = getErrorMessageLabelFromType(context.getTrajectoryType());
+            throw BusinessException.builder()
+                    .message(String.join(", ", missing)
+                            + " values can't be empty in "+ label +" trajectory "
+                            + context.getTrajectoryToUse())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
@@ -1036,7 +1063,8 @@ public class Utils {
             Row header,
             Sheet sheet,
             String[] requiredColumns,
-            String trajectoryToUse
+            String trajectoryToUse,
+            TrajectoryType trajectoryType
     ) {
         int lastCol = getRealLastColumn(header);
         if (lastCol < requiredColumns.length) {
@@ -1046,16 +1074,17 @@ public class Utils {
                     .build();
         }
 
-        checkMissingColumns(sheet, requiredColumns, trajectoryToUse, TrajectoryType.RES_CAPACITY.name());
+        checkMissingColumns(sheet, requiredColumns, trajectoryToUse, trajectoryType);
     }
 
-    public int resolveYearColumnIndex(Row header, String horizon, String trajectoryToUse, int nbRequiredColumns, boolean isCivilYear) {
+    public int resolveYearColumnIndex(Row header, String horizon, TrajectoryType trajectoryType, String trajectoryToUse, int nbRequiredColumns, boolean isCivilYear) {
         String horizonYear = horizon.split("-")[1];
         int yearColIndex = getYearColIndex(nbRequiredColumns, getRealLastColumn(header), header, horizonYear, -1);
-
         if (yearColIndex == -1) {
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
-                    .message("Horizon '" + horizon + "' does not exist in Installed power trajectory " + trajectoryToUse)
+                    .errorMessageArguments(List.of(horizon, label, trajectoryToUse))
+                    .message("Horizon {0} does not exist {1} trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1088,20 +1117,21 @@ public class Utils {
         validateSelectedAreaPresence(selectedArea, fileAreas, trajectoryType, trajectoryToUse);
     }
 
-    public void validateInvalidCombos(Set<String> invalidCombos, String trajectoryToUse) {
+    public void validateInvalidCombos(Set<String> invalidCombos, String trajectoryToUse, TrajectoryType trajectoryType) {
         if (!invalidCombos.isEmpty()) {
             String combos = String.join(", ", invalidCombos);
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
-                    .message("Values for node/group/cluster %s are not numeric in Res trajectory %s"
-                            .formatted(combos, trajectoryToUse))
+                    .message("Values for node/group/cluster %s are not numeric in %s trajectory %s"
+                            .formatted(combos, label, trajectoryToUse))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
 
     public void validateEmptyRows(boolean allRowsEmpty, TrajectoryType trajectoryType) {
-        String label = getErrorMessageLabelFromType(trajectoryType);
         if (allRowsEmpty) {
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .message("No area found in "+ label +" trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)

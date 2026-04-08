@@ -66,7 +66,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
         checkMissingColumns(hoursSheet,
                 expectedColumns,
                 StsTsFile.ADDITIONAL_CONSTRAINTS.fileName(),
-                TrajectoryType.STS.name());
+                TrajectoryType.STS);
         Predicate<String> zoneFilter = buildZoneFilter(areaParam, studyAreas);
 
         for (Row row : hoursSheet) {
@@ -148,7 +148,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
         checkMissingColumns(parametersSheet,
                 expectedColumns,
                 StsTsFile.ADDITIONAL_CONSTRAINTS.fileName(),
-                TrajectoryType.STS.name());
+                TrajectoryType.STS);
         Predicate<String> zoneFilter = buildZoneFilter(areaParam, studyAreas);
 
         for (Row row : parametersSheet) {

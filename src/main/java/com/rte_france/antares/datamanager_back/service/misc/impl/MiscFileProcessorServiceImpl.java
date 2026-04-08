@@ -113,7 +113,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 throw BusinessException.builder().message("InstalledMisc header is invalid").httpStatus(HttpStatus.BAD_REQUEST).build();
             }
 
-            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryToUse, TrajectoryType.MISC_CAPACITY.name());
+            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryToUse, TrajectoryType.MISC_CAPACITY);
 
             // Détecter l'index de la colonne correspondant à l'horizon hors de la boucle de lignes
             int yearColIndex = -1;
