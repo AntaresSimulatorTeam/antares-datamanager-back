@@ -1,7 +1,5 @@
 package com.rte_france.antares.datamanager_back.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
 import com.rte_france.antares.datamanager_back.service.study.impl.MiscToJsonService;
 import org.junit.jupiter.api.BeforeEach;

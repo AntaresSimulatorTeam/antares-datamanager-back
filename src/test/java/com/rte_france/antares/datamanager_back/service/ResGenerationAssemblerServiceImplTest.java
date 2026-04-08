@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResGenerationAssemblerServiceImpl;
@@ -85,9 +86,9 @@ class ResGenerationAssemblerServiceImplTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> cluster = (Map<String, Object>) groups.get("wind_onshore");
         @SuppressWarnings("unchecked")
-        Map<String, Object> properties = (Map<String, Object>) cluster.get("properties");
-        assertEquals("wind_onshore", properties.get("group"));
-        assertEquals(3150.0, properties.get("capacity"));
+        Map<String, Object> clusterProperties = (Map<String, Object>) cluster.get("properties");
+        assertEquals("wind_onshore", clusterProperties.get("group"));
+        assertEquals(3150.0, clusterProperties.get("capacity"));
 
         @SuppressWarnings("unchecked")
         List<String> series = (List<String>) cluster.get("series");
@@ -158,8 +159,8 @@ class ResGenerationAssemblerServiceImplTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> cluster = (Map<String, Object>) frClusters.get("wind_offshore");
         @SuppressWarnings("unchecked")
-        Map<String, Object> properties = (Map<String, Object>) cluster.get("properties");
-        assertEquals("wind_offshore", properties.get("group"));
+        Map<String, Object> clusterProperties = (Map<String, Object>) cluster.get("properties");
+        assertEquals("wind_offshore", clusterProperties.get("group"));
 
         @SuppressWarnings("unchecked")
         List<String> series = (List<String>) cluster.get("series");
@@ -230,6 +231,140 @@ class ResGenerationAssemblerServiceImplTest {
         study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
 
         assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+    }
+
+    @Test
+    void assembleResProperties_shouldReturnEmpty_whenNoResCapacityTrajectory() {
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(
+                TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build()
+        )));
+
+        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void assembleResProperties_withUnsupportedGroup_shouldThrowBusinessException() {
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("DE")
+                .groupe("wind")
+                .cluster("alpha")
+                .capacityByYear(BigDecimal.valueOf(1000))
+                .build();
+
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+
+        study.setTrajectories(new LinkedHashSet<>(List.of(resCapacity)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+        assertTrue(exception.getMessage().contains("Unsupported RES group"));
+    }
+
+    @Test
+    void assembleResProperties_nonFr_withMultipleMatchingSeries_shouldThrow() throws IOException {
+        Path csv1 = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("alpha")
+                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
+        Path csv2 = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("beta")
+                .resolve("wind_DE_onshore_beta_2030-2031.csv");
+        Files.createDirectories(csv1.getParent());
+        Files.createDirectories(csv2.getParent());
+        Files.writeString(csv1, "v\n0.2\n");
+        Files.writeString(csv2, "v\n0.3\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
+                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("DE")
+                .groupe("wind onshore")
+                .cluster("alpha")
+                .capacityByYear(BigDecimal.valueOf(3150))
+                .build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+        assertTrue(exception.getMessage().contains("exactly one arrow"));
+    }
+
+    @Test
+    void assembleResProperties_fr_withoutDistribution_shouldThrow() {
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("FR")
+                .groupe("wind offshore")
+                .cluster("global")
+                .capacityByYear(BigDecimal.valueOf(18500))
+                .build();
+
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+
+        study.setTrajectories(new LinkedHashSet<>(List.of(resCapacity)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+        assertTrue(exception.getMessage().contains("Missing FR aggregation data"));
+    }
+
+    @Test
+    void assembleResProperties_shouldWrapIOExceptionFromArrowGeneration() throws IOException {
+        Path csv = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("alpha")
+                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
+        Files.createDirectories(csv.getParent());
+        Files.writeString(csv, "v\n0.2\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenThrow(new IOException("disk full"));
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("DE")
+                .groupe("wind onshore")
+                .cluster("alpha")
+                .capacityByYear(BigDecimal.valueOf(3150))
+                .build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
+
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> service.assembleResProperties(study));
+        assertTrue(exception.getMessage().contains("Could not generate RES arrow file"));
     }
 }
 

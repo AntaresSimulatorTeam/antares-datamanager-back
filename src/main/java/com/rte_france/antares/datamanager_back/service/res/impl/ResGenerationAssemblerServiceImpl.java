@@ -40,6 +40,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private static final String ZONE_WEIGHTS = "zone_weights";
     private static final String TECH_WEIGHTS_BY_ZONE = "tech_weights_by_zone";
     private static final String SERIES_BY_ZONE_AND_TECH = "series_by_zone_and_tech";
+    private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
 
     private static final Set<String> VALID_FR_ZONES = buildFrZones();
 
@@ -134,12 +135,12 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     .mapToDouble(BigDecimal::doubleValue)
                     .sum();
 
-            Map<String, Object> propertiesMap = new LinkedHashMap<>();
-            propertiesMap.put(CAPACITY, installedPower);
-            propertiesMap.put(GROUP, groupKey);
+            Map<String, Object> clusterPropertiesMap = new LinkedHashMap<>();
+            clusterPropertiesMap.put(CAPACITY, installedPower);
+            clusterPropertiesMap.put(GROUP, groupKey);
 
             Map<String, Object> clusterMap = new LinkedHashMap<>();
-            clusterMap.put(PROPERTIES, propertiesMap);
+            clusterMap.put(PROPERTIES, clusterPropertiesMap);
 
             if (FR_AREA.equalsIgnoreCase(area)) {
                 List<String> series = Collections.emptyList();
@@ -241,7 +242,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
             if (techWeights == null || techWeights.isEmpty() || techSeries == null || techSeries.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("Missing FR technology mapping for zone " + zone + " in RES group " + normalizedGroup)
+                        .message("Missing FR technology mapping for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -250,7 +251,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             Set<String> seriesKeys = new LinkedHashSet<>(techSeries.keySet());
             if (!weightKeys.equals(seriesKeys)) {
                 throw BusinessException.builder()
-                        .message("FR technology keys mismatch for zone " + zone + " in RES group " + normalizedGroup)
+                        .message("FR technology keys mismatch for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -258,7 +259,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             double techSum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
             if (techSum <= 0d) {
                 throw BusinessException.builder()
-                        .message("FR technology weights sum must be strictly positive for zone " + zone + " in RES group " + normalizedGroup)
+                        .message("FR technology weights sum must be strictly positive for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

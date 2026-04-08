@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -25,10 +26,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -630,5 +635,107 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> res = mapper.convertValue(deArea.get("res"), new TypeReference<>() {});
 
         assertThat(res).containsKey("wind_offshore");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowTechnicalExceptionWhenStudyNotFound() {
+        when(studyRepository.findById(777)).thenReturn(Optional.empty());
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(777));
+
+        assertTrue(exception.getMessage().contains("Study not found"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowBusinessExceptionWhenNoTrajectories() {
+        StudyEntity emptyStudy = StudyEntity.builder().id(12).name("emptyStudy").trajectories(Collections.emptySet()).build();
+        when(studyRepository.findById(12)).thenReturn(Optional.of(emptyStudy));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(12));
+
+        assertTrue(exception.getMessage().contains("No trajectories found"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowTechnicalExceptionForUnknownTrajectoryType() {
+        StudyEntity study = StudyEntity.builder().id(13).name("studyUnknown").build();
+        TrajectoryEntity unknownTrajectory = TrajectoryEntity.builder().type("UNKNOWN").fileName("unknown").build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(unknownTrajectory)));
+        when(studyRepository.findById(13)).thenReturn(Optional.of(study));
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(13));
+
+        assertTrue(exception.getMessage().contains("Unhandled trajectory"));
+    }
+
+    @Test
+    void callGenerateStudyService_shouldSucceedWhenGeneratorReturnsOk() {
+        int studyId = 42;
+        String url = "http://localhost/generate_study/?study_id=42";
+
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenReturn(bodySpec);
+        when(bodySpec.exchangeToMono(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Function<ClientResponse, Mono<String>> handler = invocation.getArgument(0);
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.OK);
+            when(response.bodyToMono(String.class)).thenReturn(Mono.just("ok"));
+            return handler.apply(response);
+        });
+
+        assertDoesNotThrow(() -> studyGeneratorService.callGenerateStudyService(studyId));
+    }
+
+    @Test
+    void callGenerateStudyService_shouldThrowTechnicalExceptionWhenGeneratorReturnsNonOk() {
+        int studyId = 55;
+        String url = "http://localhost/generate_study/?study_id=55";
+
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenReturn(bodySpec);
+        when(bodySpec.exchangeToMono(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Function<ClientResponse, Mono<String>> handler = invocation.getArgument(0);
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+            when(response.bodyToMono(String.class)).thenReturn(Mono.just("{\"detail\":\"Internal Error: bad payload\"}"));
+            return handler.apply(response);
+        });
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.callGenerateStudyService(studyId));
+
+        assertTrue(exception.getMessage().contains("bad payload"));
+        assertFalse(exception.getMessage().contains("{\"detail\""));
+    }
+
+    @Test
+    void callGenerateStudyService_shouldRethrowTechnicalExceptionWithoutWrapping() {
+        int studyId = 66;
+        String url = "http://localhost/generate_study/?study_id=66";
+
+        TechnicalException technicalException = TechnicalException.builder().message("generator down").build();
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenThrow(technicalException);
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.callGenerateStudyService(studyId));
+
+        assertEquals("generator down", exception.getMessage());
     }
 }

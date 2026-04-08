@@ -603,6 +603,40 @@ class TrajectoryServiceImplTest {
         verify(warningRepository, never()).saveAll(any());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION"})
+    void checkTrajectoryCoherence_shouldHandleResTypesWithoutAdditionalChecks(String resType) throws IOException {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().type(resType).build();
+        WarningMessageEntity warning = WarningMessageEntity.builder().build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>(Set.of(warning));
+
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user");
+
+        assertSame(trajectory, warning.getTrajectory());
+        verify(warningRepository).saveAll(warningMessages);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldLinkResTrajectoryAndRunCoherence() throws IOException {
+        Integer trajectoryId = 99;
+        Integer studyId = 7;
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(TrajectoryType.RES_LOAD.name()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_LOAD);
+
+        assertEquals(trajectoryId, result.getId());
+        verify(warningRepository).saveAll(anySet());
+        verify(studyTrajectoryRepository).save(any(StudyTrajectoryEntity.class));
+    }
+
 
     @Test
     void findTrajectoriesByType_returnsFilesStartingByAreas_(@TempDir Path tempDir) throws IOException {
