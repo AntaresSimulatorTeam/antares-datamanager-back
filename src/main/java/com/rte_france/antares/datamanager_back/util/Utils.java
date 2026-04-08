@@ -997,7 +997,7 @@ public class Utils {
         return yearColIndex;
     }
 
-    public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse, TrajectoryType trajectoryType, String prefix, boolean isDefaultArea) {
+    public void validatePrefixIfNeeded(String trajectoryToUse, TrajectoryType trajectoryType, String prefix, boolean isDefaultArea) {
         if ((!isDefaultArea &&
                 !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_CAPACITY) ||
                 (!startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION)

@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.DefaultLoadRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
@@ -163,7 +162,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 false
         );
 
-        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false);
+        validatePrefixIfNeeded(trajectoryToUse, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false);
 
         String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
         Path filePath = directoryPath.resolve(fileName).normalize();
@@ -219,7 +218,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 false
         );
 
-        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_ZONAL_DISTRIBUTION, RES_ZONAL_DISTRIBUTION_PREFIX, false);
+        validatePrefixIfNeeded(trajectoryToUse, TrajectoryType.RES_ZONAL_DISTRIBUTION, RES_ZONAL_DISTRIBUTION_PREFIX, false);
 
         String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
         Path filePath = directoryPath.resolve(fileName).normalize();
@@ -402,7 +401,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             return files;
 
         } else {
-            validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX, isDefaultArea);
+            validatePrefixIfNeeded(trajectoryToUse, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX, isDefaultArea);
             
             String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
             Path filePath = directoryPath.resolve(fileName).normalize();

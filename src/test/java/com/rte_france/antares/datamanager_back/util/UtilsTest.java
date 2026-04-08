@@ -1256,7 +1256,7 @@ class UtilsTest {
 
             // When / Then
             assertThatNoException()
-                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX, true));
+                    .isThrownBy(() -> Utils.validatePrefixIfNeeded(trajectory, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX, true));
         }
 
         @Test
@@ -1267,7 +1267,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false),
+                    () -> Utils.validatePrefixIfNeeded(trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false),
                     BusinessException.class
             );
 
@@ -1285,7 +1285,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.validatePrefixIfNeeded(areaParam, trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false),
+                    () -> Utils.validatePrefixIfNeeded(trajectory, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION_PREFIX, false),
                     BusinessException.class
             );
 
