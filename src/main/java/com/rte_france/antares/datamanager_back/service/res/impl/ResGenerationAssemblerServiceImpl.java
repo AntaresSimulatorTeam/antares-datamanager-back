@@ -45,7 +45,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private static final Set<String> VALID_FR_ZONES = buildFrZones();
 
     private final NasFileService nasFileService;
-    private final AntaresDataManagerProperties properties;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
 
     @Override
@@ -316,9 +316,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             return Collections.emptyList();
         }
 
-        Path base = Path.of(properties.getNasDirectory())
-                .resolve(properties.getTrajectoryFilePath())
-                .resolve(properties.getResLoadDirectory())
+        Path base = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getResLoadDirectory())
                 .normalize();
 
         List<ResSeriesRef> result = new ArrayList<>();
@@ -341,7 +341,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     walk.filter(Files::isRegularFile)
                             .filter(this::isSupportedSeriesFormat)
                             .forEach(file -> {
-                                String outputDir = properties.getOutputLoadDirectory();
+                                String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
                                 try {
                                     String arrowName = nasFileService.saveMatrixToNas(file, outputDir);
                                     String rel = trajectoryRoot.relativize(file).toString();
