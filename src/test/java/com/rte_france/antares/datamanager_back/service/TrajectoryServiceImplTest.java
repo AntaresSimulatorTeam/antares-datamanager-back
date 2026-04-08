@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
@@ -90,12 +91,23 @@ class TrajectoryServiceImplTest {
     @Mock
     private MiscClusterCapacityRepository miscClusterCapacityRepository;
 
+    @Mock
+    private DefaultConfigService defaultConfigService;
+
+    @Mock
+    private ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getThermalParameterDirectory()).thenReturn("thermal");
+        
+        // Mock default config service to return FR as a default area
+        DefaultLoadDTO frDefault = new DefaultLoadDTO();
+        frDefault.setName("FR");
+        when(defaultConfigService.fetchAllDefaults()).thenReturn(List.of(frDefault));
     }
 
 

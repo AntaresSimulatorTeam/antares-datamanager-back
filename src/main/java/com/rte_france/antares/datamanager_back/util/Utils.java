@@ -12,6 +12,8 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeE
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
+import lombok.RequiredArgsConstructor;
 import com.rte_france.antares.datamanager_back.service.res.ResRowProcessingContext;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -874,9 +876,9 @@ public class Utils {
         return switch (type) {
             case DSR -> "DSR cluster";
             case MISC_CAPACITY -> "MISC";
-            case RES_CAPACITY -> "Installed power";
-            case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological Repartition";
-            case RES_ZONAL_DISTRIBUTION -> "RES Zonal Repartition";
+            case RES_CAPACITY -> "RES Installed power";
+            case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological repartition";
+            case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
             default -> "trajectory";
         };
     }
