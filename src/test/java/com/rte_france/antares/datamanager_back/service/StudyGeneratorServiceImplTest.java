@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -17,6 +18,7 @@ import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,10 +26,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -91,6 +97,9 @@ class StudyGeneratorServiceImplTest {
     private MiscToJsonService miscToJsonService;
 
     @Mock
+    private ResToJsonService resToJsonService;
+
+    @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
@@ -101,6 +110,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private MiscGenerationAssemblerService miscGenerationAssemblerService;
+
+    @Mock
+    private ResGenerationAssemblerService resGenerationAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -153,6 +165,7 @@ class StudyGeneratorServiceImplTest {
         lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
         //Default DSR assembler returns empty map to avoid NPE in tests not focused on DSR
         lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
+        lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
 
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
@@ -171,6 +184,9 @@ class StudyGeneratorServiceImplTest {
 
         lenient().doAnswer(inv -> new DsrToJsonService().buildDsrDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(drsToJsonService).buildDsrDataMap(anyString(),anyMap());
+
+        lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
+                .when(resToJsonService).buildResDataMap(anyString(), anyMap());
     }
 
     @Test
@@ -599,4 +615,127 @@ class StudyGeneratorServiceImplTest {
         assertThat(cluster).containsKey("series");
     }
 
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeResInAreas() throws Exception {
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        Map<String, Object> cluster = new LinkedHashMap<>();
+        cluster.put("properties", Map.of("group", "wind_offshore", "capacity", 1200.0));
+        cluster.put("series", List.of("fr_wind.arrow"));
+        when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Map.of("DE", Map.of("wind_offshore", cluster)));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var json = captureGeneratedJson(1);
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(json, new TypeReference<>() {});
+        Map<String, Object> study = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areas = mapper.convertValue(study.get("areas"), new TypeReference<>() {});
+        Map<String, Object> deArea = mapper.convertValue(areas.get("DE"), new TypeReference<>() {});
+        Map<String, Object> res = mapper.convertValue(deArea.get("res"), new TypeReference<>() {});
+
+        assertThat(res).containsKey("wind_offshore");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowTechnicalExceptionWhenStudyNotFound() {
+        when(studyRepository.findById(777)).thenReturn(Optional.empty());
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(777));
+
+        assertTrue(exception.getMessage().contains("Study not found"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowBusinessExceptionWhenNoTrajectories() {
+        StudyEntity emptyStudy = StudyEntity.builder().id(12).name("emptyStudy").trajectories(Collections.emptySet()).build();
+        when(studyRepository.findById(12)).thenReturn(Optional.of(emptyStudy));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(12));
+
+        assertTrue(exception.getMessage().contains("No trajectories found"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowTechnicalExceptionForUnknownTrajectoryType() {
+        StudyEntity study = StudyEntity.builder().id(13).name("studyUnknown").build();
+        TrajectoryEntity unknownTrajectory = TrajectoryEntity.builder().type("UNKNOWN").fileName("unknown").build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(unknownTrajectory)));
+        when(studyRepository.findById(13)).thenReturn(Optional.of(study));
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(13));
+
+        assertTrue(exception.getMessage().contains("Unhandled trajectory"));
+    }
+
+    @Test
+    void callGenerateStudyService_shouldSucceedWhenGeneratorReturnsOk() {
+        int studyId = 42;
+        String url = "http://localhost/generate_study/?study_id=42";
+
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenReturn(bodySpec);
+        when(bodySpec.exchangeToMono(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Function<ClientResponse, Mono<String>> handler = invocation.getArgument(0);
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.OK);
+            when(response.bodyToMono(String.class)).thenReturn(Mono.just("ok"));
+            return handler.apply(response);
+        });
+
+        assertDoesNotThrow(() -> studyGeneratorService.callGenerateStudyService(studyId));
+    }
+
+    @Test
+    void callGenerateStudyService_shouldThrowTechnicalExceptionWhenGeneratorReturnsNonOk() {
+        int studyId = 55;
+        String url = "http://localhost/generate_study/?study_id=55";
+
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenReturn(bodySpec);
+        when(bodySpec.exchangeToMono(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Function<ClientResponse, Mono<String>> handler = invocation.getArgument(0);
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
+            when(response.bodyToMono(String.class)).thenReturn(Mono.just("{\"detail\":\"Internal Error: bad payload\"}"));
+            return handler.apply(response);
+        });
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.callGenerateStudyService(studyId));
+
+        assertTrue(exception.getMessage().contains("bad payload"));
+        assertFalse(exception.getMessage().contains("{\"detail\""));
+    }
+
+    @Test
+    void callGenerateStudyService_shouldRethrowTechnicalExceptionWithoutWrapping() {
+        int studyId = 66;
+        String url = "http://localhost/generate_study/?study_id=66";
+
+        TechnicalException technicalException = TechnicalException.builder().message("generator down").build();
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenThrow(technicalException);
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> studyGeneratorService.callGenerateStudyService(studyId));
+
+        assertEquals("generator down", exception.getMessage());
+    }
 }
