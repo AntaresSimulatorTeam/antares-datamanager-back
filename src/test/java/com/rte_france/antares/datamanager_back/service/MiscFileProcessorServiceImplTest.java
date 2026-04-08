@@ -866,7 +866,7 @@ class MiscFileProcessorServiceImplTest {
 
         // Prepare DB projection results: two areas for the same group/cluster
         GroupAreaMiscCapacity e1 = new GroupAreaMiscCapacity() {
-            public String getGroupe() { return "group1"; }
+                  public String getGroupe() { return "group1"; }
             public String getArea() { return "AREA1"; }
             public String getCluster() { return "cluster1"; }
         };

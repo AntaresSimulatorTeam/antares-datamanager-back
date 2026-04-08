@@ -1589,6 +1589,9 @@ public class ResFileProcessorServiceImplTest {
                 setNni("testUser");
             }});
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), any()))
+                    .thenReturn(Optional.empty());
 
             // Créer une première trajectoire
             // WHEN
@@ -1602,10 +1605,10 @@ public class ResFileProcessorServiceImplTest {
             // Recréer le même fichier avec les mêmes données
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_FR), "solar_pv", true);
 
-            // Mock pour retourner la première trajectoire
-            when(trajectoryRepository
-                    .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                            anyString(), anyString(), anyString(), anyString(), any()))
+            // Mock pour retourner la première trajectoire au deuxième appel
+            Mockito.reset(trajectoryRepository);
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), any()))
                     .thenReturn(Optional.of(firstResult));
 
             // Le deuxième appel avec le même contenu devrait lever une exception
@@ -2072,6 +2075,9 @@ public class ResFileProcessorServiceImplTest {
                 setNni("testUser");
             }});
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), any()))
+                    .thenReturn(Optional.empty());
 
             // Créer une première trajectoire
             // WHEN
@@ -2085,10 +2091,10 @@ public class ResFileProcessorServiceImplTest {
             // Recréer le même fichier avec les mêmes données
             createMockResExcelFile(tempRoot, ZONAL_REPARTITION_FILE_NAME+".xlsx", List.of(AREA_FR),  true);
 
-            // Mock pour retourner la première trajectoire
-            when(trajectoryRepository
-                    .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                            anyString(), anyString(), anyString(), anyString(), any()))
+            // Mock pour retourner la première trajectoire au deuxième appel
+            Mockito.reset(trajectoryRepository);
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), any()))
                     .thenReturn(Optional.of(firstResult));
 
             // Le deuxième appel avec le même contenu devrait lever une exception
