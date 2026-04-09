@@ -383,6 +383,16 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleResProperties_shouldReturnEmpty_whenTrajectoriesIsEmpty() {
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        study.setTrajectories(new LinkedHashSet<>());
+
+        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     void assembleResProperties_shouldThrowWhenResLoadPathIsInvalid() {
         StudyEntity study = StudyEntity.builder().id(1).name("S").build();
         TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("missing_folder").build();
