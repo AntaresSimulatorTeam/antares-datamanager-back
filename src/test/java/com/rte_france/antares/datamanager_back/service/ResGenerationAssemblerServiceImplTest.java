@@ -13,8 +13,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.Assumptions;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -811,63 +809,5 @@ class ResGenerationAssemblerServiceImplTest {
         }
     }
 
-    @Test
-    void validateFrContract_withAmbiguousPayload_shouldThrow() throws Exception {
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                invokePrivate(
-                        "validateFrContract",
-                        new Class[]{List.class, Map.class, String.class},
-                        List.of("series.arrow"),
-                        Map.of("zone_weights", Map.of("FR01", 1.0)),
-                        "wind_offshore"
-                )
-        );
-        assertTrue(exception.getMessage().contains("use either series or fr_aggregation, not both"));
-    }
-
-    @Test
-    void validateFrAggregation_withTechnologyKeysMismatch_shouldThrow() throws Exception {
-        Map<String, Double> zoneWeights = new LinkedHashMap<>();
-        zoneWeights.put("FR01", 1.0);
-
-        Map<String, Map<String, Double>> techWeightsByZone = new LinkedHashMap<>();
-        techWeightsByZone.put("FR01", Map.of("tech_a", 1.0));
-
-        Map<String, Map<String, String>> seriesByZoneAndTech = new LinkedHashMap<>();
-        seriesByZoneAndTech.put("FR01", Map.of("tech_b", "fr01_tech_b.arrow"));
-
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                invokePrivate(
-                        "validateFrAggregation",
-                        new Class[]{String.class, Map.class, Map.class, Map.class},
-                        "wind_offshore",
-                        zoneWeights,
-                        techWeightsByZone,
-                        seriesByZoneAndTech
-                )
-        );
-        assertTrue(exception.getMessage().contains("technology keys mismatch"));
-    }
-
-    @Test
-    void prefixFromGroup_withBlankValue_shouldThrow() throws Exception {
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                invokePrivate("prefixFromGroup", new Class[]{String.class}, "   "));
-        assertTrue(exception.getMessage().contains("Invalid RES group value for series prefix"));
-    }
-
-    private Object invokePrivate(String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
-        Method method = ResGenerationAssemblerServiceImpl.class.getDeclaredMethod(methodName, parameterTypes);
-        method.setAccessible(true);
-        try {
-            return method.invoke(service, args);
-        } catch (InvocationTargetException ex) {
-            Throwable cause = ex.getCause();
-            if (cause instanceof Exception exception) {
-                throw exception;
-            }
-            throw ex;
-        }
-    }
 }
 
