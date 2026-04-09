@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.sts;
 
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.EnumSet;
 
 public enum StsTsFile {
 
@@ -12,6 +13,9 @@ public enum StsTsFile {
         UPPER_CURVE("upper_curve.xlsx"),
         ADDITIONAL_CONSTRAINTS("Additional-constraints.xlsx");
 
+        /** All STS time-series files except {@link #ADDITIONAL_CONSTRAINTS}. */
+        public static final EnumSet<StsTsFile> REQUIRED =
+                EnumSet.complementOf(EnumSet.of(ADDITIONAL_CONSTRAINTS));
 
         private final String fileName;
 
@@ -27,12 +31,6 @@ public enum StsTsFile {
             return fileName;
         }
 
-         /**
-          * Retrieves the file names of all enum constants in the {@code StsTsFile} enumeration,
-          * excluding the value {@code ADDITIONAL_CONSTRAINTS}.
-          *
-          * @return an array of file names corresponding to the applicable enum constants.
-          */
          public static String[] allFileNames() {
             return Arrays.stream(values())
                 .filter(e -> e != ADDITIONAL_CONSTRAINTS)

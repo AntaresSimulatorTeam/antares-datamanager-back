@@ -159,4 +159,43 @@ class NasFileServiceTest {
   void saveMatrixToNas_fromMatrix_nullBaseName() {
     assertThrows(NullPointerException.class, () -> nasFileService.saveMatrixToNas(timeSeriesMatrix, null, OUTPUT_DIRECTORY));
   }
+
+  @Test
+  void readMatrix_txtFile_returnsMatrix() throws Exception {
+    Path txtFile = tempDir.resolve("series.txt");
+    Files.writeString(txtFile, "col\n1.0\n2.0\n");
+    when(timeSeriesReader.readFromTxt(txtFile)).thenReturn(timeSeriesMatrix);
+
+    TimeSeriesMatrix result = nasFileService.readMatrix(txtFile, null);
+
+    assertNotNull(result);
+    assertEquals(timeSeriesMatrix, result);
+    verify(timeSeriesReader).readFromTxt(txtFile);
+  }
+
+  @Test
+  void readMatrix_xlsxFile_returnsMatrix() throws Exception {
+    Path xlsxFile = tempDir.resolve("series.xlsx");
+    Files.writeString(xlsxFile, "dummy");
+    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030")).thenReturn(timeSeriesMatrix);
+
+    TimeSeriesMatrix result = nasFileService.readMatrix(xlsxFile, "2030");
+
+    assertNotNull(result);
+    assertEquals(timeSeriesMatrix, result);
+    verify(timeSeriesReader).readFromXlsx(xlsxFile, "2030");
+  }
+
+  @Test
+  void readMatrix_unsupportedFormat_throwsTechnicalException() throws Exception {
+    Path unsupportedFile = tempDir.resolve("series.json");
+    Files.writeString(unsupportedFile, "{}");
+
+    assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(unsupportedFile, null));
+  }
+
+  @Test
+  void readMatrix_nullInputPath_throwsNullPointerException() {
+    assertThrows(NullPointerException.class, () -> nasFileService.readMatrix(null, null));
+  }
 }

@@ -10,6 +10,8 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.sts.impl.StsPropertiesAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -33,8 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class StsPropertiesAssemblerServiceImplTest {
 
@@ -42,6 +43,8 @@ class StsPropertiesAssemblerServiceImplTest {
     private AntaresDataManagerProperties antaresDataManagerProperties;
     @Mock
     private NasFileService nasFileService;
+    @Mock
+    private TimeSeriesWriter timeSeriesWriter;
     @TempDir
     Path tempDir;
 
@@ -51,8 +54,9 @@ class StsPropertiesAssemblerServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        antaresDataManagerProperties = Mockito.mock(AntaresDataManagerProperties.class);
-        nasFileService = Mockito.mock(NasFileService.class);
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getStsDirectory()).thenReturn("sts");
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "nasFileService", nasFileService);
     }
@@ -253,23 +257,21 @@ class StsPropertiesAssemblerServiceImplTest {
         entity.setTsPath(tempDir.toString());
         String horizon = "2030";
 
-        when(antaresDataManagerProperties.getStsTsOutputDirectory())
-                .thenReturn("/output");
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
 
-        // create all required files
         for (StsTsFile file : StsTsFile.values()) {
             Files.createFile(file.resolve(tempDir));
-            when(nasFileService.saveMatrixToNas(file.resolve(tempDir), "/output", horizon))
-                    .thenReturn(file.fileName());
         }
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.csv");
 
         // when
         List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon);
 
         // then
-        assertTrue((result.size() == 5));
-
-
+        assertEquals(5, result.size());
     }
 
     @Test
@@ -278,8 +280,7 @@ class StsPropertiesAssemblerServiceImplTest {
         StStorageEntity entity = new StStorageEntity();
         entity.setTsPath(tempDir.toString());
 
-        when(antaresDataManagerProperties.getStsTsOutputDirectory())
-                .thenReturn("/output");
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
 
         // create all files except one
         StsTsFile missing = StsTsFile.INFLOWS;
@@ -303,20 +304,19 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
-    void shouldThrowTechnicalExceptionOnIOException() throws Exception {
+    void shouldThrowBusinessExceptionOnIOException() throws Exception {
         // given
         StStorageEntity entity = new StStorageEntity();
         entity.setTsPath(tempDir.toString());
 
-        when(antaresDataManagerProperties.getStsTsOutputDirectory())
-                .thenReturn("/output");
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
 
         for (StsTsFile file : StsTsFile.values()) {
             Files.createFile(file.resolve(tempDir));
         }
 
-        when(nasFileService.saveMatrixToNas(any(Path.class), any(), any()))
-                .thenThrow(new IOException("NAS error"));
+        when(nasFileService.readMatrix(any(Path.class), any()))
+                .thenThrow(new RuntimeException("NAS error"));
 
         // when / then
         BusinessException ex = assertThrows(
@@ -325,7 +325,6 @@ class StsPropertiesAssemblerServiceImplTest {
         );
 
         assertTrue(ex.getMessage().contains("NAS error"));
-
     }
 
     @Test
@@ -335,8 +334,7 @@ class StsPropertiesAssemblerServiceImplTest {
         entity.setTsPath(tempDir.toString());
         String horizon = "2030";
 
-        when(antaresDataManagerProperties.getStsTsOutputDirectory())
-                .thenReturn("/output");
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
 
         for (StsTsFile file : StsTsFile.values()) {
             Files.createFile(file.resolve(tempDir));
@@ -348,8 +346,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
 
-        when(nasFileService.saveMatrixToNas(any(Path.class), any(), eq(horizon)))
-                .thenThrow(originalEx);
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenThrow(originalEx);
 
         // when / then
         BusinessException ex = assertThrows(
