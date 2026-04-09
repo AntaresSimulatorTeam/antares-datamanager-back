@@ -327,6 +327,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
                 try (var walk = Files.walk(trajectoryRoot)) {
                     walk.filter(Files::isRegularFile)
+                            .filter(file -> !isInOldSubdirectory(trajectoryRoot, file))
                             .filter(file -> isSupportedSeriesFormat(file, expectedSeriesPrefixes))
                             .forEach(file -> {
                                 String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
@@ -352,6 +353,16 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         return result;
+    }
+
+    private boolean isInOldSubdirectory(Path trajectoryRoot, Path file) {
+        Path relative = trajectoryRoot.relativize(file);
+        for (Path part : relative) {
+            if ("old".equalsIgnoreCase(part.toString())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String prefixFromGroup(String normalizedGroup) {

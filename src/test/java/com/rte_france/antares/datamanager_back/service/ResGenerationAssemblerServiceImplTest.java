@@ -630,6 +630,48 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleResProperties_shouldIgnoreFilesUnderOldDirectory() throws IOException {
+        Path validSeries = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("1")
+                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
+        Path archivedSeries = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("old")
+                .resolve("wind_DE_onshore_beta_2030-2031.csv");
+        Files.createDirectories(validSeries.getParent());
+        Files.createDirectories(archivedSeries.getParent());
+        Files.writeString(validSeries, "v\n0.2\n");
+        Files.writeString(archivedSeries, "v\n0.3\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
+                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
+                        .toUse(true)
+                        .area("DE")
+                        .groupe("wind onshore")
+                        .cluster("1")
+                        .capacityByYear(BigDecimal.valueOf(3150))
+                        .build()))
+                .build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
+
+        assertDoesNotThrow(() -> service.assembleResProperties(study));
+        verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
+    }
+
+    @Test
     void assembleResProperties_shouldSkipBlankResLoadTrajectoryFilename() throws IOException {
         Path csv = tempDir
                 .resolve("INPUT")
