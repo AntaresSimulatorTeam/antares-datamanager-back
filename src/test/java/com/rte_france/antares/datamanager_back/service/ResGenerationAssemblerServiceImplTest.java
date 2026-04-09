@@ -101,6 +101,54 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleResProperties_nonFrSubAreas_shouldResolveSeriesUsingExactAreaCode() throws IOException {
+        Path itcsSeries = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("solar thermo")
+                .resolve("cluster")
+                .resolve("solar_ITcs_thermo_2030-2031.csv");
+        Path itcaSeries = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("solar thermo")
+                .resolve("cluster")
+                .resolve("solar_ITca_thermo_2030-2031.csv");
+        Files.createDirectories(itcsSeries.getParent());
+        Files.writeString(itcsSeries, "v\n0.2\n");
+        Files.writeString(itcaSeries, "v\n0.3\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
+                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("ITcs")
+                .groupe("solar thermo")
+                .cluster("1")
+                .capacityByYear(BigDecimal.valueOf(900))
+                .build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
+
+        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+
+        assertTrue(result.containsKey("ITCS"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> groupPayload = (Map<String, Object>) result.get("ITCS").get("solar_thermo");
+        @SuppressWarnings("unchecked")
+        List<String> series = (List<String>) groupPayload.get("series");
+        assertEquals(List.of("solar_ITcs_thermo_2030-2031.csv.arrow"), series);
+    }
+
+    @Test
     void assembleResProperties_fr_shouldReturnOptionCFrAggregation() throws IOException {
         Path csv = tempDir
                 .resolve("INPUT")
