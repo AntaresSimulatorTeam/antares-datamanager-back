@@ -1211,7 +1211,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * - If area = OTHERS: Look for load factor with specific areas and OTHERS
      * If no load factor found, import/selection is free (no exception thrown)
      */
-    private void controlesMiscInstalledPower(Integer studyId, List<GroupAreaMiscCapacity> additionalCapacities, String area, String horizon) throws IOException {
+    public void controlesMiscInstalledPower(Integer studyId, List<GroupAreaMiscCapacity> additionalCapacities, String area, String horizon) throws IOException {
         List<TrajectoryEntity> loadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
 
         if (loadFactorTrajectories.isEmpty()) {
@@ -1296,7 +1296,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * For each area in installed power:
      * Check if there's a load factor with that specific area OR the OTHERS load factor
      */
-    private void validateOthersInstalledPowerAreasAgainstLoadFactors(
+    public void validateOthersInstalledPowerAreasAgainstLoadFactors(
             MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, Set<String> areasInInstalledPower, List<TrajectoryEntity> loadFactorTrajectories, String horizon) throws IOException {
 
         for (String area : areasInInstalledPower) {
@@ -1338,7 +1338,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      /**
       * Verifies that a load factor trajectory contains the expected area header.
       */
-     private void verifyLoadFactorAreaHeaders(TrajectoryEntity loadFactorTrajectory, String expectedArea, MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, String horizon)
+     public void verifyLoadFactorAreaHeaders(TrajectoryEntity loadFactorTrajectory, String expectedArea, MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, String horizon)
              throws IOException {
 
          if (horizon == null) {
@@ -1365,7 +1365,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      /**
       * Validates installed power trajectory for the given installed power trajectory.
       */
-     private void validateInstalledPowerAgainstLoadFactors(
+     public void validateInstalledPowerAgainstLoadFactors(
              Integer studyId,
              TrajectoryEntity installedPowerTraj,
              List<TrajectoryEntity> allLoadFactorTrajectories,

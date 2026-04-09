@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
@@ -18,16 +19,11 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
@@ -1869,13 +1865,8 @@ class TrajectoryServiceImplTest {
                 TrajectoryServiceImpl.verifyExistingEconomicSheet(trajectoryToUse, sheetCo2, sheetEnr));
     }
 
-
-
-
-
-
-     @Test
-     void controlesMiscInstalledPowerReturnsWhenNoRelevantLoadFactorTrajectories() throws IOException {
+    @Test
+    void controlesMiscInstalledPowerReturnsWhenNoRelevantLoadFactorTrajectories() throws IOException {
          Integer studyId = 1;
 
          // additional capacities returned when selecting installed power trajectory
@@ -1911,4 +1902,999 @@ class TrajectoryServiceImplTest {
          verify(miscClusterCapacityRepository, times(1)).findByTrajectoryId(10);
          verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
      }
+
+    @Test
+    void verifyLoadFactorAreaHeaders_throwsBusinessExceptionWhenAreaNotInHeaders() throws Exception {
+        TrajectoryEntity loadFactoryTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("load_factor_file")
+                .area("FR")
+                .horizon("2030-2031")
+                .build();
+        
+        String expectedArea = "DE";
+        MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1");
+        List<String> headers = List.of("fr", "it");
+        
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), 1))
+                .thenReturn(List.of(loadFactoryTrajectory));
+        
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        Path mockPath = mock(Path.class);
+        doReturn(mockPath).when(spyService).buildTrajectoryPath("load_factor_file", TrajectoryType.MISC_LOAD);
+        
+        try (MockedStatic<MiscFileProcessorServiceImpl> miscMock = mockStatic(MiscFileProcessorServiceImpl.class)) {
+            miscMock.when(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2030-2031", mockPath, groupCluster))
+                    .thenReturn(headers);
+            
+            try {
+                var method = TrajectoryServiceImpl.class.getDeclaredMethod("verifyLoadFactorAreaHeaders", TrajectoryEntity.class, String.class, MiscFileProcessorServiceImpl.GroupClusterKey.class, String.class);
+                method.setAccessible(true);
+                method.invoke(spyService, loadFactoryTrajectory, expectedArea, groupCluster, "2030-2031");
+                fail("Expected BusinessException to be thrown");
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                assertInstanceOf(BusinessException.class, e.getCause());
+                BusinessException exception = (BusinessException) e.getCause();
+                assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+                assertTrue(exception.getMessage().contains("does not contain the expected area"));
+            }
+        }
+    }
+
+    @Test
+    void verifyLoadFactorAreaHeaders_succedsWhenAreaFoundInHeadersRegardlessOfCase() throws Exception {
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("load_factor_file")
+                .area("FR")
+                .horizon("2030-2031")
+                .build();
+        
+        String expectedArea = "DE";
+        MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1");
+        List<String> headers = List.of("fr", "de", "it");
+        
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        Path mockPath = mock(Path.class);
+        doReturn(mockPath).when(spyService).buildTrajectoryPath("load_factor_file", TrajectoryType.MISC_LOAD);
+        
+        try (MockedStatic<MiscFileProcessorServiceImpl> miscMock = mockStatic(MiscFileProcessorServiceImpl.class)) {
+            miscMock.when(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2030-2031", mockPath, groupCluster))
+                    .thenReturn(headers);
+            
+            assertDoesNotThrow(() -> {
+                var method = TrajectoryServiceImpl.class.getDeclaredMethod("verifyLoadFactorAreaHeaders", TrajectoryEntity.class, String.class, MiscFileProcessorServiceImpl.GroupClusterKey.class, String.class);
+                method.setAccessible(true);
+                method.invoke(spyService, loadFactorTrajectory, expectedArea, groupCluster, "2030-2031");
+            });
+        }
+    }
+
+    @Test
+    void verifyLoadFactorAreaHeaders_usesTrajectoryHorizonWhenHorizonParameterIsNull() throws Exception {
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("load_factor_file")
+                .area("FR")
+                .horizon("2030-2031")
+                .build();
+        
+        String expectedArea = "FR";
+        MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1");
+        List<String> headers = List.of("fr");
+        
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        Path mockPath = mock(Path.class);
+        doReturn(mockPath).when(spyService).buildTrajectoryPath("load_factor_file", TrajectoryType.MISC_LOAD);
+        
+        try (MockedStatic<MiscFileProcessorServiceImpl> miscMock = mockStatic(MiscFileProcessorServiceImpl.class)) {
+            miscMock.when(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2030-2031", mockPath, groupCluster))
+                    .thenReturn(headers);
+            
+            assertDoesNotThrow(() -> {
+                var method = TrajectoryServiceImpl.class.getDeclaredMethod("verifyLoadFactorAreaHeaders", TrajectoryEntity.class, String.class, MiscFileProcessorServiceImpl.GroupClusterKey.class, String.class);
+                method.setAccessible(true);
+                method.invoke(spyService, loadFactorTrajectory, expectedArea, groupCluster, null);
+            });
+            
+            miscMock.verify(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2030-2031", mockPath, groupCluster));
+        }
+    }
+
+    @Test
+    void verifyLoadFactorAreaHeaders_throwsBusinessExceptionWithCorrectMessageAndArguments() throws Exception {
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("load_test")
+                .area("FR")
+                .horizon("2025-2026")
+                .build();
+        
+        String expectedArea = "ES";
+        MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+        List<String> headers = List.of("fr", "it");
+        
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        Path mockPath = mock(Path.class);
+        doReturn(mockPath).when(spyService).buildTrajectoryPath("load_test", TrajectoryType.MISC_LOAD);
+        
+         try (MockedStatic<MiscFileProcessorServiceImpl> miscMock = mockStatic(MiscFileProcessorServiceImpl.class)) {
+             miscMock.when(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2025-2026", mockPath, groupCluster))
+                     .thenReturn(headers);
+             
+             try {
+                 var method = TrajectoryServiceImpl.class.getDeclaredMethod("verifyLoadFactorAreaHeaders", TrajectoryEntity.class, String.class, MiscFileProcessorServiceImpl.GroupClusterKey.class, String.class);
+                 method.setAccessible(true);
+                 method.invoke(spyService, loadFactorTrajectory, expectedArea, groupCluster, "2025-2026");
+                 fail("Expected BusinessException to be thrown");
+             } catch (java.lang.reflect.InvocationTargetException e) {
+                 assertInstanceOf(BusinessException.class, e.getCause());
+                 BusinessException exception = (BusinessException) e.getCause();
+                 
+                 List<String> args = exception.getErrorMessageArguments();
+                 assertEquals("load_test", args.get(0));
+                 assertEquals("FR", args.get(1));
+                 assertEquals("ES", args.get(2));
+                 assertEquals("biogas", args.get(3));
+             }
+         }
+    }
+
+    @Test
+    void verifyLoadFactorAreaHeaders_throwsBusinessExceptionWhenHeadersListIsEmpty() throws Exception {
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("load_factor_file")
+                .area("FR")
+                .horizon("2030-2031")
+                .build();
+        
+        String expectedArea = "DE";
+        MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1");
+        List<String> headers = Collections.emptyList();
+        
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        Path mockPath = mock(Path.class);
+        doReturn(mockPath).when(spyService).buildTrajectoryPath("load_factor_file", TrajectoryType.MISC_LOAD);
+        
+         try (MockedStatic<MiscFileProcessorServiceImpl> miscMock = mockStatic(MiscFileProcessorServiceImpl.class)) {
+             miscMock.when(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2030-2031", mockPath, groupCluster))
+                     .thenReturn(headers);
+             
+             try {
+                 var method = TrajectoryServiceImpl.class.getDeclaredMethod("verifyLoadFactorAreaHeaders", TrajectoryEntity.class, String.class, MiscFileProcessorServiceImpl.GroupClusterKey.class, String.class);
+                 method.setAccessible(true);
+                 method.invoke(spyService, loadFactorTrajectory, expectedArea, groupCluster, "2030-2031");
+                 fail("Expected BusinessException to be thrown");
+             } catch (java.lang.reflect.InvocationTargetException e) {
+                 assertInstanceOf(BusinessException.class, e.getCause());
+                 BusinessException exception = (BusinessException) e.getCause();
+                 assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+             }
+         }
+    }
+
+    @Test
+    void verifyLoadFactorAreaHeaders_buildsCorrectPathForMiscLoadTrajectory() throws Exception {
+        TrajectoryEntity loadFactorTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("load_specific_trajectory")
+                .area("FR")
+                .horizon("2030-2031")
+                .build();
+        
+        String expectedArea = "FR";
+        MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("group1", "cluster1");
+        List<String> headers = List.of("fr");
+        
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
+        Path mockPath = mock(Path.class);
+        doReturn(mockPath).when(spyService).buildTrajectoryPath("load_specific_trajectory", TrajectoryType.MISC_LOAD);
+        
+        try (MockedStatic<MiscFileProcessorServiceImpl> miscMock = mockStatic(MiscFileProcessorServiceImpl.class)) {
+            miscMock.when(() -> MiscFileProcessorServiceImpl.readHeaderAreas("2030-2031", mockPath, groupCluster))
+                    .thenReturn(headers);
+            
+            var method = TrajectoryServiceImpl.class.getDeclaredMethod("verifyLoadFactorAreaHeaders", TrajectoryEntity.class, String.class, MiscFileProcessorServiceImpl.GroupClusterKey.class, String.class);
+            method.setAccessible(true);
+            method.invoke(spyService, loadFactorTrajectory, expectedArea, groupCluster, "2030-2031");
+            
+            verify(spyService).buildTrajectoryPath("load_specific_trajectory", TrajectoryType.MISC_LOAD);
+        }
+    }
+
+
+        @Test
+        void shouldReturn_whenNoInstalledPower_forLoadFactor() {
+            Integer studyId = 1;
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity load = TrajectoryEntity.builder()
+                    .type(TrajectoryType.MISC_LOAD.name())
+                    .horizon("2030")
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), load, "user"));
+        }
+
+        @Test
+        void shouldHandleEmptyCapacities_forLoadFactor() {
+            Integer studyId = 1;
+
+            TrajectoryEntity installed = TrajectoryEntity.builder()
+                    .id(10)
+                    .area("FR")
+                    .horizon("2030")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of(installed));
+
+            when(miscClusterCapacityRepository.findByTrajectoryId(10))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity load = TrajectoryEntity.builder()
+                    .type(TrajectoryType.MISC_LOAD.name())
+                    .horizon("2030")
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), load, "user"));
+        }
+
+        // =========================
+        // INSTALLED POWER TESTS
+        // =========================
+
+        @Test
+        void shouldReturn_whenNoLoadFactor_forInstalledPower() {
+            Integer studyId = 1;
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of());
+
+            when(miscClusterCapacityRepository.findByTrajectoryId(1))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity installed = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .horizon("2030")
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), installed, "user"));
+        }
+
+        @Test
+        void shouldReturn_whenNoCapacities_forInstalledPower() {
+            Integer studyId = 1;
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of(new TrajectoryEntity()));
+
+            when(miscClusterCapacityRepository.findByTrajectoryId(1))
+                    .thenReturn(List.of());
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR"))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity installed = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .horizon("2030")
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), installed, "user"));
+        }
+
+        // =========================
+        // FULL FLOW TEST
+        // =========================
+
+        @Test
+        void shouldPassFullFlow_whenHeadersAreValid() throws Exception {
+            Integer studyId = 1;
+
+            GroupAreaMiscCapacity cap = mock(GroupAreaMiscCapacity.class);
+            when(cap.getGroupe()).thenReturn("g1");
+            when(cap.getCluster()).thenReturn("c1");
+            when(cap.getArea()).thenReturn("FR");
+
+            when(miscClusterCapacityRepository.findByTrajectoryId(1))
+                    .thenReturn(List.of(cap));
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR"))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity loadFactor = TrajectoryEntity.builder()
+                    .fileName("lf")
+                    .area("FR")
+                    .horizon("2030")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of(loadFactor));
+
+            TrajectoryServiceImpl spy = spy(trajectoryService);
+
+            Path path = mock(Path.class);
+            doReturn(path).when(spy).buildTrajectoryPath(any(), any());
+
+            try (MockedStatic<MiscFileProcessorServiceImpl> mocked =
+                         mockStatic(MiscFileProcessorServiceImpl.class)) {
+
+                mocked.when(() ->
+                                MiscFileProcessorServiceImpl.readHeaderAreas(any(), any(), any()))
+                        .thenReturn(List.of("fr"));
+
+                TrajectoryEntity installed = TrajectoryEntity.builder()
+                        .id(1)
+                        .type(TrajectoryType.MISC_CAPACITY.name())
+                        .area("FR")
+                        .horizon("2030")
+                        .build();
+
+                assertDoesNotThrow(() ->
+                        spy.checkTrajectoryCoherence(studyId, new HashSet<>(), installed, "user"));
+            }
+        }
+
+        // =========================
+        // ERROR CASE
+        // =========================
+
+        @Test
+        void shouldThrowException_whenHeaderMissing() throws Exception {
+            Integer studyId = 1;
+
+            GroupAreaMiscCapacity cap = mock(GroupAreaMiscCapacity.class);
+            when(cap.getGroupe()).thenReturn("g1");
+            when(cap.getCluster()).thenReturn("c1");
+            when(cap.getArea()).thenReturn("FR");
+
+            when(miscClusterCapacityRepository.findByTrajectoryId(1))
+                    .thenReturn(List.of(cap));
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, "FR"))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity loadFactor = TrajectoryEntity.builder()
+                    .fileName("lf")
+                    .area("FR")
+                    .horizon("2030")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of(loadFactor));
+
+            TrajectoryServiceImpl spy = spy(trajectoryService);
+
+            Path path = mock(Path.class);
+            doReturn(path).when(spy).buildTrajectoryPath(any(), any());
+
+            try (MockedStatic<MiscFileProcessorServiceImpl> mocked =
+                         mockStatic(MiscFileProcessorServiceImpl.class)) {
+
+                mocked.when(() ->
+                                MiscFileProcessorServiceImpl.readHeaderAreas(any(), any(), any()))
+                        .thenReturn(List.of("de")); // mismatch
+
+                TrajectoryEntity installed = TrajectoryEntity.builder()
+                        .id(1)
+                        .type(TrajectoryType.MISC_CAPACITY.name())
+                        .area("FR")
+                        .horizon("2030")
+                        .build();
+
+                assertThrows(BusinessException.class, () ->
+                        spy.checkTrajectoryCoherence(studyId, new HashSet<>(), installed, "user"));
+            }
+        }
+
+
+        @Test
+        void shouldSkipOtherAreas_whenNoMatchingLoadFactor() {
+            GroupAreaMiscCapacity cap = mock(GroupAreaMiscCapacity.class);
+            when(cap.getArea()).thenReturn("DE");
+
+            when(miscClusterCapacityRepository.findByTrajectoryId(1))
+                    .thenReturn(List.of(cap));
+
+            when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
+                    .thenReturn(List.of());
+
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_LOAD.name(), 1))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity installed = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .horizon("2030")
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(1, new HashSet<>(), installed, "user"));
+        }
+
+
+
+        // =====================================================
+        // IMPORT CASES
+        // =====================================================
+
+        @Test
+        void shouldPassImportLoadFactor_whenNoInstalledPower() {
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_CAPACITY.name(), 1))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity load = TrajectoryEntity.builder()
+                    .type(TrajectoryType.MISC_LOAD.name())
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(1, new HashSet<>(), load, "user"));
+        }
+
+        @Test
+        void shouldPassImportInstalledPower_whenNoLoadFactor() {
+            when(trajectoryRepository.findByTypeAndStudyId(
+                    TrajectoryType.MISC_LOAD.name(), 1))
+                    .thenReturn(List.of());
+
+            TrajectoryEntity installed = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .build();
+
+            assertDoesNotThrow(() ->
+                    trajectoryService.checkTrajectoryCoherence(1, new HashSet<>(), installed, "user"));
+        }
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_verifiesLoadFactorWhenSpecificAreaFound() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("fr");
+            
+            TrajectoryEntity loadFactorFR = TrajectoryEntity.builder()
+                    .fileName("load_fr")
+                    .area("fr")
+                    .horizon(horizon)
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorFR);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+            
+            spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
+            
+            verify(spyService, times(1)).verifyLoadFactorAreaHeaders(loadFactorFR, "fr", groupCluster, horizon);
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_fallsBackToOthersWhenSpecificAreaNotFound() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("es");
+            
+            TrajectoryEntity loadFactorOthers = TrajectoryEntity.builder()
+                    .fileName("load_others")
+                    .area("OTHERS")
+                    .horizon(horizon)
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorOthers);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+            
+            spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
+            
+            verify(spyService, times(1)).verifyLoadFactorAreaHeaders(loadFactorOthers, "es", groupCluster, horizon);
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_skipWhenNoLoadFactorFound() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("it");
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of();
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+            
+            assertDoesNotThrow(() -> spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon));
+            
+            verify(spyService, never()).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_handlesMultipleAreas() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("fr", "de", "it");
+            
+            TrajectoryEntity loadFactorFR = TrajectoryEntity.builder()
+                    .fileName("load_fr")
+                    .area("fr")
+                    .horizon(horizon)
+                    .build();
+            
+            TrajectoryEntity loadFactorOthers = TrajectoryEntity.builder()
+                    .fileName("load_others")
+                    .area("OTHERS")
+                    .horizon(horizon)
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorFR, loadFactorOthers);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+            
+            spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
+            
+            verify(spyService, atLeastOnce()).verifyLoadFactorAreaHeaders(any(), any(), eq(groupCluster), eq(horizon));
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_handlesEmptyAreasSet() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of();
+
+            TrajectoryEntity loadFactorOthers = TrajectoryEntity.builder()
+                    .fileName("load_others")
+                    .area("OTHERS")
+                    .horizon(horizon)
+                    .build();
+
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorOthers);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+
+            assertDoesNotThrow(() -> spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon));
+
+            verify(spyService, never()).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_verifiesHeadersWithNullHorizon() throws IOException {
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("fr");
+            
+            TrajectoryEntity loadFactorFR = TrajectoryEntity.builder()
+                    .fileName("load_fr")
+                    .area("fr")
+                    .horizon("2030-2031")
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorFR);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+            
+            spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, null);
+            
+            verify(spyService, times(1)).verifyLoadFactorAreaHeaders(loadFactorFR, "fr", groupCluster, null);
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_prioritizesSpecificAreaOverOthers() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("fr");
+            
+            TrajectoryEntity loadFactorFR = TrajectoryEntity.builder()
+                    .fileName("load_fr")
+                    .area("fr")
+                    .horizon(horizon)
+                    .build();
+            
+            TrajectoryEntity loadFactorOthers = TrajectoryEntity.builder()
+                    .fileName("load_others")
+                    .area("OTHERS")
+                    .horizon(horizon)
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorFR, loadFactorOthers);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(eq(loadFactorFR), eq("fr"), eq(groupCluster), eq(horizon));
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(eq(loadFactorOthers), any(), any(), any());
+            
+            spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
+            
+            verify(spyService, times(1)).verifyLoadFactorAreaHeaders(loadFactorFR, "fr", groupCluster, horizon);
+            verify(spyService, never()).verifyLoadFactorAreaHeaders(eq(loadFactorOthers), any(), any(), any());
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_throwsExceptionWhenVerifyLoadFactorHeadersFails() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("fr");
+            
+            TrajectoryEntity loadFactorFR = TrajectoryEntity.builder()
+                    .fileName("load_fr")
+                    .area("fr")
+                    .horizon(horizon)
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorFR);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doThrow(BusinessException.class).when(spyService).verifyLoadFactorAreaHeaders(any(), any(), any(), any());
+            
+            assertThrows(BusinessException.class, () -> 
+                spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon)
+            );
+        }
+
+        @Test
+        void validateOthersInstalledPowerAreasAgainstLoadFactors_continueProcessingWhenOneAreaFails() throws IOException {
+            String horizon = "2030-2031";
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = new MiscFileProcessorServiceImpl.GroupClusterKey("biogas", "biogas");
+            Set<String> areasInInstalledPower = Set.of("fr", "de");
+            
+            TrajectoryEntity loadFactorFR = TrajectoryEntity.builder()
+                    .fileName("load_fr")
+                    .area("fr")
+                    .horizon(horizon)
+                    .build();
+            
+            List<TrajectoryEntity> loadFactorTrajectories = List.of(loadFactorFR);
+            
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doThrow(BusinessException.class).when(spyService).verifyLoadFactorAreaHeaders(loadFactorFR, "fr", groupCluster, horizon);
+            doNothing().when(spyService).verifyLoadFactorAreaHeaders(any(), eq("de"), any(), any());
+            
+            assertThrows(BusinessException.class, () -> 
+                spyService.validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon)
+            );
+        }
+        @Test
+        void controlesMiscOnImportLoadFactor_returnsEarlyWhenNoInstalledPowerTrajectories() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            String horizon = "2030-2031";
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of());
+
+            trajectoryService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+
+            verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
+            verify(trajectoryRepository, never()).findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
+        }
+
+        @Test
+        void controlesMiscOnImportLoadFactor_validatesInstalledPowerWhenLoadFactorTrajectoriesExist() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            String horizon = "2030-2031";
+
+            TrajectoryEntity installedPowerTraj = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .horizon(horizon)
+                    .build();
+
+            TrajectoryEntity loadFactorTraj = TrajectoryEntity.builder()
+                    .id(2)
+                    .type(TrajectoryType.MISC_LOAD.name())
+                    .area("FR")
+                    .horizon(horizon)
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of(installedPowerTraj));
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of(loadFactorTraj));
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+
+            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, List.of(loadFactorTraj), horizon);
+        }
+
+        @Test
+        void controlesMiscOnImportLoadFactor_validatesAllInstalledPowerTrajectories() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            String horizon = "2030-2031";
+
+            TrajectoryEntity installedPowerTraj1 = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .build();
+
+            TrajectoryEntity installedPowerTraj2 = TrajectoryEntity.builder()
+                    .id(2)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("DE")
+                    .build();
+
+            TrajectoryEntity loadFactorTraj = TrajectoryEntity.builder()
+                    .id(3)
+                    .type(TrajectoryType.MISC_LOAD.name())
+                    .area("FR")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of(installedPowerTraj1, installedPowerTraj2));
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of(loadFactorTraj));
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+
+            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj1, List.of(loadFactorTraj), horizon);
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj2, List.of(loadFactorTraj), horizon);
+            verify(spyService, times(2)).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+        }
+
+        @Test
+        void controlesMiscOnImportLoadFactor_handlesEmptyLoadFactorTrajectories() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            String horizon = "2030-2031";
+
+            TrajectoryEntity installedPowerTraj = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of(installedPowerTraj));
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of());
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+
+            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, List.of(), horizon);
+        }
+
+        @Test
+        void controlesMiscOnImportLoadFactor_throwsIOExceptionWhenValidationFails() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            String horizon = "2030-2031";
+
+            TrajectoryEntity installedPowerTraj = TrajectoryEntity.builder()
+                    .id(1)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("FR")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of(installedPowerTraj));
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of());
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doThrow(new IOException("File not found")).when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+
+            assertThrows(IOException.class, () ->
+                spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon)
+            );
+        }
+
+        @Test
+        void controlesMiscOnImportLoadFactor_passesCorrectParametersToValidation() throws IOException {
+            Integer studyId = 2;
+            String area = "DE";
+            String horizon = "2025-2026";
+
+            TrajectoryEntity installedPowerTraj = TrajectoryEntity.builder()
+                    .id(5)
+                    .type(TrajectoryType.MISC_CAPACITY.name())
+                    .area("DE")
+                    .build();
+
+            TrajectoryEntity loadFactorTraj = TrajectoryEntity.builder()
+                    .id(6)
+                    .type(TrajectoryType.MISC_LOAD.name())
+                    .area("DE")
+                    .build();
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
+                    .thenReturn(List.of(installedPowerTraj));
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId))
+                    .thenReturn(List.of(loadFactorTraj));
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+
+            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+
+            verify(spyService).validateInstalledPowerAgainstLoadFactors(eq(studyId), eq(installedPowerTraj), eq(List.of(loadFactorTraj)), eq(horizon));
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_callsControlsMethodWhenValidInputProvided() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            MiscClusterCapacityEntity capacity1 = MiscClusterCapacityEntity.builder()
+                    .groupe("group1")
+                    .cluster("cluster1")
+                    .area("FR")
+                    .build();
+            MiscClusterCapacityEntity capacity2 = MiscClusterCapacityEntity.builder()
+                    .groupe("group2")
+                    .cluster("cluster2")
+                    .area("FR")
+                    .build();
+            List<MiscClusterCapacityEntity> capacities = List.of(capacity1, capacity2);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
+
+            verify(spyService, times(1)).controlesMiscInstalledPower(eq(studyId), any(), eq(area), isNull());
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_passesNullHorizonToControlesMethod() throws IOException {
+            Integer studyId = 1;
+            String area = "IT";
+            MiscClusterCapacityEntity capacity = MiscClusterCapacityEntity.builder()
+                    .groupe("group1")
+                    .cluster("cluster1")
+                    .area("IT")
+                    .build();
+            List<MiscClusterCapacityEntity> capacities = List.of(capacity);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            ArgumentCaptor<String> horizonCaptor = ArgumentCaptor.forClass(String.class);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), horizonCaptor.capture());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
+
+            assertNull(horizonCaptor.getValue());
+            verify(spyService).controlesMiscInstalledPower(eq(studyId), any(), eq(area), isNull());
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_handlesEmptyCapacityList() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            List<MiscClusterCapacityEntity> capacities = List.of();
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
+
+            verify(spyService, times(1)).controlesMiscInstalledPower(eq(studyId), any(), eq(area), isNull());
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_propagatesIOExceptionFromControlsMethod() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            MiscClusterCapacityEntity capacity = MiscClusterCapacityEntity.builder()
+                    .groupe("group1")
+                    .cluster("cluster1")
+                    .area("FR")
+                    .build();
+            List<MiscClusterCapacityEntity> capacities = List.of(capacity);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doThrow(new IOException("File error")).when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), isNull());
+
+            assertThrows(IOException.class, () ->
+                    spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area)
+            );
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_passesStudyIdCorrectly() throws IOException {
+            Integer studyId = 99;
+            String area = "FR";
+            MiscClusterCapacityEntity capacity = MiscClusterCapacityEntity.builder()
+                    .groupe("group1")
+                    .cluster("cluster1")
+                    .area("FR")
+                    .build();
+            List<MiscClusterCapacityEntity> capacities = List.of(capacity);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
+
+            ArgumentCaptor<Integer> studyIdCaptor = ArgumentCaptor.forClass(Integer.class);
+            verify(spyService).controlesMiscInstalledPower(studyIdCaptor.capture(), any(), eq(area), isNull());
+            assertEquals(99, studyIdCaptor.getValue());
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_passesAreaCorrectly() throws IOException {
+            Integer studyId = 1;
+            String area = "OTHERS";
+            MiscClusterCapacityEntity capacity = MiscClusterCapacityEntity.builder()
+                    .groupe("group1")
+                    .cluster("cluster1")
+                    .area("OTHERS")
+                    .build();
+            List<MiscClusterCapacityEntity> capacities = List.of(capacity);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
+
+            ArgumentCaptor<String> areaCaptor = ArgumentCaptor.forClass(String.class);
+            verify(spyService).controlesMiscInstalledPower(eq(studyId), any(), areaCaptor.capture(), isNull());
+            assertEquals("OTHERS", areaCaptor.getValue());
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_handlesMultipleCapacitiesWithDifferentGroups() throws IOException {
+            Integer studyId = 1;
+            String area = "FR";
+            List<MiscClusterCapacityEntity> capacities = List.of(
+                    MiscClusterCapacityEntity.builder().groupe("group1").cluster("cluster1").area("FR").build(),
+                    MiscClusterCapacityEntity.builder().groupe("group2").cluster("cluster2").area("FR").build(),
+                    MiscClusterCapacityEntity.builder().groupe("group3").cluster("cluster3").area("FR").build()
+            );
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<GroupAreaMiscCapacity>> captor = ArgumentCaptor.forClass(List.class);
+            verify(spyService).controlesMiscInstalledPower(eq(studyId), captor.capture(), eq(area), isNull());
+            List<GroupAreaMiscCapacity> convertedCapacities = captor.getValue();
+            assertEquals(3, convertedCapacities.size());
+        }
+
+        @Test
+        void controlesMiscOnImportInstalledPower_handlesNullArea() throws IOException {
+            Integer studyId = 1;
+            MiscClusterCapacityEntity capacity = MiscClusterCapacityEntity.builder()
+                    .groupe("group1")
+                    .cluster("cluster1")
+                    .area("FR")
+                    .build();
+            List<MiscClusterCapacityEntity> capacities = List.of(capacity);
+
+            TrajectoryServiceImpl spyService = spy(trajectoryService);
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), nullable(String.class), anyString());
+
+            spyService.controlesMiscOnImportInstalledPower(studyId, capacities, null);
+
+            verify(spyService, times(1)).controlesMiscInstalledPower(eq(studyId), any(), isNull(), isNull());
+        }
 }
