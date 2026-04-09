@@ -369,10 +369,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             return false;
         }
 
-        if (expectedSeriesPrefixes == null || expectedSeriesPrefixes.isEmpty()) {
-            return true;
-        }
-
         int extensionIndex = lowerName.lastIndexOf('.');
         String baseName = extensionIndex > 0 ? lowerName.substring(0, extensionIndex) : lowerName;
         String normalizedBaseName = toKey(baseName);
@@ -430,10 +426,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String toKey(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.trim()
+        return Objects.toString(value, "").trim()
                 .toLowerCase(Locale.ROOT)
                 .replace('-', '_')
                 .replaceAll("\\s+", "_");
