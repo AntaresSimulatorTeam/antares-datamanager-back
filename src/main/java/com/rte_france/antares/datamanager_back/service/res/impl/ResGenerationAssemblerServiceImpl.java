@@ -161,7 +161,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         zonalDistributions,
                         generatedSeries
                 );
-                validateFrContract(series, frAggregation, groupKey);
                 clusterMap.put(SERIES, series);
                 clusterMap.put(FR_AGGREGATION, frAggregation);
             } else {
@@ -215,17 +214,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return aggregation;
     }
 
-    private void validateFrContract(List<String> series, Map<String, Object> frAggregation, String clusterKey) {
-        boolean hasSeries = series != null && !series.isEmpty();
-        boolean hasAggregation = frAggregation != null && !frAggregation.isEmpty();
-        if (hasSeries == hasAggregation) {
-            throw BusinessException.builder()
-                    .message("Invalid FR RES payload for cluster " + clusterKey + ": use either series or fr_aggregation, not both")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
     private void validateFrAggregation(
             String normalizedGroup,
             Map<String, Double> zoneWeights,
@@ -254,15 +242,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             if (techWeights == null || techWeights.isEmpty() || techSeries == null || techSeries.isEmpty()) {
                 throw BusinessException.builder()
                         .message("Missing FR technology mapping for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            Set<String> weightKeys = new LinkedHashSet<>(techWeights.keySet());
-            Set<String> seriesKeys = new LinkedHashSet<>(techSeries.keySet());
-            if (!weightKeys.equals(seriesKeys)) {
-                throw BusinessException.builder()
-                        .message("FR technology keys mismatch for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -379,12 +358,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private String prefixFromGroup(String normalizedGroup) {
         String key = toKey(normalizedGroup);
-        if (key.isBlank()) {
-            throw BusinessException.builder()
-                    .message("Invalid RES group value for series prefix")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
 
         int separatorIndex = key.indexOf('_');
         String prefixRoot = separatorIndex > 0 ? key.substring(0, separatorIndex) : key;

@@ -808,6 +808,5 @@ class ResGenerationAssemblerServiceImplTest {
             Files.setPosixFilePermissions(trajectoryRoot, originalPermissions);
         }
     }
-
 }
 
