@@ -580,5 +580,40 @@ class ResGenerationAssemblerServiceImplTest {
         assertDoesNotThrow(() -> service.assembleResProperties(study));
         verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
     }
+
+    @Test
+    void assembleResProperties_shouldIgnoreSupportedExtensionFileWithoutGroupPrefix() throws IOException {
+        Path notes = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("1")
+                .resolve("metadata_notes.txt");
+        Path validSeries = notes.getParent().resolve("wind_DE_onshore_alpha_2030-2031.csv");
+        Files.createDirectories(notes.getParent());
+        Files.writeString(notes, "metadata");
+        Files.writeString(validSeries, "v\n0.2\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
+                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
+                        .toUse(true)
+                        .area("DE")
+                        .groupe("wind onshore")
+                        .cluster("1")
+                        .capacityByYear(BigDecimal.valueOf(3150))
+                        .build()))
+                .build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
+
+        assertDoesNotThrow(() -> service.assembleResProperties(study));
+        verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
+    }
 }
 

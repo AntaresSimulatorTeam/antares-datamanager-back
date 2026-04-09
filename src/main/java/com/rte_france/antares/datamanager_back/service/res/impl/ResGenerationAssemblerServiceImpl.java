@@ -58,10 +58,11 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         if (capacitiesByArea.isEmpty()) {
             return Collections.emptyMap();
         }
+        Set<String> expectedSeriesPrefixes = buildExpectedSeriesPrefixes(capacitiesByArea);
 
         Map<String, List<ResTechnologyDistributionEntity>> technologyByArea = collectTechnologyByArea(studyEntity);
         Map<String, List<ResZonalDistributionEntity>> zonalByArea = collectZonalByArea(studyEntity);
-        List<ResSeriesRef> generatedSeries = createArrowSeriesForResLoad(studyEntity);
+        List<ResSeriesRef> generatedSeries = createArrowSeriesForResLoad(studyEntity, expectedSeriesPrefixes);
 
         Map<String, Map<String, Object>> resByArea = new LinkedHashMap<>();
         capacitiesByArea.forEach((area, capacities) -> {
@@ -115,6 +116,16 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .filter(Objects::nonNull)
                 .filter(e -> e.getArea() != null && e.getGroupe() != null && e.getPecdZone() != null)
                 .collect(Collectors.groupingBy(e -> e.getArea().toUpperCase(Locale.ROOT), LinkedHashMap::new, Collectors.toList()));
+    }
+
+    private Set<String> buildExpectedSeriesPrefixes(Map<String, List<ResClusterCapacityEntity>> capacitiesByArea) {
+        return capacitiesByArea.values().stream()
+                .flatMap(Collection::stream)
+                .map(ResClusterCapacityEntity::getGroupe)
+                .filter(Objects::nonNull)
+                .map(this::normalizeGroup)
+                .map(this::prefixFromGroup)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Map<String, Object> buildClustersForArea(
@@ -306,7 +317,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return candidates.getFirst().arrowPath();
     }
 
-    private List<ResSeriesRef> createArrowSeriesForResLoad(StudyEntity studyEntity) {
+    private List<ResSeriesRef> createArrowSeriesForResLoad(StudyEntity studyEntity, Set<String> expectedSeriesPrefixes) {
         List<TrajectoryEntity> resLoadTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.RES_LOAD.name().equals(t.getType()))
@@ -339,7 +350,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
                 try (var walk = Files.walk(trajectoryRoot)) {
                     walk.filter(Files::isRegularFile)
-                            .filter(this::isSupportedSeriesFormat)
+                            .filter(file -> isSupportedSeriesFormat(file, expectedSeriesPrefixes))
                             .forEach(file -> {
                                 String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
                                 try {
@@ -366,10 +377,35 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return result;
     }
 
-    private boolean isSupportedSeriesFormat(Path file) {
+    private String prefixFromGroup(String normalizedGroup) {
+        String key = toKey(normalizedGroup);
+        if (key.isBlank()) {
+            throw BusinessException.builder()
+                    .message("Invalid RES group value for series prefix")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        int separatorIndex = key.indexOf('_');
+        String prefixRoot = separatorIndex > 0 ? key.substring(0, separatorIndex) : key;
+        return prefixRoot + "_";
+    }
+
+    private boolean isSupportedSeriesFormat(Path file, Set<String> expectedSeriesPrefixes) {
         String lowerName = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        return (lowerName.endsWith(".csv") || lowerName.endsWith(".txt") || lowerName.endsWith(".xlsx"))
-                && !lowerName.startsWith(".~lock.");
+        boolean hasSupportedExtension = lowerName.endsWith(".csv") || lowerName.endsWith(".txt") || lowerName.endsWith(".xlsx");
+        if (!hasSupportedExtension || lowerName.startsWith(".~lock.")) {
+            return false;
+        }
+
+        if (expectedSeriesPrefixes == null || expectedSeriesPrefixes.isEmpty()) {
+            return true;
+        }
+
+        int extensionIndex = lowerName.lastIndexOf('.');
+        String baseName = extensionIndex > 0 ? lowerName.substring(0, extensionIndex) : lowerName;
+        String normalizedBaseName = toKey(baseName);
+        return expectedSeriesPrefixes.stream().anyMatch(normalizedBaseName::startsWith);
     }
 
     private String normalizeGroup(String group) {
