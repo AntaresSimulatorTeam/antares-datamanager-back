@@ -73,9 +73,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     zonalByArea.getOrDefault(area, Collections.emptyList()),
                     generatedSeries
             );
-            if (!clusters.isEmpty()) {
-                resByArea.put(area, clusters);
-            }
+            resByArea.put(area, clusters);
         });
 
         return resByArea;
