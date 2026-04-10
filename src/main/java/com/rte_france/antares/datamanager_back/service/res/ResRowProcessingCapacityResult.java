@@ -22,6 +22,11 @@ public record ResRowProcessingCapacityResult(
         fileTechnologies.add(technology);
     }
 
+    @Override
+    public StringBuilder getChecksumBuilder() {
+        return checksum;
+    }
+
     public void addEntity(ResClusterCapacityEntity entity) {
         entities.add(entity);
     }

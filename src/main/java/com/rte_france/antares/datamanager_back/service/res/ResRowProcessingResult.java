@@ -11,5 +11,6 @@ public sealed interface ResRowProcessingResult permits ResRowProcessingCapacityR
     
     void addArea(String area);
     void addTechnologies(String technologies);
+    StringBuilder getChecksumBuilder();
 }
 

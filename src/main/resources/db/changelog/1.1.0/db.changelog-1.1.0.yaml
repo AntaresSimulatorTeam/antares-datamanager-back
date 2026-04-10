@@ -86,5 +86,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V39-add-constraints-path-st-storage.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V40-add_sts_parameters_and_hours_tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V41-alter_res_technology_distribution_table.sql
 
 

@@ -34,6 +34,7 @@ import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
+import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -445,7 +446,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 }
             }
             if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
-                indexSheet = 1;
                 requiredColumns = REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS;
             }
             if (trajectoryType == TrajectoryType.RES_ZONAL_DISTRIBUTION) {
@@ -492,7 +492,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 allRowsEmpty = false;
                 switch (trajectoryType) {
                 case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
-                        processResDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
+                        processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
                 case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
                         processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
                 default -> 
@@ -582,9 +582,15 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
         result.addEntity(entity);
+
+        result.getChecksumBuilder()
+                .append(area).append("|")
+                .append(group).append("|")
+                .append(cluster).append("|")
+                .append(capacityByYear).append("|");
     }
 
-    private void processResDistributionCapacityRow(
+    private void processResTechnoDistributionCapacityRow(
             ResRowProcessingContext context,
             ResRowProcessingTechnologyDistributionResult result,
             Row row,
@@ -613,10 +619,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         String combo = LITERAL_STRING.formatted(pecdZone, group, cluster);
 
-        Number numericValue = parseNumericValue(row, context.getYearColIndex(), combo, result);
-        if (numericValue == null) return;
-        
-        int capacityByYear = numericValue.intValue();
+        Double capacityByYear = parseDoubleValue(row, context.getYearColIndex(), combo, result);
+
+        if (capacityByYear == null) return;
 
         ResTechnologyDistributionEntity entity = ResTechnologyDistributionEntity.builder()
                 .area(area)
@@ -628,6 +633,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .build();
 
         result.addEntity(entity);
+
+        result.getChecksumBuilder()
+                .append(area).append("|")
+                .append(group).append("|")
+                .append(cluster).append("|")
+                .append(pecdZone).append("|")
+                .append(pecdTechno).append("|")
+                .append(capacityByYear).append("|");
     }
 
     private void processResZonalDistributionRow(
@@ -665,6 +678,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .build();
 
         result.addEntity(entity);
+
+        result.getChecksumBuilder()
+                .append(area).append("|")
+                .append(group).append("|")
+                .append(pecdZone).append("|")
+                .append(numericValue).append("|");
     }
 
     private boolean shouldProcessArea(ResRowProcessingContext context, ResRowProcessingResult result, String area, String technology) {
@@ -699,6 +718,33 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         
         result.addTechnologies(technologyParam);
         return true;
+    }
+
+    private Double parseDoubleValue(
+            Row row,
+            int yearColIndex,
+            String combo,
+            ResRowProcessingResult result
+    ) {
+        Object cellVal = getCellValue(row, yearColIndex);
+
+        BigDecimal bd = null;
+
+        if (cellVal instanceof Number num) {
+            bd = BigDecimal.valueOf(num.doubleValue());
+        } else if (cellVal instanceof String str) {
+            try {
+                bd = new BigDecimal(str);
+            } catch (NumberFormatException ignored) {
+                result.invalidCombos().add(combo);
+                return null;
+            }
+        } else {
+            result.invalidCombos().add(combo);
+            return null;
+        }
+
+        return bd.setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     private Number parseNumericValue(
@@ -782,7 +828,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     private TrajectoryEntity buildResTrajectory(String horizon, String areaParam, String technology, Path filePath, TrajectoryType trajectoryType, ResRowProcessingResult result) throws IOException {
-        String checksum = "FR".equals(areaParam) && trajectoryType == TrajectoryType.RES_CAPACITY ? calculateDirectoryChecksum(filePath) : getFileChecksum(filePath.toString());
+        String checksum = calculateChecksum(result.getChecksumBuilder().toString());
         Optional<TrajectoryEntity> existingTrajectory = findExistingTrajectory(filePath, horizon, areaParam, trajectoryType, technology);
         TrajectoryEntity trajectory = buildInstalledResTrajectory(filePath, horizon, areaParam, technology, trajectoryType);
 

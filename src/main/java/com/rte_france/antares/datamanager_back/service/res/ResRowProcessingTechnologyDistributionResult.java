@@ -22,6 +22,11 @@ public record ResRowProcessingTechnologyDistributionResult(
         fileTechnologies.add(technology);
     }
 
+    @Override
+    public StringBuilder getChecksumBuilder() {
+        return checksum;
+    }
+
     public void addEntity(ResTechnologyDistributionEntity entity) {
         entities.add(entity);
     }

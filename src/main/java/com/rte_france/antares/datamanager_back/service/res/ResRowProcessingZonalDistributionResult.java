@@ -22,6 +22,11 @@ public record ResRowProcessingZonalDistributionResult(
         fileTechnologies.add(technology);
     }
 
+    @Override
+    public StringBuilder getChecksumBuilder() {
+        return checksum;
+    }
+
     public void addEntity(ResZonalDistributionEntity entity) {
         entities.add(entity);
     }

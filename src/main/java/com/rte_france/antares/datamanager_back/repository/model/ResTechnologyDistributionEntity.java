@@ -32,7 +32,7 @@ public class ResTechnologyDistributionEntity {
     private String pecdTechnology;
 
     @Column(name = "capacity_by_year")
-    private Integer capacityByYear;
+    private Double capacityByYear;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id")
