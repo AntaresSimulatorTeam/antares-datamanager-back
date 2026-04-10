@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -30,6 +31,7 @@ public class ThermalClusterGenerationDto {
         public interface ParamModulation {}
     }
 
+    @JsonIgnore
     private ThermalCostAssembler.MarginalCostResult.Source marginalCostSource;
 
     public ThermalCostAssembler.MarginalCostResult.Source getMarginalCostSource() {

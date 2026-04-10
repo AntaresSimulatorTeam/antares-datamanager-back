@@ -380,7 +380,7 @@ public class ThermalCostAssembler {
 
         if (marketBid != null) {
             dto.setMarketBidCost(marketBid);
-        } else if (dto.getMarginalCost() != null && dto.getMarginalCostSource().equals(MarginalCostResult.Source.FALLBACK_OM)) {
+        } else if (dto.getMarginalCost() != null && MarginalCostResult.Source.FALLBACK_OM.equals(dto.getMarginalCostSource())) {
             dto.setMarketBidCost(dto.getMarginalCost());
         }
     }
