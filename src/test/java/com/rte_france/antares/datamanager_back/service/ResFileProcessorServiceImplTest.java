@@ -1351,13 +1351,10 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFile(Path tempDir, String fileName, List<String> areas, String technology, boolean isNumericValues) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                wb.createSheet("Sheet0");
-                // Sheet 1 (créé à la fin)
-                Sheet sheet1 = wb.createSheet("Sheet1");
-                wb.setSheetOrder("Sheet1", 1);
+                Sheet sheet0 = wb.createSheet("Sheet0");
 
                 // Créer le header (ligne 0)
-                Row header = sheet1.createRow(0);
+                Row header = sheet0.createRow(0);
                 header.createCell(0).setCellValue("Group");
                 header.createCell(1).setCellValue("Cluster");
                 header.createCell(2).setCellValue("Area");
@@ -1368,7 +1365,7 @@ public class ResFileProcessorServiceImplTest {
                 // Créer une row par area fournie
                 for (int i = 0; i < areas.size(); i++) {
                     String currentArea = areas.get(i);
-                    Row dataRow = sheet1.createRow(i + 1);  // Commence à ligne 1
+                    Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
                     var value = isNumericValues ? (100.0 + (i * 10)) : "truc";
                     dataRow.createCell(0).setCellValue(technology);  
                     dataRow.createCell(1).setCellValue(technology);  
@@ -1390,10 +1387,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFileWithNull(Path tempDir, String fileName, List<String> areas, String technology) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                wb.createSheet("Sheet0");
-                // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
-                wb.setSheetOrder("Sheet1", 1);
 
                 // Créer le header (ligne 0)
                 Row header = sheet1.createRow(0);
@@ -1423,10 +1417,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFileWithoutDataRow(Path tempDir, String fileName) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                wb.createSheet("Sheet0");
-                // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
-                wb.setSheetOrder("Sheet1", 1);
 
                 // Créer le header (ligne 0)
                 Row header = sheet1.createRow(0);
@@ -1445,10 +1436,7 @@ public class ResFileProcessorServiceImplTest {
         private Path createMockResExcelFileWithMissingColumns(Path tempDir, String fileName, List<String> areas, String technology) throws Exception {
             Path file = tempDir.resolve(fileName);
             try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
-                wb.createSheet("Sheet0");
-                // Sheet 1 (créé à la fin)
                 Sheet sheet1 = wb.createSheet("Sheet1");
-                wb.setSheetOrder("Sheet1", 1);
 
                 // Créer le header (ligne 0)
                 Row header = sheet1.createRow(0);

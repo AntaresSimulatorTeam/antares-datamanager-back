@@ -195,7 +195,7 @@ class ResGenerationAssemblerServiceImplTest {
                 .groupe("wind offshore")
                 .pecdZone("FR01")
                 .pecdTechnology("tech_a")
-                .capacityByYear(100)
+                .capacityByYear(100.0)
                 .build();
         TrajectoryEntity resTech = TrajectoryEntity.builder()
                 .type("RES_TECHNOLOGY_DISTRIBUTION")
@@ -274,7 +274,7 @@ class ResGenerationAssemblerServiceImplTest {
                 .groupe("wind offshore")
                 .pecdZone("FR01")
                 .pecdTechnology("tech_a")
-                .capacityByYear(100)
+                .capacityByYear(100.0)
                 .build();
         TrajectoryEntity resTech = TrajectoryEntity.builder()
                 .type("RES_TECHNOLOGY_DISTRIBUTION")
@@ -504,7 +504,7 @@ class ResGenerationAssemblerServiceImplTest {
                         .groupe("wind offshore")
                         .pecdZone("FR01")
                         .pecdTechnology("tech_a")
-                        .capacityByYear(100)
+                        .capacityByYear(100.0)
                         .build()))
                 .build();
         study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
@@ -556,7 +556,7 @@ class ResGenerationAssemblerServiceImplTest {
                         .groupe("wind offshore")
                         .pecdZone("FR02")
                         .pecdTechnology("tech_a")
-                        .capacityByYear(100)
+                        .capacityByYear(100.0)
                         .build()))
                 .build();
         study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
@@ -797,14 +797,14 @@ class ResGenerationAssemblerServiceImplTest {
                                 .groupe("wind offshore")
                                 .pecdZone("FR01")
                                 .pecdTechnology("tech_a")
-                                .capacityByYear(100)
+                                .capacityByYear(100.0)
                                 .build(),
                         ResTechnologyDistributionEntity.builder()
                                 .area("FR")
                                 .groupe("solar pv")
                                 .pecdZone("FR01")
                                 .pecdTechnology("tech_should_be_ignored")
-                                .capacityByYear(100)
+                                .capacityByYear(100.0)
                                 .build()
                 ))
                 .build();
@@ -857,14 +857,14 @@ class ResGenerationAssemblerServiceImplTest {
                                 .groupe("wind offshore")
                                 .pecdZone("FR01")
                                 .pecdTechnology("tech_a")
-                                .capacityByYear(60)
+                                .capacityByYear(60.0)
                                 .build(),
                         ResTechnologyDistributionEntity.builder()
                                 .area("FR")
                                 .groupe("wind offshore")
                                 .pecdZone("FR01")
                                 .pecdTechnology("tech_b")
-                                .capacityByYear(40)
+                                .capacityByYear(40.0)
                                 .build()
                 ))
                 .build();
@@ -917,7 +917,7 @@ class ResGenerationAssemblerServiceImplTest {
                         .groupe("wind offshore")
                         .pecdZone("FR01")
                         .pecdTechnology("tech_a")
-                        .capacityByYear(0)
+                        .capacityByYear((double) 0)
                         .build()))
                 .build();
         study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
