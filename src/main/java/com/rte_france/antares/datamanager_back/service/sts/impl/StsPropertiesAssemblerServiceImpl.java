@@ -60,7 +60,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .collect(Collectors.toSet());
 
 
-        // Collect eligible entities first, then process in parallel (each entity triggers heavy I/O)
+
         List<StStorageEntity> eligibleEntities = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.STS.name().equals(t.getType()))
@@ -122,7 +122,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 )
                 .collect(Collectors.toSet());
 
-        // ConcurrentHashMap + synchronizedList because the file-entry loop runs in parallel
         Map<String, List<String>> result = new ConcurrentHashMap<>();
         allAreas.forEach(area -> result.put(area, Collections.synchronizedList(new ArrayList<>())));
 
@@ -134,7 +133,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
 
         // Each file entry is independent — parallelize to overlap xlsx reads and NAS writes
-        contextsByFile.entrySet().parallelStream().forEach(fileEntry -> {
+        contextsByFile.entrySet().stream().forEach(fileEntry -> {
             Path file = fileEntry.getKey();
             TimeSeriesMatrix matrix = readConstraintsMatrix(file, horizon);
 
