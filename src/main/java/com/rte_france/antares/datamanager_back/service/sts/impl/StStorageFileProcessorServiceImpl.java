@@ -413,7 +413,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         if (!missingFiles.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Missing Additional constraint files {0} for trajectory {1} for EV/{2}")
+                    .message("Missing Additional constraint files {0} for trajectory {1} for {2}")
                     .errorMessageArguments(List.of(
                             String.join(", ", missingFiles),
                             trajectoryFileName,
