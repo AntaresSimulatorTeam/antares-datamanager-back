@@ -798,7 +798,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
         // (startup_fuel (500) * 1/(3.6) * efficiency (0.4) * marginal_cost (30.0) + startup_fix_cost (1000))*nominalCapacity (100)
         // (500 * 1/3.6 * 0.4 * 30.0 + 1000)*100 = 100 * 12 + 1000 = 1200 + 1000 = 22600
-        assertThat(dto.getStartupCost()).isEqualTo(266667);
+        assertThat(dto.getStartupCost()).isEqualTo(266700.0);
     }
 
     @Test
@@ -882,9 +882,12 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // 2. Marginal cost fallback: (fuelCost / efficiency) + (co2Cost * co2) + omCost
         // (40 / 0.5) + (25 * 0.2) + 7.2 = 80 + 5 + 7.2 = 92.2
-        // 3. Startup cost: startup_fuel (500) * 1/3.6 * efficiency (0.5) * marginal_cost (92.2) + startup_fix_cost (1000)
-        // 500 * 3.6 * 0.5 * 92.2 + 1000 = 50 * 92.2 + 1000 = 4610 + 1000 = 83980
-        assertThat(dto.getStartupCost()).isEqualTo(738889);
+        // 3. Startup cost: (startup_fuel * 1/3.6 * efficiency * marginal_cost + startup_fix_cost) * nominalCapacity
+        // (500 * 1/3.6 * 0.5 * 92.2 + 1000) * 100 = (69.44 * 1.3888 + 1000) * 100 -> check rounding
+        // 500 * (1/3.6) * 0.5 * 92.2 = 6402.777...
+        // 6402.777 + 1000 = 7402.777 -> round to 7403
+        // 7403 * 100 = 740300
+        assertThat(dto.getStartupCost()).isEqualTo(740300);
     }
 
     @Test
@@ -976,8 +979,8 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        // market_bid_cost = marginal_cost (100.0) - om_cost (7.2) = 92.8
-        assertThat(dto.getMarketBidCost()).isEqualTo(92.8);
+        // market_bid_cost should be null since marginalCostSource is SPECIFIC_PARAM
+        assertThat(dto.getMarketBidCost()).isNull();
     }
 
     @Test
@@ -1028,7 +1031,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         assertThat(dto.getCo2()).isEqualTo(0.72);
         assertThat(dto.getMarginalCost()).isEqualTo(200);
-        assertThat(dto.getMarketBidCost()).isEqualTo(190); // 200 - 10
+        assertThat(dto.getMarketBidCost()).isNull(); // Because marginalCostSource is SPECIFIC_PARAM
     }
 
     @Test
@@ -1142,10 +1145,10 @@ class ThermalPropertiesAssemblerServiceTest {
         assertFalse(resultMapFinal.isEmpty());
         ThermalClusterGenerationDto dtoFound = resultMapFinal.values().iterator().next();
         assertNotNull(dtoFound);
-        assert(dtoFound.getMarginalCost() == 100.0);
+        assertEquals(100.0, dtoFound.getMarginalCost());
         // om_cost should be 0.0 since common parameters are missing
-        // market_bid_cost = marginal_cost (100.0) - om_cost (0.0) = 100.0
-        assertEquals(100.0, dtoFound.getMarketBidCost());
+        // market_bid_cost is null because marginalCostSource is SPECIFIC_PARAM
+        assertNull(dtoFound.getMarketBidCost());
     }
 
     @Test

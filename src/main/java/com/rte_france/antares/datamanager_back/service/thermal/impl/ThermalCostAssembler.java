@@ -212,18 +212,18 @@ public class ThermalCostAssembler {
 
         ThermalSpecificParametersEntity specificParam = findMatchingSpecificParam(commonParam, specificParams, thermalClusterCapacities);
 
-        Double marginalCost = getMarginalCost(specificParam, thermalCostEntity, fuel, commonParam, dto);
-        if (marginalCost == null) {
-            return;
-        }
-        int marginalCostValue = (int) Math.round(marginalCost);
+        MarginalCostResult result = getMarginalCost(
+                specificParam, thermalCostEntity, fuel, commonParam, dto
+        );
 
-        marginalCostValue = Math.toIntExact(marginalCostValue);
+        Double marginalCost = result.value();
+        MarginalCostResult.Source source = result.source();
+        dto.setMarginalCostSource(source);
+        dto.setMarginalCost(marginalCost);
 
-        updateStartupCost(dto, commonParam, startupFuel, efficiency, marginalCostValue);
-        if (dto.getMarginalCost() == null) {
-            dto.setMarginalCost(marginalCostValue);
-        }
+        updateStartupCost(dto, commonParam, startupFuel, efficiency, marginalCost);
+
+
     }
 
     private ThermalCostEntity findThermalCostForFuel(TrajectoryEntity economicCostTrajectory, String fuel) {
@@ -278,7 +278,7 @@ public class ThermalCostAssembler {
             ThermalCommonParameterEntity commonParam,
             Integer startupFuel,
             Double efficiency,
-            Integer marginalCostValue
+            Double marginalCostValue
     ) {
         if (marginalCostValue == null) {
             return;
@@ -292,33 +292,44 @@ public class ThermalCostAssembler {
             return;
         }
 
-        int startupCostInt = Math.toIntExact(Math.round(
-                (
-                        (startupFuel * (1 / MWH_TO_GJ) * efficiency * marginalCostValue)
-                                + startupFixCost
-                )
-                        * dto.getNominalCapacity()
-        ));
-
-        dto.setStartupCost(startupCostInt);
-
-
+        double startupCost = (startupFuel * (1 / MWH_TO_GJ) * efficiency * marginalCostValue) + startupFixCost;
+        long startupCostInt = Math.round(startupCost);
+        dto.setStartupCost(startupCostInt * dto.getNominalCapacity());
     }
 
-    private Double getMarginalCost(
+    public record MarginalCostResult(Double value, Source source) {
+
+        public enum Source {
+            SPECIFIC_PARAM,
+            FALLBACK_OM
+        }
+    }
+
+    private MarginalCostResult getMarginalCost(
             ThermalSpecificParametersEntity specificParam,
             ThermalCostEntity economicCostTrajectories,
             String fuel,
             ThermalCommonParameterEntity commonParam,
             ThermalClusterGenerationDto dto
-    )
-    {
-        return Optional.ofNullable(specificParam)
-            .map(ThermalSpecificParametersEntity::getMarginalCost)
-            .orElseGet(() -> computeFallbackMarginalCost(economicCostTrajectories, fuel, commonParam, dto));
+    ) {
+        if (specificParam != null && specificParam.getMarginalCost() != null) {
+            return new MarginalCostResult(
+                    specificParam.getMarginalCost(),
+                    MarginalCostResult.Source.SPECIFIC_PARAM
+            );
+        }
+
+        Double marginalCostWithOm = computeFallbackMarginalCostWithOm(
+                economicCostTrajectories, fuel, commonParam, dto
+        );
+
+        return new MarginalCostResult(
+                marginalCostWithOm,
+                MarginalCostResult.Source.FALLBACK_OM
+        );
     }
 
-    private Double computeFallbackMarginalCost(
+    private Double computeFallbackMarginalCostWithOm(
             ThermalCostEntity economicCostTrajectories,
             String fuel,
             ThermalCommonParameterEntity commonParam,
@@ -330,7 +341,8 @@ public class ThermalCostAssembler {
         Double fuelCost = findFuelCost(trajectory, fuel);
         Double co2Cost = findCo2Cost(trajectory);
         Double efficiency = dto.getEfficiency();
-        if (efficiency != null && efficiency > 1.0) efficiency = efficiency / 100.0;
+        if (efficiency != null && efficiency > 1.0)
+            efficiency = efficiency / 100.0;
 
         if (fuelCost != null && co2Cost != null && efficiency != null && efficiency != 0.0) {
             double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
@@ -341,10 +353,19 @@ public class ThermalCostAssembler {
         return null;
     }
 
-    public void computeMarketBidCost(ThermalClusterGenerationDto dto, List<ThermalCommonParameterEntity> commonParams, List<ThermalSpecificParametersEntity> specificParams) {
-        // We assume we should match based on the common parameters technology
+    /**
+     * Computes the market bid cost for a given thermal cluster generation based on the provided parameters.
+     * The method sets the market bid cost in the DTO based on specific parameter matching or uses marginal cost with operation and
+     * maintenance costs (omCost) as a fallback.
+     *
+     * @param dto Object representing the thermal cluster generation data where the computed market bid cost will be set.
+     * @param commonParams List of entities containing common thermal parameters, including information on thermal cluster references.
+     * @param specificParams List of entities containing specific thermal parameters used to derive the market bid cost.
+     */
+    public void computeMarketBidCost(ThermalClusterGenerationDto dto, List<ThermalCommonParameterEntity> commonParams,
+                                     List<ThermalSpecificParametersEntity> specificParams) {
+
         Double marketBid = null;
-        Double omCost = 0.0;
 
         if (!commonParams.isEmpty()) {
             ThermalCommonParameterEntity firstCommon = commonParams.getFirst();
@@ -355,20 +376,12 @@ public class ThermalCostAssembler {
                     .filter(Objects::nonNull)
                     .findFirst()
                     .orElse(null);
-
-            omCost = commonParams.stream()
-                    .filter(c -> firstCommon.getThermalClusterRef() != null && c.getThermalClusterRef() != null
-                            && Objects.equals(c.getThermalClusterRef().getName(), firstCommon.getThermalClusterRef().getName()))
-                    .map(ThermalCommonParameterEntity::getOmCost)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(0.0);
         }
 
         if (marketBid != null) {
-            dto.setMarketBidCost(round(marketBid,3));
-        } else if (dto.getMarginalCost() != null) {
-            dto.setMarketBidCost(round(dto.getMarginalCost() - omCost,3));
+            dto.setMarketBidCost(marketBid);
+        } else if (dto.getMarginalCost() != null && dto.getMarginalCostSource().equals(MarginalCostResult.Source.FALLBACK_OM)) {
+            dto.setMarketBidCost(dto.getMarginalCost());
         }
     }
 

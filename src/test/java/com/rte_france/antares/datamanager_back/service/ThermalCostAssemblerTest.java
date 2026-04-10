@@ -97,7 +97,7 @@ class ThermalCostAssemblerTest {
 
         assertThat(dto.getMarginalCost()).isNotNull();
         //(fuelCost / efficiency) + (co2Cost * co2Value) + omCost;
-        assertThat(dto.getMarginalCost()).isEqualTo(1257);
+        assertThat(dto.getMarginalCost()).isEqualTo(1256.9);
     }
 
     @Test
@@ -143,11 +143,11 @@ class ThermalCostAssemblerTest {
         // startup_fix_cost = 10.0
         // nominalCapacity = 100.0
 
-        assertThat(dto.getStartupCost()).isEqualTo(7944);
+        assertThat(dto.getStartupCost()).isEqualTo(7900);
     }
 
     @Test
-    void rounding_shouldRoundToThreeDecimalPlaces() {
+    void rounding_shouldNoRoundingForStartupCost() {
         // given
         ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder()
                 .efficiency(100.0)
@@ -166,9 +166,7 @@ class ThermalCostAssemblerTest {
         thermalCostAssembler.computeCo2(dto, List.of(commonParam), null);
         assertThat(dto.getCo2()).isEqualTo(0.04); // Correct rounding to 2 decimals
 
-        // 2. Test Marginal Cost rounding (fallback)
-        // Formula: (fuelCost / (efficiency / 100.0)) + (co2Cost * co2) + om_cost
-        // fuelCost = 10.2333, efficiency = 100, co2Cost = 2.0, co2 = 0.037, om_cost = 0.5
+        // 2. Test Marginal Cost (fallback)
         TrajectoryEntity costTrajectory = getTrajectoryEntity();
 
         ThermalCommonParameterEntity commonParam2 = new ThermalCommonParameterEntity();
@@ -184,7 +182,7 @@ class ThermalCostAssemblerTest {
         thermalCostAssembler.computeStartupAndMarginalCost(dto, List.of(commonParam2),
                 List.of(specificParam), List.of(), costTrajectory);
         // Expected marginal cost: 10.2333 / (100/100) + 2.0 * 0.037 + 0.5 = 10.2333 + 0.074 + 0.5 = 10.8073 -> rounded to 10.807
-        assertThat(dto.getMarginalCost()).isEqualTo(11);
+        assertThat(dto.getMarginalCost()).isEqualTo(10.8133);
 
         // 3. Test Startup Cost rounding
         // startup_fuel = 10.0, coefficient =1/3.6, efficiency = 1.0, marginal_cost = 10.807, startup_fix_cost = 20.1, nominalCapacity = 100.0
@@ -201,14 +199,14 @@ class ThermalCostAssemblerTest {
 
         thermalCostAssembler.computeStartupAndMarginalCost(dto, List.of(commonParam2), List.of(specificParam), List.of(), costTrajectory);
         // startupCost = 10 * 1/3.6 * 11+ 20.1 = 415,6*100 =4156
-        assertThat(dto.getStartupCost()).isEqualTo(4156);
+        assertThat(dto.getStartupCost()).isEqualTo(4100);
 
         // 4. Test Market Bid Cost rounding
         // Formula: marginalCost - omCost
         // 10.807 - 0.5678 = 10.2392 -> rounded to 10.239
         commonParam2.setOmCost(0.5678);
         thermalCostAssembler.computeMarketBidCost(dto, List.of(commonParam2), List.of(specificParam));
-        assertThat(dto.getMarketBidCost()).isEqualTo(10.432);
+        assertThat(dto.getMarketBidCost()).isEqualTo(10.8133);
     }
 
     private static @NonNull TrajectoryEntity getTrajectoryEntity() {
@@ -316,7 +314,7 @@ class ThermalCostAssemblerTest {
         // startupFixCost = 100.0 (from commonParam)
         // nominalCapacity = 100.0 (from dto)
         // startupCost = (200.0 * 1/3.6 * 1.0 * 60.0 + 100.0) * 100.0 = 343333
-        assertThat(dto.getStartupCost()).isEqualTo(343333);
+        assertThat(dto.getStartupCost()).isEqualTo(343300.0);
     }
 
     @Test
@@ -462,9 +460,9 @@ class ThermalCostAssemblerTest {
 
         // Then
         assertThat(dto.getCo2()).isEqualTo(1.37);
-        assertThat(dto.getMarginalCost()).isEqualTo(394);
-        assertThat(dto.getStartupCost()).isEqualTo(1470633);
-        assertThat(dto.getMarketBidCost()).isEqualTo(392.4);
+        assertThat(dto.getMarginalCost()).isEqualTo(393.673);
+        assertThat(dto.getStartupCost()).isEqualTo(1470044.8);
+        assertThat(dto.getMarketBidCost()).isEqualTo(393.673);
     }
 
     @Test
