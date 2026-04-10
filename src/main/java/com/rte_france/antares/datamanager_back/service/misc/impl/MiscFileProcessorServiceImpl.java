@@ -174,8 +174,8 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         }
     }
 
-    @Override
-    public TrajectoryEntity processLoadFactorMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws Exception {
+     @Override
+     public TrajectoryEntity processLoadFactorMiscFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws Exception {
         Path trajectoryFilePath = trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.MISC_LOAD);
 
         Map<GroupClusterKey, List<String>> listAreasByGroup = getAreasByGroupClusterByStudyId(studyId, area);
@@ -187,7 +187,12 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             verifyLoadFactorTsFilesWithInstalledPower(horizon, studyId, listAreasByGroup, trajectoryFilePath, area);
         }
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryFilePath, horizon, area);
-        return trajectoryRepository.save(trajectory);
+        TrajectoryEntity saved = trajectoryRepository.save(trajectory);
+        
+        // Validate load factor against installed power trajectories
+        trajectoryService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+        
+        return saved;
 
     }
 

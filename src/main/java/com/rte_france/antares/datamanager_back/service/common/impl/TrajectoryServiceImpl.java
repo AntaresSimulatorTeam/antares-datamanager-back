@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
@@ -95,6 +96,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final ThermalParamModulationService thermalParamModulationService;
 
     private final MiscClusterCapacityRepository miscClusterCapacityRepository;
+
+    private final DefaultConfigService defaultConfigService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -300,7 +303,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .collect(Collectors.toSet());
 
         // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-        if (area != null && !area.isBlank() && !OTHERS_AREA.equals(area) && !fileAreas.contains(area.toUpperCase())) {
+        if (area != null && !area.isBlank() && !OTHER_AREA.equals(area) && !fileAreas.contains(area.toUpperCase())) {
             throw BusinessException.builder()
                     .message("Selected area " + area + " is not present in the 'node' column of THERMAL Specific Param trajectory " + trajectoryName)
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -475,7 +478,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) || (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
+                    .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) ||
+                            (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
@@ -507,7 +511,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> "FR".equals(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
+            case RES_CAPACITY -> isDefaultArea(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
             case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             default -> true;
@@ -910,7 +914,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
         return Files.isDirectory(path) &&
-                (trajectoryType == TrajectoryType.LOAD || trajectoryType == RES_CAPACITY && "FR".equals(area) || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER || trajectoryType == TrajectoryType.MISC_LOAD || trajectoryType == TrajectoryType.RES_LOAD);
+                (trajectoryType == TrajectoryType.LOAD
+                        || trajectoryType == RES_CAPACITY && isDefaultArea(area)
+                        || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
+                        || trajectoryType == TrajectoryType.MISC_LOAD
+                        || trajectoryType == TrajectoryType.RES_LOAD);
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
@@ -953,16 +961,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA -> antaresDataManagerProperties.getAreaDirectory();
             case LINK -> antaresDataManagerProperties.getLinkDirectory();
             case LOAD -> antaresDataManagerProperties.getLoadDirectory();
-            case THERMAL_CAPACITY -> area.equals("FR") ? Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
-                    .resolve(area)
-                    .toString() : Path.of(antaresDataManagerProperties.getThermalCapacityDirectory())
-                    .toString();
-            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER, THERMAL_TECHNICAL_COMMON_PARAMETER ->
-                    antaresDataManagerProperties.getThermalParameterDirectory();
+            case THERMAL_CAPACITY -> getThermalCapacityDirectory(area);
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER,
+                 THERMAL_TECHNICAL_COMMON_PARAMETER -> antaresDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaresDataManagerProperties.getThermalCostDirectory();
             case THERMAL_ECONOMIC_PARAMETER -> antaresDataManagerProperties.getThermalEconomicDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
-                    antaresDataManagerProperties.getThermalModulationParameterDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaresDataManagerProperties.getThermalModulationParameterDirectory();
             case DSR -> antaresDataManagerProperties.getDsrDirectory();
             case DSR_CAPACITY_MODULATION -> antaresDataManagerProperties.getDsrCapacityDirectory();
             case STS ->
@@ -971,15 +975,29 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
             case MISC_CAPACITY -> antaresDataManagerProperties.getMiscCapacityDirectory();
             case MISC_LOAD -> antaresDataManagerProperties.getMiscLoadDirectory();
-            case RES_CAPACITY ->
-                    "FR".equals(area) ? Path.of(antaresDataManagerProperties.getResCapacityDirectory())
-                            .resolve(area)
-                            .toString() : Path.of(antaresDataManagerProperties.getResCapacityDirectory())
-                            .toString();
+            case RES_CAPACITY -> getResCapacityDirectory(area);
             case RES_LOAD -> antaresDataManagerProperties.getResLoadDirectory();
             case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION -> antaresDataManagerProperties.getResDistributionDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
+    }
+
+    private String getResCapacityDirectory(String area) {
+        return isDefaultArea(area) ?
+                Path.of(antaresDataManagerProperties.getResCapacityDirectory()).resolve(area).toString()
+                : Path.of(antaresDataManagerProperties.getResCapacityDirectory()).toString();
+    }
+
+    private boolean isDefaultArea(String area) {
+        return defaultConfigService.fetchAllDefaults()
+                .stream().anyMatch(defaultLoadDTO -> defaultLoadDTO.getName().equals(area));
+    }
+
+    private String getThermalCapacityDirectory(String area) {
+        return isDefaultArea(area) ?
+                Path.of(antaresDataManagerProperties.getThermalCapacityDirectory()).resolve(area).toString()
+                :
+                Path.of(antaresDataManagerProperties.getThermalCapacityDirectory()).toString();
     }
 
 
@@ -1010,145 +1028,70 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         warningRepository.saveAll(warningMessages);
     }
 
+    /**
+     * Validates load factor trajectory on selection.
+     * Checks that for each installed power trajectory (specific area or OTHERS),
+     * there are corresponding load factor trajectories.
+     */
     private void controlesMiscOnSelectLoadFactorTrajectory(Integer studyId, TrajectoryEntity trajectory) throws IOException {
-
-        List<GroupAreaMiscCapacity> capacities = miscClusterCapacityRepository.findByStudyIdAndArea(studyId, trajectory.getArea());
-
-        if (capacities.isEmpty()) {
+        // Get all installed power trajectories for this study
+        List<TrajectoryEntity> installedPowerTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
+        
+        if (installedPowerTrajectories.isEmpty()) {
             return;
         }
-
-        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> capacityMap = buildCapacityAreasMap(capacities);
-
-        List<TrajectoryEntity> loadFactorTrajectories = new ArrayList<>(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId));
 
         // Add the trajectory currently being selected
-        Integer trajectoryId = trajectory.getId();
-        TrajectoryEntity currentTrajectory = trajectoryRepository.findById(trajectoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Trajectory not found: " + trajectoryId));
+        List<TrajectoryEntity> allLoadFactorTrajectories = new ArrayList<>(
+                trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId)
+        );
+        allLoadFactorTrajectories.add(trajectory);
 
-        loadFactorTrajectories.add(currentTrajectory);
-
-        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = buildMergedLoadFactorHeaders(loadFactorTrajectories, capacityMap.keySet());
-
-        validateAreas(capacityMap, loadFactorMap);
+        // Validate each installed power trajectory against available load factors
+        for (TrajectoryEntity installedPowerTraj : installedPowerTrajectories) {
+            validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, allLoadFactorTrajectories, trajectory.getHorizon());
+        }
     }
 
-
+    /**
+     * Validates installed power trajectory on selection.
+     * Checks that for each group/cluster in the installed power trajectory,
+     * there are corresponding load factor trajectories.
+     */
     private void controlesMiscOnSelectInstalledPowerTrajectory(Integer studyId, TrajectoryEntity trajectory) throws IOException {
         List<GroupAreaMiscCapacity> additionalCapacities = miscClusterCapacityRepository.findByTrajectoryId(trajectory.getId());
-
-        controlesMiscInstalledPower(studyId, additionalCapacities, trajectory.getArea());
+        controlesMiscInstalledPower(studyId, additionalCapacities, trajectory.getArea(), trajectory.getHorizon());
     }
 
+    /**
+     * Validates installed power on import.
+     * Checks that for each group/cluster in the installed power trajectory,
+     * there are corresponding load factor trajectories.
+     */
     public void controlesMiscOnImportInstalledPower(Integer studyId, List<MiscClusterCapacityEntity> miscClusterCapacityEntities, String area) throws IOException {
         Set<GroupAreaMiscCapacity> additionalCapacities = mapToGroupAreaMiscCapacity(miscClusterCapacityEntities);
-
-        controlesMiscInstalledPower(studyId, new ArrayList<>(additionalCapacities), area);
+        controlesMiscInstalledPower(studyId, new ArrayList<>(additionalCapacities), area, null);
     }
 
-    private void controlesMiscInstalledPower(Integer studyId, List<GroupAreaMiscCapacity> additionalCapacities, String area) throws IOException {
-
-        List<TrajectoryEntity> loadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
-
-        if (!OTHER_AREA.equalsIgnoreCase(area)) {
-            loadFactorTrajectories = loadFactorTrajectories.stream()
-                    .filter(t -> t.getArea().equalsIgnoreCase(area)
-                            || t.getArea().equalsIgnoreCase(OTHER_AREA))
-                    .collect(Collectors.toList());
+    /**
+     * Validates load factor on import.
+     * Checks that for each group/cluster in the load factor trajectory,
+     * there are corresponding installed power trajectories.
+     */
+    public void controlesMiscOnImportLoadFactor(Integer studyId, String area, String horizon) throws IOException {
+        // Get all installed power trajectories for this study
+        List<TrajectoryEntity> installedPowerTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
+        
+        if (installedPowerTrajectories.isEmpty()) {
+            return; // No installed power trajectories yet, import is free
         }
 
-        if (loadFactorTrajectories.isEmpty()) {
-            return;
-        }
+        // Get all load factor trajectories (we're adding a new one during import)
+        List<TrajectoryEntity> allLoadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
 
-        List<GroupAreaMiscCapacity> capacities = new ArrayList<>(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area));
-
-        capacities.addAll(additionalCapacities);
-
-        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
-
-        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = buildMergedLoadFactorHeaders(loadFactorTrajectories, installedPowerMap.keySet());
-
-        validateAreas(installedPowerMap, loadFactorMap);
-    }
-
-    private static Set<GroupAreaMiscCapacity> mapToGroupAreaMiscCapacity(List<MiscClusterCapacityEntity> miscClusterCapacityEntities) {
-        return miscClusterCapacityEntities.stream().map(capacity ->
-
-                new GroupAreaMiscCapacity() {
-                    public String getGroupe() {
-                        return capacity.getGroupe();
-                    }
-
-                    public String getArea() {
-                        return capacity.getArea();
-                    }
-
-                    public String getCluster() {
-                        return capacity.getCluster();
-                    }
-                }).collect(Collectors.toSet());
-    }
-
-    private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildCapacityAreasMap(List<GroupAreaMiscCapacity> capacities) {
-
-        return capacities.stream()
-                .collect(Collectors.groupingBy(
-                        e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
-                        Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
-                ));
-    }
-
-
-    private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildMergedLoadFactorHeaders(List<TrajectoryEntity> loadFactorTrajectories, Set<MiscFileProcessorServiceImpl.GroupClusterKey> keys) throws IOException {
-
-        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> loadFactorMap = new HashMap<>();
-
-        for (TrajectoryEntity trajectory : loadFactorTrajectories) {
-
-            Path path = buildTrajectoryPath(trajectory.getFileName(), TrajectoryType.MISC_LOAD);
-
-            for (MiscFileProcessorServiceImpl.GroupClusterKey key : keys) {
-
-                List<String> areas = readHeaderAreas(trajectory.getHorizon(), path, key)
-                        .stream()
-                        .map(String::toLowerCase)
-                        .toList();
-
-                if(trajectory.getArea().equals(OTHERS_AREA)) {
-                    loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).addAll(areas);
-                } else if (areas.contains(trajectory.getArea().toLowerCase())) {
-                    loadFactorMap.computeIfAbsent(key, k -> new HashSet<>()).add(trajectory.getArea().toLowerCase());
-
-                }
-            }
-        }
-
-        return loadFactorMap;
-    }
-
-
-    private void validateAreas(Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> expected, Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> actual) {
-
-        for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> entry : expected.entrySet()) {
-            MiscFileProcessorServiceImpl.GroupClusterKey key = entry.getKey();
-
-            Set<String> expectedAreas = entry.getValue();
-            Set<String> actualAreas = actual.getOrDefault(key, Collections.emptySet());
-
-            if (!actualAreas.containsAll(expectedAreas)) {
-
-                List<String> missing = expectedAreas.stream()
-                        .filter(a -> !actualAreas.contains(a))
-                        .toList();
-
-                throw BusinessException.builder()
-                        .message("The load factor trajectory file(s) associated with group {0} and cluster {1} are missing the following areas: {2}")
-                        .errorMessageArguments(List.of(key.groupe(), key.cluster(), missing.toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+        // Validate each installed power trajectory against available load factors (including the one being imported)
+        for (TrajectoryEntity installedPowerTraj : installedPowerTrajectories) {
+            validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, allLoadFactorTrajectories, horizon);
         }
     }
 
@@ -1279,5 +1222,216 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
-    
+    /**
+     * Main validation logic for installed power trajectories.
+     * For each group/cluster in installed power:
+     * - If area != OTHERS: Look for load factor with same area, fallback to OTHERS
+     * - If area = OTHERS: Look for load factor with specific areas and OTHERS
+     * If no load factor found, import/selection is free (no exception thrown)
+     */
+    public void controlesMiscInstalledPower(Integer studyId, List<GroupAreaMiscCapacity> additionalCapacities, String area, String horizon) throws IOException {
+        List<TrajectoryEntity> loadFactorTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
+
+        if (loadFactorTrajectories.isEmpty()) {
+            return; // No load factor trajectories yet, selection is free
+        }
+
+        List<GroupAreaMiscCapacity> capacities = new ArrayList<>(miscClusterCapacityRepository.findByStudyIdAndArea(studyId, area));
+        capacities.addAll(additionalCapacities);
+
+        if (capacities.isEmpty()) {
+            return; // No capacities to validate
+        }
+
+        // Build the installed power map: GroupClusterKey -> Set<Area>
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
+
+        // Validate each group/cluster in installed power against load factor trajectories
+        for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> entry : installedPowerMap.entrySet()) {
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = entry.getKey();
+            Set<String> areasInInstalledPower = entry.getValue();
+
+            validateGroupClusterAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, area, loadFactorTrajectories, horizon);
+        }
+    }
+
+    /**
+     * Validates that for a specific group/cluster in installed power,
+     * corresponding load factors exist.
+     */
+    private void validateGroupClusterAreasAgainstLoadFactors(
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, Set<String> areasInInstalledPower, String installedPowerArea,
+            List<TrajectoryEntity> loadFactorTrajectories, String horizon)
+            throws IOException {
+
+        if (OTHER_AREA.equalsIgnoreCase(installedPowerArea)) {
+            // For OTHERS installed power: check specific areas + OTHERS in load factor
+            validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
+        } else {
+            // For specific area installed power: check same area + fallback to OTHERS
+            validateSpecificAreaInstalledPowerAgainstLoadFactors(groupCluster,installedPowerArea, loadFactorTrajectories, horizon);
+        }
+    }
+
+    /**
+     * Validates specific area installed power against load factors.
+     * For each area in installed power:
+     * 1. Try to find load factor with same area
+     * 2. If not found, try to find load factor with OTHERS
+     * 3. If neither exists, import/selection is free
+     */
+    private void validateSpecificAreaInstalledPowerAgainstLoadFactors(
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster,
+            String installedPowerArea,
+            List<TrajectoryEntity> loadFactorTrajectories,
+            String horizon) throws IOException {
+
+            // Try to find load factor with the same area
+            TrajectoryEntity loadFactorWithArea = findLoadFactorForAreaAndGroup(
+                    loadFactorTrajectories, installedPowerArea, horizon
+            );
+
+            if (loadFactorWithArea != null) {
+                // Found load factor with same area - verify it
+                verifyLoadFactorAreaHeaders(loadFactorWithArea, installedPowerArea, groupCluster, horizon);
+            } else {
+                // No load factor with same area, try OTHERS
+                TrajectoryEntity loadFactorOthers = findLoadFactorForAreaAndGroup(
+                        loadFactorTrajectories, OTHER_AREA, horizon
+                );
+
+                if (loadFactorOthers != null) {
+                    // Found OTHERS load factor - verify it
+                    verifyLoadFactorAreaHeaders(loadFactorOthers, installedPowerArea, groupCluster, horizon);
+                }
+                // If neither exists, import/selection is free
+
+        }
+    }
+
+    /**
+     * Validates OTHERS installed power against load factors.
+     * For each area in installed power:
+     * Check if there's a load factor with that specific area OR the OTHERS load factor
+     */
+    public void validateOthersInstalledPowerAreasAgainstLoadFactors(
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, Set<String> areasInInstalledPower, List<TrajectoryEntity> loadFactorTrajectories, String horizon) throws IOException {
+
+        for (String area : areasInInstalledPower) {
+            // Try to find load factor with the specific area
+            TrajectoryEntity loadFactorWithArea = findLoadFactorForAreaAndGroup(loadFactorTrajectories, area, horizon);
+
+            //check specific load factor trajectory
+            if (loadFactorWithArea != null) {
+                verifyLoadFactorAreaHeaders(loadFactorWithArea, area, groupCluster, horizon);
+            } else {
+                // Try the OTHERS load factor
+                TrajectoryEntity loadFactorOthers = findLoadFactorForAreaAndGroup(
+                        loadFactorTrajectories, OTHER_AREA, horizon
+                );
+
+                if (loadFactorOthers != null) {
+                    verifyLoadFactorAreaHeaders(loadFactorOthers, area, groupCluster, horizon);
+                }
+                // If neither exists, import/selection is free
+            }
+        }
+    }
+
+    /**
+     * Finds a load factor trajectory for a specific area and group/cluster.
+     */
+    private TrajectoryEntity findLoadFactorForAreaAndGroup(
+            List<TrajectoryEntity> loadFactorTrajectories,
+            String area,
+            String horizon) {
+
+        return loadFactorTrajectories.stream()
+                 .filter(t -> t.getArea().equalsIgnoreCase(area))
+                 .filter(t -> t.getHorizon().equals(horizon) || horizon == null)
+                 .findFirst()
+                 .orElse(null);
+     }
+
+     /**
+      * Verifies that a load factor trajectory contains the expected area header.
+      */
+     public void verifyLoadFactorAreaHeaders(TrajectoryEntity loadFactorTrajectory, String expectedArea, MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, String horizon)
+             throws IOException {
+
+         if (horizon == null) {
+             horizon = loadFactorTrajectory.getHorizon();
+         }
+
+         Path loadFactorPath = buildTrajectoryPath(loadFactorTrajectory.getFileName(), TrajectoryType.MISC_LOAD);
+         List<String> headers = MiscFileProcessorServiceImpl.readHeaderAreas(horizon, loadFactorPath, groupCluster);
+
+         if (!headers.contains(expectedArea.toLowerCase())) {
+             throw BusinessException.builder()
+                     .message("Load factor trajectory {0} for area {1} does not contain the expected area {2} for group {3}")
+                     .errorMessageArguments(List.of(
+                             loadFactorTrajectory.getFileName(),
+                             loadFactorTrajectory.getArea(),
+                             expectedArea,
+                             groupCluster.groupe()
+                     ))
+                     .httpStatus(HttpStatus.BAD_REQUEST)
+                     .build();
+         }
+     }
+
+     /**
+      * Validates installed power trajectory for the given installed power trajectory.
+      */
+     public void validateInstalledPowerAgainstLoadFactors(
+             Integer studyId,
+             TrajectoryEntity installedPowerTraj,
+             List<TrajectoryEntity> allLoadFactorTrajectories,
+             String horizon) throws IOException {
+
+         List<GroupAreaMiscCapacity> capacities = miscClusterCapacityRepository.findByTrajectoryId(installedPowerTraj.getId());
+
+         if (capacities.isEmpty()) {
+             return;
+         }
+
+         Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
+
+         for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> entry : installedPowerMap.entrySet()) {
+             MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = entry.getKey();
+             Set<String> areasInInstalledPower = entry.getValue();
+
+             validateGroupClusterAreasAgainstLoadFactors(
+                     groupCluster, areasInInstalledPower, installedPowerTraj.getArea(),
+                     allLoadFactorTrajectories, horizon
+             );
+         }
+     }
+
+     private static Set<GroupAreaMiscCapacity> mapToGroupAreaMiscCapacity(List<MiscClusterCapacityEntity> miscClusterCapacityEntities) {
+         return miscClusterCapacityEntities.stream().map(capacity ->
+
+                 new GroupAreaMiscCapacity() {
+                     public String getGroupe() {
+                         return capacity.getGroupe();
+                     }
+
+                     public String getArea() {
+                         return capacity.getArea();
+                     }
+
+                     public String getCluster() {
+                         return capacity.getCluster();
+                     }
+                 }).collect(Collectors.toSet());
+     }
+
+     private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildCapacityAreasMap(List<GroupAreaMiscCapacity> capacities) {
+
+         return capacities.stream()
+                 .collect(Collectors.groupingBy(
+                         e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
+                         Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
+                 ));
+     }
 }
