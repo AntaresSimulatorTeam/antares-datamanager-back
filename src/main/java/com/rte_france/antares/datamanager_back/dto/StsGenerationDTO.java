@@ -5,7 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -17,10 +20,10 @@ public class StsGenerationDTO {
 
     public static class StsClustersViews {
         public interface Properties {}
-        public interface ConstraintsSeries {}
-        public interface ConstraintsData {}
         public interface Series {}
+        public interface Constraints {}
     }
+
     @JsonView(StsGenerationDTO.StsClustersViews.Properties.class)
     @JsonProperty("enabled")
     private Boolean enabled;
@@ -61,29 +64,11 @@ public class StsGenerationDTO {
     @JsonProperty("series")
     private List<String> stsTsList;
 
-    @JsonView(StsGenerationDTO.StsClustersViews.ConstraintsSeries.class)
-    @JsonProperty("constraints")
-    private List<String> stsConstraintsSeriesList;
+    @JsonView(StsGenerationDTO.StsClustersViews.Constraints.class)
+    @JsonProperty("stsConstraintsSeriesList")
+    private List<String> stsConstraintsSeriesList = new ArrayList<>();
 
-    @JsonView(StsGenerationDTO.StsClustersViews.ConstraintsData.class)
-    @JsonProperty("variable")
-    private String variable;
-
-    @JsonView(StsGenerationDTO.StsClustersViews.ConstraintsData.class)
-    @JsonProperty("operator")
-    private String operator;
-
-    @JsonView(StsGenerationDTO.StsClustersViews.ConstraintsData.class)
-    @JsonProperty("enabled_constraint")
-    private String enabledConstraint;
-
-    @JsonView(StsGenerationDTO.StsClustersViews.ConstraintsData.class)
-    @JsonProperty("hours")
-    private List<List<Integer>> hours;
-
-    @JsonView(StsGenerationDTO.StsClustersViews.ConstraintsData.class)
-    @JsonProperty("name")
-    private List<List<Integer>> name;
-
-
+    @JsonView(StsGenerationDTO.StsClustersViews.Constraints.class)
+    @JsonProperty("constraintParameters")
+    private Map<String, StsConstraintParameterDTO> constraintParameters = new HashMap<>();
 }

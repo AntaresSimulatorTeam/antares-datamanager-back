@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.sts.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -27,8 +28,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -44,9 +43,22 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
     @Override
     public Map<String, StsGenerationDTO> assembleStsProperties(StudyEntity studyEntity) {
+        List<StorageConstraintsContext> contexts = buildStorageConstraintsContext(studyEntity);
 
         Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(studyEntity);
         String horizon = studyEntity.getHorizon();
+
+        Set<String> allAreas = studyEntity.getTrajectories().stream()
+                .filter(Objects::nonNull)
+                .filter(t -> TrajectoryType.STS.name().equals(t.getType()))
+                .flatMap(t -> t.getStStorageEntities().stream()
+                        .filter(Objects::nonNull)
+                        .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
+                        .map(StStorageEntity::getArea)
+                        .filter(Objects::nonNull)
+                )
+                .collect(Collectors.toSet());
+
 
         // Collect eligible entities first, then process in parallel (each entity triggers heavy I/O)
         List<StStorageEntity> eligibleEntities = studyEntity.getTrajectories().stream()
@@ -63,6 +75,21 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 })
                 .toList();
 
+
+        // Pre-compute constraint parameters on the main thread while the Hibernate session is active,
+        Map<Integer, Map<String, StsConstraintParameterDTO>> constraintParamsById =
+                contexts.stream()
+                        .collect(Collectors.toMap(
+                                ctx -> ctx.storage().getId(),
+                                ctx -> {
+                                    Map<String, StsConstraintParameterDTO> paramsMap = mapConstraintParametersFromContext(ctx, allAreas);
+                                    return paramsMap != null ? paramsMap : Collections.emptyMap();  // Replace null with empty map
+                                },
+                                (map1, map2) -> {
+                                    map1.putAll(map2);
+                                    return map1;
+                                }
+                        ));
         // Pre-read all unique xlsx files into a cache so entities sharing the same tsPath
         // the same matrix to Arrow when multiple entities share a tsPath.
         ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache = new ConcurrentHashMap<>();
@@ -76,6 +103,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                             dto.setStsTsList(createMatrixStsTsFilesCached(sts, horizon, matrixCache, bytesCache));
                             dto.setStsConstraintsSeriesList(
                                     constraintsByArea.getOrDefault(sts.getArea(), List.of()));
+                            dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
                             return dto;
                         },
                         (existing, replacement) -> existing
@@ -293,6 +321,39 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         return saved;
     }
 
+    private Map<String, StsConstraintParameterDTO> mapConstraintParameters(
+            List<StConstraintsParameterEntity> params,
+            String area
+    ) {
+        if (params == null || params.isEmpty() || area == null) return null;
+
+        Map<String, StsConstraintParameterDTO> result = new LinkedHashMap<>();
+        String suffix = "_" + area.toLowerCase();
+
+        for (StConstraintsParameterEntity param : params) {
+            String name = param.getName();
+            if (name == null) continue;
+
+            if (!name.toLowerCase().endsWith(suffix)) continue;
+
+            List<List<Integer>> hours = null;
+            if (param.getHours() != null && !param.getHours().isEmpty()) {
+                hours = param.getHours().stream()
+                        .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
+                        .collect(Collectors.toList());
+            }
+
+            result.put(name, StsConstraintParameterDTO.builder()
+                    .variable(param.getVariable())
+                    .operator(param.getOperator())
+                    .enabled(String.valueOf(param.getEnabled()))
+                    .hours(hours)
+                    .build());
+        }
+
+        return result.isEmpty() ? null : result;
+    }
+
     public record StorageConstraintsContext(
             StStorageEntity storage,
             Path file,
@@ -334,6 +395,46 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 })
                 .filter(ctx -> !ctx.parameterNames().isEmpty())
                 .collect(Collectors.toList());
+    }
+    private Map<String, StsConstraintParameterDTO> mapConstraintParametersFromContext(
+            StorageConstraintsContext ctx,
+            Set<String> allAreas
+    ) {
+        List<StConstraintsParameterEntity> params = ctx.storage().getParameters();
+        if (params == null || params.isEmpty()) return null;
+
+        Set<String> targetAreas = "OTHERS".equalsIgnoreCase(ctx.area())
+                ? allAreas
+                : Set.of(ctx.area());
+
+        Map<String, StsConstraintParameterDTO> result = new LinkedHashMap<>();
+
+        for (StConstraintsParameterEntity param : params) {
+            String name = param.getName();
+            if (name == null) continue;
+
+            // use zone field (the explicit area identifier) rather than name suffix
+            if (param.getZone() == null) continue;
+            boolean zoneMatches = targetAreas.stream()
+                    .anyMatch(area -> area.equalsIgnoreCase(param.getZone()));
+            if (!zoneMatches) continue;
+
+            List<List<Integer>> hours = null;
+            if (param.getHours() != null && !param.getHours().isEmpty()) {
+                hours = param.getHours().stream()
+                        .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
+                        .collect(Collectors.toList());
+            }
+
+            result.put(name, StsConstraintParameterDTO.builder()
+                    .variable(param.getVariable())
+                    .operator(param.getOperator())
+                    .enabled(String.valueOf(param.getEnabled()))
+                    .hours(hours)
+                    .build());
+        }
+
+        return result.isEmpty() ? null : result;
     }
 
 

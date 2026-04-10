@@ -1,9 +1,12 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -11,6 +14,8 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.sts.impl.StsPropertiesAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +50,8 @@ class StsPropertiesAssemblerServiceImplTest {
     private NasFileService nasFileService;
     @Mock
     private TimeSeriesWriter timeSeriesWriter;
+    @Mock
+    private TimeSeriesReader timeSeriesReader;
     @TempDir
     Path tempDir;
 
@@ -358,6 +365,236 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
         assertEquals(2, ex.getErrorMessageArguments().size());
         assertEquals(horizon, ex.getErrorMessageArguments().get(0));
+    }
+
+    @Test
+    void assembleStsProperties_ShouldPopulateConstraintParameters() throws Exception {
+        // Given — constraint xlsx file must exist so buildStorageConstraintsContext doesn't skip it
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Files.createFile(stsDir.resolve("Additional-constraints.xlsx"));
+
+        StConstraintsHoursEntity hour1 = StConstraintsHoursEntity.builder()
+                .occurrence(1).startHour(8).endHour(20).build();
+        StConstraintsHoursEntity hour2 = StConstraintsHoursEntity.builder()
+                .occurrence(2).startHour(0).endHour(6).build();
+
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min_ev_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator("greater")
+                .enabled(true)
+                .hours(List.of(hour1, hour2))
+                .build();
+
+        StStorageEntity storage = StStorageEntity.builder()
+                .id(1)
+                .area("FR")
+                .name("ev_FR")
+                .injection(new BigDecimal("100"))
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param))
+                .tsPath(null)
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(storage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        // Mock constraints file processing: return a matrix with one column matching the param name
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(
+                List.of(new TimeSeriesMatrixColumn("daily_min_ev_fr", new double[]{1.0})));
+        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("daily_min_ev_fr.csv"), any()))
+                .thenReturn("daily_min_ev_fr.csv.abc123.arrow");
+
+        // When
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        // Then
+        StsGenerationDTO dto = result.get("FR_ev_FR");
+        assertNotNull(dto.getConstraintParameters());
+        assertEquals(1, dto.getConstraintParameters().size());
+
+        StsConstraintParameterDTO constraintParam = dto.getConstraintParameters().get("daily_min_ev_fr");
+        assertNotNull(constraintParam);
+        assertEquals("injection", constraintParam.getVariable());
+        assertEquals("greater", constraintParam.getOperator());
+        assertEquals("true", constraintParam.getEnabled());
+        assertEquals(List.of(List.of(1, 8, 20), List.of(2, 0, 6)), constraintParam.getHours());
+    }
+
+    @Test
+    void assembleStsProperties_ShouldHaveNullConstraintParametersWhenConstraintsFlagFalse() {
+        // Given — constraintsFlag not set: entity is eligible (non-zero capacity) but has no constraints
+        StStorageEntity storage = StStorageEntity.builder()
+                .id(1)
+                .area("FR")
+                .name("S1")
+                .injection(new BigDecimal("100"))
+                .constraintsFlag(false)
+                .parameters(null)
+                .tsPath(null)
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .stStorageEntities(List.of(storage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        // When
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        // Then
+        assertNull(result.get("FR_S1").getConstraintParameters());
+    }
+
+    @Test
+    void assembleStsProperties_ShouldPopulateConstraintParameters_WhenNameHasNoAreaSuffix() throws Exception {
+        // Reproduces the bug: param name "daily_min" has no "_fr" suffix, but zone="FR" → must still be included
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Files.createFile(stsDir.resolve("Additional-constraints.xlsx"));
+
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min")      // no area suffix — this is the key difference
+                .zone("FR")             // zone is the actual area identifier
+                .variable("injection")
+                .operator("greater")
+                .enabled(true)
+                .hours(List.of(StConstraintsHoursEntity.builder().occurrence(1).startHour(8).endHour(20).build()))
+                .build();
+
+        StStorageEntity storage = StStorageEntity.builder()
+                .id(1)
+                .area("FR")
+                .name("ev_FR")
+                .injection(new BigDecimal("100"))
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param))
+                .tsPath(null)
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(storage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(
+                List.of(new TimeSeriesMatrixColumn("daily_min", new double[]{1.0})));
+        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), any())).thenReturn("daily_min.csv.abc.arrow");
+
+        // When
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        // Then
+        StsGenerationDTO dto = result.get("FR_ev_FR");
+        assertNotNull(dto.getConstraintParameters(), "constraintParameters must not be null even when name has no area suffix");
+        StsConstraintParameterDTO constraintParam = dto.getConstraintParameters().get("daily_min");
+        assertNotNull(constraintParam);
+        assertEquals("injection", constraintParam.getVariable());
+        assertEquals(List.of(List.of(1, 8, 20)), constraintParam.getHours());
+    }
+
+    @Test
+    void assembleStsProperties_ShouldMapMultipleConstraintParameters() throws Exception {
+        // Given
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Files.createFile(stsDir.resolve("Additional-constraints.xlsx"));
+
+        StConstraintsParameterEntity param1 = StConstraintsParameterEntity.builder()
+                .name("daily_min_be")
+                .zone("BE")
+                .variable("injection")
+                .operator("greater")
+                .enabled(true)
+                .hours(List.of(
+                        StConstraintsHoursEntity.builder().occurrence(1).startHour(0).endHour(8).build()
+                ))
+                .build();
+
+        StConstraintsParameterEntity param2 = StConstraintsParameterEntity.builder()
+                .name("night_min_be")
+                .zone("BE")
+                .variable("withdrawal")
+                .operator("less")
+                .enabled(false)
+                .hours(List.of())
+                .build();
+
+        StStorageEntity storage = StStorageEntity.builder()
+                .id(2)
+                .area("BE")
+                .name("bat")
+                .withdrawal(new BigDecimal("50"))
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param1, param2))
+                .tsPath(null)
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("BE")
+                .stStorageEntities(List.of(storage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("daily_min_be", new double[]{1.0}),
+                new TimeSeriesMatrixColumn("night_min_be", new double[]{2.0})
+        ));
+        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("daily_min_be.csv"), any()))
+                .thenReturn("daily_min_be.csv.abc.arrow");
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("night_min_be.csv"), any()))
+                .thenReturn("night_min_be.csv.def.arrow");
+
+        // When
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        // Then
+        Map<String, StsConstraintParameterDTO> params = result.get("BE_bat").getConstraintParameters();
+        assertNotNull(params);
+        assertEquals(2, params.size());
+        assertEquals("injection", params.get("daily_min_be").getVariable());
+        assertEquals("greater", params.get("daily_min_be").getOperator());
+        assertEquals(List.of(List.of(1, 0, 8)), params.get("daily_min_be").getHours());
+        assertEquals("withdrawal", params.get("night_min_be").getVariable());
+        assertEquals("false", params.get("night_min_be").getEnabled());
+        assertNull(params.get("night_min_be").getHours());
     }
 
 
