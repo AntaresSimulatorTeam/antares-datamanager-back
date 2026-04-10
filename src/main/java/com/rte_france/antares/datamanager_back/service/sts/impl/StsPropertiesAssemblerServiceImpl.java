@@ -90,17 +90,13 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                                     return map1;
                                 }
                         ));
-        // Pre-read all unique xlsx files into a cache so entities sharing the same tsPath
-        // the same matrix to Arrow when multiple entities share a tsPath.
-        ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache = new ConcurrentHashMap<>();
-        ConcurrentHashMap<Path, byte[]> bytesCache = new ConcurrentHashMap<>();
 
-        return eligibleEntities.parallelStream()
+        return eligibleEntities.stream()
                 .collect(Collectors.toConcurrentMap(
                         sts -> sts.getArea().toUpperCase() + "_" + sts.getName(),
                         sts -> {
                             StsGenerationDTO dto = StStorageMapper.mapToStsGenerationDTO(sts);
-                            dto.setStsTsList(createMatrixStsTsFilesCached(sts, horizon, matrixCache, bytesCache));
+                            dto.setStsTsList(this.createMatrixStsTsFiles(sts, horizon));
                             dto.setStsConstraintsSeriesList(
                                     constraintsByArea.getOrDefault(sts.getArea(), List.of()));
                             dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
@@ -135,12 +131,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .collect(Collectors.groupingBy(StorageConstraintsContext::file));
 
         String horizon = studyEntity.getHorizon();
-
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
-
-        // Bytes cache keyed on the column name: if the same column appears across multiple contexts
-        // referencing the same file, we serialize it once and reuse the Arrow bytes.
-        ConcurrentHashMap<String, byte[]> constraintsBytesCache = new ConcurrentHashMap<>();
 
         // Each file entry is independent — parallelize to overlap xlsx reads and NAS writes
         contextsByFile.entrySet().parallelStream().forEach(fileEntry -> {
@@ -160,13 +151,10 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         String area = entry.getKey();
                         for (TimeSeriesMatrix singleColMatrix : entry.getValue()) {
                             String colName = singleColMatrix.columns().getFirst().name();
-                            byte[] bytes = constraintsBytesCache.computeIfAbsent(colName, k -> {
-                                try {
-                                    return nasFileService.getWriter().writeToByteArray(singleColMatrix);
-                                } catch (IOException e) {
-                                    throw new UncheckedIOException(e);
-                                }
-                            });
+
+
+                            byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
+
                             String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
                             result.get(area).add(savedFile);
                         }
@@ -257,12 +245,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
     @Override
     public List<String> createMatrixStsTsFiles(StStorageEntity stsEntity, String horizon) {
-        return createMatrixStsTsFilesCached(stsEntity, horizon, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+        return createMatrixStsTsFiles(stsEntity, horizon, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
     }
 
-    private List<String> createMatrixStsTsFilesCached(StStorageEntity stsEntity, String horizon,
-                                                       ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache,
-                                                       ConcurrentHashMap<Path, byte[]> bytesCache) {
+    private List<String> createMatrixStsTsFiles(StStorageEntity stsEntity, String horizon,
+                                                ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache,
+                                                ConcurrentHashMap<Path, byte[]> bytesCache) {
         if (stsEntity == null || stsEntity.getTsPath() == null || stsEntity.getTsPath().isBlank()) {
             return Collections.emptyList();
         }
