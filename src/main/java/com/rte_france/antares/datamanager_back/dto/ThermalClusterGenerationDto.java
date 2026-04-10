@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalCostAssembler;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -27,6 +28,16 @@ public class ThermalClusterGenerationDto {
         public interface Properties {}
         public interface Data {}
         public interface ParamModulation {}
+    }
+
+    private ThermalCostAssembler.MarginalCostResult.Source marginalCostSource;
+
+    public ThermalCostAssembler.MarginalCostResult.Source getMarginalCostSource() {
+        return marginalCostSource;
+    }
+
+    public void setMarginalCostSource(ThermalCostAssembler.MarginalCostResult.Source marginalCostSource) {
+        this.marginalCostSource = marginalCostSource;
     }
 
     @JsonView(ThermalClusterViews.Properties.class)
@@ -87,7 +98,7 @@ public class ThermalClusterGenerationDto {
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("marginal_cost")
-    private Integer marginalCost;
+    private Double marginalCost;
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("spread_cost")
@@ -99,7 +110,7 @@ public class ThermalClusterGenerationDto {
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("startup_cost")
-    private Integer startupCost;
+    private Double startupCost;
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("market_bid_cost")
