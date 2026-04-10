@@ -34,7 +34,6 @@ import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
-import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -53,10 +52,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     protected static final String CLUSTER_COLUMN = "Cluster";
     protected static final String AREA_COLUMN = "Area";
     protected static final String PECD_ZONE_COLUMN = "PECD_Zone";
+    protected static final String TO_USE = "ToUse";
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "ToUse", AREA_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN, "Category"};
+            TO_USE, AREA_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN, "Category"};
     protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
-            "ToUse", AREA_COLUMN, PECD_ZONE_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN};
+            TO_USE, AREA_COLUMN, PECD_ZONE_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN};
     protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
             GROUP_COLUMN, CLUSTER_COLUMN, PECD_ZONE_COLUMN, "Techno_PECD"};
     protected static final String[] REQUIRED_ZONAL_DISTRIBUTION_COLUMNS = {
@@ -549,7 +549,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         if (Boolean.FALSE.equals(toUse)) return;
 
         String area = getStringCell(row, 1);
-        // Lecture des colonnes principales
+
+        // Lecture des colonnes
         String col2 = getStringCell(row, 2);
         String col3 = getStringCell(row, 3);
         String col4 = getStringCell(row, 4);
@@ -557,8 +558,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         String cluster = isOffshoreTechnology ? col4 : col3;
 
         if (!shouldProcessArea(context, result, area, group)) return;
+        
+        Object[] values = isOffshoreTechnology
+                ? new Object[] { toUse, area, col2, group, cluster }
+                : new Object[] { toUse, area, group, cluster, col4 };
 
-        validateEmptyRequiredColumns(context, requiredColumns, toUse, area, col2, group, cluster);
+        validateEmptyRequiredColumns(context, requiredColumns, values);
 
         String combo = LITERAL_STRING.formatted(area, group, cluster);
 
