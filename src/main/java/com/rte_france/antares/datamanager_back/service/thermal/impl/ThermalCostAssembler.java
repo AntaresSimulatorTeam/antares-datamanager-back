@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -11,7 +12,7 @@ import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ThermalCostAssembler {
@@ -218,6 +219,7 @@ public class ThermalCostAssembler {
 
         Double marginalCost = result.value();
         MarginalCostResult.Source source = result.source();
+        log.info("Marginal cost calculation for fuel {} and common param {}: source={}, value={}", fuel, commonParam, source, marginalCost);
         dto.setMarginalCostSource(source);
         dto.setMarginalCost(marginalCost);
 
