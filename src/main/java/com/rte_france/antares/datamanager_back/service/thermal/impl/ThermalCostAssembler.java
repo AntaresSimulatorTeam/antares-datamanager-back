@@ -295,6 +295,7 @@ public class ThermalCostAssembler {
         }
 
         double startupCost = (startupFuel * (1 / MWH_TO_GJ) * efficiency * marginalCostValue) + startupFixCost;
+        log.info("Calculating startup cost for thermal cluster with nominal capacity: {} MWh, startup fuel: {} GJ, efficiency: {}, marginal cost: {}, startup fix cost: {}", dto.getNominalCapacity(), startupFuel, efficiency, marginalCostValue, startupFixCost);
         long startupCostInt = Math.round(startupCost);
         dto.setStartupCost(startupCostInt * dto.getNominalCapacity());
     }
