@@ -910,7 +910,7 @@ public class Utils {
     public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
         boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream()
                 .noneMatch(sa -> fileAreas.stream()
-                        .anyMatch(fa -> fa.equalsIgnoreCase(sa)));
+                        .anyMatch(fa -> fa != null && fa.equalsIgnoreCase(sa)));
 
         if (hasNoAreaOfTrajectoryAreaInFile) {
             String label = getErrorMessageLabelFromType(trajectoryType);
