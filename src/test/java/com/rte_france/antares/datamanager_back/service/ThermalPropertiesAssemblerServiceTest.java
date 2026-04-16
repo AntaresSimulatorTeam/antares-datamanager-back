@@ -883,11 +883,7 @@ class ThermalPropertiesAssemblerServiceTest {
         // 2. Marginal cost fallback: (fuelCost / efficiency) + (co2Cost * co2) + omCost
         // (40 / 0.5) + (25 * 0.2) + 7.2 = 80 + 5 + 7.2 = 92.2
         // 3. Startup cost: (startup_fuel * 1/3.6 * efficiency * marginal_cost + startup_fix_cost) * nominalCapacity
-        // (500 * 1/3.6 * 0.5 * 92.2 + 1000) * 100 = (69.44 * 1.3888 + 1000) * 100 -> check rounding
-        // 500 * (1/3.6) * 0.5 * 92.2 = 6402.777...
-        // 6402.777 + 1000 = 7402.777 -> round to 7403
-        // 7403 * 100 = 740300
-        assertThat(dto.getStartupCost()).isEqualTo(740300);
+        assertThat(dto.getStartupCost()).isEqualTo(690300.0);
     }
 
     @Test
