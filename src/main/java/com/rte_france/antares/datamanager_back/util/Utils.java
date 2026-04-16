@@ -877,7 +877,7 @@ public class Utils {
             case DSR -> "DSR cluster";
             case MISC_CAPACITY -> "MISC";
             case RES_CAPACITY -> "RES Installed power";
-            case RES_TECHNOLOGY_DISTRIBUTION -> "RES Technological repartition";
+            case RES_TECHNOLOGY_DISTRIBUTION -> "Technological repartition";
             case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
             default -> "trajectory";
         };
@@ -1131,11 +1131,11 @@ public class Utils {
         }
     }
 
-    public void validateEmptyRows(boolean allRowsEmpty, TrajectoryType trajectoryType) {
+    public void validateEmptyRows(boolean allRowsEmpty, TrajectoryType trajectoryType, String trajectoryName) {
         if (allRowsEmpty) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
-                    .message("No area found in "+ label +" trajectory")
+                    .message("No area found in "+ label +" trajectory "+ trajectoryName )
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

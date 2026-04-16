@@ -501,7 +501,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             }
         }
 
-        validateEmptyRows(allRowsEmpty, trajectoryType);
+        validateEmptyRows(allRowsEmpty, trajectoryType, context.getTrajectoryToUse());
 
         return result;
     }
@@ -612,7 +612,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         
         // Check if pecd_zone starts with default area
         // Check if groupe is equal to technology
-        if (context.getAreaParam() != null ) {
+        if (context.getAreaParam() != null && area != null) {
             result.addArea(area);
             if (!area.equalsIgnoreCase(context.getAreaParam())) return;
         }
