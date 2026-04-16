@@ -213,17 +213,17 @@ public class ThermalCostAssembler {
 
         ThermalSpecificParametersEntity specificParam = findMatchingSpecificParam(commonParam, specificParams, thermalClusterCapacities);
 
-        MarginalCostResult result = getMarginalCost(
+        MarginalCostResult marginalCostResult = getMarginalCost(
                 specificParam, thermalCostEntity, fuel, commonParam, dto
         );
 
-        Double marginalCost = result.value();
-        MarginalCostResult.Source source = result.source();
+        Double marginalCost = marginalCostResult.value();
+        MarginalCostResult.Source source = marginalCostResult.source();
         log.info("Marginal cost calculation for fuel {} and common param {}: source={}, value={}", fuel, commonParam, source, marginalCost);
         dto.setMarginalCostSource(source);
         dto.setMarginalCost(marginalCost);
 
-        updateStartupCost(dto, commonParam, startupFuel, efficiency, marginalCost);
+        updateStartupCost(dto, commonParam, startupFuel, efficiency, marginalCostResult);
 
 
     }
@@ -280,7 +280,7 @@ public class ThermalCostAssembler {
             ThermalCommonParameterEntity commonParam,
             Integer startupFuel,
             Double efficiency,
-            Double marginalCostValue
+            MarginalCostResult marginalCostValue
     ) {
         if (marginalCostValue == null) {
             return;
@@ -294,10 +294,31 @@ public class ThermalCostAssembler {
             return;
         }
 
-        double startupCost = (startupFuel * (1 / MWH_TO_GJ) * efficiency * marginalCostValue) + startupFixCost;
+
+        double marginalCostAdjustment = getMarginalCostAdjustment(commonParam, marginalCostValue);
+
+        double startupCost = (startupFuel * (1 / MWH_TO_GJ) * efficiency * marginalCostAdjustment) + startupFixCost;
+
+
+        dto.setStartupCost(startupCost);
+
         log.info("Calculating startup cost for thermal cluster with nominal capacity: {} MWh, startup fuel: {} GJ, efficiency: {}, marginal cost: {}, startup fix cost: {}", dto.getNominalCapacity(), startupFuel, efficiency, marginalCostValue, startupFixCost);
         long startupCostInt = Math.round(startupCost);
         dto.setStartupCost(startupCostInt * dto.getNominalCapacity());
+    }
+
+    private static double getMarginalCostAdjustment(ThermalCommonParameterEntity commonParam, MarginalCostResult marginalCostValue) {
+        double marginalCostAdjustment;
+
+        if (marginalCostValue.source() != MarginalCostResult.Source.SPECIFIC_PARAM) {
+            // If not SPECIFIC_PARAM, apply OM cost adjustment
+            double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
+            marginalCostAdjustment = marginalCostValue.value - omCost;
+        } else {
+            // Use the marginal cost value directly for SPECIFIC_PARAM
+            marginalCostAdjustment = marginalCostValue.value;
+        }
+        return marginalCostAdjustment;
     }
 
     public record MarginalCostResult(Double value, Source source) {

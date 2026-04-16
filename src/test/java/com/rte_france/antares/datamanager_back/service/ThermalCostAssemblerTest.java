@@ -198,8 +198,8 @@ class ThermalCostAssemblerTest {
         enerContent.setTrajectory(economicTrajectory);
 
         thermalCostAssembler.computeStartupAndMarginalCost(dto, List.of(commonParam2), List.of(specificParam), List.of(), costTrajectory);
-        // startupCost = 10 * 1/3.6 * 11+ 20.1 = 415,6*100 =4156
-        assertThat(dto.getStartupCost()).isEqualTo(4100);
+
+        assertThat(dto.getStartupCost()).isEqualTo(4000);
 
         // 4. Test Market Bid Cost rounding
         // Formula: marginalCost - omCost
@@ -461,7 +461,7 @@ class ThermalCostAssemblerTest {
         // Then
         assertThat(dto.getCo2()).isEqualTo(1.37);
         assertThat(dto.getMarginalCost()).isEqualTo(393.673);
-        assertThat(dto.getStartupCost()).isEqualTo(1470044.8);
+        assertThat(dto.getStartupCost()).isEqualTo(1466876.6);
         assertThat(dto.getMarketBidCost()).isEqualTo(393.673);
     }
 
