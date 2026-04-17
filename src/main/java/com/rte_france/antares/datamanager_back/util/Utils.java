@@ -12,8 +12,6 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeE
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
-import lombok.RequiredArgsConstructor;
 import com.rte_france.antares.datamanager_back.service.res.ResRowProcessingContext;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -841,22 +839,43 @@ public class Utils {
     public static String calculateDirectoryChecksum(Path directory)
             throws IOException, TechnicalException {
 
-        try (Stream<Path> paths = Files.walk(directory)) {
+        if (directory == null) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: directory path is null")
+                    .build();
+        }
+
+        Path trustedDirectory = directory.toAbsolutePath().normalize();
+        if (!Files.isDirectory(trustedDirectory)) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: directory does not exist or is not a directory")
+                    .build();
+        }
+
+        Path canonicalBaseDirectory = trustedDirectory.toRealPath();
+
+        try (Stream<Path> paths = Files.walk(canonicalBaseDirectory)) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             List<Path> files = paths
                     .filter(Files::isRegularFile)
-                    .sorted(Comparator.comparing(Path::toString)) // ordre stable
+                    .sorted(Comparator.comparing(path -> canonicalBaseDirectory.relativize(path).toString()))
                     .toList();
 
             for (Path file : files) {
+                Path canonicalFile = file.toRealPath();
+                if (!canonicalFile.startsWith(canonicalBaseDirectory)) {
+                    throw TechnicalException.builder()
+                            .message("Error processing file: file path is outside of the allowed directory")
+                            .build();
+                }
 
                 // Hash du chemin relatif (important)
-                Path relativePath = directory.relativize(file);
+                Path relativePath = canonicalBaseDirectory.relativize(canonicalFile);
                 digest.update(relativePath.toString().getBytes());
 
                 // Hash du contenu du fichier
-                try (InputStream is = Files.newInputStream(file)) {
+                try (InputStream is = Files.newInputStream(canonicalFile)) {
                     byte[] buffer = new byte[8192];
                     int bytesRead;
                     while ((bytesRead = is.read(buffer)) != -1) {
