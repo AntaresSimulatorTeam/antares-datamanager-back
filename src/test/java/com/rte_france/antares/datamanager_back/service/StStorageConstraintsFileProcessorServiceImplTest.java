@@ -500,4 +500,113 @@ class StStorageConstraintsFileProcessorServiceImplTest {
         assertThat(result.get(1).getVariable()).isEqualTo("v2");
         assertThat(result.get(1).getHours()).isEmpty();
     }
+
+    @Test
+    void shouldFilterRowsByExactAreaWhenAreaParamIsNotOthers() throws IOException {
+        Path filePath = tempDir.resolve("zone_filter.xlsx");
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet paramSheet = workbook.createSheet("parameters");
+            Row headerP = paramSheet.createRow(0);
+            headerP.createCell(0).setCellValue("name");
+            headerP.createCell(1).setCellValue("zone");
+            headerP.createCell(2).setCellValue("cluster");
+            headerP.createCell(3).setCellValue("variable");
+            headerP.createCell(4).setCellValue("operator");
+            headerP.createCell(5).setCellValue("enabled");
+
+            Row z1 = paramSheet.createRow(1);
+            z1.createCell(0).setCellValue("p_z1");
+            z1.createCell(1).setCellValue("z1");
+            z1.createCell(2).setCellValue("c1");
+            z1.createCell(5).setCellValue(true);
+
+            Row z2 = paramSheet.createRow(2);
+            z2.createCell(0).setCellValue("p_z2");
+            z2.createCell(1).setCellValue("z2");
+            z2.createCell(2).setCellValue("c2");
+            z2.createCell(5).setCellValue(true);
+
+            Sheet hourSheet = workbook.createSheet("hours");
+            Row headerH = hourSheet.createRow(0);
+            headerH.createCell(0).setCellValue("name");
+            headerH.createCell(1).setCellValue("zone");
+            headerH.createCell(2).setCellValue("cluster");
+            headerH.createCell(3).setCellValue("occurrence");
+            headerH.createCell(4).setCellValue("start");
+            headerH.createCell(5).setCellValue("end");
+
+            Row h1 = hourSheet.createRow(1);
+            h1.createCell(0).setCellValue("p_z1");
+            h1.createCell(1).setCellValue("z1");
+            h1.createCell(2).setCellValue("c1");
+            h1.createCell(3).setCellValue(1);
+            h1.createCell(4).setCellValue(2);
+            h1.createCell(5).setCellValue(3);
+
+            Row h2 = hourSheet.createRow(2);
+            h2.createCell(0).setCellValue("p_z2");
+            h2.createCell(1).setCellValue("z2");
+            h2.createCell(2).setCellValue("c2");
+            h2.createCell(3).setCellValue(4);
+            h2.createCell(4).setCellValue(5);
+            h2.createCell(5).setCellValue(6);
+
+            try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
+                workbook.write(fos);
+            }
+        }
+
+        List<StConstraintsParameterEntity> result =
+                service.processConstraintsParametersAnHoursFile(filePath, "z1", List.of("z1", "z2"));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getZone()).isEqualTo("z1");
+        assertThat(result.getFirst().getHours()).hasSize(1);
+    }
+
+    @Test
+    void shouldThrowWhenHoursRowHasBlankMandatoryField() throws IOException {
+        Path filePath = tempDir.resolve("blank_hours_field.xlsx");
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet paramSheet = workbook.createSheet("parameters");
+            Row headerP = paramSheet.createRow(0);
+            headerP.createCell(0).setCellValue("name");
+            headerP.createCell(1).setCellValue("zone");
+            headerP.createCell(2).setCellValue("cluster");
+            headerP.createCell(3).setCellValue("variable");
+            headerP.createCell(4).setCellValue("operator");
+            headerP.createCell(5).setCellValue("enabled");
+
+            Row p = paramSheet.createRow(1);
+            p.createCell(0).setCellValue("p1");
+            p.createCell(1).setCellValue("z1");
+            p.createCell(2).setCellValue("c1");
+            p.createCell(5).setCellValue(true);
+
+            Sheet hourSheet = workbook.createSheet("hours");
+            Row headerH = hourSheet.createRow(0);
+            headerH.createCell(0).setCellValue("name");
+            headerH.createCell(1).setCellValue("zone");
+            headerH.createCell(2).setCellValue("cluster");
+            headerH.createCell(3).setCellValue("occurrence");
+            headerH.createCell(4).setCellValue("start");
+            headerH.createCell(5).setCellValue("end");
+
+            Row invalid = hourSheet.createRow(1);
+            invalid.createCell(0).setCellValue("p1");
+            invalid.createCell(1).setCellValue("z1");
+            invalid.createCell(2).setCellValue(" ");
+            invalid.createCell(3).setCellValue(1);
+            invalid.createCell(4).setCellValue(2);
+            invalid.createCell(5).setCellValue(3);
+
+            try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
+                workbook.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processConstraintsParametersAnHoursFile(filePath, "z1", List.of("z1")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Values name, zone and cluster must not be empty");
+    }
 }

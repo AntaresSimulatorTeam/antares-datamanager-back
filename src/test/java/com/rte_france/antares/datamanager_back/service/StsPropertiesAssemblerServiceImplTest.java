@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
@@ -22,13 +23,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -639,6 +638,118 @@ class StsPropertiesAssemblerServiceImplTest {
 
         assertEquals(2, result.size());
         verify(nasFileService, times(StsTsFile.REQUIRED.size())).readMatrix(any(Path.class), eq(horizon));
+    }
+
+    @Test
+    void readConstraintsMatrix_ShouldRejectNonXlsxFile() {
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "readConstraintsMatrix",
+                        tempDir.resolve("constraints.csv"),
+                        "2030"
+                )
+        );
+
+        assertEquals("Only .xlsx supported", ex.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
+
+    @Test
+    void readConstraintsMatrix_ShouldThrowTechnicalExceptionWhenMatrixIsEmpty() throws Exception {
+        when(timeSeriesReader.readFromXlsx(any(Path.class), anyString()))
+                .thenReturn(new TimeSeriesMatrix(List.of()));
+
+        TechnicalException ex = assertThrows(
+                TechnicalException.class,
+                () -> ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "readConstraintsMatrix",
+                        tempDir.resolve("Additional-constraints.xlsx"),
+                        "2030"
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("Matrix is empty"));
+    }
+
+    @Test
+    void assembleStsProperties_ShouldSkipConstraintContextWhenFileDoesNotExist() {
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StStorageEntity storage = StStorageEntity.builder()
+                .id(11)
+                .area("FR")
+                .name("S1")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("missing/Additional-constraints.xlsx")
+                .parameters(List.of(param))
+                .tsPath(null)
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(storage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        assertNull(result.get("FR_S1").getConstraintParameters());
+        assertTrue(result.get("FR_S1").getStsConstraintsSeriesList().isEmpty());
+    }
+
+    @Test
+    void mapConstraintParametersFromContext_ShouldIgnoreNullNameNullZoneAndMismatchedZone() {
+        StConstraintsParameterEntity nullName = StConstraintsParameterEntity.builder()
+                .name(null)
+                .zone("FR")
+                .build();
+        StConstraintsParameterEntity nullZone = StConstraintsParameterEntity.builder()
+                .name("daily_min")
+                .zone(null)
+                .build();
+        StConstraintsParameterEntity wrongZone = StConstraintsParameterEntity.builder()
+                .name("daily_max")
+                .zone("IT")
+                .build();
+
+        StStorageEntity storage = StStorageEntity.builder()
+                .id(99)
+                .parameters(List.of(nullName, nullZone, wrongZone))
+                .build();
+
+        StsPropertiesAssemblerServiceImpl.StorageConstraintsContext context =
+                new StsPropertiesAssemblerServiceImpl.StorageConstraintsContext(
+                        storage,
+                        tempDir.resolve("Additional-constraints.xlsx"),
+                        Set.of("daily_min", "daily_max"),
+                        "FR"
+                );
+
+        @SuppressWarnings("unchecked")
+        Map<String, StsConstraintParameterDTO> result =
+                (Map<String, StsConstraintParameterDTO>) ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "mapConstraintParametersFromContext",
+                        context,
+                        Set.of("FR")
+                );
+
+        assertNull(result);
     }
 
 
