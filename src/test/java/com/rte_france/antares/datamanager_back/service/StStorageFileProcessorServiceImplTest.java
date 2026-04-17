@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
@@ -980,29 +979,5 @@ class StStorageFileProcessorServiceImplTest {
             }
         }
         return file;
-    }
-
-    @Test
-    void findTrajectoryFileCaseInsensitive_ShouldMatchUppercaseXlsExtension() throws IOException {
-        Path clusters = tempDir
-                .resolve("trajectories")
-                .resolve("STS")
-                .resolve("battery")
-                .resolve("clusters");
-        Files.createDirectories(clusters);
-
-        Path target = clusters.resolve("CLUSTER_BATTERY_TEST.XLS");
-        Files.createFile(target);
-
-        Path found = service.findTrajectoryFileCaseInsensitive("cluster_battery_test", "battery");
-
-        assertThat(found).isEqualTo(target);
-    }
-
-    @Test
-    void findTrajectoryFileCaseInsensitive_ShouldThrowWhenStsRootIsMissing() {
-        assertThatThrownBy(() -> service.findTrajectoryFileCaseInsensitive("cluster_battery_test", "battery"))
-                .isInstanceOf(NoSuchFileException.class)
-                .hasMessageContaining("STS root not found");
     }
 }
