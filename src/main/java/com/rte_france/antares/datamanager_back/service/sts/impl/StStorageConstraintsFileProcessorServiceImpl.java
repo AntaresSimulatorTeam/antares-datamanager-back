@@ -17,7 +17,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -68,6 +70,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
                 StsTsFile.ADDITIONAL_CONSTRAINTS.fileName(),
                 TrajectoryType.STS);
         Predicate<String> zoneFilter = buildZoneFilter(areaParam, studyAreas);
+        Map<String, StConstraintsParameterEntity> parameterIndex = indexParameters(parameters);
 
         for (Row row : hoursSheet) {
             if (row.getRowNum() == 0) continue; // skip header
@@ -76,12 +79,8 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
             Result result = getResult(row, zoneFilter);
             if (result == null) continue;
 
-            // Filter name + zone + cluster
-            StConstraintsParameterEntity param = parameters.stream()
-                    .filter(p -> result.name().equals(p.getName())
-                            && result.zone().equals(p.getZone())
-                            && result.cluster().equals(p.getCluster()))
-                    .findFirst()
+            StConstraintsParameterEntity param = Optional.ofNullable(parameterIndex.get(
+                            buildParameterKey(result.name(), result.zone(), result.cluster())))
                     .orElseThrow(() -> {throw BusinessException.builder().
                     message( "Parameter not found: name={0}, zone={1}, cluster{2}").
                     errorMessageArguments(List.of(result.name(), result.zone(), result.cluster())).build();});
@@ -226,6 +225,19 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private Map<String, StConstraintsParameterEntity> indexParameters(List<StConstraintsParameterEntity> parameters) {
+        Map<String, StConstraintsParameterEntity> index = new LinkedHashMap<>();
+        for (StConstraintsParameterEntity parameter : parameters) {
+            // first match
+            index.putIfAbsent(buildParameterKey(parameter.getName(), parameter.getZone(), parameter.getCluster()), parameter);
+        }
+        return index;
+    }
+
+    private String buildParameterKey(String name, String zone, String cluster) {
+        return String.valueOf(name) + "|" + zone + "|" + cluster;
     }
 
     private Predicate<String> buildZoneFilter(String areaParam, List<String> studyAreas) {
