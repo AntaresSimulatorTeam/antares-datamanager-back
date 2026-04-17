@@ -2,7 +2,9 @@ package com.rte_france.antares.datamanager_back.service.sts;
 
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Set;
 
 public enum StsTsFile {
 
@@ -14,8 +16,8 @@ public enum StsTsFile {
         ADDITIONAL_CONSTRAINTS("Additional-constraints.xlsx");
 
         /** All STS time-series files except {@link #ADDITIONAL_CONSTRAINTS}. */
-        public static final EnumSet<StsTsFile> REQUIRED =
-                EnumSet.complementOf(EnumSet.of(ADDITIONAL_CONSTRAINTS));
+        protected static final Set<StsTsFile> REQUIRED =
+                Collections.unmodifiableSet(EnumSet.complementOf(EnumSet.of(ADDITIONAL_CONSTRAINTS)));
 
         private final String fileName;
 
@@ -31,6 +33,10 @@ public enum StsTsFile {
             return fileName;
         }
 
+        public static Set<StsTsFile> requiredFiles() {
+            return REQUIRED;
+        }
+
          public static String[] allFileNames() {
             return Arrays.stream(values())
                 .filter(e -> e != ADDITIONAL_CONSTRAINTS)
@@ -38,5 +44,4 @@ public enum StsTsFile {
                 .toArray(String[]::new);
             }
     }
-
 

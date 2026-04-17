@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import lombok.RequiredArgsConstructor;
@@ -75,12 +76,14 @@ public class StsToJsonService {
     }
 
     private static final ObjectMapper PROPERTIES_MAPPER = new ObjectMapper()
-            .disable(com.fasterxml.jackson.databind.MapperFeature.DEFAULT_VIEW_INCLUSION)
-            .setConfig(new ObjectMapper().getSerializationConfig().withView(StsGenerationDTO.StsClustersViews.Properties.class));
+            .setConfig(new ObjectMapper().getSerializationConfig()
+                    .without(MapperFeature.DEFAULT_VIEW_INCLUSION)
+                    .withView(StsGenerationDTO.StsClustersViews.Properties.class));
 
     private static final ObjectMapper SERIES_MAPPER = new ObjectMapper()
-            .disable(com.fasterxml.jackson.databind.MapperFeature.DEFAULT_VIEW_INCLUSION)
-            .setConfig(new ObjectMapper().getSerializationConfig().withView(StsGenerationDTO.StsClustersViews.Series.class));
+            .setConfig(new ObjectMapper().getSerializationConfig()
+                    .without(MapperFeature.DEFAULT_VIEW_INCLUSION)
+                    .withView(StsGenerationDTO.StsClustersViews.Series.class));
 
     private static final ObjectMapper CONSTRAINTS_MAPPER = new ObjectMapper()
             .setConfig(new ObjectMapper().getSerializationConfig().withView(StsGenerationDTO.StsClustersViews.Constraints.class));

@@ -81,10 +81,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 contexts.stream()
                         .collect(Collectors.toMap(
                                 ctx -> ctx.storage().getId(),
-                                ctx -> {
-                                    Map<String, StsConstraintParameterDTO> paramsMap = mapConstraintParametersFromContext(ctx, allAreas);
-                                    return paramsMap != null ? paramsMap : Collections.emptyMap();  // Replace null with empty map
-                                },
+                                ctx -> mapConstraintParametersFromContext(ctx, allAreas),
                                 (map1, map2) -> {
                                     map1.putAll(map2);
                                     return map1;
@@ -125,7 +122,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
 
-        // Each file entry is independant - parallelize to overlap xlsx reads and NAS writes
+        // Each file entry is independent and can be processed separately.
         contextsByFile.forEach((file, value) -> {
             TimeSeriesMatrix matrix = readConstraintsMatrix(file, horizon);
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
@@ -153,13 +150,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
                 for (String paramName : allowedLower) {
                     TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
-                    if (singleColMatrix == null) {
-                        continue;
+                    if (singleColMatrix != null) {
+                        String colName = singleColMatrix.columns().getFirst().name();
+                        byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
+                        String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
+                        result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
                     }
-                    String colName = singleColMatrix.columns().getFirst().name();
-                    byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
-                    String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
-                    result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
                 }
             }
         } catch (IOException e) {
@@ -193,25 +189,23 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         for (var column : matrix.columns()) {
             String clusterName = column.name() != null ? column.name().trim() : "";
-            if (clusterName.isEmpty()) {
-                continue;
-            }
-
-            String lower = clusterName.toLowerCase(Locale.ROOT);
-            for (var suffixEntry : suffixToArea.entrySet()) {
-                if (!lower.endsWith(suffixEntry.getKey())) {
-                    continue;
-                }
-                String area = suffixEntry.getValue();
-                index.get(area).putIfAbsent(
+            if (!clusterName.isEmpty()) {
+                String lower = clusterName.toLowerCase(Locale.ROOT);
+                findAreaBySuffix(lower, suffixToArea).ifPresent(area -> index.get(area).putIfAbsent(
                         lower,
                         new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn(clusterName, column.values())))
-                );
-                break;
+                ));
             }
         }
 
         return index;
+    }
+
+    private Optional<String> findAreaBySuffix(String lowerColumnName, Map<String, String> suffixToArea) {
+        return suffixToArea.entrySet().stream()
+                .filter(entry -> lowerColumnName.endsWith(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst();
     }
 
     private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) {
@@ -260,88 +254,70 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
         List<String> saved = new ArrayList<>();
-        for (StsTsFile stsTsFile : StsTsFile.REQUIRED) {
+        for (StsTsFile stsTsFile : StsTsFile.requiredFiles()) {
             Path inputPath = stsTsFile.resolve(tsDir);
-
-            if (!Files.exists(inputPath)) {
-                throw BusinessException.builder()
-                        .message("Required STS series file not found: {0}")
-                        .errorMessageArguments(List.of(inputPath.toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            TimeSeriesMatrix matrix = matrixCache.computeIfAbsent(inputPath, path -> {
-                try {
-                    return nasFileService.readMatrix(path, horizon);
-                } catch (BusinessException e) {
-                    throw e;
-                } catch (Exception e) {
-                    throw BusinessException.builder()
-                            .message(e.getMessage())
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-            });
-
-            try {
-                // Serialize once per unique inputPath; reuse bytes when multiple entities share the same tsPath.
-                byte[] bytes = bytesCache.computeIfAbsent(inputPath, p -> {
-                    try {
-                        return nasFileService.getWriter().writeToByteArray(matrix);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
-                String baseName = inputPath.getFileName().toString();
-                saved.add(nasFileService.saveMatrixBytesToNas(bytes, baseName, outputDir));
-            } catch (UncheckedIOException e) {
-                throw BusinessException.builder()
-                        .message(e.getCause().getMessage())
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            } catch (IOException e) {
-                throw BusinessException.builder()
-                        .message(e.getMessage())
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+            TimeSeriesMatrix matrix = getRequiredSeriesMatrix(inputPath, horizon, matrixCache);
+            saved.add(saveSeriesMatrix(inputPath, matrix, outputDir, bytesCache));
         }
 
         return saved;
     }
 
-    private Map<String, StsConstraintParameterDTO> mapConstraintParameters(
-            List<StConstraintsParameterEntity> params,
-            String area
+    private TimeSeriesMatrix getRequiredSeriesMatrix(
+            Path inputPath,
+            String horizon,
+            ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache
     ) {
-        if (params == null || params.isEmpty() || area == null) return null;
-
-        Map<String, StsConstraintParameterDTO> result = new LinkedHashMap<>();
-        String suffix = "_" + area.toLowerCase();
-
-        for (StConstraintsParameterEntity param : params) {
-            String name = param.getName();
-            if (name == null) continue;
-
-            if (!name.toLowerCase().endsWith(suffix)) continue;
-
-            List<List<Integer>> hours = null;
-            if (param.getHours() != null && !param.getHours().isEmpty()) {
-                hours = param.getHours().stream()
-                        .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
-                        .collect(Collectors.toList());
-            }
-
-            result.put(name, StsConstraintParameterDTO.builder()
-                    .variable(param.getVariable())
-                    .operator(param.getOperator())
-                    .enabled(String.valueOf(param.getEnabled()))
-                    .hours(hours)
-                    .build());
+        if (!Files.exists(inputPath)) {
+            throw BusinessException.builder()
+                    .message("Required STS series file not found: {0}")
+                    .errorMessageArguments(List.of(inputPath.toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
 
-        return result.isEmpty() ? null : result;
+        return matrixCache.computeIfAbsent(inputPath, path -> {
+            try {
+                return nasFileService.readMatrix(path, horizon);
+            } catch (BusinessException e) {
+                throw e;
+            } catch (Exception e) {
+                throw BusinessException.builder()
+                        .message(e.getMessage())
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        });
+    }
+
+    private String saveSeriesMatrix(
+            Path inputPath,
+            TimeSeriesMatrix matrix,
+            String outputDir,
+            ConcurrentHashMap<Path, byte[]> bytesCache
+    ) {
+        try {
+            // Serialize once per unique inputPath; reuse bytes when multiple entities share the same tsPath.
+            byte[] bytes = bytesCache.computeIfAbsent(inputPath, p -> {
+                try {
+                    return nasFileService.getWriter().writeToByteArray(matrix);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+            String baseName = inputPath.getFileName().toString();
+            return nasFileService.saveMatrixBytesToNas(bytes, baseName, outputDir);
+        } catch (UncheckedIOException e) {
+            throw BusinessException.builder()
+                    .message(e.getCause().getMessage())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message(e.getMessage())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     public record StorageConstraintsContext(
@@ -384,14 +360,14 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     return true;
                 })
                 .filter(ctx -> !ctx.parameterNames().isEmpty())
-                .collect(Collectors.toList());
+                .toList();
     }
     private Map<String, StsConstraintParameterDTO> mapConstraintParametersFromContext(
             StorageConstraintsContext ctx,
             Set<String> allAreas
     ) {
         List<StConstraintsParameterEntity> params = ctx.storage().getParameters();
-        if (params == null || params.isEmpty()) return null;
+        if (params == null || params.isEmpty()) return Collections.emptyMap();
 
         Set<String> targetAreasLower = resolveTargetAreas(ctx.area(), allAreas).stream()
                 .map(area -> area.toLowerCase(Locale.ROOT))
@@ -401,28 +377,25 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         for (StConstraintsParameterEntity param : params) {
             String name = param.getName();
-            if (name == null) continue;
+            String zone = param.getZone();
+            if (name != null && zone != null && targetAreasLower.contains(zone.toLowerCase(Locale.ROOT))) {
+                List<List<Integer>> hours = null;
+                if (param.getHours() != null && !param.getHours().isEmpty()) {
+                    hours = param.getHours().stream()
+                            .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
+                            .toList();
+                }
 
-            if (param.getZone() == null) continue;
-            boolean zoneMatches = targetAreasLower.contains(param.getZone().toLowerCase(Locale.ROOT));
-            if (!zoneMatches) continue;
-
-            List<List<Integer>> hours = null;
-            if (param.getHours() != null && !param.getHours().isEmpty()) {
-                hours = param.getHours().stream()
-                        .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
-                        .collect(Collectors.toList());
+                result.put(name, StsConstraintParameterDTO.builder()
+                        .variable(param.getVariable())
+                        .operator(param.getOperator())
+                        .enabled(String.valueOf(param.getEnabled()))
+                        .hours(hours)
+                        .build());
             }
-
-            result.put(name, StsConstraintParameterDTO.builder()
-                    .variable(param.getVariable())
-                    .operator(param.getOperator())
-                    .enabled(String.valueOf(param.getEnabled()))
-                    .hours(hours)
-                    .build());
         }
 
-        return result.isEmpty() ? null : result;
+        return result;
     }
 
 
