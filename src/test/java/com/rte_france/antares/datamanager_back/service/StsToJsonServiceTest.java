@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 class StsToJsonServiceTest {
 
@@ -251,5 +250,39 @@ class StsToJsonServiceTest {
         Map<String, Object> expectedMap = mapper.readValue(expectedJson, Map.class);
 
         assertEquals(expectedMap, resultMap);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void stsMapGenerator_ShouldOmitEmptyConstraintCollections() {
+        StsGenerationDTO dto = StsGenerationDTO.builder()
+                .enabled(true)
+                .constraintParameters(Collections.emptyMap())
+                .stsConstraintsSeriesList(Collections.emptyList())
+                .build();
+
+        Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_S1", dto));
+        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_S1");
+
+        assertNotNull(cluster);
+        assertFalse(cluster.containsKey("constraintParameters"));
+        assertFalse(cluster.containsKey("stsConstraintsSeriesList"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void stsMapGenerator_ShouldKeepNonEmptySeriesWhenParametersAreEmpty() {
+        StsGenerationDTO dto = StsGenerationDTO.builder()
+                .enabled(true)
+                .constraintParameters(Collections.emptyMap())
+                .stsConstraintsSeriesList(List.of("daily_min_fr.csv.arrow"))
+                .build();
+
+        Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_S2", dto));
+        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_S2");
+
+        assertNotNull(cluster);
+        assertFalse(cluster.containsKey("constraintParameters"));
+        assertEquals(List.of("daily_min_fr.csv.arrow"), cluster.get("stsConstraintsSeriesList"));
     }
 }

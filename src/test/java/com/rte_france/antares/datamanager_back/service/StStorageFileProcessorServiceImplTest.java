@@ -980,4 +980,81 @@ class StStorageFileProcessorServiceImplTest {
         }
         return file;
     }
+
+    @Test
+    void shouldPropagateIOExceptionWhenConstraintsParserFails() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String area = "FR";
+        String trajectoryToUse = "cluster_ev_test";
+
+        Path xlsx = createWorkbookWithConstraints(horizon.split("-")[1], area, "cluster1");
+        placeInClusters(xlsx, technology, trajectoryToUse + ".xlsx");
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+        Files.createDirectories(constraintsDir);
+        Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
+        Files.createFile(constraintsDir.resolve("test.xlsx"));
+
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList()))
+                .thenThrow(new IOException("cannot parse constraints"));
+        when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
+
+        IOException ex = assertThrows(
+                IOException.class,
+                () -> service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology)
+        );
+
+        assertThat(ex).hasMessageContaining("cannot parse constraints");
+    }
+
+    @Test
+    void shouldFilterOutExistingAreasWhenAreaParamIsOthers() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String trajectoryToUse = "cluster_ev_test";
+
+        Path xlsx = createWorkbookWithConstraints(horizon.split("-")[1], "FR", "cluster1");
+        placeInClusters(xlsx, technology, trajectoryToUse + ".xlsx");
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+        Files.createDirectories(constraintsDir);
+        Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
+        Files.createFile(constraintsDir.resolve("test.xlsx"));
+
+        StConstraintsParameterEntity frParam = new StConstraintsParameterEntity();
+        frParam.setName("daily_min_fr");
+        frParam.setZone("FR");
+        frParam.setCluster("cluster1");
+
+        StConstraintsParameterEntity beParam = new StConstraintsParameterEntity();
+        beParam.setName("daily_min_be");
+        beParam.setZone("BE");
+        beParam.setCluster("cluster1");
+
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList()))
+                .thenReturn(List.of(frParam, beParam));
+        when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of("FR"));
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(trajectoryToUse, horizon, 1, false, "OTHERS", technology);
+
+        assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        List<StConstraintsParameterEntity> parameters = trajectory.getStStorageEntities().getFirst().getParameters();
+        assertThat(parameters).extracting(StConstraintsParameterEntity::getZone).containsExactly("BE");
+    }
 }

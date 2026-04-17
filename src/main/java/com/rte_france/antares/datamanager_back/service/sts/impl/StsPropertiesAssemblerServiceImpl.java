@@ -125,46 +125,58 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
 
-        // Each file entry is independent — parallelize to overlap xlsx reads and NAS writes
-        contextsByFile.entrySet().stream().forEach(fileEntry -> {
-            Path file = fileEntry.getKey();
+        // Each file entry is independant - parallelize to overlap xlsx reads and NAS writes
+        contextsByFile.forEach((file, value) -> {
             TimeSeriesMatrix matrix = readConstraintsMatrix(file, horizon);
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
 
-            for (StorageConstraintsContext ctx : fileEntry.getValue()) {
-                Set<String> targetAreas = "OTHERS".equalsIgnoreCase(ctx.area())
-                        ? allAreas
-                        : Set.of(ctx.area());
-                Set<String> allowedLower = Optional.ofNullable(ctx.parameterNames())
-                        .orElse(Set.of())
-                        .stream()
-                        .map(name -> name.toLowerCase(Locale.ROOT))
-                        .collect(Collectors.toSet());
-
-                try {
-                    for (String area : targetAreas) {
-                        Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
-                        for (String paramName : allowedLower) {
-                            TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
-                            if (singleColMatrix == null) {
-                                continue;
-                            }
-                            String colName = singleColMatrix.columns().getFirst().name();
-
-
-                            byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
-
-                            String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
-                            result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
-                        }
-                    }
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
+            for (StorageConstraintsContext ctx : value) {
+                writeConstraintsForContext(ctx, allAreas, columnsIndexByArea, outputDir, result);
             }
         });
 
         return result;
+    }
+
+    private void writeConstraintsForContext(
+            StorageConstraintsContext ctx,
+            Set<String> allAreas,
+            Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea,
+            String outputDir,
+            Map<String, List<String>> result
+    ) {
+        Set<String> targetAreas = resolveTargetAreas(ctx.area(), allAreas);
+        Set<String> allowedLower = toLowerCaseSet(ctx.parameterNames());
+
+        try {
+            for (String area : targetAreas) {
+                Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
+                for (String paramName : allowedLower) {
+                    TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
+                    if (singleColMatrix == null) {
+                        continue;
+                    }
+                    String colName = singleColMatrix.columns().getFirst().name();
+                    byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
+                    String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
+                    result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private Set<String> resolveTargetAreas(String contextArea, Set<String> allAreas) {
+        return "OTHERS".equalsIgnoreCase(contextArea) ? allAreas : Set.of(contextArea);
+    }
+
+    private Set<String> toLowerCaseSet(Set<String> values) {
+        return Optional.ofNullable(values)
+                .orElse(Set.of())
+                .stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     }
 
     private Map<String, Map<String, TimeSeriesMatrix>> indexMatrixColumnsByArea(
@@ -381,9 +393,9 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         List<StConstraintsParameterEntity> params = ctx.storage().getParameters();
         if (params == null || params.isEmpty()) return null;
 
-        Set<String> targetAreas = "OTHERS".equalsIgnoreCase(ctx.area())
-                ? allAreas
-                : Set.of(ctx.area());
+        Set<String> targetAreasLower = resolveTargetAreas(ctx.area(), allAreas).stream()
+                .map(area -> area.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
 
         Map<String, StsConstraintParameterDTO> result = new LinkedHashMap<>();
 
@@ -391,10 +403,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             String name = param.getName();
             if (name == null) continue;
 
-            // use zone field (the explicit area identifier) rather than name suffix
             if (param.getZone() == null) continue;
-            boolean zoneMatches = targetAreas.stream()
-                    .anyMatch(area -> area.equalsIgnoreCase(param.getZone()));
+            boolean zoneMatches = targetAreasLower.contains(param.getZone().toLowerCase(Locale.ROOT));
             if (!zoneMatches) continue;
 
             List<List<Integer>> hours = null;
@@ -417,3 +427,4 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
 
 }
+
