@@ -145,7 +145,7 @@ class StsToJsonServiceTest {
         assertTrue(cluster.containsKey("constraintParameters"), "constraintParameters must be at cluster level");
         assertTrue(cluster.containsKey("stsConstraintsSeriesList"), "stsConstraintsSeriesList must be at cluster level");
 
-        // constraintParameters: param object must not be wrapped in {"data": ...}
+        // constraintParameters param object must not be wrapped in {"data": ...}
         Map<String, Object> constraintParameters = asMap(cluster.get("constraintParameters"));
         Map<String, Object> param1 = asMap(constraintParameters.get("param1"));
         assertNotNull(param1, "param1 must exist");
