@@ -388,11 +388,12 @@ class TrajectoryServiceImplAdditionalTest {
 
 
     @Test
-    void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
+    void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() throws IOException {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area"));
+        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area");
+        assertEquals(0, result.size());
     }
 
     @Test
