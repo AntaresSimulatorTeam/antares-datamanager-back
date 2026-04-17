@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private final TrajectoryServiceImpl trajectoryService;
+    private final PathSecurityUtil pathSecurityUtil;
 
     protected static final String GROUP_COLUMN = "Group";
     protected static final String CLUSTER_COLUMN = "Cluster";
@@ -110,32 +112,45 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws IOException {
         Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+        String loadDirectory = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null);
+
+        validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse);
         
-        // Si technology est renseignée : comportement actuel
         if (technology != null && !technology.isBlank()) {
+            validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology);
+            validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology, technology);
+
             Path trajectoryFilePath = basePath
-                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                    .resolve(loadDirectory)
                     .resolve(trajectoryToUse)
                     .resolve(technology).resolve(technology)
                     .normalize();
-
-            // Validate path to prevent directory traversal attacks
-            validatePathSecurity(basePath, trajectoryFilePath, trajectoryToUse);
             
             checkExistingTs(trajectoryFilePath, trajectoryToUse);
             TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
             return trajectoryRepository.save(trajectory);
         } else {
-            // Si technology n'est pas renseignée : vérifier l'existence des 4 technologies
             Path trajectoryFolder = basePath
-                    .resolve(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null))
+                    .resolve(loadDirectory)
                     .resolve(trajectoryToUse);
-            
-            validatePathSecurity(basePath, trajectoryFolder, trajectoryToUse);
+
             checkAllRequiredTechnologiesExist(trajectoryFolder, trajectoryToUse);
-            
+
             TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFolder, horizon, area, null);
             return trajectoryRepository.save(trajectory);
+        }
+    }
+
+    private void validatePathFromTrajectoryRoot(String... pathSegments) {
+        String relativePath = String.join("/", pathSegments);
+        try {
+            pathSecurityUtil.validatePathFromBaseDir(relativePath, AntaresDataManagerProperties::getTrajectoryFilePath);
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message("Invalid trajectory path: {0}")
+                    .errorMessageArguments(List.of(relativePath))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
@@ -249,18 +264,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_ZONAL_DISTRIBUTION);
     }
 
-    private static void validatePathSecurity(Path basePath, Path trajectoryFilePath, String trajectoryToUse) throws IOException {
-
-        if (!basePath.endsWith("/")) {
-            basePath = basePath.resolve("");
-        }
-        if (!trajectoryFilePath.startsWith(basePath)) {
-            throw BusinessException.builder()
-                    .message("Invalid trajectory path: " + trajectoryToUse)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
 
     private static void checkExistingTs(Path trajectoryFilePath, String trajectoryToUse) throws IOException {
         // technologyPath directory must contain at least one ts .csv file

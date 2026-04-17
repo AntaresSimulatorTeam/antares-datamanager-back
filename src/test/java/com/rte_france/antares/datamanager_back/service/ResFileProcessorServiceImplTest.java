@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -29,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -83,6 +85,9 @@ public class ResFileProcessorServiceImplTest {
 
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
+
+    @Mock
+    private PathSecurityUtil pathSecurityUtil;
 
     // ======================================================
     // INSTALLED POWER RES
@@ -1000,6 +1005,28 @@ public class ResFileProcessorServiceImplTest {
                             "../../../etc/passwd", HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
                     ))
                     .isInstanceOf(Exception.class);
+        }
+
+        @Test
+        void processLoadFactorResFileRejectsInvalidTechnologyPathBeforeFilesystemAccess() throws Exception {
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+            doAnswer(invocation -> {
+                String value = invocation.getArgument(0, String.class);
+                if (value.contains("..")) {
+                    throw new IOException("Entry is outside of the allowed directory");
+                }
+                return null;
+            }).when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any(Function.class));
+
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processLoadFactorResFile(
+                            TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, "../../../etc/passwd"
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Invalid trajectory path");
         }
 
         @Test

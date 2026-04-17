@@ -207,6 +207,20 @@ class ResControllerTest {
         }
 
         @Test
+        void uploadLoadFactorResTrajectory_returnsBadRequest_whenTechnologyContainsPathTraversalChars() throws Exception {
+            mockMvc.perform(post("/v1/trajectory/load-factor-res")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("area", "FR")
+                            .param("technology", "../../etc/passwd")
+                            .param("trajectoryToUse", "loadFactorRES_test")
+                            .param("horizon", "2029-2030")
+                            .param("studyId", "1"))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoMoreInteractions(resFileProcessorService);
+        }
+
+        @Test
         void uploadLoadFactorResTrajectory_callsServiceWithCorrectParameters() throws Exception {
             TrajectoryEntity entity = new TrajectoryEntity();
             entity.setId(789);
