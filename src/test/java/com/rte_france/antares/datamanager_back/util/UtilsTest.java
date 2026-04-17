@@ -1571,4 +1571,59 @@ class UtilsTest {
             assertThat(result).isEqualTo(4);
         }
     }
+
+    @Test
+    void calculateDirectoryChecksum_returnsSameChecksumForSameContentRegardlessOfCreationOrder(@TempDir Path testDir) throws IOException {
+        Path dirA = testDir.resolve("a");
+        Path dirB = testDir.resolve("b");
+        Files.createDirectories(dirA);
+        Files.createDirectories(dirB);
+
+        Files.writeString(dirA.resolve("z.csv"), "alpha");
+        Files.writeString(dirA.resolve("a.csv"), "beta");
+
+        Files.writeString(dirB.resolve("a.csv"), "beta");
+        Files.writeString(dirB.resolve("z.csv"), "alpha");
+
+        String checksumA = Utils.calculateDirectoryChecksum(dirA);
+        String checksumB = Utils.calculateDirectoryChecksum(dirB);
+
+        assertEquals(checksumA, checksumB);
+    }
+
+    @Test
+    void calculateDirectoryChecksum_throwsTechnicalExceptionWhenDirectoryIsNull() {
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksum(null))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory path is null");
+    }
+
+    @Test
+    void calculateDirectoryChecksum_throwsTechnicalExceptionWhenPathIsNotDirectory(@TempDir Path testDir) throws IOException {
+        Path filePath = testDir.resolve("not_a_directory.txt");
+        Files.writeString(filePath, "content");
+
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksum(filePath))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory does not exist or is not a directory");
+    }
+
+    @Test
+    void calculateDirectoryChecksum_throwsTechnicalExceptionWhenFileResolvesOutsideBaseDirectory(@TempDir Path testDir) throws IOException {
+        Path baseDir = testDir.resolve("base");
+        Path outsideFile = testDir.resolve("outside.txt");
+        Files.createDirectories(baseDir);
+        Files.writeString(outsideFile, "outside");
+
+        Path linkPath = baseDir.resolve("escape.txt");
+        try {
+            Files.createSymbolicLink(linkPath, outsideFile);
+        } catch (UnsupportedOperationException | SecurityException e) {
+            return;
+        }
+
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksum(baseDir))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("outside of the allowed directory");
+    }
 }
