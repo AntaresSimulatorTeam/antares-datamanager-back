@@ -612,9 +612,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         
         // Check if pecd_zone starts with default area
         // Check if groupe is equal to technology
-        if (context.getAreaParam() != null && area != null) {
+        if (context.getAreaParam() != null) {
             result.addArea(area);
-            if (!area.equalsIgnoreCase(context.getAreaParam())) return;
+            if ( area == null || !area.equalsIgnoreCase(context.getAreaParam())) return;
         }
         
         if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
