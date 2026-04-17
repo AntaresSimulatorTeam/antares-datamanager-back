@@ -75,19 +75,34 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
         for (Row row : hoursSheet) {
             if (row.getRowNum() == 0) continue; // skip header
             if (isRowEmpty(row)) break;
-
-            Result result = getResult(row, zoneFilter);
-            if (result == null) continue;
-
-            StConstraintsParameterEntity param = Optional.ofNullable(parameterIndex.get(
-                            buildParameterKey(result.name(), result.zone(), result.cluster())))
-                    .orElseThrow(() -> {throw BusinessException.builder().
-                    message( "Parameter not found: name={0}, zone={1}, cluster{2}").
-                    errorMessageArguments(List.of(result.name(), result.zone(), result.cluster())).build();});
-
-            StConstraintsHoursEntity hour = getStConstraintsHoursEntity(row, param);
-            param.getHours().add(hour);
+            processHoursRow(row, zoneFilter, parameterIndex);
         }
+    }
+
+    private void processHoursRow(
+            Row row,
+            Predicate<String> zoneFilter,
+            Map<String, StConstraintsParameterEntity> parameterIndex
+    ) {
+        Result result = getResult(row, zoneFilter);
+        if (result == null) {
+            return;
+        }
+
+        StConstraintsParameterEntity param = resolveIndexedParameter(parameterIndex, result);
+        StConstraintsHoursEntity hour = getStConstraintsHoursEntity(row, param);
+        param.getHours().add(hour);
+    }
+
+    private StConstraintsParameterEntity resolveIndexedParameter(
+            Map<String, StConstraintsParameterEntity> parameterIndex,
+            Result result
+    ) {
+        return Optional.ofNullable(parameterIndex.get(buildParameterKey(result.name(), result.zone(), result.cluster())))
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Parameter not found: name={0}, zone={1}, cluster{2}")
+                        .errorMessageArguments(List.of(result.name(), result.zone(), result.cluster()))
+                        .build());
     }
 
     private @Nullable Result getResult(Row row, Predicate<String> zoneFilter) {
@@ -104,8 +119,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
                     .message("Values name, zone and cluster must not be empty in STS Additional Constraint")
                     .build();
         }
-        Result result = new Result(name, zone, cluster);
-        return result;
+        return new Result(name, zone, cluster);
     }
 
     private record Result(String name, String zone, String cluster) {

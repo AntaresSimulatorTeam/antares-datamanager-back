@@ -198,4 +198,78 @@ class NasFileServiceTest {
   void readMatrix_nullInputPath_throwsNullPointerException() {
     assertThrows(NullPointerException.class, () -> nasFileService.readMatrix(null, null));
   }
+
+  @Test
+  void saveFile_absoluteOutputDirectory_throwsTechnicalException() {
+    TechnicalException ex = assertThrows(
+            TechnicalException.class,
+            () -> nasFileService.saveFile("valid.txt", "data".getBytes(), tempDir.toAbsolutePath().toString())
+    );
+
+    assertTrue(ex.getMessage().contains("Output directory must be a relative path"));
+  }
+
+  @Test
+  void saveMatrixToNas_fromPathTxt_savesSerializedMatrix() throws Exception {
+    Path input = tempDir.resolve("input.txt");
+    Files.writeString(input, "x");
+    when(timeSeriesReader.readFromTxt(input)).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null);
+
+    assertNotNull(savedName);
+    assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
+    verify(timeSeriesReader).readFromTxt(input);
+  }
+
+  @Test
+  void saveMatrixToNas_fromPathUnsupported_throwsTechnicalException() throws Exception {
+    Path input = tempDir.resolve("input.json");
+    Files.writeString(input, "{}");
+
+    TechnicalException ex = assertThrows(
+            TechnicalException.class,
+            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null)
+    );
+
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+  }
+
+  @Test
+  void saveMatrixToNas_whenReaderFails_wrapsTechnicalException() throws Exception {
+    Path input = tempDir.resolve("input.xlsx");
+    Files.writeString(input, "dummy");
+    when(timeSeriesReader.readFromXlsx(input, "2030")).thenThrow(new IOException("broken xlsx"));
+
+    TechnicalException ex = assertThrows(
+            TechnicalException.class,
+            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, "2030")
+    );
+
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+  }
+
+  @Test
+  void saveMatrixBytesToNas_shouldCreateArrowFile() throws Exception {
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixBytesToNas("raw".getBytes(), "constraints.csv", OUTPUT_DIRECTORY);
+
+    assertTrue(savedName.startsWith("constraints.csv."));
+    assertTrue(savedName.endsWith(".arrow"));
+    assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
+  }
+
+  @Test
+  void readMatrix_whenReaderThrowsRuntime_wrapsTechnicalException() throws Exception {
+    Path txtFile = tempDir.resolve("series.csv");
+    Files.writeString(txtFile, "col\n1\n");
+    when(timeSeriesReader.readFromTxt(txtFile)).thenThrow(new IllegalStateException("reader failed"));
+
+    TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null));
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+  }
 }
+

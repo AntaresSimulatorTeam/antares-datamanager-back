@@ -752,5 +752,79 @@ class StsPropertiesAssemblerServiceImplTest {
         assertNull(result);
     }
 
+    @Test
+    void assembleStsProperties_ShouldReadConstraintsWorkbookOnceWhenContextsShareSameFile() throws Exception {
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Path constraintsFile = stsDir.resolve("Additional-constraints.xlsx");
+        Files.createFile(constraintsFile);
 
+        StConstraintsParameterEntity frParam = StConstraintsParameterEntity.builder()
+                .name("daily_min_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+        StConstraintsParameterEntity beParam = StConstraintsParameterEntity.builder()
+                .name("daily_min_be")
+                .zone("BE")
+                .variable("withdrawal")
+                .operator("<")
+                .enabled(true)
+                .build();
+
+        StStorageEntity frStorage = StStorageEntity.builder()
+                .id(21)
+                .area("FR")
+                .name("S_FR")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(frParam))
+                .build();
+
+        StStorageEntity beStorage = StStorageEntity.builder()
+                .id(22)
+                .area("BE")
+                .name("S_BE")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(beParam))
+                .build();
+
+        TrajectoryEntity frTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(frStorage))
+                .build();
+        TrajectoryEntity beTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("BE")
+                .stStorageEntities(List.of(beStorage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(frTrajectory, beTrajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("daily_min_fr", new double[]{1.0}),
+                new TimeSeriesMatrixColumn("daily_min_be", new double[]{2.0})
+        ));
+
+        when(timeSeriesReader.readFromXlsx(eq(constraintsFile), eq("2029-2030"))).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        assertEquals(2, result.size());
+        verify(timeSeriesReader, times(1)).readFromXlsx(eq(constraintsFile), eq("2029-2030"));
+        verify(nasFileService, times(2)).saveMatrixBytesToNas(any(), any(), eq("/output"));
+    }
 }
