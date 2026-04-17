@@ -440,4 +440,64 @@ class StStorageConstraintsFileProcessorServiceImplTest {
         assertThat(ex.getMessage()).isEqualTo("Values for node {0} / cluster {1} are not numeric in STS Additional Constraint {2}");
         assertThat(ex.getErrorMessageArguments()).containsExactly("z1", "c1", "occurrence");
     }
+
+    @Test
+    void shouldKeepFirstParameterWhenDuplicateKeyExists() throws IOException {
+        Path filePath = tempDir.resolve("duplicate_key.xlsx");
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet paramSheet = workbook.createSheet("parameters");
+            Row headerP = paramSheet.createRow(0);
+            headerP.createCell(0).setCellValue("name");
+            headerP.createCell(1).setCellValue("zone");
+            headerP.createCell(2).setCellValue("cluster");
+            headerP.createCell(3).setCellValue("variable");
+            headerP.createCell(4).setCellValue("operator");
+            headerP.createCell(5).setCellValue("enabled");
+
+            Row first = paramSheet.createRow(1);
+            first.createCell(0).setCellValue("p1");
+            first.createCell(1).setCellValue("z1");
+            first.createCell(2).setCellValue("c1");
+            first.createCell(3).setCellValue("v1");
+            first.createCell(4).setCellValue("=");
+            first.createCell(5).setCellValue(true);
+
+            Row duplicate = paramSheet.createRow(2);
+            duplicate.createCell(0).setCellValue("p1");
+            duplicate.createCell(1).setCellValue("z1");
+            duplicate.createCell(2).setCellValue("c1");
+            duplicate.createCell(3).setCellValue("v2");
+            duplicate.createCell(4).setCellValue("<");
+            duplicate.createCell(5).setCellValue(false);
+
+            Sheet hourSheet = workbook.createSheet("hours");
+            Row headerH = hourSheet.createRow(0);
+            headerH.createCell(0).setCellValue("name");
+            headerH.createCell(1).setCellValue("zone");
+            headerH.createCell(2).setCellValue("cluster");
+            headerH.createCell(3).setCellValue("occurrence");
+            headerH.createCell(4).setCellValue("start");
+            headerH.createCell(5).setCellValue("end");
+
+            Row rowH = hourSheet.createRow(1);
+            rowH.createCell(0).setCellValue("p1");
+            rowH.createCell(1).setCellValue("z1");
+            rowH.createCell(2).setCellValue("c1");
+            rowH.createCell(3).setCellValue(1);
+            rowH.createCell(4).setCellValue(2);
+            rowH.createCell(5).setCellValue(3);
+
+            try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
+                workbook.write(fos);
+            }
+        }
+
+        List<StConstraintsParameterEntity> result = service.processConstraintsParametersAnHoursFile(filePath, "OTHERS", List.of("z1"));
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getVariable()).isEqualTo("v1");
+        assertThat(result.get(0).getHours()).hasSize(1);
+        assertThat(result.get(1).getVariable()).isEqualTo("v2");
+        assertThat(result.get(1).getHours()).isEmpty();
+    }
 }

@@ -45,9 +45,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     public Map<String, StsGenerationDTO> assembleStsProperties(StudyEntity studyEntity) {
         List<StorageConstraintsContext> contexts = buildStorageConstraintsContext(studyEntity);
 
-        Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(studyEntity);
-        String horizon = studyEntity.getHorizon();
-
         Set<String> allAreas = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.STS.name().equals(t.getType()))
@@ -58,6 +55,9 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .filter(Objects::nonNull)
                 )
                 .collect(Collectors.toSet());
+
+        Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(contexts, allAreas, studyEntity.getHorizon());
+        String horizon = studyEntity.getHorizon();
 
 
 
@@ -91,12 +91,15 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                                 }
                         ));
 
+        ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Path, byte[]> bytesCache = new ConcurrentHashMap<>();
+
         return eligibleEntities.stream()
                 .collect(Collectors.toConcurrentMap(
                         sts -> sts.getArea().toUpperCase() + "_" + sts.getName(),
                         sts -> {
                             StsGenerationDTO dto = StStorageMapper.mapToStsGenerationDTO(sts);
-                            dto.setStsTsList(this.createMatrixStsTsFiles(sts, horizon));
+                            dto.setStsTsList(this.createMatrixStsTsFiles(sts, horizon, matrixCache, bytesCache));
                             dto.setStsConstraintsSeriesList(
                                     constraintsByArea.getOrDefault(sts.getArea(), List.of()));
                             dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
@@ -107,20 +110,11 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     }
 
 
-    private Map<String, List<String>> createConstraintsTsFiles(StudyEntity studyEntity) {
-
-        List<StorageConstraintsContext> contexts = buildStorageConstraintsContext(studyEntity);
-
-        Set<String> allAreas = studyEntity.getTrajectories().stream()
-                .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.STS.name().equals(t.getType()))
-                .flatMap(t -> t.getStStorageEntities().stream()
-                        .filter(Objects::nonNull)
-                        .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
-                        .map(StStorageEntity::getArea)
-                        .filter(Objects::nonNull)
-                )
-                .collect(Collectors.toSet());
+    private Map<String, List<String>> createConstraintsTsFiles(
+            List<StorageConstraintsContext> contexts,
+            Set<String> allAreas,
+            String horizon
+    ) {
 
         Map<String, List<String>> result = new ConcurrentHashMap<>();
         allAreas.forEach(area -> result.put(area, Collections.synchronizedList(new ArrayList<>())));
@@ -129,33 +123,39 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         Map<Path, List<StorageConstraintsContext>> contextsByFile = contexts.stream()
                 .collect(Collectors.groupingBy(StorageConstraintsContext::file));
 
-        String horizon = studyEntity.getHorizon();
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
 
         // Each file entry is independent — parallelize to overlap xlsx reads and NAS writes
         contextsByFile.entrySet().stream().forEach(fileEntry -> {
             Path file = fileEntry.getKey();
             TimeSeriesMatrix matrix = readConstraintsMatrix(file, horizon);
+            Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
 
             for (StorageConstraintsContext ctx : fileEntry.getValue()) {
                 Set<String> targetAreas = "OTHERS".equalsIgnoreCase(ctx.area())
                         ? allAreas
                         : Set.of(ctx.area());
+                Set<String> allowedLower = Optional.ofNullable(ctx.parameterNames())
+                        .orElse(Set.of())
+                        .stream()
+                        .map(name -> name.toLowerCase(Locale.ROOT))
+                        .collect(Collectors.toSet());
 
                 try {
-                    Map<String, List<TimeSeriesMatrix>> splitByArea = splitMatrixColumnsByArea(
-                            matrix, ctx.parameterNames(), targetAreas);
-
-                    for (var entry : splitByArea.entrySet()) {
-                        String area = entry.getKey();
-                        for (TimeSeriesMatrix singleColMatrix : entry.getValue()) {
+                    for (String area : targetAreas) {
+                        Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
+                        for (String paramName : allowedLower) {
+                            TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
+                            if (singleColMatrix == null) {
+                                continue;
+                            }
                             String colName = singleColMatrix.columns().getFirst().name();
 
 
                             byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
 
                             String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
-                            result.get(area).add(savedFile);
+                            result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
                         }
                     }
                 } catch (IOException e) {
@@ -165,6 +165,41 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         });
 
         return result;
+    }
+
+    private Map<String, Map<String, TimeSeriesMatrix>> indexMatrixColumnsByArea(
+            TimeSeriesMatrix matrix,
+            Set<String> allAreas
+    ) {
+        Map<String, Map<String, TimeSeriesMatrix>> index = new HashMap<>();
+        allAreas.forEach(area -> index.put(area, new HashMap<>()));
+
+        Map<String, String> suffixToArea = new HashMap<>();
+        for (String area : allAreas) {
+            suffixToArea.put("_" + area.toLowerCase(Locale.ROOT), area);
+        }
+
+        for (var column : matrix.columns()) {
+            String clusterName = column.name() != null ? column.name().trim() : "";
+            if (clusterName.isEmpty()) {
+                continue;
+            }
+
+            String lower = clusterName.toLowerCase(Locale.ROOT);
+            for (var suffixEntry : suffixToArea.entrySet()) {
+                if (!lower.endsWith(suffixEntry.getKey())) {
+                    continue;
+                }
+                String area = suffixEntry.getValue();
+                index.get(area).putIfAbsent(
+                        lower,
+                        new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn(clusterName, column.values())))
+                );
+                break;
+            }
+        }
+
+        return index;
     }
 
     private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) {
@@ -190,50 +225,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         }
     }
 
-    private Map<String, List<TimeSeriesMatrix>> splitMatrixColumnsByArea(
-            TimeSeriesMatrix matrix,
-            Set<String> paramNames,
-            Set<String> targetAreas
-    ) {
-
-        Map<String, List<TimeSeriesMatrix>> result = new HashMap<>();
-        targetAreas.forEach(a -> result.put(a, new ArrayList<>()));
-
-        // Pre-compute lowercase area suffixes to avoid repeated toLowerCase() in inner loop
-        Map<String, String> suffixToArea = new HashMap<>();
-        for (String area : targetAreas) {
-            suffixToArea.put("_" + area.toLowerCase(), area);
-        }
-
-        // Pre-compute lowercase param names for matching
-        Set<String> allowedLower = paramNames != null
-                ? paramNames.stream().map(String::toLowerCase).collect(Collectors.toSet())
-                : Set.of();
-
-        for (var column : matrix.columns()) {
-
-            String clusterName = column.name() != null ? column.name().trim() : "";
-            if (clusterName.isEmpty()) continue;
-
-            String lower = clusterName.toLowerCase();
-
-            // Check if this column is allowed by param names
-            if (!allowedLower.contains(lower)) continue;
-
-            for (var suffixEntry : suffixToArea.entrySet()) {
-
-                if (!lower.endsWith(suffixEntry.getKey())) continue;
-                String area = suffixEntry.getValue();
-
-                TimeSeriesMatrix singleColMatrix = new TimeSeriesMatrix(
-                        List.of(new TimeSeriesMatrixColumn(clusterName, column.values()))
-                );
-                result.get(area).add(singleColMatrix);
-            }
-        }
-
-        return result;
-    }
 
     private Path buildStsConstraintsBasePath() {
         return Path.of(antaresDataManagerProperties.getNasDirectory())

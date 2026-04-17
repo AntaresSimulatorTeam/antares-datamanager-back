@@ -578,7 +578,7 @@ class StsPropertiesAssemblerServiceImplTest {
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
         when(nasFileService.saveMatrixBytesToNas(any(), eq("daily_min_be.csv"), any()))
-                .thenReturn("daily_min_be.csv.abc.arrow");
+                .thenReturn("daKeep first-match semantics (equivalent to previous stream().findFirst()).ily_min_be.csv.abc.arrow");
         when(nasFileService.saveMatrixBytesToNas(any(), eq("night_min_be.csv"), any()))
                 .thenReturn("night_min_be.csv.def.arrow");
 
@@ -595,6 +595,50 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals("withdrawal", params.get("night_min_be").getVariable());
         assertEquals("false", params.get("night_min_be").getEnabled());
         assertNull(params.get("night_min_be").getHours());
+    }
+
+    @Test
+    void assembleStsProperties_ShouldReadSeriesFilesOnceForSharedTsPathAcrossEntities() throws Exception {
+        Path sharedTsDir = tempDir.resolve("shared-ts");
+        Files.createDirectories(sharedTsDir);
+        for (StsTsFile file : StsTsFile.REQUIRED) {
+            Files.createFile(file.resolve(sharedTsDir));
+        }
+
+        String horizon = "2029-2030";
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.arrow");
+
+        StStorageEntity first = StStorageEntity.builder()
+                .area("FR")
+                .name("S1")
+                .injection(BigDecimal.ONE)
+                .tsPath(sharedTsDir.toString())
+                .build();
+        StStorageEntity second = StStorageEntity.builder()
+                .area("FR")
+                .name("S2")
+                .injection(BigDecimal.ONE)
+                .tsPath(sharedTsDir.toString())
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .stStorageEntities(List.of(first, second))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon(horizon)
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        assertEquals(2, result.size());
+        verify(nasFileService, times(StsTsFile.REQUIRED.size())).readMatrix(any(Path.class), eq(horizon));
     }
 
 
