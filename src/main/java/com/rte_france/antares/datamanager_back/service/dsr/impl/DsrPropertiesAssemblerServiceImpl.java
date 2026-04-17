@@ -230,7 +230,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
 
             // Use a common helper with flexible suffix matching for DSR
             Optional<BufferedWriter> bwOpt = ColumnSplitWriter
-                    .openWriterIfAllowed(clusterName, baseName, tmpDir, allowedClusters, generatedFiles, true);
+                    .openWriterIfAllowed(clusterName, baseName, tmpDir, allowedClusters, generatedFiles, true, true);
             if (bwOpt.isEmpty()) continue;
 
             try (BufferedWriter bw = bwOpt.get()) {

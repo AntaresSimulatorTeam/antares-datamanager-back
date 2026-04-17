@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,7 +105,7 @@ class StStorageConstraintsMergeTest {
             // WHEN
         service.handleStsConstraints(Path.of("dummy"), "FR", "EV", "cluster1",
                     "traj.xlsx", "OTHERS", List.of("FR", "DE"),
-                    storage, horizon, studyId);
+                    storage, horizon, studyId, new HashMap<>());
 
             // THEN
             // Only existing FR param + new DE param should be present

@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -131,6 +133,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                                       List<String> studyAreas, Integer studyId)throws IOException {
         List<StStorageEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
+        // cache alreday parsed additional constraints once per file path
+        Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache = new HashMap<>();
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
@@ -180,7 +184,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 validateNumericRange(row, 3, 8, rowArea, clusterName, trajectoryFileName);
 
                 StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
-                        clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId);
+                        clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
                 results.add(entity);
             }
 
@@ -233,7 +237,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                            List<String> studyAreas,
                                            String areaParam,
                                            String horizon,
-                                           Integer studyId) throws IOException {
+                                           Integer studyId,
+                                           Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         // Series/TS files handling
@@ -261,7 +266,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                     studyAreas,
                     stStorageEntity,
                     horizon,
-                    studyId
+                    studyId,
+                    constraintsParamsCache
             );
         }
         stStorageEntity.setArea(rowAreaName);
@@ -391,7 +397,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                      List<String> studyAreas,
                                      StStorageEntity storage,
                                      String horizon,
-                                     Integer studyId) throws IOException {
+                                     Integer studyId,
+                                     Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
 
 
         List<String> existingAreas = trajectoryRepository.findAreasByStudyIdAndType(studyId, "STS");
@@ -413,7 +420,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         if (!missingFiles.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Missing Additional constraint files {0} for trajectory {1} for EV/{2}")
+                    .message("Missing Additional constraint files {0} for trajectory {1} for {2}")
                     .errorMessageArguments(List.of(
                             String.join(", ", missingFiles),
                             trajectoryFileName,
@@ -426,13 +433,21 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()
         );
 
+        List<StConstraintsParameterEntity> parsedTemplateParams;
+        try {
+            parsedTemplateParams = constraintsParamsCache.computeIfAbsent(additionalConstraintsPath, path -> {
+                try {
+                    return stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(path, areaParam, studyAreas);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
 
-        List<StConstraintsParameterEntity> newParams =
-                stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
-                        additionalConstraintsPath,
-                        areaParam,
-                        studyAreas
-                );
+        // clone cached templates (for concurrency)
+        List<StConstraintsParameterEntity> newParams = deepCopyParams(parsedTemplateParams);
 
 
         boolean isOthers = OTHERS_AREA.equalsIgnoreCase(areaParam);
@@ -495,5 +510,35 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
     private String buildKey(StConstraintsParameterEntity p) {
         return (p.getName() + "|" + p.getZone() + "|" + p.getCluster()).toLowerCase();
+    }
+
+    private List<StConstraintsParameterEntity> deepCopyParams(List<StConstraintsParameterEntity> source) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        return source.stream().map(this::deepCopyParam).toList();
+    }
+
+    private StConstraintsParameterEntity deepCopyParam(StConstraintsParameterEntity source) {
+        StConstraintsParameterEntity copy = new StConstraintsParameterEntity();
+        copy.setName(source.getName());
+        copy.setZone(source.getZone());
+        copy.setCluster(source.getCluster());
+        copy.setVariable(source.getVariable());
+        copy.setOperator(source.getOperator());
+        copy.setEnabled(source.getEnabled());
+
+        List<StConstraintsHoursEntity> copiedHours =
+                Optional.ofNullable(source.getHours()).orElse(List.of()).stream().map(hour -> {
+                    StConstraintsHoursEntity h =
+                            new StConstraintsHoursEntity();
+                    h.setOccurrence(hour.getOccurrence());
+                    h.setStartHour(hour.getStartHour());
+                    h.setEndHour(hour.getEndHour());
+                    h.setParameter(copy);
+                    return h;
+                }).toList();
+        copy.setHours(new ArrayList<>(copiedHours));
+        return copy;
     }
 }

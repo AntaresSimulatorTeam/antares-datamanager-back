@@ -35,7 +35,8 @@ public final class ColumnSplitWriter {
                                                                Path targetDir,
                                                                Set<String> allowed,
                                                                List<Path> generatedFiles,
-                                                               boolean allowSuffixMatch) throws IOException {
+                                                               boolean allowSuffixMatch,
+                                                               boolean includeBaseNameInFileName) throws IOException {
         Objects.requireNonNull(baseName, "baseName must not be null");
         Objects.requireNonNull(targetDir, "targetDir must not be null");
 
@@ -58,7 +59,11 @@ public final class ColumnSplitWriter {
 
         if (!isAllowed) return Optional.empty();
 
-        Path out = targetDir.resolve(baseName + "_" + areaCluster + ".csv");
+        String fileName = includeBaseNameInFileName
+                ? baseName + "_" + areaCluster + ".csv"
+                : areaCluster + ".csv";
+
+        Path out = targetDir.resolve(fileName);
         BufferedWriter bw = Files.newBufferedWriter(out,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.TRUNCATE_EXISTING,

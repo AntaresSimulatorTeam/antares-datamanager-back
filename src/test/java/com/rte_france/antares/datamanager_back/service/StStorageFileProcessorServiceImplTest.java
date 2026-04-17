@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
@@ -893,5 +894,167 @@ class StStorageFileProcessorServiceImplTest {
             }
         }
         return file;
+    }
+
+    @Test
+    void shouldReadAdditionalConstraintsFileOncePerUniquePathDuringImport() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String area = "FR";
+        String trajectoryToUse = "cluster_ev_test";
+        String trajectoryFileName = trajectoryToUse + ".xlsx";
+
+        Path xlsx = createWorkbookWithTwoConstraintsRows(horizon.split("-")[1], area);
+        placeInClusters(xlsx, technology, trajectoryFileName);
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+        Files.createDirectories(constraintsDir);
+        Path additionalConstraintsPath = constraintsDir.resolve("Additional-constraints.xlsx");
+        Files.createFile(additionalConstraintsPath);
+        Files.createFile(constraintsDir.resolve("test.xlsx"));
+
+        StConstraintsParameterEntity parsedParam = new StConstraintsParameterEntity();
+        parsedParam.setName("daily_min_ev_fr");
+        parsedParam.setZone(area);
+        parsedParam.setCluster("cluster1");
+
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
+                any(Path.class), anyString(), anyList())).thenReturn(List.of(parsedParam));
+        when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology);
+
+        assertThat(trajectory.getStStorageEntities()).hasSize(2);
+        verify(stStorageConstraintsFileProcessorService, times(1))
+                .processConstraintsParametersAnHoursFile(eq(additionalConstraintsPath), eq(area), anyList());
+    }
+
+    private Path createWorkbookWithTwoConstraintsRows(String horizon, String area) throws IOException {
+        Path file = tempDir.resolve("test_ev_two_rows.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet(horizon);
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            Row first = s.createRow(1);
+            first.createCell(0).setCellValue(area);
+            first.createCell(1).setCellValue("cluster1");
+            first.createCell(2).setCellValue("g1");
+            for (int i = 3; i <= 8; i++) {
+                first.createCell(i).setCellValue(1.0);
+            }
+            first.createCell(9).setCellValue(true);
+            first.createCell(10).setCellValue(true);
+            first.createCell(11).setCellValue(false);
+            first.createCell(12).setCellValue(true);
+
+            Row second = s.createRow(2);
+            second.createCell(0).setCellValue(area);
+            second.createCell(1).setCellValue("cluster2");
+            second.createCell(2).setCellValue("g2");
+            for (int i = 3; i <= 8; i++) {
+                second.createCell(i).setCellValue(2.0);
+            }
+            second.createCell(9).setCellValue(true);
+            second.createCell(10).setCellValue(true);
+            second.createCell(11).setCellValue(false);
+            second.createCell(12).setCellValue(true);
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
+    }
+
+    @Test
+    void shouldPropagateIOExceptionWhenConstraintsParserFails() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String area = "FR";
+        String trajectoryToUse = "cluster_ev_test";
+
+        Path xlsx = createWorkbookWithConstraints(horizon.split("-")[1], area, "cluster1");
+        placeInClusters(xlsx, technology, trajectoryToUse + ".xlsx");
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+        Files.createDirectories(constraintsDir);
+        Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
+        Files.createFile(constraintsDir.resolve("test.xlsx"));
+
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList()))
+                .thenThrow(new IOException("cannot parse constraints"));
+        when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
+
+        IOException ex = assertThrows(
+                IOException.class,
+                () -> service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology)
+        );
+
+        assertThat(ex).hasMessageContaining("cannot parse constraints");
+    }
+
+    @Test
+    void shouldFilterOutExistingAreasWhenAreaParamIsOthers() throws IOException {
+        String horizon = "2029-2030";
+        String technology = "EV";
+        String trajectoryToUse = "cluster_ev_test";
+
+        Path xlsx = createWorkbookWithConstraints(horizon.split("-")[1], "FR", "cluster1");
+        placeInClusters(xlsx, technology, trajectoryToUse + ".xlsx");
+
+        Path constraintsDir = tempDir
+                .resolve("trajectories")
+                .resolve("STS")
+                .resolve(technology)
+                .resolve("constraints");
+        Files.createDirectories(constraintsDir);
+        Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
+        Files.createFile(constraintsDir.resolve("test.xlsx"));
+
+        StConstraintsParameterEntity frParam = new StConstraintsParameterEntity();
+        frParam.setName("daily_min_fr");
+        frParam.setZone("FR");
+        frParam.setCluster("cluster1");
+
+        StConstraintsParameterEntity beParam = new StConstraintsParameterEntity();
+        beParam.setName("daily_min_be");
+        beParam.setZone("BE");
+        beParam.setCluster("cluster1");
+
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList()))
+                .thenReturn(List.of(frParam, beParam));
+        when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of("FR"));
+        when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+            setNni("TESTNNI");
+        }});
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(trajectoryToUse, horizon, 1, false, "OTHERS", technology);
+
+        assertThat(trajectory.getStStorageEntities()).hasSize(1);
+        List<StConstraintsParameterEntity> parameters = trajectory.getStStorageEntities().getFirst().getParameters();
+        assertThat(parameters).extracting(StConstraintsParameterEntity::getZone).containsExactly("BE");
     }
 }

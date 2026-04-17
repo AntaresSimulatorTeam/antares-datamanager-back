@@ -135,11 +135,56 @@ public class NasFileService {
         return saveMatrixToNas(inputPath, outputDir, null);
     }
 
+    /**
+     * Reads a time series matrix from the given path without saving it.
+     *
+     * @param inputPath Path to input .txt, .csv, or .xlsx file
+     * @param sheetName Optional sheet name / horizon (for Excel files)
+     * @return The parsed TimeSeriesMatrix
+     */
+    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName) {
+        Objects.requireNonNull(inputPath, "inputPath must not be null");
+        var name = inputPath.getFileName().toString().toLowerCase();
+        try {
+            if (name.endsWith(".txt") || name.endsWith(".csv")) {
+                return reader.readFromTxt(inputPath);
+            } else if (name.endsWith(".xlsx")) {
+                return reader.readFromXlsx(inputPath, sheetName);
+            } else {
+                throw TechnicalException.builder().message("Unsupported input format: " + name).build();
+            }
+        } catch (TechnicalException e) {
+            throw e;
+        } catch (Exception e) {
+            throw TechnicalException.builder()
+                    .message("Failed to read time series matrix from file: " + inputPath.getFileName())
+                    .cause(e)
+                    .build();
+        }
+    }
+
     public String saveMatrixToNas(TimeSeriesMatrix matrix, String baseName, String outputDir) throws IOException {
         Objects.requireNonNull(matrix, "matrix must not be null");
         Objects.requireNonNull(baseName, "baseName must not be null");
         var outputFileName = generateUniqueFileName(baseName);
         saveMatrix(outputFileName, matrix, outputDir);
+        return outputFileName;
+    }
+
+    /**
+     * Saves pre-serialized Arrow bytes to NAS with a unique filename.
+     * Use this when the same matrix is written multiple times to avoid re-serializing.
+     *
+     * @param data     pre-serialized bytes (from {@link com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter#writeToByteArray})
+     * @param baseName base filename (extension will be replaced)
+     * @param outputDir output directory relative to NAS root
+     * @return the saved filename
+     */
+    public String saveMatrixBytesToNas(byte[] data, String baseName, String outputDir) throws IOException {
+        Objects.requireNonNull(data, "data must not be null");
+        Objects.requireNonNull(baseName, "baseName must not be null");
+        var outputFileName = generateUniqueFileName(baseName);
+        saveFile(outputFileName, data, outputDir);
         return outputFileName;
     }
 

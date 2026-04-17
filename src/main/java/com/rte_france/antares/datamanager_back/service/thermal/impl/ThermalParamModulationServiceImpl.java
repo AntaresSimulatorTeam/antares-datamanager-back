@@ -310,7 +310,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
 
             //Helper to handle lowercase check and writer creation (exact match)
             ColumnSplitWriter
-                    .openWriterIfAllowed(areaCluster, baseName, targetDir, listSpecificParamClusters, generatedFiles, false)
+                    .openWriterIfAllowed(areaCluster, baseName, targetDir, listSpecificParamClusters, generatedFiles, false, true)
                     .ifPresent(bw -> writers.put(index, bw));
         }
 
