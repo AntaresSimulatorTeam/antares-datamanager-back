@@ -363,7 +363,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
         assertEquals(2, ex.getErrorMessageArguments().size());
-        assertEquals(horizon, ex.getErrorMessageArguments().get(0));
+        assertEquals(horizon, ex.getErrorMessageArguments().getFirst());
     }
 
     @Test
@@ -600,7 +600,7 @@ class StsPropertiesAssemblerServiceImplTest {
     void assembleStsProperties_ShouldReadSeriesFilesOnceForSharedTsPathAcrossEntities() throws Exception {
         Path sharedTsDir = tempDir.resolve("shared-ts");
         Files.createDirectories(sharedTsDir);
-        for (StsTsFile file : StsTsFile.REQUIRED) {
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
             Files.createFile(file.resolve(sharedTsDir));
         }
 
@@ -637,17 +637,18 @@ class StsPropertiesAssemblerServiceImplTest {
         Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
 
         assertEquals(2, result.size());
-        verify(nasFileService, times(StsTsFile.REQUIRED.size())).readMatrix(any(Path.class), eq(horizon));
+        verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon));
     }
 
     @Test
     void readConstraintsMatrix_ShouldRejectNonXlsxFile() {
+        Path nonXlsx = tempDir.resolve("constraints.csv");
         BusinessException ex = assertThrows(
                 BusinessException.class,
                 () -> ReflectionTestUtils.invokeMethod(
                         stsPropertiesAssemblerService,
                         "readConstraintsMatrix",
-                        tempDir.resolve("constraints.csv"),
+                        nonXlsx,
                         "2030"
                 )
         );
@@ -660,13 +661,14 @@ class StsPropertiesAssemblerServiceImplTest {
     void readConstraintsMatrix_ShouldThrowTechnicalExceptionWhenMatrixIsEmpty() throws Exception {
         when(timeSeriesReader.readFromXlsx(any(Path.class), anyString()))
                 .thenReturn(new TimeSeriesMatrix(List.of()));
+        Path additionalConstraints = tempDir.resolve("Additional-constraints.xlsx");
 
         TechnicalException ex = assertThrows(
                 TechnicalException.class,
                 () -> ReflectionTestUtils.invokeMethod(
                         stsPropertiesAssemblerService,
                         "readConstraintsMatrix",
-                        tempDir.resolve("Additional-constraints.xlsx"),
+                        additionalConstraints,
                         "2030"
                 )
         );
@@ -740,16 +742,16 @@ class StsPropertiesAssemblerServiceImplTest {
                         "FR"
                 );
 
-        @SuppressWarnings("unchecked")
         Map<String, StsConstraintParameterDTO> result =
-                (Map<String, StsConstraintParameterDTO>) ReflectionTestUtils.invokeMethod(
+                ReflectionTestUtils.invokeMethod(
                         stsPropertiesAssemblerService,
                         "mapConstraintParametersFromContext",
                         context,
                         Set.of("FR")
                 );
 
-        assertNull(result);
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -815,7 +817,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("daily_min_be", new double[]{2.0})
         ));
 
-        when(timeSeriesReader.readFromXlsx(eq(constraintsFile), eq("2029-2030"))).thenReturn(matrix);
+        when(timeSeriesReader.readFromXlsx(constraintsFile, "2029-2030")).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -824,7 +826,7 @@ class StsPropertiesAssemblerServiceImplTest {
         Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
 
         assertEquals(2, result.size());
-        verify(timeSeriesReader, times(1)).readFromXlsx(eq(constraintsFile), eq("2029-2030"));
+        verify(timeSeriesReader, times(1)).readFromXlsx(constraintsFile, "2029-2030");
         verify(nasFileService, times(2)).saveMatrixBytesToNas(any(), any(), eq("/output"));
     }
 }

@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
@@ -70,11 +71,11 @@ class StsToJsonServiceTest {
 
         Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_ev_FR", dto));
 
-        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_ev_FR");
+        Map<String, Object> cluster = asMap(result.get("FR_ev_FR"));
         assertNotNull(cluster.get("properties"));
         assertNotNull(cluster.get("series"));
 
-        Map<String, Object> properties = (Map<String, Object>) cluster.get("properties");
+        Map<String, Object> properties = asMap(cluster.get("properties"));
         assertEquals(true, properties.get("enabled"));
         assertEquals("EV", properties.get("group"));
         assertEquals(2127, properties.get("injection_nominal_capacity"));
@@ -87,15 +88,15 @@ class StsToJsonServiceTest {
         assertNull(properties.get("stsConstraintsSeriesList"));
         assertNull(properties.get("constraintParameters"));
 
-        Map<String, Object> constraintParameters = (Map<String, Object>) cluster.get("constraintParameters");
+        Map<String, Object> constraintParameters = asMap(cluster.get("constraintParameters"));
         assertNotNull(constraintParameters);
-        Map<String, Object> dailyMin = (Map<String, Object>) constraintParameters.get("daily_min");
+        Map<String, Object> dailyMin = asMap(constraintParameters.get("daily_min"));
         assertEquals("injection", dailyMin.get("variable"));
 
         assertEquals(List.of("daily_min.csv.abc.arrow"), cluster.get("stsConstraintsSeriesList"));
         assertNull(cluster.get("constraints"));
 
-        Map<String, Object> series = (Map<String, Object>) cluster.get("series");
+        Map<String, Object> series = asMap(cluster.get("series"));
         assertEquals(List.of("inflows.xlsx.abc.arrow", "lower_curve.xlsx.def.arrow"), series.get("series"));
     }
 
@@ -108,12 +109,11 @@ class StsToJsonServiceTest {
 
         Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_S1", dto));
 
-        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_S1");
+        Map<String, Object> cluster = asMap(result.get("FR_S1"));
         assertFalse(cluster.containsKey("constraints"));
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void stsMapGenerator_ConstraintsAreDirectSiblingsOfProperties_WithNoDataWrapping() {
         StsConstraintParameterDTO param = StsConstraintParameterDTO.builder()
                 .variable("injection")
@@ -138,7 +138,7 @@ class StsToJsonServiceTest {
 
         Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_EV_FR", dto));
 
-        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_EV_FR");
+        Map<String, Object> cluster = asMap(result.get("FR_EV_FR"));
 
         // constraintParameters and stsConstraintsSeriesList must be direct siblings of properties — no "constraints" wrapper
         assertFalse(cluster.containsKey("constraints"), "must not have a 'constraints' wrapper key");
@@ -146,8 +146,8 @@ class StsToJsonServiceTest {
         assertTrue(cluster.containsKey("stsConstraintsSeriesList"), "stsConstraintsSeriesList must be at cluster level");
 
         // constraintParameters: param object must not be wrapped in {"data": ...}
-        Map<String, Object> constraintParameters = (Map<String, Object>) cluster.get("constraintParameters");
-        Map<String, Object> param1 = (Map<String, Object>) constraintParameters.get("param1");
+        Map<String, Object> constraintParameters = asMap(cluster.get("constraintParameters"));
+        Map<String, Object> param1 = asMap(constraintParameters.get("param1"));
         assertNotNull(param1, "param1 must exist");
         assertFalse(param1.containsKey("data"), "param must not be wrapped in a 'data' key");
         assertEquals("injection", param1.get("variable"));
@@ -245,15 +245,13 @@ class StsToJsonServiceTest {
                   }
                 }""";
 
-        // We use JSONAssert or similar if available, but here we can just parse both back to Map to compare ignore formatting
-        Map<String, Object> resultMap = mapper.readValue(jsonResult, Map.class);
-        Map<String, Object> expectedMap = mapper.readValue(expectedJson, Map.class);
+        Map<String, Object> resultMap = mapper.readValue(jsonResult, new TypeReference<>() {});
+        Map<String, Object> expectedMap = mapper.readValue(expectedJson, new TypeReference<>() {});
 
         assertEquals(expectedMap, resultMap);
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void stsMapGenerator_ShouldOmitEmptyConstraintCollections() {
         StsGenerationDTO dto = StsGenerationDTO.builder()
                 .enabled(true)
@@ -262,7 +260,7 @@ class StsToJsonServiceTest {
                 .build();
 
         Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_S1", dto));
-        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_S1");
+        Map<String, Object> cluster = asMap(result.get("FR_S1"));
 
         assertNotNull(cluster);
         assertFalse(cluster.containsKey("constraintParameters"));
@@ -270,7 +268,6 @@ class StsToJsonServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void stsMapGenerator_ShouldKeepNonEmptySeriesWhenParametersAreEmpty() {
         StsGenerationDTO dto = StsGenerationDTO.builder()
                 .enabled(true)
@@ -279,10 +276,16 @@ class StsToJsonServiceTest {
                 .build();
 
         Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_S2", dto));
-        Map<String, Object> cluster = (Map<String, Object>) result.get("FR_S2");
+        Map<String, Object> cluster = asMap(result.get("FR_S2"));
 
         assertNotNull(cluster);
         assertFalse(cluster.containsKey("constraintParameters"));
         assertEquals(List.of("daily_min_fr.csv.arrow"), cluster.get("stsConstraintsSeriesList"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        assertInstanceOf(Map.class, value);
+        return (Map<String, Object>) value;
     }
 }

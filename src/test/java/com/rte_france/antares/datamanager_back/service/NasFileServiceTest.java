@@ -201,13 +201,14 @@ class NasFileServiceTest {
 
   @Test
   void saveFile_absoluteOutputDirectory_throwsTechnicalException() {
-    TechnicalException ex = assertThrows(
-            TechnicalException.class,
-            () -> nasFileService.saveFile("valid.txt", "data".getBytes(), tempDir.toAbsolutePath().toString())
-    );
+    String absoluteOutputDir = tempDir.toAbsolutePath().toString();
+     TechnicalException ex = assertThrows(
+             TechnicalException.class,
+            () -> nasFileService.saveFile("valid.txt", "data".getBytes(), absoluteOutputDir)
+     );
 
-    assertTrue(ex.getMessage().contains("Output directory must be a relative path"));
-  }
+     assertTrue(ex.getMessage().contains("Output directory must be a relative path"));
+   }
 
   @Test
   void saveMatrixToNas_fromPathTxt_savesSerializedMatrix() throws Exception {

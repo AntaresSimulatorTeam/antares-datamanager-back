@@ -59,7 +59,7 @@ public final class ColumnSplitWriter {
 
         if (!isAllowed) return Optional.empty();
 
-        String fileName = includeBaseNameInFileName && baseName != null
+        String fileName = includeBaseNameInFileName
                 ? baseName + "_" + areaCluster + ".csv"
                 : areaCluster + ".csv";
 
