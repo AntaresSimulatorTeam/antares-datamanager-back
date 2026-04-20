@@ -476,9 +476,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
-        if (!Files.exists(directory) || !Files.isDirectory(directory)) {
-            return List.of();
-        }
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) ||
@@ -496,7 +493,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         } 
         catch (IOException e) {
-           throw new UncheckedIOException(e);
+           throw TechnicalException.builder().message("Could not find directory: " + directory).build();
         }
     }
 
