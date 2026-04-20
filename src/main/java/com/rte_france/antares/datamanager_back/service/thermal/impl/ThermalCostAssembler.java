@@ -209,7 +209,7 @@ public class ThermalCostAssembler {
             return;
         }
 
-        int startupFuel = getStartupFuel(commonParam);
+        Double startupFuel = getStartupFuel(commonParam);
 
         ThermalSpecificParametersEntity specificParam = findMatchingSpecificParam(commonParam, specificParams, thermalClusterCapacities);
 
@@ -243,8 +243,8 @@ public class ThermalCostAssembler {
         return efficiency > 1.0 ? efficiency / 100.0 : efficiency;
     }
 
-    private Integer getStartupFuel(ThermalCommonParameterEntity commonParam) {
-        return Math.toIntExact(Math.round((commonParam != null && commonParam.getStartUpFuel() != null) ? commonParam.getStartUpFuel() : 0));
+    private Double getStartupFuel(ThermalCommonParameterEntity commonParam) {
+        return commonParam != null && commonParam.getStartUpFuel() != null ? commonParam.getStartUpFuel() : 0.0;
     }
 
     private ThermalSpecificParametersEntity findMatchingSpecificParam(
@@ -278,7 +278,7 @@ public class ThermalCostAssembler {
     private void updateStartupCost(
             ThermalClusterGenerationDto dto,
             ThermalCommonParameterEntity commonParam,
-            Integer startupFuel,
+            Double startupFuel,
             Double efficiency,
             MarginalCostResult marginalCostValue
     ) {
