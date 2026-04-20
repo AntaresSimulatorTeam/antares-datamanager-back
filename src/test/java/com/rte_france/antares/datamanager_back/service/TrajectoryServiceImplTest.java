@@ -1115,6 +1115,18 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_throwsTechnicalException_whenDirectoryIsMissing() throws TechnicalException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("STS");
+        when(antaresDataManagerProperties.getThermalModulationParameterDirectory()).thenReturn("modulation");
+
+        TechnicalException exception = assertThrows(TechnicalException.class,
+                () -> trajectoryService.findTrajectoriesByType(TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER, null, null, null));
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Could not find directory"));
+    }
+
+    @Test
     void processLoadTrajectory_savesTrajectoryAndProcessesLoadFiles() throws IOException {
         String area = "FR";
         String trajectoryToUse = "testTrajectory";
