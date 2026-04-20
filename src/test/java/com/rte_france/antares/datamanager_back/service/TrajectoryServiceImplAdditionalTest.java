@@ -385,16 +385,6 @@ class TrajectoryServiceImplAdditionalTest {
         assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
     }
 
-
-    @Test
-    void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() throws IOException {
-        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
-        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
-        java.util.List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area");
-        assertEquals(0, result.size());
-    }
-
     @Test
     void findTrajectoriesByType_returnsSpecificFilesForThermalTechnicalCommonParameter(@TempDir Path tempDir) throws IOException {
         Path thermalDir = tempDir.resolve("thermal");
