@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Slf4j
 @Service
@@ -392,9 +393,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             if (name != null && zone != null && targetAreasLower.contains(zone.toLowerCase(Locale.ROOT))) {
                 List<List<Integer>> hours = null;
                 if (param.getHours() != null && !param.getHours().isEmpty()) {
-                    hours = param.getHours().stream()
-                            .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
-                            .toList();
+                    hours = expandHoursPerOccurrence(param);
                 }
 
                 result.put(name, StsConstraintParameterDTO.builder()
@@ -407,6 +406,37 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         }
 
         return result;
+    }
+
+    private List<List<Integer>> expandHoursPerOccurrence(StConstraintsParameterEntity param) {
+        Map<Integer, List<Integer>> byOccurrence = new LinkedHashMap<>();
+
+        for (var hour : param.getHours()) {
+            if (hour.getOccurrence() == null || hour.getStartHour() == null || hour.getEndHour() == null) {
+                throw BusinessException.builder()
+                        .message("Invalid hours for constraint {0}: occurrence/start/end must be set")
+                        .errorMessageArguments(List.of(param.getName()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            if (hour.getStartHour() > hour.getEndHour()) {
+                throw BusinessException.builder()
+                        .message("Invalid hours for constraint {0}: start must be <= end")
+                        .errorMessageArguments(List.of(param.getName()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            byOccurrence.computeIfAbsent(hour.getOccurrence(), key -> new ArrayList<>())
+                    .addAll(IntStream.rangeClosed(hour.getStartHour(), hour.getEndHour()).boxed().toList());
+        }
+
+        int maxOccurrence = byOccurrence.keySet().stream().max(Integer::compareTo).orElse(0);
+        List<List<Integer>> expanded = new ArrayList<>(maxOccurrence);
+        for (int occurrence = 1; occurrence <= maxOccurrence; occurrence++) {
+            expanded.add(byOccurrence.getOrDefault(occurrence, List.of()));
+        }
+        return expanded;
     }
 
 

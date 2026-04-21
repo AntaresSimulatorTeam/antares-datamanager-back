@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -119,7 +120,7 @@ class StsToJsonServiceTest {
                 .variable("injection")
                 .operator("greater")
                 .enabled("true")
-                .hours(List.of(List.of(1, 1, 24)))
+                .hours(List.of(IntStream.rangeClosed(1, 24).boxed().toList()))
                 .build();
 
         StsGenerationDTO dto = StsGenerationDTO.builder()
@@ -165,14 +166,17 @@ class StsToJsonServiceTest {
                 .variable("injection")
                 .operator("greater")
                 .enabled("true")
-                .hours(List.of(List.of(1, 1, 24), List.of(2, 25, 48)))
+                .hours(List.of(
+                        IntStream.rangeClosed(1, 24).boxed().toList(),
+                        IntStream.rangeClosed(25, 48).boxed().toList()
+                ))
                 .build();
 
         StsConstraintParameterDTO v2gLimit = StsConstraintParameterDTO.builder()
                 .variable("withdrawal")
                 .operator("less")
                 .enabled("true")
-                .hours(List.of(List.of(1, 1, 168)))
+                .hours(List.of(IntStream.rangeClosed(1, 8).boxed().toList()))
                 .build();
 
         StsGenerationDTO dto = StsGenerationDTO.builder()
@@ -232,13 +236,13 @@ class StsToJsonServiceTest {
                         "variable" : "injection",
                         "operator" : "greater",
                         "enabled" : "true",
-                        "hours" : [ [ 1, 1, 24 ], [ 2, 25, 48 ] ]
+                        "hours" : [ [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 ], [ 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 ] ]
                       },
                       "v2g_limit_fr" : {
                         "variable" : "withdrawal",
                         "operator" : "less",
                         "enabled" : "true",
-                        "hours" : [ [ 1, 1, 168 ] ]
+                        "hours" : [ [ 1, 2, 3, 4, 5, 6, 7, 8 ] ]
                       }
                     },
                     "stsConstraintsSeriesList" : [ "daily_min_v2g_fr.csv.f4570c6b-a06c-4938-a82a-e3135549f7de.arrow", "v2g_limit_fr.csv.720c8bbc-eb20-40a4-9dd8-08ea54db519c.arrow" ]
