@@ -493,7 +493,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         } 
         catch (IOException e) {
-           throw new UncheckedIOException(e);
+           throw TechnicalException.builder().message("Could not find directory: " + directory).build();
         }
     }
 

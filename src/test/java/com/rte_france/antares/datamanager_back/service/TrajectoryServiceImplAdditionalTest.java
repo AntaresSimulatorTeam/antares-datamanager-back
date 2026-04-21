@@ -22,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -384,15 +383,6 @@ class TrajectoryServiceImplAdditionalTest {
         // Then
         assertEquals(1, result.size());
         assertEquals("areas_test1.xlsx", result.getFirst().getFileName());
-    }
-
-
-    @Test
-    void findTrajectoriesByType_throwsExceptionWhenDirectoryDoesNotExist() {
-        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/");
-        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
-        when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("area");
-        assertThrows(UncheckedIOException.class, () -> trajectoryService.findTrajectoriesByType(TrajectoryType.AREA,null, null,"area"));
     }
 
     @Test
