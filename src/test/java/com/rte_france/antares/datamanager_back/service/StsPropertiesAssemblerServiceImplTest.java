@@ -769,6 +769,60 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
+    void expandHoursPerOccurrence_ShouldThrowBusinessExceptionWhenOccurrenceOrRangeIsNull() {
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min_v1g_fr")
+                .hours(List.of(
+                        StConstraintsHoursEntity.builder()
+                                .occurrence(null)
+                                .startHour(1)
+                                .endHour(24)
+                                .build()
+                ))
+                .build();
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "expandHoursPerOccurrence",
+                        param
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("Invalid hours for constraint {0}: occurrence/start/end must be set", ex.getMessage());
+        assertEquals(List.of("daily_min_v1g_fr"), ex.getErrorMessageArguments());
+    }
+
+    @Test
+    void expandHoursPerOccurrence_ShouldThrowBusinessExceptionWhenStartIsGreaterThanEnd() {
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min_v1g_fr")
+                .hours(List.of(
+                        StConstraintsHoursEntity.builder()
+                                .occurrence(1)
+                                .startHour(48)
+                                .endHour(25)
+                                .build()
+                ))
+                .build();
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "expandHoursPerOccurrence",
+                        param
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("Invalid hours for constraint {0}: start must be <= end", ex.getMessage());
+        assertEquals(List.of("daily_min_v1g_fr"), ex.getErrorMessageArguments());
+    }
+
+    @Test
     void assembleStsProperties_ShouldReadConstraintsWorkbookOnceWhenContextsShareSameFile() throws Exception {
         Path stsDir = tempDir.resolve("trajectories").resolve("sts");
         Files.createDirectories(stsDir);
