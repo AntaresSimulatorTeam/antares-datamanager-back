@@ -115,7 +115,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         String loadDirectory = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null);
 
         validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse);
-        
+
         if (technology != null && !technology.isBlank()) {
             validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology);
             validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology, technology);
@@ -125,7 +125,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     .resolve(trajectoryToUse)
                     .resolve(technology).resolve(technology)
                     .normalize();
-            
+
             checkExistingTs(trajectoryFilePath, trajectoryToUse);
             TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
             return trajectoryRepository.save(trajectory);
@@ -270,7 +270,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         if(Files.exists(trajectoryFilePath)) {
             // Ensure the path is real and validated before using Files.walk
             Path realPath = trajectoryFilePath.toRealPath();
-            
+
             //find csv files in technologyPath directory
             try (var filesStream = Files.walk(realPath, 1)) {
                 boolean hasCsv = filesStream
@@ -328,7 +328,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (!missingTechnologies.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Missing required technologies for load factor misc trajectory '" + trajectoryToUse 
+                    .message("Missing required technologies for load factor misc trajectory '" + trajectoryToUse
                             + "'. The following technologies are required with at least one .csv file: "
                             + String.join(", ", missingTechnologies))
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -384,7 +384,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (isFR) {
             Path folderPath = directoryPath.resolve(trajectoryToUse).normalize();
-            
+
+            if (!folderPath.startsWith(directoryPath)) {
+                throw BusinessException.builder()
+                        .message("Invalid trajectory path: " + trajectoryToUse)
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
             List<Path> files;
             try {
                 files = findFilesFromDepthWithPrefix(folderPath, RES_CAPACITY_PREFIX, 2, technology);
@@ -399,17 +406,17 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         } else {
             validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_CAPACITY, RES_CAPACITY_PREFIX);
-            
+
             String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
             Path filePath = directoryPath.resolve(fileName).normalize();
-            
+
             if (!filePath.startsWith(directoryPath)) {
                 throw BusinessException.builder()
                         .message(FILE_NOT_FOUND + filePath)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-            
+
             return List.of(filePath);
         }
     }
@@ -438,7 +445,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
-            
+
             int indexSheet = 0;
             String[] requiredColumns = REQUIRED_CLUSTER_COLUMNS;
             boolean isOffshoreTechnology = false;
@@ -458,11 +465,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             Row header = getHeaderOrThrow(sheet, filePath);
 
             validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse, trajectoryType);
-            
+
             int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryType, trajectoryToUse, requiredColumns.length, isCivilYear);
 
             ResRowProcessingContext context = new ResRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse, technology, trajectoryType);
-            
+
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
@@ -498,7 +505,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                         processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
                 case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
                         processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
-                default -> 
+                default ->
                     processResIPCapacityRow(context, (ResRowProcessingCapacityResult) result, row, isOffshore, requiredColumns);
                 }
             }
@@ -526,7 +533,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                             new ArrayList<>(),
                             new HashSet<>()
                     );
-                    
+
             default ->
                     result = new ResRowProcessingCapacityResult(
                             new ArrayList<>(),
@@ -561,7 +568,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         String cluster = isOffshoreTechnology ? col4 : col3;
 
         if (!shouldProcessArea(context, result, area, group)) return;
-        
+
         Object[] values = isOffshoreTechnology
                 ? new Object[] { toUse, area, col2, group, cluster }
                 : new Object[] { toUse, area, group, cluster, col4 };
@@ -612,14 +619,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         String area = getStringCell(row, 2);
         String pecdZone = getStringCell(row, 3);
         String pecdTechno = getStringCell(row, 4);
-        
+
         // Check if pecd_zone starts with default area
         // Check if groupe is equal to technology
         if (context.getAreaParam() != null) {
             result.addArea(area);
             if ( area == null || !area.equalsIgnoreCase(context.getAreaParam())) return;
         }
-        
+
         if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
         result.addTechnologies(context.getTechnology());
 
@@ -674,7 +681,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         validateEmptyRequiredColumns(context, requiredColumns, area, pecdZone, group);
 
         String combo = LITERAL_STRING.formatted(area, pecdZone, group);
-        
+
         BigDecimal numericValue = parseStringPercentValue(row, context.getYearColIndex(), combo, result);
         if (numericValue == null) return;
 
@@ -718,12 +725,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 return false;
             }
         }
-        
+
         // 2. Filtre par technology
         if (technologyParam != null && !technologyParam.isBlank() && !technologyParam.equalsIgnoreCase(technologyStr)) {
             return false;
         }
-        
+
         result.addTechnologies(technologyParam);
         return true;
     }
@@ -794,7 +801,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 result.invalidCombos().add(combo);
             }
         }
-        
+
         if (cellVal instanceof String str) {
             try {
                 return parsePercentage(str);
@@ -825,7 +832,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         // Arrondi final à 2 décimales
         return value.setScale(2, RoundingMode.HALF_UP);
     }
-    
+
     private Optional<TrajectoryEntity> findExistingTrajectory(Path path, String horizon, String area, TrajectoryType trajectoryType, String technology) {
         return trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()),
@@ -908,11 +915,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             case ResRowProcessingTechnologyDistributionResult dist ->
                     trajectory.setResTechnologyDistributionCapacityEntities(dist.entities());
-            
+
             case ResRowProcessingZonalDistributionResult zonal ->
                     trajectory.setResZonalDistributionCapacityEntities(zonal.entities());
         }
-        
+
         return trajectoryRepository.save(trajectory);
     }
 
