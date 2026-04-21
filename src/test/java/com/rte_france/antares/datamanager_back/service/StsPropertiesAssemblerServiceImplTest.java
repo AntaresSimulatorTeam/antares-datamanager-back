@@ -436,7 +436,13 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals("injection", constraintParam.getVariable());
         assertEquals("greater", constraintParam.getOperator());
         assertEquals("true", constraintParam.getEnabled());
-        assertEquals(List.of(List.of(1, 8, 20), List.of(2, 0, 6)), constraintParam.getHours());
+        assertEquals(
+                List.of(
+                        List.of(8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
+                        List.of(0, 1, 2, 3, 4, 5, 6)
+                ),
+                constraintParam.getHours()
+        );
     }
 
     @Test
@@ -522,7 +528,10 @@ class StsPropertiesAssemblerServiceImplTest {
         StsConstraintParameterDTO constraintParam = dto.getConstraintParameters().get("daily_min");
         assertNotNull(constraintParam);
         assertEquals("injection", constraintParam.getVariable());
-        assertEquals(List.of(List.of(1, 8, 20)), constraintParam.getHours());
+        assertEquals(
+                List.of(List.of(8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)),
+                constraintParam.getHours()
+        );
     }
 
     @Test
@@ -595,7 +604,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(2, params.size());
         assertEquals("injection", params.get("daily_min_be").getVariable());
         assertEquals("greater", params.get("daily_min_be").getOperator());
-        assertEquals(List.of(List.of(1, 0, 8)), params.get("daily_min_be").getHours());
+        assertEquals(List.of(List.of(0, 1, 2, 3, 4, 5, 6, 7, 8)), params.get("daily_min_be").getHours());
         assertEquals("withdrawal", params.get("night_min_be").getVariable());
         assertEquals("false", params.get("night_min_be").getEnabled());
         assertNull(params.get("night_min_be").getHours());
