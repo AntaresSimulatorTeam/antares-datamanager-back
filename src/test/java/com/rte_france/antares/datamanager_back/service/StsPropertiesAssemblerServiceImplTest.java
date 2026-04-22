@@ -907,4 +907,76 @@ class StsPropertiesAssemblerServiceImplTest {
         verify(timeSeriesReader, times(1)).readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any());
         verify(nasFileService, times(2)).saveMatrixBytesToNas(any(), any(), eq("/output"));
     }
+
+    @Test
+    void assembleStsProperties_ShouldDeduplicateConstraintSeriesWhenContextsOverlapSameArea() throws Exception {
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Path constraintsFile = stsDir.resolve("Additional-constraints.xlsx");
+        Files.createFile(constraintsFile);
+
+        StConstraintsParameterEntity param1 = StConstraintsParameterEntity.builder()
+                .name("night_min_v2g_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StConstraintsParameterEntity param2 = StConstraintsParameterEntity.builder()
+                .name("night_min_v2g_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StStorageEntity firstStorage = StStorageEntity.builder()
+                .id(101)
+                .area("FR")
+                .name("ve_lourds")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param1))
+                .build();
+
+        StStorageEntity secondStorage = StStorageEntity.builder()
+                .id(102)
+                .area("FR")
+                .name("v1g")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param2))
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(firstStorage, secondStorage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("night_min_v2g_FR", new double[]{1.0})
+        ));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("night_min_v2g_FR.csv"), eq("/output")))
+                .thenReturn("night_min_v2g_FR.csv.uuid.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        assertEquals(List.of("night_min_v2g_FR.csv.uuid.arrow"), result.get("FR_ve_lourds").getStsConstraintsSeriesList());
+        assertEquals(List.of("night_min_v2g_FR.csv.uuid.arrow"), result.get("FR_v1g").getStsConstraintsSeriesList());
+        verify(nasFileService, times(1)).saveMatrixBytesToNas(any(), eq("night_min_v2g_FR.csv"), eq("/output"));
+    }
 }
