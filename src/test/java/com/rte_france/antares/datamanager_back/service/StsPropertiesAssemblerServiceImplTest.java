@@ -19,6 +19,7 @@ import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSerie
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -57,14 +58,23 @@ class StsPropertiesAssemblerServiceImplTest {
     @InjectMocks
     private StsPropertiesAssemblerServiceImpl stsPropertiesAssemblerService;
 
+    private AutoCloseable mocks;
+
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        mocks = MockitoAnnotations.openMocks(this);
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getStsDirectory()).thenReturn("sts");
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "nasFileService", nasFileService);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
@@ -416,7 +426,7 @@ class StsPropertiesAssemblerServiceImplTest {
         // Mock constraints file processing: return a matrix with one column matching the param name
         TimeSeriesMatrix matrix = new TimeSeriesMatrix(
                 List.of(new TimeSeriesMatrixColumn("daily_min_ev_fr", new double[]{1.0})));
-        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -513,7 +523,7 @@ class StsPropertiesAssemblerServiceImplTest {
 
         TimeSeriesMatrix matrix = new TimeSeriesMatrix(
                 List.of(new TimeSeriesMatrixColumn("daily_min", new double[]{1.0})));
-        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -586,7 +596,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("daily_min_be", new double[]{1.0}),
                 new TimeSeriesMatrixColumn("night_min_be", new double[]{2.0})
         ));
-        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -885,7 +895,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("daily_min_be", new double[]{2.0})
         ));
 
-        when(timeSeriesReader.readFromXlsx(constraintsFile, "2029-2030")).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -894,7 +904,7 @@ class StsPropertiesAssemblerServiceImplTest {
         Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
 
         assertEquals(2, result.size());
-        verify(timeSeriesReader, times(1)).readFromXlsx(constraintsFile, "2029-2030");
+        verify(timeSeriesReader, times(1)).readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any());
         verify(nasFileService, times(2)).saveMatrixBytesToNas(any(), any(), eq("/output"));
     }
 }
