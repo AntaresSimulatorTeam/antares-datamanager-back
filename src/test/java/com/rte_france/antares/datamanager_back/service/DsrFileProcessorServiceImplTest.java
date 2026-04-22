@@ -444,6 +444,91 @@ class DsrFileProcessorServiceImplTest {
     }
 
     @Test
+    void shouldThrowWhenToUseSelectedAreaIsNull() throws Exception {
+        // GIVEN
+        String horizon = "2025";
+        String areaParam = "IT";
+
+        // study has FR and DE
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(
+                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                            setName("FR");
+                        }},
+                        new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                            setName("IT");
+                        }}
+                ));
+
+        // Create a fake DSR Excel file in temp
+        Path tempFile = Files.createTempFile("cluster_DSR_", ".xlsx");
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(horizon);
+
+            // Header
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            // Row with ONLY area IT (not in study)
+            Row row0 = sheet.createRow(1);
+            row0.createCell(0).setBlank();
+            row0.createCell(1).setCellValue("IT"); // Area
+            row0.createCell(2).setCellValue("DSR_industries");
+            row0.createCell(3).setCellValue(2000);
+            row0.createCell(4).setCellValue(0.5);
+            row0.createCell(5).setCellValue(12);
+            row0.createCell(6).setCellValue(8);
+            row0.createCell(7).setCellValue(200);
+            row0.createCell(8).setCellValue(80);
+            row0.createCell(9).setCellValue(0.8);
+            row0.createCell(10).setCellValue(1);
+            row0.createCell(11).setCellValue("TRUE");
+
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue(1);
+            row1.createCell(1).setCellValue("FR");
+            row1.createCell(2).setCellValue("DSR_tertiaire");
+            row1.createCell(3).setCellValue(2000);
+            row1.createCell(4).setCellValue(0.5);
+            row1.createCell(5).setCellValue(12);
+            row1.createCell(6).setCellValue(8);
+            row1.createCell(7).setCellValue(200);
+            row1.createCell(8).setCellValue(80);
+            row1.createCell(9).setCellValue(0.8);
+            row1.createCell(10).setCellValue(1);
+            row1.createCell(11).setCellValue("TRUE");
+
+            try (OutputStream os = Files.newOutputStream(tempFile)) {
+                workbook.write(os);
+            }
+        }
+
+        // Spy service to bypass file search
+        DsrFileProcessorServiceImpl serviceSpy = spy(service);
+
+        doReturn(tempFile)
+                .when(serviceSpy)
+                .getTrajectoryFilePath(anyString());
+
+        // WHEN / THEN
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> serviceSpy.processDsrClusterFile(
+                        FILE_NAME_DSR_CLUSTER,
+                        "horizon-2025",
+                        1,
+                        false,
+                        areaParam
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("Selected area {0} is not present in the 'node' column of {1} trajectory {2}"));
+    }
+
+    @Test
     void shouldThrowWhenMissingColumnsInDsrFile() throws Exception {
         String horizon = "2025";
         String areaParam = "FR";
