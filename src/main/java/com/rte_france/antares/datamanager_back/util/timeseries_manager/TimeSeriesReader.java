@@ -8,23 +8,44 @@ package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
+import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.openxml4j.opc.PackageAccess;
+import org.apache.poi.util.XMLHelper;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
+import org.apache.poi.xssf.eventusermodel.XSSFReader;
+import org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler;
+import org.apache.poi.xssf.model.StylesTable;
+import org.apache.poi.xssf.usermodel.XSSFComment;
 import org.springframework.http.HttpStatus;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * Utility class for reading time series data from text or Excel and producing a matrix
@@ -48,7 +69,7 @@ public final class TimeSeriesReader {
       var columnCount = headerValues.length;
       var data = new double[columnCount][ROW_COUNT];
 
-      fillDataList(null, iterator, data, separator);
+      fillDataList(iterator, data, separator);
 
       var columns = new ArrayList<TimeSeriesMatrixColumn>(data.length);
       for (int j = 0; j < data.length; j++) {
@@ -114,6 +135,80 @@ public final class TimeSeriesReader {
     }
   }
 
+  /**
+   * Reads only the requested columns from an Excel sheet (POI SAX) for large workboooks
+   */
+  public TimeSeriesMatrix readSelectedColumnsFromXlsx(Path xlsxPath, String horizon, Set<String> requiredColumnNames)
+      throws IOException {
+    Objects.requireNonNull(xlsxPath);
+
+    Set<String> requiredLower = requiredColumnNames == null
+        ? Set.of()
+        : requiredColumnNames.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .map(s -> s.toLowerCase(Locale.ROOT))
+            .collect(Collectors.toSet());
+
+    if (requiredLower.isEmpty()) {
+      return new TimeSeriesMatrix(List.of());
+    }
+
+    if (!Files.exists(xlsxPath)) {
+      throw TechnicalException.builder().message("File not found: " + xlsxPath).build();
+    }
+
+    try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
+      XSSFReader reader = new XSSFReader(pkg);
+      StylesTable styles = reader.getStylesTable();
+      ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(pkg);
+
+      try (InputStream sheetInput = openSheetInputStream(reader, horizon, xlsxPath)) {
+        SelectedColumnsSheetHandler handler = new SelectedColumnsSheetHandler(requiredLower);
+        XMLReader parser = XMLHelper.newXMLReader();
+        parser.setContentHandler(new XSSFSheetXMLHandler(
+            styles,
+            null,
+            sharedStrings,
+            handler,
+            new DataFormatter(),
+            false
+        ));
+        parser.parse(new InputSource(sheetInput));
+        return handler.toMatrix();
+      }
+    } catch (OpenXML4JException | SAXException | ParserConfigurationException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private InputStream openSheetInputStream(XSSFReader reader, String horizon, Path xlsxPath) throws IOException, OpenXML4JException {
+    XSSFReader.SheetIterator iterator = (XSSFReader.SheetIterator) reader.getSheetsData();
+    if (!iterator.hasNext()) {
+      throw TechnicalException.builder().message("Excel file has no sheets").build();
+    }
+
+    if (horizon == null || horizon.isBlank()) {
+      return iterator.next();
+    }
+
+    while (iterator.hasNext()) {
+      InputStream candidate = iterator.next();
+      String sheetName = iterator.getSheetName();
+      if (horizon.equals(sheetName)) {
+        return candidate;
+      }
+      candidate.close();
+    }
+
+    throw BusinessException.builder()
+        .message("Horizon {0} does not exist in file: {1}")
+        .errorMessageArguments(List.of(horizon, xlsxPath.getFileName().toString()))
+        .httpStatus(HttpStatus.BAD_REQUEST)
+        .build();
+  }
+
   // Helper method to retrieve sheet based on horizon
   private Sheet getSheet(Workbook wb, String horizon, Path xlsxPath) {
     if (horizon != null && !horizon.isBlank()) {
@@ -145,11 +240,11 @@ public final class TimeSeriesReader {
   }
 
   /**
+   * Loads numeric data rows into a column-major matrix.
    *
-   * @param sheet
-   * @param columnCount
-   * @return it will SKIP the first row containing COLUMN NAMES
-   * if REUSE we have to verify if ok for others files
+   * @param sheet the sheet to read
+   * @param columnCount number of columns to load
+   * @return a matrix where each column contains up to {@link #ROW_COUNT} values
    */
   private double[][] loadData(Sheet sheet, int columnCount) {
     double[][] data = new double[columnCount][ROW_COUNT];
@@ -215,20 +310,98 @@ public final class TimeSeriesReader {
     }
   }
 
-  private static void fillDataList(String firstLine, Iterator<String> iterator, double[][] data, String separator) {
+  private static void fillDataList(Iterator<String> iterator, double[][] data, String separator) {
     var rowIndex = 0;
-    while ((firstLine != null || iterator.hasNext()) && rowIndex < ROW_COUNT) {
-      String[] values;
-      if (firstLine != null) {
-        values = firstLine.split(separator);
-        firstLine = null;
-      } else {
-        values = iterator.next().split(separator);
-      }
+    while (iterator.hasNext() && rowIndex < ROW_COUNT) {
+      String[] values = iterator.next().split(separator);
       for (var j = 0; j < values.length && j < data.length; j++) {
         data[j][rowIndex] = parseStringNumber(values[j]);
       }
       rowIndex++;
+    }
+  }
+
+  private static final class SelectedColumnsSheetHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
+    private final Set<String> requiredLower;
+    private final Map<Integer, String> selectedHeaders = new LinkedHashMap<>();
+    private final Map<Integer, double[]> dataByColumnIndex = new HashMap<>();
+    private final Map<Integer, String> currentRowValues = new HashMap<>();
+    private boolean currentRowHasCells;
+    private boolean headerInitialized;
+    private int dataRowIndex;
+
+    private SelectedColumnsSheetHandler(Set<String> requiredLower) {
+      this.requiredLower = requiredLower;
+    }
+
+    @Override
+    public void startRow(int rowNum) {
+      currentRowValues.clear();
+      currentRowHasCells = false;
+    }
+
+    @Override
+    public void endRow(int rowNum) {
+      if (!currentRowHasCells) {
+        return;
+      }
+
+      if (!headerInitialized) {
+        initializeSelectedHeaders();
+        headerInitialized = true;
+        return;
+      }
+
+      if (dataRowIndex >= ROW_COUNT) {
+        return;
+      }
+
+      for (Map.Entry<Integer, String> entry : selectedHeaders.entrySet()) {
+        String value = currentRowValues.get(entry.getKey());
+        dataByColumnIndex.get(entry.getKey())[dataRowIndex] = parseStringNumber(value);
+      }
+      dataRowIndex++;
+    }
+
+    @Override
+    public void cell(String cellReference, String formattedValue, XSSFComment comment) {
+      if (cellReference == null) {
+        return;
+      }
+
+      int colIndex = new CellReference(cellReference).getCol();
+      currentRowValues.put(colIndex, formattedValue);
+      currentRowHasCells = true;
+    }
+
+    @Override
+    public void endSheet() {
+      // No-op
+    }
+
+    private void initializeSelectedHeaders() {
+      for (Map.Entry<Integer, String> entry : currentRowValues.entrySet()) {
+        String header = entry.getValue() != null ? entry.getValue().trim() : "";
+        if (header.isEmpty()) {
+          continue;
+        }
+        if (requiredLower.contains(header.toLowerCase(Locale.ROOT))) {
+          selectedHeaders.put(entry.getKey(), header);
+          dataByColumnIndex.put(entry.getKey(), new double[ROW_COUNT]);
+        }
+      }
+    }
+
+    private TimeSeriesMatrix toMatrix() {
+      if (!headerInitialized) {
+        throw TechnicalException.builder().message("Excel sheet is empty").build();
+      }
+
+      var columns = new ArrayList<TimeSeriesMatrixColumn>(selectedHeaders.size());
+      for (Map.Entry<Integer, String> entry : selectedHeaders.entrySet()) {
+        columns.add(new TimeSeriesMatrixColumn(entry.getValue(), dataByColumnIndex.get(entry.getKey())));
+      }
+      return new TimeSeriesMatrix(columns);
     }
   }
 }

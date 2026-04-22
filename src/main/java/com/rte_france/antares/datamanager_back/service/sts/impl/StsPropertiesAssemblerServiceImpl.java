@@ -125,7 +125,23 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         // Each file entry is independent and can be processed separately.
         contextsByFile.forEach((file, value) -> {
-            TimeSeriesMatrix matrix = readConstraintsMatrix(file, horizon);
+            Set<String> requiredColumnsLower = value.stream()
+                    .flatMap(ctx -> ctx.parameterNames().stream())
+                    .filter(Objects::nonNull)
+                    .map(name -> name.toLowerCase(Locale.ROOT))
+                    .collect(Collectors.toSet());
+
+            if (requiredColumnsLower.isEmpty()) {
+                return;
+            }
+
+            TimeSeriesMatrix matrix;
+            try {
+                matrix = timeSeriesReader.readSelectedColumnsFromXlsx(file, horizon, requiredColumnsLower);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
 
             for (StorageConstraintsContext ctx : value) {
@@ -209,7 +225,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .findFirst();
     }
 
-    private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) {
+    @SuppressWarnings("unused")
+    private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) throws IOException {
         String fileName = file.getFileName().toString().toLowerCase();
         if (!fileName.endsWith(".xlsx")) {
             throw BusinessException.builder()
@@ -217,19 +234,13 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        try {
-            TimeSeriesMatrix matrix = timeSeriesReader.readFromXlsx(file, horizon);
-            if (matrix.columns().isEmpty()) {
-                throw TechnicalException.builder()
-                        .message("Matrix is empty: " + file.getFileName())
-                        .build();
-            }
-            return matrix;
-        } catch (BusinessException | TechnicalException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new UncheckedIOException(new IOException(e));
+        TimeSeriesMatrix matrix = timeSeriesReader.readFromXlsx(file, horizon);
+        if (matrix.columns().isEmpty()) {
+            throw TechnicalException.builder()
+                    .message("Matrix is empty: " + file.getFileName())
+                    .build();
         }
+        return matrix;
     }
 
 
