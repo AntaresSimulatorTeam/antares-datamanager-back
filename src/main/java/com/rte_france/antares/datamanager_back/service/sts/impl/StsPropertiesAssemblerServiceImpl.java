@@ -113,9 +113,9 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Set<String> allAreas,
             String horizon
     ) {
-
-        Map<String, List<String>> result = new ConcurrentHashMap<>();
-        allAreas.forEach(area -> result.put(area, Collections.synchronizedList(new ArrayList<>())));
+        Map<String, LinkedHashSet<String>> uniqueByArea = new ConcurrentHashMap<>();
+        allAreas.forEach(area -> uniqueByArea.put(area, new LinkedHashSet<>()));
+        Map<ConstraintSeriesKey, String> savedSeriesByKey = new ConcurrentHashMap<>();
 
         // Group contexts by file path to read each xlsx only once
         Map<Path, List<StorageConstraintsContext>> contextsByFile = contexts.stream()
@@ -145,39 +145,54 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
 
             for (StorageConstraintsContext ctx : value) {
-                writeConstraintsForContext(ctx, allAreas, columnsIndexByArea, outputDir, result);
+                writeConstraintsForContext(ctx, file, allAreas, columnsIndexByArea, outputDir, uniqueByArea, savedSeriesByKey);
             }
         });
 
-        return result;
+        return uniqueByArea.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> new ArrayList<>(entry.getValue())));
     }
 
     private void writeConstraintsForContext(
             StorageConstraintsContext ctx,
+            Path constraintsFile,
             Set<String> allAreas,
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea,
             String outputDir,
-            Map<String, List<String>> result
+            Map<String, LinkedHashSet<String>> result,
+            Map<ConstraintSeriesKey, String> savedSeriesByKey
     ) {
         Set<String> targetAreas = resolveTargetAreas(ctx.area(), allAreas);
         Set<String> allowedLower = toLowerCaseSet(ctx.parameterNames());
 
-        try {
-            for (String area : targetAreas) {
-                Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
-                for (String paramName : allowedLower) {
-                    TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
-                    if (singleColMatrix != null) {
-                        String colName = singleColMatrix.columns().getFirst().name();
-                        byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
-                        String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
-                        result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
-                    }
+        for (String area : targetAreas) {
+            Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
+            for (String paramName : allowedLower) {
+                TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
+                if (singleColMatrix != null) {
+                    String colName = singleColMatrix.columns().getFirst().name();
+                    ConstraintSeriesKey key = new ConstraintSeriesKey(
+                            constraintsFile,
+                            area,
+                            colName.toLowerCase(Locale.ROOT)
+                    );
+
+                    String savedFile = savedSeriesByKey.computeIfAbsent(key, ignoredKey -> {
+                        try {
+                            byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
+                            return nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+
+                    result.computeIfAbsent(area, ignored -> new LinkedHashSet<>()).add(savedFile);
                 }
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
+    }
+
+    private record ConstraintSeriesKey(Path constraintsFile, String area, String columnName) {
     }
 
     private Set<String> resolveTargetAreas(String contextArea, Set<String> allAreas) {
