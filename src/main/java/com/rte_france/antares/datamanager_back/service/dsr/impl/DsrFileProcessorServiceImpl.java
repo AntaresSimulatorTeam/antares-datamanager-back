@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -263,6 +264,9 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 // Zone must be present
                 validateRow(rowArea, trajectoryFileName, r);
 
+                Boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(null);
+                if (toUse == null || !toUse) continue;
+                
                 fileAreas.add(rowArea);
 
                 if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
