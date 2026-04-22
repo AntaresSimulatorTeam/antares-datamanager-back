@@ -296,19 +296,9 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
             }
-
-            if (onlyHeader) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(trajectoryFileName, horizon))
-                        .message("No data in DSR Cluster trajectory {0} for horizon: {1}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
             
-            validateTrajectoryAreasPresence(studyAreas, fileAreas, TrajectoryType.DSR, trajectoryFileName);
-
-            // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-            validateSelectedAreaPresence(areaParam, fileAreas, TrajectoryType.DSR, trajectoryFileName);
+            validateDataPresence(onlyHeader, trajectoryFileName, horizon);
+            validateAreas(studyAreas, areaParam, fileAreas,trajectoryFileName, TrajectoryType.DSR);
         }
         return results;
     }

@@ -1165,4 +1165,14 @@ public class Utils {
                 .message("Error processing file: " + e.getMessage())
                 .build();
     }
+    
+    public void validateDataPresence(Boolean onlyHeader, String trajectoryFileName, String horizon) {
+        if (Boolean.TRUE.equals(onlyHeader)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryFileName, horizon))
+                    .message("No data in DSR Cluster trajectory {0} for horizon: {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
 }
