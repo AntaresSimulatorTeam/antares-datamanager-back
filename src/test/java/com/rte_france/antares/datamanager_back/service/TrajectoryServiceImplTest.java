@@ -1159,6 +1159,56 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsHydroSeriesTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path hydroDir = tempDir.resolve("hydro/series/");
+        Files.createDirectories(hydroDir);
+
+        Files.createDirectory(hydroDir.resolve("BP_23_ref"));
+        Files.createDirectory(hydroDir.resolve("BP_50_ref"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getHydroSeriesDirectory()).thenReturn(hydroDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_SERIES, "FR", null, null);
+    
+        // Then
+        List<String> expected = List.of("BP_23_ref", "BP_50_ref");
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+        assertEquals(2, result.size());
+        assertTrue(actual.containsAll(expected));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsHydroTechnicalParametersTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path hydroTechnicalParametersDir = tempDir.resolve("hydro/technical_parameters");
+        Files.createDirectories(hydroTechnicalParametersDir);
+
+        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_23_ref"));
+        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_50_ref"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getHydroParametersDirectory()).thenReturn(hydroTechnicalParametersDir.toString());
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, "FR", null, null);
+
+        // Then
+        List<String> expected = List.of("BP_23_ref", "BP_50_ref");
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+        assertEquals(2, result.size());
+        assertTrue(actual.containsAll(expected));
+    }
+
+    @Test
     void processLoadTrajectory_throwsExceptionWhenAreaNotFound() {
         String area = "invalidArea";
         String trajectoryToUse = "testTrajectory";
