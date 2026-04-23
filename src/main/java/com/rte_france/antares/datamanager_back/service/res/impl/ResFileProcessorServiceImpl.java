@@ -885,13 +885,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return buildTrajectory(trajectoryFilePath, 0, horizon, createdBy, trajectoryType, area, technology, null);
     }
 
-    private List<String> loadStudyAreas(Integer studyId) {
-        return areaRepository.findAllByStudyId(studyId)
-                .stream()
-                .map(a -> a.getName().toUpperCase())
-                .toList();
-    }
-
     public TrajectoryEntity saveTrajectory(
             String horizon,
             String areaParam,
