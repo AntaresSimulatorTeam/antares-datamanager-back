@@ -335,15 +335,17 @@ class StsPropertiesAssemblerServiceImplTest {
 
     @Test
     void shouldPropagateBusinessExceptionWhenSheetNotFound() throws Exception {
-        // given
+        // given — use a path with /series/<trajectory>/<cluster>/<area> to get a meaningful display path
+        Path seriesDir = tempDir.resolve("series").resolve("example_FR_AFL-Test").resolve("battery_2h").resolve("FR");
+        Files.createDirectories(seriesDir);
         StStorageEntity entity = new StStorageEntity();
-        entity.setTsPath(tempDir.toString());
+        entity.setTsPath(seriesDir.toString());
         String horizon = "2030";
 
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
 
         for (StsTsFile file : StsTsFile.values()) {
-            Files.createFile(file.resolve(tempDir));
+            Files.createFile(file.resolve(seriesDir));
         }
 
         BusinessException originalEx = BusinessException.builder()
@@ -361,7 +363,10 @@ class StsPropertiesAssemblerServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
+        assertEquals(
+                "Horizon {0} does not exist in file: {1} for series in example_FR_AFL-Test/battery_2h/FR",
+                ex.getMessage()
+        );
         assertEquals(2, ex.getErrorMessageArguments().size());
         assertEquals(horizon, ex.getErrorMessageArguments().getFirst());
     }
