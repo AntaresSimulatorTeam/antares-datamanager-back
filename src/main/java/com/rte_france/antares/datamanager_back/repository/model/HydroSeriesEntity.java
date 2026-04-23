@@ -22,7 +22,7 @@ public class HydroSeriesEntity {
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;
 
-    @Column(name = "ts_name", length = 40)
+    @Column(name = "ts_name", length = 60, nullable = false)
     private String tsName;
 
     @Column(name = "type", length = 40)

@@ -3,6 +3,8 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity(name = "HydroParameters")
 @Table(name = "hydro_parameters")
 @Getter
@@ -44,7 +46,7 @@ public class HydroParametersEntity {
     private Boolean reservoir;
 
     @Column(name = "reservoir_capacity")
-    private Number reservoirCapacity;
+    private BigDecimal reservoirCapacity;
 
     @Column(name = "follow_load")
     private Boolean followLoad;
