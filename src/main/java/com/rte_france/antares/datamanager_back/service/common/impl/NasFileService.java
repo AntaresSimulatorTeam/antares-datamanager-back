@@ -29,6 +29,8 @@ public class NasFileService {
 
     private final TimeSeriesReader reader;
 
+    private static final String EXCEL_EXTENSION = ".xlsx";
+
     @Getter
     private final TimeSeriesWriter writer;
 
@@ -114,7 +116,7 @@ public class NasFileService {
         try {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 matrix = reader.readFromTxt(inputPath);
-            } else if (name.endsWith(".xlsx")) {
+            } else if (name.endsWith(EXCEL_EXTENSION)) {
                 matrix = reader.readFromXlsx(inputPath, sheetName);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
@@ -122,7 +124,7 @@ public class NasFileService {
         } catch (AntaresException e) {
             throw e;
         } catch (Exception e) {
-            String horizonInfo = name.endsWith(".xlsx") && sheetName != null && !sheetName.isBlank()
+            String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
                     ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
                     .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
@@ -152,7 +154,7 @@ public class NasFileService {
         try {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 return reader.readFromTxt(inputPath);
-            } else if (name.endsWith(".xlsx")) {
+            } else if (name.endsWith(EXCEL_EXTENSION)) {
                 return reader.readFromXlsx(inputPath, sheetName);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
@@ -160,7 +162,7 @@ public class NasFileService {
         } catch (AntaresException e) {
             throw e;
         } catch (Exception e) {
-            String horizonInfo = name.endsWith(".xlsx") && sheetName != null && !sheetName.isBlank()
+            String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
                     ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
                     .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)

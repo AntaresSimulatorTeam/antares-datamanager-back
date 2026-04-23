@@ -280,7 +280,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             try {
                 return nasFileService.readMatrix(path, horizon);
             } catch (BusinessException e) {
-                throw e;
+                String seriesPath = extractSeriesDisplayPath(path);
+                throw BusinessException.builder()
+                        .message(e.getMessage() + " for series in " + seriesPath)
+                        .errorMessageArguments(e.getErrorMessageArguments())
+                        .httpStatus(e.getHttpStatus())
+                        .build();
             } catch (Exception e) {
                 throw BusinessException.builder()
                         .message(e.getMessage())
@@ -288,6 +293,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .build();
             }
         });
+    }
+
+    private static String extractSeriesDisplayPath(Path inputPath) {
+        String dir = inputPath.getParent().toString().replace("\\", "/");
+        int idx = dir.toLowerCase().indexOf("/series/");
+        return idx >= 0 ? dir.substring(idx + "/series/".length()) : dir;
     }
 
     private String saveSeriesMatrix(

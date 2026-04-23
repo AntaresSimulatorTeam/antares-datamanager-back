@@ -146,7 +146,7 @@ class NasFileServiceTest {
     assertNotNull(result);
     assertTrue(result.startsWith("baseName."));
     assertTrue(result.endsWith(".arrow"));
-    
+
     Path savedFile = tempDir.resolve(OUTPUT_DIRECTORY).resolve(result);
     assertTrue(Files.exists(savedFile));
     assertArrayEquals("matrix content".getBytes(), Files.readAllBytes(savedFile));
@@ -212,7 +212,7 @@ class NasFileServiceTest {
 
 
     assertTrue(ex.getMessage().contains("Output directory must be a relative path"));
-   }
+  }
 
   @Test
   void saveMatrixToNas_fromPathTxt_savesSerializedMatrix() throws Exception {
@@ -315,6 +315,135 @@ class NasFileServiceTest {
 
     TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null));
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+  }
+
+  // ── saveFile ──────────────────────────────────────────────────────────────
+
+  @Test
+  void saveFile_blankFilename_throwsTechnicalException() {
+    assertThrows(TechnicalException.class,
+            () -> nasFileService.saveFile("   ", "content".getBytes(), OUTPUT_DIRECTORY));
+  }
+
+  // ── saveMatrixToNas(Path, String, String) ────────────────────────────────
+
+  @Test
+  void saveMatrixToNas_fromPathXlsx_validInput() throws Exception {
+    Path input = tempDir.resolve("data.xlsx");
+    Files.writeString(input, "dummy");
+    when(timeSeriesReader.readFromXlsx(input, "2030")).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, "2030");
+
+    assertNotNull(savedName);
+    assertTrue(savedName.startsWith("data."));
+    assertTrue(savedName.endsWith(".arrow"));
+    assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
+    verify(timeSeriesReader).readFromXlsx(input, "2030");
+  }
+
+  @Test
+  void saveMatrixToNas_fromPathCsv_savesSerializedMatrix() throws Exception {
+    Path input = tempDir.resolve("input.csv");
+    Files.writeString(input, "x");
+    when(timeSeriesReader.readFromTxt(input)).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null);
+
+    assertNotNull(savedName);
+    assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
+    verify(timeSeriesReader).readFromTxt(input);
+  }
+
+  @Test
+  void saveMatrixToNas_2argVariant_delegates() throws Exception {
+    Path input = tempDir.resolve("input.txt");
+    Files.writeString(input, "x");
+    when(timeSeriesReader.readFromTxt(input)).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY);
+
+    assertNotNull(savedName);
+    assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
+  }
+
+  @Test
+  void saveMatrixToNas_whenReaderFailsWithNoSheetName_noHorizonInfoInMessage() throws Exception {
+    Path input = tempDir.resolve("input.xlsx");
+    Files.writeString(input, "dummy");
+    when(timeSeriesReader.readFromXlsx(input, null)).thenThrow(new IOException("broken xlsx"));
+
+    TechnicalException ex = assertThrows(TechnicalException.class,
+            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null));
+
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains("input.xlsx"));
+    assertFalse(ex.getMessage().contains("horizon:"));
+  }
+
+  // ── readMatrix ────────────────────────────────────────────────────────────
+
+  @Test
+  void readMatrix_csvFile_returnsMatrix() throws Exception {
+    Path csvFile = tempDir.resolve("series.csv");
+    Files.writeString(csvFile, "col\n1.0\n");
+    when(timeSeriesReader.readFromTxt(csvFile)).thenReturn(timeSeriesMatrix);
+
+    TimeSeriesMatrix result = nasFileService.readMatrix(csvFile, null);
+
+    assertEquals(timeSeriesMatrix, result);
+    verify(timeSeriesReader).readFromTxt(csvFile);
+  }
+
+  @Test
+  void readMatrix_xlsxFailure_includesHorizonInfoInMessage() throws Exception {
+    Path xlsxFile = tempDir.resolve("data.xlsx");
+    Files.writeString(xlsxFile, "dummy");
+    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030")).thenThrow(new IOException("corrupt"));
+
+    TechnicalException ex = assertThrows(TechnicalException.class,
+            () -> nasFileService.readMatrix(xlsxFile, "2030"));
+
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains("data.xlsx"));
+    assertTrue(ex.getMessage().contains("horizon: 2030"));
+  }
+
+  // ── saveMatrixToNas(TimeSeriesMatrix, ...) ────────────────────────────────
+
+  @Test
+  void saveMatrixToNas_fromMatrix_baseNameAlreadyHasWriterExtension_stripsAndReplaces() throws IOException {
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn("data".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(timeSeriesMatrix, "myfile.arrow", OUTPUT_DIRECTORY);
+
+    // Extension should not be doubled: "myfile.<uuid>.arrow", not "myfile.arrow.<uuid>.arrow"
+    assertTrue(savedName.startsWith("myfile."));
+    assertTrue(savedName.endsWith(".arrow"));
+    assertFalse(savedName.startsWith("myfile.arrow."));
+  }
+
+  // ── saveMatrixBytesToNas ──────────────────────────────────────────────────
+
+  @Test
+  void saveMatrixBytesToNas_nullData_throwsNullPointerException() {
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+    assertThrows(NullPointerException.class,
+            () -> nasFileService.saveMatrixBytesToNas(null, "base.csv", OUTPUT_DIRECTORY));
+  }
+
+  @Test
+  void saveMatrixBytesToNas_nullBaseName_throwsNullPointerException() {
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+    assertThrows(NullPointerException.class,
+            () -> nasFileService.saveMatrixBytesToNas("data".getBytes(), null, OUTPUT_DIRECTORY));
   }
 }
 
