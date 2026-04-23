@@ -919,7 +919,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
                         || trajectoryType == TrajectoryType.MISC_LOAD
                         || trajectoryType == TrajectoryType.RES_LOAD
-                        || trajectoryType == TrajectoryType.RES_LOAD
                         || trajectoryType == TrajectoryType.HYDRO_SERIES
                         || trajectoryType == TrajectoryType.HYDRO_TECHNICAL_PARAMETERS);
     }
