@@ -42,7 +42,6 @@ import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
-import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl.readHeaderAreas;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -504,7 +503,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
-            case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER -> Files.isDirectory(path);
+            case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES, HYDRO_TECHNICAL_PARAMETERS -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
@@ -918,7 +917,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == RES_CAPACITY && isDefaultArea(area)
                         || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
                         || trajectoryType == TrajectoryType.MISC_LOAD
-                        || trajectoryType == TrajectoryType.RES_LOAD);
+                        || trajectoryType == TrajectoryType.RES_LOAD 
+                        || trajectoryType == TrajectoryType.HYDRO_SERIES 
+                        || trajectoryType == TrajectoryType.HYDRO_TECHNICAL_PARAMETERS);
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
@@ -978,6 +979,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case RES_CAPACITY -> getResCapacityDirectory(area);
             case RES_LOAD -> antaresDataManagerProperties.getResLoadDirectory();
             case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION -> antaresDataManagerProperties.getResDistributionDirectory();
+            case HYDRO_SERIES -> antaresDataManagerProperties.getHydroSeriesDirectory();
+            case HYDRO_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getHydroParametersDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }

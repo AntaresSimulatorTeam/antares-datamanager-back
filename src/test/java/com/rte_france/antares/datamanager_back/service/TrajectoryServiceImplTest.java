@@ -1115,6 +1115,48 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsHydroSeriesTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("hydro/series");
+        Files.createDirectories(thermalDir);
+
+        Files.createDirectory(thermalDir.resolve("BP_23_ref"));
+        Files.createDirectory(thermalDir.resolve("BP_50_ref"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getHydroSeriesDirectory()).thenReturn("hydro/series/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_SERIES, "FR", null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        assertEquals("BP_50_ref", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsHydroTechnicalParametersTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path thermalDir = tempDir.resolve("hydro/technical_parameters");
+        Files.createDirectories(thermalDir);
+
+        Files.createDirectory(thermalDir.resolve("BP_23_ref"));
+        Files.createDirectory(thermalDir.resolve("BP_50_ref"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getHydroParametersDirectory()).thenReturn("hydro/technical_parameters/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, "FR", null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        assertEquals("BP_50_ref", result.getFirst().getFileName());
+    }
+
+    @Test
     void findTrajectoriesByType_throwsTechnicalException_whenDirectoryIsMissing() throws TechnicalException {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("STS");
