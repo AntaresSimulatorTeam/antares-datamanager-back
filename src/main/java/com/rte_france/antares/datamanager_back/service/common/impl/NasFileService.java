@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.common.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.AntaresException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -118,12 +119,15 @@ public class NasFileService {
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
+        } catch (AntaresException e) {
+            throw e;
         } catch (Exception e) {
+            String horizonInfo = name.endsWith(".xlsx") && sheetName != null && !sheetName.isBlank()
+                    ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from file: " + inputPath.getFileName())
+                    .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
-
         }
         var outputFileName = generateUniqueFileName(inputPath.getFileName().toString());
         saveMatrix(outputFileName, matrix, outputDir);
@@ -153,11 +157,13 @@ public class NasFileService {
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
-        } catch (TechnicalException e) {
+        } catch (AntaresException e) {
             throw e;
         } catch (Exception e) {
+            String horizonInfo = name.endsWith(".xlsx") && sheetName != null && !sheetName.isBlank()
+                    ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from file: " + inputPath.getFileName())
+                    .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
         }
