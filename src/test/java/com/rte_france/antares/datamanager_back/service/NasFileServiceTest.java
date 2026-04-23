@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
@@ -17,6 +18,7 @@ import org.springframework.core.io.UrlResource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -237,7 +239,7 @@ class NasFileServiceTest {
             () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null)
     );
 
-    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains("Unsupported input format"));
   }
 
   @Test
@@ -252,6 +254,46 @@ class NasFileServiceTest {
     );
 
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains("input.xlsx"));
+    assertTrue(ex.getMessage().contains("horizon: 2030"));
+  }
+
+  @Test
+  void saveMatrixToNas_whenReaderThrowsBusinessException_propagatesAsIs() throws Exception {
+    Path input = tempDir.resolve("trajectoire.xlsx");
+    Files.writeString(input, "dummy");
+    BusinessException businessEx = BusinessException.builder()
+            .message("Horizon {0} does not exist in file: {1}")
+            .errorMessageArguments(List.of("2030", "trajectoire.xlsx"))
+            .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+            .build();
+    when(timeSeriesReader.readFromXlsx(input, "2030")).thenThrow(businessEx);
+
+    BusinessException ex = assertThrows(
+            BusinessException.class,
+            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, "2030")
+    );
+
+    assertSame(businessEx, ex);
+  }
+
+  @Test
+  void readMatrix_whenReaderThrowsBusinessException_propagatesAsIs() throws Exception {
+    Path input = tempDir.resolve("trajectoire.xlsx");
+    Files.writeString(input, "dummy");
+    BusinessException businessEx = BusinessException.builder()
+            .message("Horizon {0} does not exist in file: {1}")
+            .errorMessageArguments(List.of("2030", "trajectoire.xlsx"))
+            .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+            .build();
+    when(timeSeriesReader.readFromXlsx(input, "2030")).thenThrow(businessEx);
+
+    BusinessException ex = assertThrows(
+            BusinessException.class,
+            () -> nasFileService.readMatrix(input, "2030")
+    );
+
+    assertSame(businessEx, ex);
   }
 
   @Test
