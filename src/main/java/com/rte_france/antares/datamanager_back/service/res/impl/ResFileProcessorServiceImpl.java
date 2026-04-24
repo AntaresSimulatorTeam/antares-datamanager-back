@@ -60,7 +60,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
             TO_USE, AREA_COLUMN, PECD_ZONE_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN};
     protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
-            GROUP_COLUMN, CLUSTER_COLUMN, PECD_ZONE_COLUMN, "Techno_PECD"};
+            GROUP_COLUMN, CLUSTER_COLUMN, AREA_COLUMN, PECD_ZONE_COLUMN, "Techno_PECD"};
     protected static final String[] REQUIRED_ZONAL_DISTRIBUTION_COLUMNS = {
             AREA_COLUMN, "PECD_zone", GROUP_COLUMN};
     protected static final String OFFSHORE = "offshore";
@@ -630,7 +630,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
         result.addTechnologies(context.getTechnology());
 
-        validateEmptyRequiredColumns(context, requiredColumns, group, cluster, pecdZone, pecdTechno);
+        validateEmptyRequiredColumns(context, requiredColumns, group, cluster, area, pecdZone, pecdTechno);
 
         String combo = LITERAL_STRING.formatted(pecdZone, group, cluster);
 
