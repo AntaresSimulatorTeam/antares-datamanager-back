@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -45,6 +46,7 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL
 import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl.readHeaderAreas;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -1438,4 +1440,44 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                          Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
                  ));
      }
+     
+    public TrajectoryEntity buildDirectoryTrajectory(String type, String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException {
+        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+        String checksum = calculateDirectoryChecksum(trajectoryFilePath);
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .fileSize(Files.size(trajectoryFilePath))
+                .creationDate(LocalDateTime.now())
+                .createdBy(createdBy)
+                .checksum(checksum)
+                .lastModificationContentDate(LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(Files.getLastModifiedTime(trajectoryFilePath).toMillis()),
+                        ZoneId.systemDefault()))
+                .horizon(civilToChevalHorizon(horizon))
+                .area(area)
+                .technology(technology)
+                .type(type)
+                .hasTimeSeries(true)
+                .build();
+
+        var existingTrajectory = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                trajectoryToUse,
+                type,
+                horizon,
+                area,
+                technology);
+
+        if (existingTrajectory.isPresent()) {
+            if (existingTrajectory.get().getChecksum().equals(checksum)) {
+                throwAlreadyProcessedFileException(trajectoryFilePath);
+            } else {
+                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
+            }
+        } else {
+            trajectory.setVersion(1);
+        }
+
+        return trajectory;
+    }
 }

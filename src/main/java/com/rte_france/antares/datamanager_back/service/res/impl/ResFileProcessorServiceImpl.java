@@ -28,9 +28,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
@@ -127,7 +124,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     .normalize();
 
             checkExistingTs(trajectoryFilePath, trajectoryToUse);
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
+            TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(TrajectoryType.RES_LOAD.name(), trajectoryToUse,trajectoryFilePath, horizon, area, technology);
             return trajectoryRepository.save(trajectory);
         } else {
             Path trajectoryFolder = basePath
@@ -136,7 +133,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             checkAllRequiredTechnologiesExist(trajectoryFolder, trajectoryToUse);
 
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFolder, horizon, area, null);
+            TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(TrajectoryType.RES_LOAD.name(), trajectoryToUse, trajectoryFolder, horizon, area, null);
             return trajectoryRepository.save(trajectory);
         }
     }
@@ -336,45 +333,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
     }
 
-    private TrajectoryEntity buildLoadFactorMiscTrajectory(String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException {
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        String checksum = calculateDirectoryChecksum(trajectoryFilePath);
-
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .fileName(trajectoryToUse)
-                .fileSize(Files.size(trajectoryFilePath))
-                .creationDate(LocalDateTime.now())
-                .createdBy(createdBy)
-                .checksum(checksum)
-                .lastModificationContentDate(LocalDateTime.ofInstant(
-                        Instant.ofEpochMilli(Files.getLastModifiedTime(trajectoryFilePath).toMillis()),
-                        ZoneId.systemDefault()))
-                .horizon(civilToChevalHorizon(horizon))
-                .area(area)
-                .technology(technology)
-                .type(TrajectoryType.RES_LOAD.name())
-                .hasTimeSeries(true)
-                .build();
-
-        var existingTrajectory = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                trajectoryToUse,
-                TrajectoryType.RES_LOAD.name(),
-                horizon,
-                area,
-                technology);
-
-        if (existingTrajectory.isPresent()) {
-            if (existingTrajectory.get().getChecksum().equals(checksum)) {
-                throwAlreadyProcessedFileException(trajectoryFilePath);
-            } else {
-                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
-            }
-        } else {
-            trajectory.setVersion(1);
-        }
-
-        return trajectory;
-    }
+    
     private List<Path> resolveFiles(boolean isFR, String trajectoryToUse, String areaParam, String technology) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_CAPACITY,

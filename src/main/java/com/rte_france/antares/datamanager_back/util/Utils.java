@@ -8,11 +8,13 @@ import com.google.common.hash.Hashing;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostTypeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRateEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.res.ResRowProcessingContext;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -42,6 +44,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 
 
 /**
@@ -63,6 +66,9 @@ public class Utils {
     private static final String MISC_CAPACITY_PREFIX = "installedMisc_";
 
     public static final String OTHERS_AREA = "OTHERS";
+
+    private final UserService userService = null;
+    private final TrajectoryRepository trajectoryRepository = null;
 
     /**
      * Calculates and returns the SHA-256 checksum of a file.
