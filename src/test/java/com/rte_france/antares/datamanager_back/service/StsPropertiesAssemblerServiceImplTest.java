@@ -19,6 +19,7 @@ import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSerie
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesWriter;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
@@ -57,14 +58,23 @@ class StsPropertiesAssemblerServiceImplTest {
     @InjectMocks
     private StsPropertiesAssemblerServiceImpl stsPropertiesAssemblerService;
 
+    private AutoCloseable mocks;
+
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        mocks = MockitoAnnotations.openMocks(this);
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getStsDirectory()).thenReturn("sts");
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "antaresDataManagerProperties", antaresDataManagerProperties);
         ReflectionTestUtils.setField(stsPropertiesAssemblerService, "nasFileService", nasFileService);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
@@ -335,15 +345,17 @@ class StsPropertiesAssemblerServiceImplTest {
 
     @Test
     void shouldPropagateBusinessExceptionWhenSheetNotFound() throws Exception {
-        // given
+        // given — use a path with /series/<trajectory>/<cluster>/<area> to get a meaningful display path
+        Path seriesDir = tempDir.resolve("series").resolve("example_FR_AFL-Test").resolve("battery_2h").resolve("FR");
+        Files.createDirectories(seriesDir);
         StStorageEntity entity = new StStorageEntity();
-        entity.setTsPath(tempDir.toString());
+        entity.setTsPath(seriesDir.toString());
         String horizon = "2030";
 
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
 
         for (StsTsFile file : StsTsFile.values()) {
-            Files.createFile(file.resolve(tempDir));
+            Files.createFile(file.resolve(seriesDir));
         }
 
         BusinessException originalEx = BusinessException.builder()
@@ -361,7 +373,10 @@ class StsPropertiesAssemblerServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
+        assertEquals(
+                "Horizon {0} does not exist in file: {1} for series in example_FR_AFL-Test/battery_2h/FR",
+                ex.getMessage()
+        );
         assertEquals(2, ex.getErrorMessageArguments().size());
         assertEquals(horizon, ex.getErrorMessageArguments().getFirst());
     }
@@ -411,7 +426,7 @@ class StsPropertiesAssemblerServiceImplTest {
         // Mock constraints file processing: return a matrix with one column matching the param name
         TimeSeriesMatrix matrix = new TimeSeriesMatrix(
                 List.of(new TimeSeriesMatrixColumn("daily_min_ev_fr", new double[]{1.0})));
-        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -431,7 +446,13 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals("injection", constraintParam.getVariable());
         assertEquals("greater", constraintParam.getOperator());
         assertEquals("true", constraintParam.getEnabled());
-        assertEquals(List.of(List.of(1, 8, 20), List.of(2, 0, 6)), constraintParam.getHours());
+        assertEquals(
+                List.of(
+                        List.of(8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
+                        List.of(0, 1, 2, 3, 4, 5, 6)
+                ),
+                constraintParam.getHours()
+        );
     }
 
     @Test
@@ -502,7 +523,7 @@ class StsPropertiesAssemblerServiceImplTest {
 
         TimeSeriesMatrix matrix = new TimeSeriesMatrix(
                 List.of(new TimeSeriesMatrixColumn("daily_min", new double[]{1.0})));
-        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -517,7 +538,10 @@ class StsPropertiesAssemblerServiceImplTest {
         StsConstraintParameterDTO constraintParam = dto.getConstraintParameters().get("daily_min");
         assertNotNull(constraintParam);
         assertEquals("injection", constraintParam.getVariable());
-        assertEquals(List.of(List.of(1, 8, 20)), constraintParam.getHours());
+        assertEquals(
+                List.of(List.of(8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)),
+                constraintParam.getHours()
+        );
     }
 
     @Test
@@ -572,7 +596,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("daily_min_be", new double[]{1.0}),
                 new TimeSeriesMatrixColumn("night_min_be", new double[]{2.0})
         ));
-        when(timeSeriesReader.readFromXlsx(any(Path.class), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -590,7 +614,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(2, params.size());
         assertEquals("injection", params.get("daily_min_be").getVariable());
         assertEquals("greater", params.get("daily_min_be").getOperator());
-        assertEquals(List.of(List.of(1, 0, 8)), params.get("daily_min_be").getHours());
+        assertEquals(List.of(List.of(0, 1, 2, 3, 4, 5, 6, 7, 8)), params.get("daily_min_be").getHours());
         assertEquals("withdrawal", params.get("night_min_be").getVariable());
         assertEquals("false", params.get("night_min_be").getEnabled());
         assertNull(params.get("night_min_be").getHours());
@@ -755,6 +779,60 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
+    void expandHoursPerOccurrence_ShouldThrowBusinessExceptionWhenOccurrenceOrRangeIsNull() {
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min_v1g_fr")
+                .hours(List.of(
+                        StConstraintsHoursEntity.builder()
+                                .occurrence(null)
+                                .startHour(1)
+                                .endHour(24)
+                                .build()
+                ))
+                .build();
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "expandHoursPerOccurrence",
+                        param
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("Invalid hours for constraint {0}: occurrence/start/end must be set", ex.getMessage());
+        assertEquals(List.of("daily_min_v1g_fr"), ex.getErrorMessageArguments());
+    }
+
+    @Test
+    void expandHoursPerOccurrence_ShouldThrowBusinessExceptionWhenStartIsGreaterThanEnd() {
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("daily_min_v1g_fr")
+                .hours(List.of(
+                        StConstraintsHoursEntity.builder()
+                                .occurrence(1)
+                                .startHour(48)
+                                .endHour(25)
+                                .build()
+                ))
+                .build();
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(
+                        stsPropertiesAssemblerService,
+                        "expandHoursPerOccurrence",
+                        param
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("Invalid hours for constraint {0}: start must be <= end", ex.getMessage());
+        assertEquals(List.of("daily_min_v1g_fr"), ex.getErrorMessageArguments());
+    }
+
+    @Test
     void assembleStsProperties_ShouldReadConstraintsWorkbookOnceWhenContextsShareSameFile() throws Exception {
         Path stsDir = tempDir.resolve("trajectories").resolve("sts");
         Files.createDirectories(stsDir);
@@ -817,7 +895,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("daily_min_be", new double[]{2.0})
         ));
 
-        when(timeSeriesReader.readFromXlsx(constraintsFile, "2029-2030")).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
@@ -826,7 +904,79 @@ class StsPropertiesAssemblerServiceImplTest {
         Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
 
         assertEquals(2, result.size());
-        verify(timeSeriesReader, times(1)).readFromXlsx(constraintsFile, "2029-2030");
+        verify(timeSeriesReader, times(1)).readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any());
         verify(nasFileService, times(2)).saveMatrixBytesToNas(any(), any(), eq("/output"));
+    }
+
+    @Test
+    void assembleStsProperties_ShouldDeduplicateConstraintSeriesWhenContextsOverlapSameArea() throws Exception {
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Path constraintsFile = stsDir.resolve("Additional-constraints.xlsx");
+        Files.createFile(constraintsFile);
+
+        StConstraintsParameterEntity param1 = StConstraintsParameterEntity.builder()
+                .name("night_min_v2g_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StConstraintsParameterEntity param2 = StConstraintsParameterEntity.builder()
+                .name("night_min_v2g_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StStorageEntity firstStorage = StStorageEntity.builder()
+                .id(101)
+                .area("FR")
+                .name("ve_lourds")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param1))
+                .build();
+
+        StStorageEntity secondStorage = StStorageEntity.builder()
+                .id(102)
+                .area("FR")
+                .name("v1g")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Additional-constraints.xlsx")
+                .parameters(List.of(param2))
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(firstStorage, secondStorage))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("night_min_v2g_FR", new double[]{1.0})
+        ));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("night_min_v2g_FR.csv"), eq("/output")))
+                .thenReturn("night_min_v2g_FR.csv.uuid.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        assertEquals(List.of("night_min_v2g_FR.csv.uuid.arrow"), result.get("FR_ve_lourds").getStsConstraintsSeriesList());
+        assertEquals(List.of("night_min_v2g_FR.csv.uuid.arrow"), result.get("FR_v1g").getStsConstraintsSeriesList());
+        verify(nasFileService, times(1)).saveMatrixBytesToNas(any(), eq("night_min_v2g_FR.csv"), eq("/output"));
     }
 }
