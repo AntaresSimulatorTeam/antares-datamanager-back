@@ -126,7 +126,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             Path technologyFolder = resolveTechnologyFolder(trajectoryFolder, technology);
 
             checkExistingTs(technologyFolder, trajectoryToUse);
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, technologyFolder, horizon, area, technology);
+            TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(TrajectoryType.RES_LOAD.name(), trajectoryToUse,trajectoryFilePath, horizon, area, technology);
             return trajectoryRepository.save(trajectory);
         } else {
             Path trajectoryFolder = basePath
@@ -135,7 +135,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             checkAllRequiredTechnologiesExist(trajectoryFolder, trajectoryToUse);
 
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFolder, horizon, area, null);
+            TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(TrajectoryType.RES_LOAD.name(), trajectoryToUse, trajectoryFolder, horizon, area, null);
             return trajectoryRepository.save(trajectory);
         }
     }
