@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.HydroSeriesType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -10,34 +9,18 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.res.*;
-import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
-import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
-import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -46,6 +29,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class HydroFileProcessorServiceImpl implements HydroFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final TrajectoryServiceImpl trajectoryService;
+    private final AreaRepository areaRepository;
 
     protected static final String HYDRO_SERIES_PREFIX_MAX_POWER = "maxpower_";
     protected static final String HYDRO_SERIES_INFLOWS = "inflows";
@@ -53,6 +37,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String HYDRO_SERIES_INFLOWS_MOD = "mod";
     protected static final String HYDRO_SERIES_MINGEN = "mingen";
     protected static final String HYDRO_SERIES_RESERVOIR_LEVELS = "reservoir_levels";
+    protected static final String FILE_NOT_FOUND = "Not found";
 
     public record SeriesConfig(HydroSeriesType type, List<String> prefixes) {}
     protected static final Map<String, SeriesConfig> REQUIRED_SERIES = Map.of(
@@ -103,7 +88,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .build();
         }
         Path fileMaxPowerPath = trajectoryService.getTrajectoryFilePath(TrajectoryType.HYDRO_SERIES, trajectoryToUse, null);
-
+        List<String> studyAreas = loadStudyAreas(studyId);
+        validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse,horizon, areaParam, studyAreas, false, TrajectoryType.HYDRO_SERIES);
         HydroSeriesEntity entity = buildHydroSeriesEntity(fileMaxPowerPath.toString(), null);
         entities.add(entity);
 
@@ -171,7 +157,53 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         HydroSeriesEntity entity = new HydroSeriesEntity();
         entity.setType(String.valueOf(type));
         entity.setTsName(fileName);
-        // list de nom de ts_name + HydroSeriesType
         return entity;
+    }
+
+    public void validateMaxPowerFile(
+            Path filePath,
+            String trajectoryToUse,
+            String horizon,
+            String areaParam,
+            List<String> studyAreas,
+            boolean isCivilYear,
+            TrajectoryType trajectoryType
+    ) throws IOException {
+
+        // Validate that the file path is trusted and points to a regular file
+        if (filePath == null || !Files.isRegularFile(filePath)) {
+            throw BusinessException.builder()
+                    .message(FILE_NOT_FOUND + filePath)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Normalize the path to avoid traversal or symlink tricks
+        Path normalizedFile = filePath.toRealPath();
+
+        try (InputStream is = Files.newInputStream(normalizedFile);
+             Workbook workbook = WorkbookFactory.create(is)) {
+            
+            Sheet sheet = getRequiredSheet(workbook, horizon, filePath);
+            Row header = getHeaderOrThrow(sheet, filePath, TrajectoryType.HYDRO_SERIES);
+            List<String> headerAreas = new ArrayList<>();
+
+            DataFormatter formatter = new DataFormatter(); 
+
+            for (int i = 1; i < header.getLastCellNum(); i++) { 
+                Cell cell = header.getCell(i);
+                String value = formatter.formatCellValue(cell);
+                headerAreas.add(value);
+            }
+            
+            validateAreas(studyAreas, areaParam, headerAreas, trajectoryToUse, trajectoryType);
+        }
+    }
+
+    private List<String> loadStudyAreas(Integer studyId) {
+        return areaRepository.findAllByStudyId(studyId)
+                .stream()
+                .map(a -> a.getName().toUpperCase())
+                .toList();
     }
 }

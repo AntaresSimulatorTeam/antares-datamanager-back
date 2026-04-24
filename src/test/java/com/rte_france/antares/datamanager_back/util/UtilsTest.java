@@ -1353,7 +1353,7 @@ class UtilsTest {
             Path filePath = Path.of("test.xlsx");
 
             // When
-            Row result = Utils.getHeaderOrThrow(sheet, filePath);
+            Row result = Utils.getHeaderOrThrow(sheet, filePath, TrajectoryType.RES_CAPACITY);
 
             // Then
             assertThat(result).isSameAs(expectedHeader);
@@ -1368,7 +1368,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.getHeaderOrThrow(sheet, filePath),
+                    () -> Utils.getHeaderOrThrow(sheet, filePath, TrajectoryType.RES_CAPACITY),
                     BusinessException.class
             );
 
@@ -1389,7 +1389,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.getHeaderOrThrow(sheet, filePath),
+                    () -> Utils.getHeaderOrThrow(sheet, filePath, TrajectoryType.RES_CAPACITY),
                     BusinessException.class
             );
 

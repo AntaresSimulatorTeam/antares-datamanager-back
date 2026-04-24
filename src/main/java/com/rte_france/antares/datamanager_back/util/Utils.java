@@ -918,6 +918,7 @@ public class Utils {
             case RES_TECHNOLOGY_DISTRIBUTION -> "Technological repartition";
             case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
             case STS->"STS";
+            case HYDRO_SERIES -> "Hydro Series";
             default -> "trajectory";
         };
     }
@@ -1089,11 +1090,13 @@ public class Utils {
         return workbook.getSheetAt(index);
     }
 
-    public Row getHeaderOrThrow(Sheet sheet, Path filePath) {
+    public Row getHeaderOrThrow(Sheet sheet, Path filePath, TrajectoryType trajectoryType) {
         Row header = sheet.getRow(0);
+        String label = getErrorMessageLabelFromType(trajectoryType);
         if (header == null) {
             throw BusinessException.builder()
-                    .message("Missing header in InstalledRes file: " + filePath.getFileName())
+                    .errorMessageArguments(List.of(label, filePath.getFileName().toString()))
+                    .message("Missing header in {0} file: {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1194,5 +1197,16 @@ public class Utils {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+    }
+
+    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
+        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
+        if (sheet == null) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
+                    .message("Horizon {0} does not exist in the STS trajectory {1}")
+                    .build();
+        }
+        return sheet;
     }
 }
