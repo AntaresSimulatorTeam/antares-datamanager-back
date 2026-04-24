@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -152,7 +153,7 @@ class TimeSeriesReaderTest {
             }
         }
         var matrix = timeSeriesReader.readFromXlsx(file, null);
-        assertEquals(7.0, matrix.columns().get(0).values()[0]);
+        assertEquals(7.0, matrix.columns().getFirst().values()[0]);
     }
 
     @Test
@@ -169,7 +170,7 @@ class TimeSeriesReaderTest {
                 () -> timeSeriesReader.readFromXlsx(file, "2031"));
         assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
         assertEquals(2, ex.getErrorMessageArguments().size());
-        assertEquals("2031", ex.getErrorMessageArguments().get(0));
+        assertEquals("2031", ex.getErrorMessageArguments().getFirst());
     }
 
     @Test
@@ -204,5 +205,55 @@ class TimeSeriesReaderTest {
         Path file = tempDir.resolve("notfound.xlsx");
         var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, "2030"));
         assertTrue(ex.getMessage().startsWith("File not found:"));
+    }
+
+    @Test
+    void readSelectedColumnsFromXlsx_shouldOnlyReturnRequestedColumns(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("selected.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("2030");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("daily_min_fr");
+            header.createCell(1).setCellValue("night_min_fr");
+            header.createCell(2).setCellValue("other");
+
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue(1.0);
+            row.createCell(1).setCellValue(2.0);
+            row.createCell(2).setCellValue(3.0);
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromXlsx(
+                file,
+                "2030",
+                Set.of("night_min_fr")
+        );
+
+        assertEquals(1, matrix.columns().size());
+        assertEquals("night_min_fr", matrix.columns().getFirst().name());
+        assertEquals(2.0, matrix.columns().getFirst().values()[0]);
+    }
+
+    @Test
+    void readSelectedColumnsFromXlsx_shouldThrowBusinessExceptionWhenHorizonMissing(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("selected-missing-sheet.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            wb.createSheet("other");
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> timeSeriesReader.readSelectedColumnsFromXlsx(file, "2030", Set.of("daily_min_fr"))
+        );
+
+        assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
+        assertEquals("2030", ex.getErrorMessageArguments().getFirst());
     }
 }

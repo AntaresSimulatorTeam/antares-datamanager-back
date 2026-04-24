@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Slf4j
 @Service
@@ -112,9 +113,9 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Set<String> allAreas,
             String horizon
     ) {
-
-        Map<String, List<String>> result = new ConcurrentHashMap<>();
-        allAreas.forEach(area -> result.put(area, Collections.synchronizedList(new ArrayList<>())));
+        Map<String, LinkedHashSet<String>> uniqueByArea = new ConcurrentHashMap<>();
+        allAreas.forEach(area -> uniqueByArea.put(area, new LinkedHashSet<>()));
+        Map<ConstraintSeriesKey, String> savedSeriesByKey = new ConcurrentHashMap<>();
 
         // Group contexts by file path to read each xlsx only once
         Map<Path, List<StorageConstraintsContext>> contextsByFile = contexts.stream()
@@ -124,43 +125,74 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         // Each file entry is independent and can be processed separately.
         contextsByFile.forEach((file, value) -> {
-            TimeSeriesMatrix matrix = readConstraintsMatrix(file, horizon);
+            Set<String> requiredColumnsLower = value.stream()
+                    .flatMap(ctx -> ctx.parameterNames().stream())
+                    .filter(Objects::nonNull)
+                    .map(name -> name.toLowerCase(Locale.ROOT))
+                    .collect(Collectors.toSet());
+
+            if (requiredColumnsLower.isEmpty()) {
+                return;
+            }
+
+            TimeSeriesMatrix matrix;
+            try {
+                matrix = timeSeriesReader.readSelectedColumnsFromXlsx(file, horizon, requiredColumnsLower);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
 
             for (StorageConstraintsContext ctx : value) {
-                writeConstraintsForContext(ctx, allAreas, columnsIndexByArea, outputDir, result);
+                writeConstraintsForContext(ctx, file, allAreas, columnsIndexByArea, outputDir, uniqueByArea, savedSeriesByKey);
             }
         });
 
-        return result;
+        return uniqueByArea.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> new ArrayList<>(entry.getValue())));
     }
 
     private void writeConstraintsForContext(
             StorageConstraintsContext ctx,
+            Path constraintsFile,
             Set<String> allAreas,
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea,
             String outputDir,
-            Map<String, List<String>> result
+            Map<String, LinkedHashSet<String>> result,
+            Map<ConstraintSeriesKey, String> savedSeriesByKey
     ) {
         Set<String> targetAreas = resolveTargetAreas(ctx.area(), allAreas);
         Set<String> allowedLower = toLowerCaseSet(ctx.parameterNames());
 
-        try {
-            for (String area : targetAreas) {
-                Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
-                for (String paramName : allowedLower) {
-                    TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
-                    if (singleColMatrix != null) {
-                        String colName = singleColMatrix.columns().getFirst().name();
-                        byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
-                        String savedFile = nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
-                        result.computeIfAbsent(area, k -> Collections.synchronizedList(new ArrayList<>())).add(savedFile);
-                    }
+        for (String area : targetAreas) {
+            Map<String, TimeSeriesMatrix> areaColumns = columnsIndexByArea.getOrDefault(area, Map.of());
+            for (String paramName : allowedLower) {
+                TimeSeriesMatrix singleColMatrix = areaColumns.get(paramName);
+                if (singleColMatrix != null) {
+                    String colName = singleColMatrix.columns().getFirst().name();
+                    ConstraintSeriesKey key = new ConstraintSeriesKey(
+                            constraintsFile,
+                            area,
+                            colName.toLowerCase(Locale.ROOT)
+                    );
+
+                    String savedFile = savedSeriesByKey.computeIfAbsent(key, ignoredKey -> {
+                        try {
+                            byte[] bytes = nasFileService.getWriter().writeToByteArray(singleColMatrix);
+                            return nasFileService.saveMatrixBytesToNas(bytes, colName + ".csv", outputDir);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+
+                    result.computeIfAbsent(area, ignored -> new LinkedHashSet<>()).add(savedFile);
                 }
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
+    }
+
+    private record ConstraintSeriesKey(Path constraintsFile, String area, String columnName) {
     }
 
     private Set<String> resolveTargetAreas(String contextArea, Set<String> allAreas) {
@@ -208,7 +240,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .findFirst();
     }
 
-    private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) {
+    @SuppressWarnings("unused")
+    private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) throws IOException {
         String fileName = file.getFileName().toString().toLowerCase();
         if (!fileName.endsWith(".xlsx")) {
             throw BusinessException.builder()
@@ -216,19 +249,13 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        try {
-            TimeSeriesMatrix matrix = timeSeriesReader.readFromXlsx(file, horizon);
-            if (matrix.columns().isEmpty()) {
-                throw TechnicalException.builder()
-                        .message("Matrix is empty: " + file.getFileName())
-                        .build();
-            }
-            return matrix;
-        } catch (BusinessException | TechnicalException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new UncheckedIOException(new IOException(e));
+        TimeSeriesMatrix matrix = timeSeriesReader.readFromXlsx(file, horizon);
+        if (matrix.columns().isEmpty()) {
+            throw TechnicalException.builder()
+                    .message("Matrix is empty: " + file.getFileName())
+                    .build();
         }
+        return matrix;
     }
 
 
@@ -280,7 +307,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             try {
                 return nasFileService.readMatrix(path, horizon);
             } catch (BusinessException e) {
-                throw e;
+                String seriesPath = extractSeriesDisplayPath(path);
+                throw BusinessException.builder()
+                        .message(e.getMessage() + " for series in " + seriesPath)
+                        .errorMessageArguments(e.getErrorMessageArguments())
+                        .httpStatus(e.getHttpStatus())
+                        .build();
             } catch (Exception e) {
                 throw BusinessException.builder()
                         .message(e.getMessage())
@@ -288,6 +320,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .build();
             }
         });
+    }
+
+    private static String extractSeriesDisplayPath(Path inputPath) {
+        String dir = inputPath.getParent().toString().replace("\\", "/");
+        int idx = dir.toLowerCase().indexOf("/series/");
+        return idx >= 0 ? dir.substring(idx + "/series/".length()) : dir;
     }
 
     private String saveSeriesMatrix(
@@ -381,9 +419,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             if (name != null && zone != null && targetAreasLower.contains(zone.toLowerCase(Locale.ROOT))) {
                 List<List<Integer>> hours = null;
                 if (param.getHours() != null && !param.getHours().isEmpty()) {
-                    hours = param.getHours().stream()
-                            .map(h -> List.of(h.getOccurrence(), h.getStartHour(), h.getEndHour()))
-                            .toList();
+                    hours = expandHoursPerOccurrence(param);
                 }
 
                 result.put(name, StsConstraintParameterDTO.builder()
@@ -396,6 +432,37 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         }
 
         return result;
+    }
+
+    private List<List<Integer>> expandHoursPerOccurrence(StConstraintsParameterEntity param) {
+        Map<Integer, List<Integer>> byOccurrence = new LinkedHashMap<>();
+
+        for (var hour : param.getHours()) {
+            if (hour.getOccurrence() == null || hour.getStartHour() == null || hour.getEndHour() == null) {
+                throw BusinessException.builder()
+                        .message("Invalid hours for constraint {0}: occurrence/start/end must be set")
+                        .errorMessageArguments(List.of(param.getName()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            if (hour.getStartHour() > hour.getEndHour()) {
+                throw BusinessException.builder()
+                        .message("Invalid hours for constraint {0}: start must be <= end")
+                        .errorMessageArguments(List.of(param.getName()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            byOccurrence.computeIfAbsent(hour.getOccurrence(), key -> new ArrayList<>())
+                    .addAll(IntStream.rangeClosed(hour.getStartHour(), hour.getEndHour()).boxed().toList());
+        }
+
+        int maxOccurrence = byOccurrence.keySet().stream().max(Integer::compareTo).orElse(0);
+        List<List<Integer>> expanded = new ArrayList<>(maxOccurrence);
+        for (int occurrence = 1; occurrence <= maxOccurrence; occurrence++) {
+            expanded.add(byOccurrence.getOrDefault(occurrence, List.of()));
+        }
+        return expanded;
     }
 
 

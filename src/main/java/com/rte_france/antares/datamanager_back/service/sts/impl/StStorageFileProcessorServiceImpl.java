@@ -256,6 +256,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
         Boolean stsConstraintsFlag = getBooleanCell(row, CONSTRAINTS_INDEX);
         if (stsConstraintsFlag) {
+            log.info("STS constraints enabled for trajectory={}, area={}, cluster={}", trajectoryFileName, rowAreaName, clusterName);
             handleStsConstraints(
                     trajectoryFilePath,
                     rowAreaName,
@@ -432,6 +433,11 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Path additionalConstraintsPath = constraintsPath.resolve(
                 StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()
         );
+        log.info("Reading STS additional constraints file={} for trajectory={}, area={}, cluster={}",
+                additionalConstraintsPath,
+                trajectoryFileName,
+                rowAreaName,
+                clusterName);
 
         List<StConstraintsParameterEntity> parsedTemplateParams;
         try {
@@ -462,7 +468,12 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                     }
                 })
                 .toList();
-
+        log.info("STS additional constraints parsed for trajectory={}, area={}, cluster={}: templateCount={}, filteredCount={}",
+                trajectoryFileName,
+                rowAreaName,
+                clusterName,
+                parsedTemplateParams.size(),
+                filteredNewParams.size());
 
         filteredNewParams.forEach(p -> p.setStorage(storage));
 
