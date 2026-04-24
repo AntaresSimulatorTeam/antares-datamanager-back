@@ -316,117 +316,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     .build();
         }
     }
-
-    private TrajectoryEntity buildLoadFactorMiscTrajectory(String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException {
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
-        String checksum = calculateDirectoryChecksum(trajectoryFilePath);
-
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .fileName(trajectoryToUse)
-                .fileSize(Files.size(trajectoryFilePath))
-                .creationDate(LocalDateTime.now())
-                .createdBy(createdBy)
-                .checksum(checksum)
-                .lastModificationContentDate(LocalDateTime.ofInstant(
-                        Instant.ofEpochMilli(Files.getLastModifiedTime(trajectoryFilePath).toMillis()),
-                        ZoneId.systemDefault()))
-                .horizon(civilToChevalHorizon(horizon))
-                .area(area)
-                .technology(technology)
-                .type(TrajectoryType.RES_LOAD.name())
-                .hasTimeSeries(true)
-                .build();
-
-        var existingTrajectory = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                trajectoryToUse,
-                TrajectoryType.RES_LOAD.name(),
-                horizon,
-                area,
-                technology);
-
-        if (existingTrajectory.isPresent()) {
-            if (existingTrajectory.get().getChecksum().equals(checksum)) {
-                throwAlreadyProcessedFileException(trajectoryFilePath);
-            } else {
-                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
-            }
-        } else {
-            trajectory.setVersion(1);
-        }
-
-        return trajectory;
-    }
-
-    private static Path resolveTechnologyFolder(Path trajectoryFolder, String technology) throws IOException {
-        return findTechnologyFolder(trajectoryFolder, technology)
-                .orElseThrow(() -> BusinessException.builder()
-                        .message("No technology folder found for load factor misc trajectory: " + technology)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build());
-    }
-
-    private static Optional<Path> findTechnologyFolder(Path trajectoryFolder, String technology) throws IOException {
-        Objects.requireNonNull(trajectoryFolder, "trajectoryFolder must not be null");
-        Objects.requireNonNull(technology, "technology must not be null");
-
-        String displayTechnology = technology.trim();
-        String normalizedTechnology = toSnakeCase(displayTechnology);
-
-        if (!Files.exists(trajectoryFolder)) {
-            return Optional.empty();
-        }
-
-        Path normalizedBase = trajectoryFolder.toRealPath();
-        try (var walk = Files.walk(normalizedBase, 2)) {
-            List<Path> matches = walk
-                    .filter(Files::isDirectory)
-                    .filter(path -> normalizedBase.relativize(path).getNameCount() == 2)
-                    .filter(path -> matchesTechnologyFolder(normalizedBase, path, displayTechnology, normalizedTechnology))
-                    .toList();
-
-            if (matches.isEmpty()) {
-                return Optional.empty();
-            }
-
-            if (matches.size() > 1) {
-                throw BusinessException.builder()
-                        .message("Multiple technology folders found for load factor misc trajectory: " + displayTechnology)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            return Optional.of(matches.getFirst());
-        }
-    }
-
-    private static boolean matchesTechnologyFolder(Path baseDir, Path candidate, String displayTechnology, String normalizedTechnology) {
-        Path relative = baseDir.relativize(candidate);
-        if (relative.getNameCount() != 2) {
-            return false;
-        }
-
-        String firstLevel = relative.getName(0).toString();
-        String secondLevel = relative.getName(1).toString();
-
-        return matchesTechnologyToken(firstLevel, displayTechnology, normalizedTechnology)
-                && matchesTechnologyToken(secondLevel, displayTechnology, normalizedTechnology);
-    }
-
-    private static boolean matchesTechnologyToken(String actual, String displayTechnology, String normalizedTechnology) {
-        String spacedTechnology = normalizedTechnology.replace('_', ' ');
-        return actual.equalsIgnoreCase(displayTechnology)
-                || actual.equalsIgnoreCase(normalizedTechnology)
-                || actual.equalsIgnoreCase(spacedTechnology);
-    }
-
-    private static boolean containsCsvFile(Path directory) throws IOException {
-        try (var filesStream = Files.walk(directory)) {
-            return filesStream
-                    .filter(Files::isRegularFile)
-                    .anyMatch(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".csv"));
-        }
-    }
-
+    
     private List<Path> resolveFiles(boolean isFR, String trajectoryToUse, String areaParam, String technology) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_CAPACITY,
@@ -514,7 +404,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 requiredColumns = REQUIRED_ZONAL_DISTRIBUTION_COLUMNS;
             }
             Sheet sheet = getSheetOrThrow(workbook, filePath, indexSheet);
-            Row header = getHeaderOrThrow(sheet, filePath);
+            Row header = getHeaderOrThrow(sheet, filePath, trajectoryType);
 
             validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse, trajectoryType);
 
