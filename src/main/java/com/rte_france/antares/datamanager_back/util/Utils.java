@@ -908,9 +908,9 @@ public class Utils {
             Object... values
     ) {
         List<String> missing = new ArrayList<>();
-
+        
         for (int i = 0; i < requiredColumns.length; i++) {
-            if (values[i] == null) {
+            if (i >= values.length || values[i] == null) {
                 missing.add(requiredColumns[i]);
             }
         }
