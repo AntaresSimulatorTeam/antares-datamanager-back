@@ -55,16 +55,15 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     private final PathSecurityUtil pathSecurityUtil;
     
     protected static final String LITERAL_STRING = "%s/%s/%s";
-
-    @Transactional
+    
     @Override
     public TrajectoryEntity processHydroSeriesFile(
             String trajectoryToUse,
             String horizon,
             Integer studyId,
             String areaParam,
-            String technology,
             boolean isCivilYear
     ) throws IOException {
+    return null;
     }
 }

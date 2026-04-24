@@ -1175,11 +1175,5 @@ public class Utils {
                     .build();
         }
     }
-
-    public List<String> loadStudyAreas(Integer studyId) {
-        return areaRepository.findAllByStudyId(studyId)
-                .stream()
-                .map(a -> a.getName().toUpperCase())
-                .toList();
-    }
+    
 }
