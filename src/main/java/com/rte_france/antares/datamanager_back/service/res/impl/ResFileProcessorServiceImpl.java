@@ -261,7 +261,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
 
-        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_ZONAL_DISTRIBUTION);
+        return saveTrajectory(horizon, areaParam, technologyParam, filePath, result, TrajectoryType.RES_ZONAL_DISTRIBUTION);
     }
 
 
