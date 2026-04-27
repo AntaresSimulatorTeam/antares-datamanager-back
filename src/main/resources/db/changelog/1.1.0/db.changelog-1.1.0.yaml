@@ -90,5 +90,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V41-alter_res_technology_distribution_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V42-create-hydro-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V43-add-code-column-to-res-type.sql
 
 
