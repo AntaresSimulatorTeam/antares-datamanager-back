@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.common.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.AntaresException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -27,6 +28,8 @@ import java.util.UUID;
 public class NasFileService {
 
     private final TimeSeriesReader reader;
+
+    private static final String EXCEL_EXTENSION = ".xlsx";
 
     @Getter
     private final TimeSeriesWriter writer;
@@ -113,17 +116,20 @@ public class NasFileService {
         try {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 matrix = reader.readFromTxt(inputPath);
-            } else if (name.endsWith(".xlsx")) {
+            } else if (name.endsWith(EXCEL_EXTENSION)) {
                 matrix = reader.readFromXlsx(inputPath, sheetName);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
+        } catch (AntaresException e) {
+            throw e;
         } catch (Exception e) {
+            String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
+                    ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from file: " + inputPath.getFileName())
+                    .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
-
         }
         var outputFileName = generateUniqueFileName(inputPath.getFileName().toString());
         saveMatrix(outputFileName, matrix, outputDir);
@@ -148,16 +154,18 @@ public class NasFileService {
         try {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 return reader.readFromTxt(inputPath);
-            } else if (name.endsWith(".xlsx")) {
+            } else if (name.endsWith(EXCEL_EXTENSION)) {
                 return reader.readFromXlsx(inputPath, sheetName);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
-        } catch (TechnicalException e) {
+        } catch (AntaresException e) {
             throw e;
         } catch (Exception e) {
+            String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
+                    ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from file: " + inputPath.getFileName())
+                    .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
         }

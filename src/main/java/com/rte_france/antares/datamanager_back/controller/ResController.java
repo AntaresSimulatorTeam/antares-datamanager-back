@@ -54,7 +54,7 @@ public class ResController {
     public ResponseEntity<TrajectoryDTO> uploadInstalledResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9._-]*$", message = "Invalid trajectory name")String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {

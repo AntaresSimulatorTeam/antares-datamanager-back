@@ -84,4 +84,10 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.res.distribution.directory}")
     public String resDistributionDirectory;
+
+    @Value("${antares.datamanager.hydro.series.directory}")
+    public String hydroSeriesDirectory;
+
+    @Value("${antares.datamanager.hydro.parameters.directory}")
+    public String hydroParametersDirectory;
 }
