@@ -55,6 +55,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class TrajectoryServiceImpl implements TrajectoryService {
 
     public static final String OTHER_AREA = "OTHERS";
+    public static final String UNKNOWN_USER = "UNKNOWN__USER";
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;

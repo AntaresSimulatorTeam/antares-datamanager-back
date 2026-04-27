@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -63,7 +64,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             boolean isCivilYear
     ) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
-                TrajectoryType.RES_CAPACITY,
+                TrajectoryType.HYDRO_SERIES,
                 areaParam,
                 null
         );
@@ -75,23 +76,39 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(TrajectoryType.HYDRO_SERIES.name(), trajectoryToUse,trajectoryFilePath, horizon, areaParam, null);
+        TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(TrajectoryType.HYDRO_SERIES.name(), trajectoryToUse, trajectoryFilePath, horizon, areaParam, null);
 
         List<HydroSeriesEntity> entities = new ArrayList<>();
-        // récupérer et traiter les contrôles de maxpower
-        // prefix check
-        if (!startsWithIgnoreCase(trajectoryToUse, HYDRO_SERIES_PREFIX_MAX_POWER)) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(HYDRO_SERIES_PREFIX_MAX_POWER))
-                    .message("The trajectory file name must start with {0}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+        try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
+            List<Path> files = stream
+                    .filter(p -> p.getFileName().toString().startsWith(HYDRO_SERIES_PREFIX_MAX_POWER))
+                    .toList();
+
+            Path fileMaxPowerPath = null;
+            if (files.size() == 1) {
+                fileMaxPowerPath = files.getFirst();
+            } else if (files.isEmpty()) {
+                if (files.isEmpty()) {
+                        throw BusinessException.builder()
+                                .message("No maxpower file found for HYDRO series trajectory.")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                }
+            } else {
+                if (files.size() > 1) {
+                    throw BusinessException.builder()
+                            .message("Plusieurs fichiers ont pour préfixe " + HYDRO_SERIES_PREFIX_MAX_POWER + " :")
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+            if (fileMaxPowerPath != null) {
+                List<String> studyAreas = loadStudyAreas(studyId);
+                validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse,horizon, areaParam, studyAreas, false, TrajectoryType.HYDRO_SERIES);
+                HydroSeriesEntity entity = buildHydroSeriesEntity(fileMaxPowerPath.getFileName().toString(), null);
+                entities.add(entity);
+            }
         }
-        Path fileMaxPowerPath = trajectoryService.getTrajectoryFilePath(TrajectoryType.HYDRO_SERIES, trajectoryToUse, null);
-        List<String> studyAreas = loadStudyAreas(studyId);
-        validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse,horizon, areaParam, studyAreas, false, TrajectoryType.HYDRO_SERIES);
-        HydroSeriesEntity entity = buildHydroSeriesEntity(fileMaxPowerPath.toString(), null);
-        entities.add(entity);
 
         // récupération des trajectoires dans les sous-dossiers
         for (var entry : REQUIRED_SERIES.entrySet()) {
@@ -111,16 +128,19 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                         .filter(Files::isRegularFile)
                         .map(Path::getFileName)
                         .map(Path::toString)
-                        .filter(name -> name.matches("^[^_]+_[^_]+_[^_]+\\.csv$"))
+                        .filter(name -> name.matches("^[^_]+(?:_[^_]+){1,2}_\\d+-\\d+\\.csv$"))
                         .filter(name -> {
-                            String base = name.substring(0, name.length() - 4);
+                            String base = name.substring(0, name.length() - 4); // retire .csv
                             String[] parts = base.split("_");
+
                             if (parts.length < 3) {
                                 return false;
                             }
-                            String prefix = parts[0];
-                            String area = parts[1];
-                            String horizonFile = parts[2];
+
+                            String horizonFile = parts[parts.length - 1];
+                            String area = parts[parts.length - 2];
+                            String prefix = String.join("_", Arrays.copyOf(parts, parts.length - 2));
+
                             return prefixes.contains(prefix)
                                     && areaParam.equals(area)
                                     && horizon.equals(horizonFile);
@@ -129,12 +149,12 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                         .map(realPath::resolve)
                         .toList();
 
-//                    if (files.isEmpty()) {
-//                        throw BusinessException.builder()
-//                                .message("No csv file found in folder for HYDRO series trajectory: " + trajectoryToUse)
-//                                .httpStatus(HttpStatus.BAD_REQUEST)
-//                                .build();
-//                    }
+                    if (files.isEmpty()) {
+                        throw BusinessException.builder()
+                                .message("No files found for HYDRO series trajectory in "+ directory + " folder.")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
 
                 List<HydroSeriesEntity> entitiesByType = files.stream()
                         .map(file -> buildHydroSeriesEntity(file.getFileName().toString(), config.type()))

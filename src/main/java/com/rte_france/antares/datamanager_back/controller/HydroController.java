@@ -29,9 +29,9 @@ public class HydroController {
 
     private final HydroFileProcessorService hydroFileProcessorService;
 
-    @Operation(summary = "import series HYDRO trajectory to database ")
-    @PostMapping("/series-hydro")
-    public ResponseEntity<TrajectoryDTO> uploadLoadFactorResTrajectory(
+    @Operation(summary = "import HYDRO series trajectory to database ")
+    @PostMapping("/hydro-series")
+    public ResponseEntity<TrajectoryDTO> uploadSeriesHydroTrajectory(
             @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
