@@ -42,8 +42,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private static final String SERIES_BY_ZONE_AND_TECH = "series_by_zone_and_tech";
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
 
-    private static final Set<String> VALID_FR_ZONES = buildFrZones();
-
     private final NasFileService nasFileService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
@@ -58,11 +56,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         if (capacitiesByArea.isEmpty()) {
             return Collections.emptyMap();
         }
-        Set<String> expectedSeriesPrefixes = buildExpectedSeriesPrefixes(capacitiesByArea);
 
         Map<String, List<ResTechnologyDistributionEntity>> technologyByArea = collectTechnologyByArea(studyEntity);
         Map<String, List<ResZonalDistributionEntity>> zonalByArea = collectZonalByArea(studyEntity);
-        List<ResSeriesRef> generatedSeries = createArrowSeriesForResLoad(studyEntity, expectedSeriesPrefixes);
+        List<ResSeriesRef> generatedSeries = createArrowSeriesForResLoad(studyEntity);
 
         Map<String, Map<String, Object>> resByArea = new LinkedHashMap<>();
         capacitiesByArea.forEach((area, capacities) -> {
@@ -116,16 +113,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .collect(Collectors.groupingBy(e -> e.getArea().toUpperCase(Locale.ROOT), LinkedHashMap::new, Collectors.toList()));
     }
 
-    private Set<String> buildExpectedSeriesPrefixes(Map<String, List<ResClusterCapacityEntity>> capacitiesByArea) {
-        return capacitiesByArea.values().stream()
-                .flatMap(Collection::stream)
-                .map(ResClusterCapacityEntity::getGroupe)
-                .filter(Objects::nonNull)
-                .map(this::normalizeGroup)
-                .map(this::prefixFromGroup)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
     private Map<String, Object> buildClustersForArea(
             String area,
             List<ResClusterCapacityEntity> capacities,
@@ -155,6 +142,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 List<String> series = Collections.emptyList();
                 Map<String, Object> frAggregation = buildFrAggregation(
                         groupKey,
+                        installedPower,
                         technologyDistributions,
                         zonalDistributions,
                         generatedSeries
@@ -174,6 +162,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private Map<String, Object> buildFrAggregation(
             String normalizedGroup,
+            double installedPower,
             List<ResTechnologyDistributionEntity> technologyDistributions,
             List<ResZonalDistributionEntity> zonalDistributions,
             List<ResSeriesRef> generatedSeries
@@ -203,7 +192,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
         }
 
-        validateFrAggregation(normalizedGroup, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
+        validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
 
         Map<String, Object> aggregation = new LinkedHashMap<>();
         aggregation.put(ZONE_WEIGHTS, zoneWeights);
@@ -214,10 +203,15 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void validateFrAggregation(
             String normalizedGroup,
+            double installedPower,
             Map<String, Double> zoneWeights,
             Map<String, Map<String, Double>> techWeightsByZone,
             Map<String, Map<String, String>> seriesByZoneAndTech
     ) {
+        if (installedPower <= 0d) {
+            return;
+        }
+
         if (zoneWeights.isEmpty() || techWeightsByZone.isEmpty() || seriesByZoneAndTech.isEmpty()) {
             throw BusinessException.builder()
                     .message("Missing FR aggregation data for RES group " + normalizedGroup)
@@ -255,12 +249,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String resolveSingleSeries(String area, String group, List<ResSeriesRef> generatedSeries) {
-        String areaKey = toKey(area);
-        String groupKey = toKey(group);
-
         List<ResSeriesRef> fallbackCandidates = generatedSeries.stream()
-                .filter(ref -> ref.contains(areaKey))
-                .filter(ref -> ref.contains(groupKey))
+                .filter(ref -> ref.matchesNonFr(area, group))
                 .toList();
 
         if (fallbackCandidates.size() == 1) {
@@ -274,15 +264,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String resolveFrSeries(String zone, String group, String technology, List<ResSeriesRef> generatedSeries) {
-        String zoneKey = toKey(zone);
-        String groupKey = toKey(group);
         String technologyKey = toKey(technology);
 
         List<ResSeriesRef> candidates = generatedSeries.stream()
-                .filter(ref -> ref.contains(FR_AREA.toLowerCase(Locale.ROOT)))
-                .filter(ref -> ref.contains(zoneKey))
-                .filter(ref -> ref.contains(groupKey))
-                .filter(ref -> ref.contains(technologyKey))
+                .filter(ref -> ref.matchesFr(zone, group, technologyKey))
                 .toList();
 
         if (candidates.size() != 1) {
@@ -294,7 +279,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return candidates.getFirst().arrowPath();
     }
 
-    private List<ResSeriesRef> createArrowSeriesForResLoad(StudyEntity studyEntity, Set<String> expectedSeriesPrefixes) {
+    private List<ResSeriesRef> createArrowSeriesForResLoad(StudyEntity studyEntity) {
         List<TrajectoryEntity> resLoadTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.RES_LOAD.name().equals(t.getType()))
@@ -328,14 +313,24 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 try (var walk = Files.walk(trajectoryRoot)) {
                     walk.filter(Files::isRegularFile)
                             .filter(file -> !isInOldSubdirectory(trajectoryRoot, file))
-                            .filter(file -> isSupportedSeriesFormat(file, expectedSeriesPrefixes))
+                            .filter(this::isSupportedSeriesFormat)
                             .forEach(file -> {
+                                String rel = trajectoryRoot.relativize(file).toString();
+                                Optional<ParsedSeriesKey> parsedSeriesKey = parseSeriesKeyFromRelativePath(rel);
+                                if (parsedSeriesKey.isEmpty()) {
+                                    return;
+                                }
                                 String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
                                 try {
                                     String arrowName = nasFileService.saveMatrixToNas(file, outputDir);
-                                    String rel = trajectoryRoot.relativize(file).toString();
-                                    String normalizedRel = toKey(rel.replace('\\', '/'));
-                                    result.add(new ResSeriesRef(normalizedRel, arrowName));
+                                    result.add(new ResSeriesRef(
+                                            toKey(rel.replace('\\', '/')),
+                                            arrowName,
+                                            parsedSeriesKey.get().area(),
+                                            parsedSeriesKey.get().group(),
+                                            parsedSeriesKey.get().zone(),
+                                            parsedSeriesKey.get().technology()
+                                    ));
                                 } catch (IOException e) {
                                     throw TechnicalException.builder()
                                             .message("Could not generate RES arrow file from " + file)
@@ -365,25 +360,108 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return false;
     }
 
-    private String prefixFromGroup(String normalizedGroup) {
-        String key = toKey(normalizedGroup);
-
-        int separatorIndex = key.indexOf('_');
-        String prefixRoot = separatorIndex > 0 ? key.substring(0, separatorIndex) : key;
-        return prefixRoot + "_";
-    }
-
-    private boolean isSupportedSeriesFormat(Path file, Set<String> expectedSeriesPrefixes) {
+    private boolean isSupportedSeriesFormat(Path file) {
         String lowerName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         boolean hasSupportedExtension = lowerName.endsWith(".csv") || lowerName.endsWith(".txt") || lowerName.endsWith(".xlsx");
         if (!hasSupportedExtension || lowerName.startsWith(".~lock.")) {
             return false;
         }
+        return true;
+    }
 
-        int extensionIndex = lowerName.lastIndexOf('.');
-        String baseName = extensionIndex > 0 ? lowerName.substring(0, extensionIndex) : lowerName;
+    private Optional<ParsedSeriesKey> parseSeriesKeyFromRelativePath(String relativePath) {
+        String fileName = Path.of(relativePath).getFileName().toString();
+        int extensionIndex = fileName.lastIndexOf('.');
+        String baseName = extensionIndex > 0 ? fileName.substring(0, extensionIndex) : fileName;
         String normalizedBaseName = toKey(baseName);
-        return expectedSeriesPrefixes.stream().anyMatch(normalizedBaseName::startsWith);
+        List<String> tokens = Arrays.stream(normalizedBaseName.split("_"))
+                .filter(token -> !token.isBlank())
+                .toList();
+        return parseSeriesKey(tokens);
+    }
+
+    private Optional<ParsedSeriesKey> parseSeriesKey(List<String> tokens) {
+        if (tokens.size() < 3) {
+            return Optional.empty();
+        }
+
+        Optional<ParsedSeriesKey> styleA = parseSeriesKeyFromStyleA(tokens);
+        if (styleA.isPresent()) {
+            return styleA;
+        }
+        return parseSeriesKeyFromStyleB(tokens);
+    }
+
+    private Optional<ParsedSeriesKey> parseSeriesKeyFromStyleA(List<String> tokens) {
+        // Case A: <groupPrefix>_<areaOrZone>_<groupSuffix>_[tech...]_[horizon]
+        String areaOrZone = tokens.get(1);
+        Optional<String> normalizedGroup = tryNormalizeGroup(tokens.get(0), tokens.get(2));
+        if (normalizedGroup.isEmpty()) {
+            return Optional.empty();
+        }
+        return buildParsedSeriesKey(areaOrZone, normalizedGroup.get(), tokens, 3);
+    }
+
+    private Optional<ParsedSeriesKey> parseSeriesKeyFromStyleB(List<String> tokens) {
+        // Casse B: <groupPrefix>_<groupSuffix>_<areaOrZone>_[tech...]_[horizon]
+        if (tokens.size() < 4) {
+            return Optional.empty();
+        }
+        String areaOrZone = tokens.get(2);
+        Optional<String> normalizedGroup = tryNormalizeGroup(tokens.get(0), tokens.get(1));
+        if (normalizedGroup.isEmpty()) {
+            return Optional.empty();
+        }
+        return buildParsedSeriesKey(areaOrZone, normalizedGroup.get(), tokens, 3);
+    }
+
+    private Optional<ParsedSeriesKey> buildParsedSeriesKey(String areaOrZone, String normalizedGroup, List<String> tokens, int technologyStartIndex) {
+        if (isFrZone(areaOrZone)) {
+            String zone = areaOrZone.toUpperCase(Locale.ROOT);
+            List<String> technologyTokens = trimTrailingYearTokens(tokens.subList(technologyStartIndex, tokens.size()));
+            if (technologyTokens.isEmpty()) {
+                return Optional.empty();
+            }
+            String technology = String.join("_", technologyTokens);
+            return Optional.of(new ParsedSeriesKey(FR_AREA, normalizedGroup, zone, technology));
+        }
+
+        String area = areaOrZone.toUpperCase(Locale.ROOT);
+        return Optional.of(new ParsedSeriesKey(area, normalizedGroup, null, null));
+    }
+
+    private List<String> trimTrailingYearTokens(List<String> tokens) {
+        List<String> trimmed = new ArrayList<>(tokens);
+        if (hasTrailingHorizonPair(trimmed)) {
+            trimmed.remove(trimmed.size() - 1);
+            trimmed.remove(trimmed.size() - 1);
+        }
+        return trimmed;
+    }
+
+    private boolean hasTrailingHorizonPair(List<String> tokens) {
+        if (tokens.size() < 2) {
+            return false;
+        }
+        String last = tokens.get(tokens.size() - 1);
+        String previous = tokens.get(tokens.size() - 2);
+        return isYearToken(previous) && isYearToken(last);
+    }
+
+    private boolean isYearToken(String token) {
+        return token != null && token.matches("\\d{4}");
+    }
+
+    private boolean isFrZone(String token) {
+        return token != null && token.matches("(?i)fr\\d+");
+    }
+
+    private Optional<String> tryNormalizeGroup(String first, String second) {
+        try {
+            return Optional.of(normalizeGroup(first + "_" + second));
+        } catch (BusinessException ignored) {
+            return Optional.empty();
+        }
     }
 
     private String normalizeGroup(String group) {
@@ -399,7 +477,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private String canonicalFrZone(String zone) {
         String normalized = zone == null ? "" : zone.trim().toUpperCase(Locale.ROOT);
-        if (!VALID_FR_ZONES.contains(normalized)) {
+        if (normalized.isBlank() || !normalized.matches("FR\\d+")) {
             throw BusinessException.builder()
                     .message("Invalid FR zone key: " + zone)
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -408,13 +486,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return normalized;
     }
 
-    private static Set<String> buildFrZones() {
-        Set<String> zones = new LinkedHashSet<>();
-        for (int i = 1; i <= 26; i++) {
-            zones.add("FR" + String.format("%02d", i));
-        }
-        return zones;
-    }
 
     private double normalizeWeight(Number rawWeight, String weightType, String zone, String key) {
         if (rawWeight == null) {
@@ -443,9 +514,23 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String sourceKey, String arrowPath) {
-        boolean contains(String token) {
-            return sourceKey.contains(token);
+    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology) {
+        boolean matchesNonFr(String expectedArea, String expectedGroup) {
+            return !FR_AREA.equalsIgnoreCase(area)
+                    && area.equalsIgnoreCase(expectedArea)
+                    && group.equalsIgnoreCase(expectedGroup);
         }
+
+        boolean matchesFr(String expectedZone, String expectedGroup, String expectedTechnology) {
+            return FR_AREA.equalsIgnoreCase(area)
+                    && zone != null
+                    && zone.equalsIgnoreCase(expectedZone)
+                    && group.equalsIgnoreCase(expectedGroup)
+                    && technology != null
+                    && technology.equalsIgnoreCase(expectedTechnology);
+        }
+    }
+
+    private record ParsedSeriesKey(String area, String group, String zone, String technology) {
     }
 }

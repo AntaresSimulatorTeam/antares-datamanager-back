@@ -149,6 +149,53 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleResProperties_nonFr_shouldNotMixAreaPrefixesWhenResolvingSeries() throws IOException {
+        Path itSeries = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("cluster")
+                .resolve("wind_IT_onshore_alpha_2030-2031.csv");
+        Path itsSeries = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind onshore")
+                .resolve("cluster")
+                .resolve("wind_ITS_onshore_alpha_2030-2031.csv");
+        Files.createDirectories(itSeries.getParent());
+        Files.writeString(itSeries, "v\n0.2\n");
+        Files.writeString(itsSeries, "v\n0.3\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
+                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("IT")
+                .groupe("wind onshore")
+                .cluster("1")
+                .capacityByYear(BigDecimal.valueOf(900))
+                .build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
+
+        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> groupPayload = (Map<String, Object>) result.get("IT").get("wind_onshore");
+        @SuppressWarnings("unchecked")
+        List<String> series = (List<String>) groupPayload.get("series");
+        assertEquals(List.of("wind_IT_onshore_alpha_2030-2031.csv.arrow"), series);
+    }
+
+    @Test
     void assembleResProperties_fr_shouldReturnOptionCFrAggregation() throws IOException {
         Path csv = tempDir
                 .resolve("INPUT")
@@ -225,6 +272,73 @@ class ResGenerationAssemblerServiceImplTest {
         assertTrue(frAggregation.containsKey("zone_weights"));
         assertTrue(frAggregation.containsKey("tech_weights_by_zone"));
         assertTrue(frAggregation.containsKey("series_by_zone_and_tech"));
+    }
+
+    @Test
+    void assembleResProperties_fr_shouldKeepTechnologyTokenEndingWithYearWhenHorizonIsYearPair() throws IOException {
+        Path csv = tempDir
+                .resolve("INPUT")
+                .resolve("RES/load factor")
+                .resolve("BP23_A_ref")
+                .resolve("wind offshore")
+                .resolve("cluster")
+                .resolve("wind_FR01_offshore_tech_2025_2030_2031.csv");
+        Files.createDirectories(csv.getParent());
+        Files.writeString(csv, "v\n0.4\n");
+
+        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
+                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
+
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
+
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("FR")
+                .groupe("wind offshore")
+                .cluster("global")
+                .capacityByYear(BigDecimal.valueOf(18500))
+                .build();
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+
+        ResZonalDistributionEntity zonal = ResZonalDistributionEntity.builder()
+                .area("FR")
+                .groupe("wind offshore")
+                .pecdZone("FR01")
+                .capacityByYear(BigDecimal.valueOf(60))
+                .build();
+        TrajectoryEntity resZonal = TrajectoryEntity.builder()
+                .type("RES_ZONAL_DISTRIBUTION")
+                .resZonalDistributionCapacityEntities(List.of(zonal))
+                .build();
+
+        ResTechnologyDistributionEntity tech = ResTechnologyDistributionEntity.builder()
+                .area("FR")
+                .groupe("wind offshore")
+                .pecdZone("FR01")
+                .pecdTechnology("tech 2025")
+                .capacityByYear(100.0)
+                .build();
+        TrajectoryEntity resTech = TrajectoryEntity.builder()
+                .type("RES_TECHNOLOGY_DISTRIBUTION")
+                .resTechnologyDistributionCapacityEntities(List.of(tech))
+                .build();
+
+        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
+
+        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cluster = (Map<String, Object>) result.get("FR").get("wind_offshore");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frAggregation = (Map<String, Object>) cluster.get("fr_aggregation");
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, String>> seriesByZoneAndTech = (Map<String, Map<String, String>>) frAggregation.get("series_by_zone_and_tech");
+
+        assertEquals("wind_FR01_offshore_tech_2025_2030_2031.csv.arrow", seriesByZoneAndTech.get("FR01").get("tech_2025"));
     }
 
     @Test
@@ -385,6 +499,37 @@ class ResGenerationAssemblerServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
         assertTrue(exception.getMessage().contains("Missing FR aggregation data"));
+    }
+
+    @Test
+    void assembleResProperties_fr_withZeroInstalledPowerWithoutDistribution_shouldNotThrow() {
+        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
+
+        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
+                .toUse(true)
+                .area("FR")
+                .groupe("wind offshore")
+                .cluster("global")
+                .capacityByYear(BigDecimal.ZERO)
+                .build();
+
+        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
+                .type("RES_CAPACITY")
+                .resClusterCapacityEntities(List.of(capacity))
+                .build();
+
+        study.setTrajectories(new LinkedHashSet<>(List.of(resCapacity)));
+
+        Map<String, Map<String, Object>> result = assertDoesNotThrow(() -> service.assembleResProperties(study));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cluster = (Map<String, Object>) result.get("FR").get("wind_offshore");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frAggregation = (Map<String, Object>) cluster.get("fr_aggregation");
+        assertNotNull(frAggregation);
+        assertTrue(((Map<?, ?>) frAggregation.get("zone_weights")).isEmpty());
+        assertTrue(((Map<?, ?>) frAggregation.get("tech_weights_by_zone")).isEmpty());
+        assertTrue(((Map<?, ?>) frAggregation.get("series_by_zone_and_tech")).isEmpty());
     }
 
     @Test
