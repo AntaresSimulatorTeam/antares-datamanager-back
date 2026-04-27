@@ -22,5 +22,6 @@ public class ResTypeEntity {
     private Integer id;
 
     private String label;
-}
 
+    private String code;
+}
