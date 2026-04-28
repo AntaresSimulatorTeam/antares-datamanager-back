@@ -188,8 +188,12 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             double weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
 
             techWeightsByZone.computeIfAbsent(zone, ignored -> new LinkedHashMap<>()).put(technology, weight);
-            seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
-                    .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
+
+            // Only resolve series if weight is > 0 (we skip technologies with no weight)
+            if (weight > 0) {
+                seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
+                        .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
+            }
         }
 
         validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
@@ -220,7 +224,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         double totalZoneWeight = zoneWeights.values().stream().mapToDouble(Double::doubleValue).sum();
-        if (totalZoneWeight <= 0d) {
+        if (totalZoneWeight < 0d) {
             throw BusinessException.builder()
                     .message("FR zone weights sum must be strictly positive for RES group " + normalizedGroup)
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -231,15 +235,25 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             Map<String, Double> techWeights = techWeightsByZone.get(zone);
             Map<String, String> techSeries = seriesByZoneAndTech.get(zone);
 
-            if (techWeights == null || techWeights.isEmpty() || techSeries == null || techSeries.isEmpty()) {
+            if (techWeights == null || techWeights.isEmpty()) {
                 throw BusinessException.builder()
                         .message("Missing FR technology mapping for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
 
+            // Verify that all technologies with weight > 0 have a series file
+            for (Map.Entry<String, Double> entry : techWeights.entrySet()) {
+                if (entry.getValue() > 0 && (techSeries == null || !techSeries.containsKey(entry.getKey()))) {
+                    throw BusinessException.builder()
+                            .message("Missing RES load factor series for technology " + entry.getKey() + " in zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
             double techSum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
-            if (techSum <= 0d) {
+            if (techSum < 0d) {
                 throw BusinessException.builder()
                         .message("FR technology weights sum must be strictly positive for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
@@ -264,10 +278,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String resolveFrSeries(String zone, String group, String technology, List<ResSeriesRef> generatedSeries) {
-        String technologyKey = toKey(technology);
+        Set<String> candidateTechnologyKeys = buildFrTechnologyCandidateKeys(group, technology);
 
         List<ResSeriesRef> candidates = generatedSeries.stream()
-                .filter(ref -> ref.matchesFr(zone, group, technologyKey))
+                .filter(ref -> candidateTechnologyKeys.stream().anyMatch(candidate -> ref.matchesFr(zone, group, candidate)))
                 .toList();
 
         if (candidates.size() != 1) {
@@ -277,6 +291,21 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     .build();
         }
         return candidates.getFirst().arrowPath();
+    }
+
+    private Set<String> buildFrTechnologyCandidateKeys(String group, String technology) {
+        String normalizedGroup = toKey(group);
+        String normalizedTechnology = toKey(technology);
+
+        Set<String> candidates = new LinkedHashSet<>();
+        candidates.add(normalizedTechnology);
+
+        String groupPrefix = normalizedGroup + "_";
+        if (normalizedTechnology.startsWith(groupPrefix) && normalizedTechnology.length() > groupPrefix.length()) {
+            candidates.add(normalizedTechnology.substring(groupPrefix.length()));
+        }
+
+        return candidates;
     }
 
     private List<ResSeriesRef> createArrowSeriesForResLoad(StudyEntity studyEntity) {

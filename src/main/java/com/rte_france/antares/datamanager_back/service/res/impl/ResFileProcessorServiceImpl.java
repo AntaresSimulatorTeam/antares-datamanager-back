@@ -118,16 +118,15 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (technology != null && !technology.isBlank()) {
             validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology);
-            validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology, technology);
-
-            Path trajectoryFilePath = basePath
+            Path trajectoryFolder = basePath
                     .resolve(loadDirectory)
                     .resolve(trajectoryToUse)
-                    .resolve(technology).resolve(technology)
                     .normalize();
 
-            checkExistingTs(trajectoryFilePath, trajectoryToUse);
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse,trajectoryFilePath, horizon, area, technology);
+            Path technologyFolder = resolveTechnologyFolder(trajectoryFolder, technology);
+
+            checkExistingTs(technologyFolder, trajectoryToUse);
+            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, technologyFolder, horizon, area, technology);
             return trajectoryRepository.save(trajectory);
         } else {
             Path trajectoryFolder = basePath
@@ -266,27 +265,17 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
 
     private static void checkExistingTs(Path trajectoryFilePath, String trajectoryToUse) throws IOException {
-        // technologyPath directory must contain at least one ts .csv file
-        if(Files.exists(trajectoryFilePath)) {
-            // Ensure the path is real and validated before using Files.walk
-            Path realPath = trajectoryFilePath.toRealPath();
-
-            //find csv files in technologyPath directory
-            try (var filesStream = Files.walk(realPath, 1)) {
-                boolean hasCsv = filesStream
-                        .filter(Files::isRegularFile)
-                        .anyMatch(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"));
-                if (!hasCsv) {
-                    throw BusinessException.builder()
-                            .message("No csv file found in technology folder for load factor misc trajectory: " + trajectoryToUse)
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-            }
-
-        } else {
+        if (!Files.exists(trajectoryFilePath)) {
             throw BusinessException.builder()
                     .message("No technology folder found for load factor misc trajectory: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        Path realPath = trajectoryFilePath.toRealPath();
+        if (!containsCsvFile(realPath)) {
+            throw BusinessException.builder()
+                    .message("No csv file found in technology folder for load factor misc trajectory: " + trajectoryToUse)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -299,30 +288,22 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         if (!Files.exists(trajectoryFolder)) {
             throw BusinessException.builder()
-                    .message("Trajectory folder not found for load factor misc trajectory: " + trajectoryToUse)
+                    .message("Trajectory folder not found for load factor res trajectory: " + trajectoryToUse)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
         for (String technology : requiredTechnologies) {
-            Path technologyPath = trajectoryFolder.resolve(technology).resolve(technology).normalize();
+            Optional<Path> technologyPath = findTechnologyFolder(trajectoryFolder, technology);
 
-            if (!Files.exists(technologyPath)) {
+            if (technologyPath.isEmpty()) {
                 missingTechnologies.add(technology);
                 continue;
             }
 
-            // Ensure the path is real and validated before using Files.walk
-            Path realPath = technologyPath.toRealPath();
-
-            // Check if there is at least one .csv file in this technology directory
-            try (var filesStream = Files.walk(realPath, 1)) {
-                boolean hasCsv = filesStream
-                        .filter(Files::isRegularFile)
-                        .anyMatch(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"));
-                if (!hasCsv) {
-                    missingTechnologies.add(technology);
-                }
+            Path realPath = technologyPath.get().toRealPath();
+            if (!containsCsvFile(realPath)) {
+                missingTechnologies.add(technology);
             }
         }
 
@@ -375,6 +356,77 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         return trajectory;
     }
+
+    private static Path resolveTechnologyFolder(Path trajectoryFolder, String technology) throws IOException {
+        return findTechnologyFolder(trajectoryFolder, technology)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("No technology folder found for load factor misc trajectory: " + technology)
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+    }
+
+    private static Optional<Path> findTechnologyFolder(Path trajectoryFolder, String technology) throws IOException {
+        Objects.requireNonNull(trajectoryFolder, "trajectoryFolder must not be null");
+        Objects.requireNonNull(technology, "technology must not be null");
+
+        String displayTechnology = technology.trim();
+        String normalizedTechnology = toSnakeCase(displayTechnology);
+
+        if (!Files.exists(trajectoryFolder)) {
+            return Optional.empty();
+        }
+
+        Path normalizedBase = trajectoryFolder.toRealPath();
+        try (var walk = Files.walk(normalizedBase, 2)) {
+            List<Path> matches = walk
+                    .filter(Files::isDirectory)
+                    .filter(path -> normalizedBase.relativize(path).getNameCount() == 2)
+                    .filter(path -> matchesTechnologyFolder(normalizedBase, path, displayTechnology, normalizedTechnology))
+                    .toList();
+
+            if (matches.isEmpty()) {
+                return Optional.empty();
+            }
+
+            if (matches.size() > 1) {
+                throw BusinessException.builder()
+                        .message("Multiple technology folders found for load factor misc trajectory: " + displayTechnology)
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            return Optional.of(matches.getFirst());
+        }
+    }
+
+    private static boolean matchesTechnologyFolder(Path baseDir, Path candidate, String displayTechnology, String normalizedTechnology) {
+        Path relative = baseDir.relativize(candidate);
+        if (relative.getNameCount() != 2) {
+            return false;
+        }
+
+        String firstLevel = relative.getName(0).toString();
+        String secondLevel = relative.getName(1).toString();
+
+        return matchesTechnologyToken(firstLevel, displayTechnology, normalizedTechnology)
+                && matchesTechnologyToken(secondLevel, displayTechnology, normalizedTechnology);
+    }
+
+    private static boolean matchesTechnologyToken(String actual, String displayTechnology, String normalizedTechnology) {
+        String spacedTechnology = normalizedTechnology.replace('_', ' ');
+        return actual.equalsIgnoreCase(displayTechnology)
+                || actual.equalsIgnoreCase(normalizedTechnology)
+                || actual.equalsIgnoreCase(spacedTechnology);
+    }
+
+    private static boolean containsCsvFile(Path directory) throws IOException {
+        try (var filesStream = Files.walk(directory)) {
+            return filesStream
+                    .filter(Files::isRegularFile)
+                    .anyMatch(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".csv"));
+        }
+    }
+
     private List<Path> resolveFiles(boolean isFR, String trajectoryToUse, String areaParam, String technology) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
                 TrajectoryType.RES_CAPACITY,
