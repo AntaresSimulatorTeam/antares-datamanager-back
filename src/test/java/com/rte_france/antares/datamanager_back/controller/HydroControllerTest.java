@@ -2,8 +2,6 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
