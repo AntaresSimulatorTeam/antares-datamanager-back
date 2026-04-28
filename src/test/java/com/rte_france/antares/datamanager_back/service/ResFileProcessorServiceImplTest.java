@@ -1366,10 +1366,46 @@ public class ResFileProcessorServiceImplTest {
             verify(trajectoryRepository).save(any(TrajectoryEntity.class));
         }
 
+        @Test
+        void processLoadFactorResFileResolvesNormalizedParentAndDisplayLeafFolders(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Folder structure like solar_pv/"solar pv"
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME);
+            createTechnologyWithCsv(trajectoryBaseDir, "solar_pv", "solar pv");
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
+            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+            // WHEN
+            TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
+                    TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+            );
+
+            // THEN
+            assertNotNull(result);
+            assertEquals(TECHNOLOGY_SOLAR_PV, result.getTechnology());
+            assertEquals(1, result.getVersion());
+            verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
         private void createTechnologyWithCsv(Path trajectoryBaseDir, String technology) throws IOException {
-            Path technologyDir = trajectoryBaseDir.resolve(technology).resolve(technology);
+            createTechnologyWithCsv(trajectoryBaseDir, technology, technology);
+        }
+
+        private void createTechnologyWithCsv(Path trajectoryBaseDir, String technologyFolder, String leafFolder) throws IOException {
+            Path technologyDir = trajectoryBaseDir.resolve(technologyFolder).resolve(leafFolder);
             Files.createDirectories(technologyDir);
-            createMockCsvFile(technologyDir, technology + "_data.csv");
+            createMockCsvFile(technologyDir, leafFolder + "_data.csv");
         }
     }
 
