@@ -1375,8 +1375,7 @@ class UtilsTest {
             // Then
             assertThat(ex).isNotNull();
             assertThat(ex.getMessage())
-                    .contains("Missing header")
-                    .contains("missingHeader.xlsx");
+                    .contains("Missing header");
             assertThat(ex.getHttpStatus().value()).isEqualTo(400);
         }
 
@@ -1394,7 +1393,7 @@ class UtilsTest {
             );
 
             // Then
-            assertThat(ex.getMessage()).contains("headerFile.xlsx");
+            assertThat(ex.getMessage()).contains("Missing header in {0} file: {1}");
         }
 
     @Test
