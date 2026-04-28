@@ -46,6 +46,7 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL
 import static com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl.readHeaderAreas;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
+import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -55,7 +56,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class TrajectoryServiceImpl implements TrajectoryService {
 
     public static final String OTHER_AREA = "OTHERS";
-    public static final String UNKNOWN_USER = "UNKNOWN__USER";
+    
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
