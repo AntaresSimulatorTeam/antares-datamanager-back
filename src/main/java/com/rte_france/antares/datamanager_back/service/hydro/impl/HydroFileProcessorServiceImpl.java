@@ -109,7 +109,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         if (fileMaxPowerPath != null) {
             List<String> studyAreas = loadStudyAreas(studyId);
-            validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, false, TrajectoryType.HYDRO_SERIES);
+            validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, TrajectoryType.HYDRO_SERIES);
 
             entities.add(buildHydroSeriesEntity(fileMaxPowerPath.getFileName().toString(), null));
         }
@@ -220,7 +220,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String horizon,
             String areaParam,
             List<String> studyAreas,
-            boolean isCivilYear,
             TrajectoryType trajectoryType
     ) throws IOException {
 
