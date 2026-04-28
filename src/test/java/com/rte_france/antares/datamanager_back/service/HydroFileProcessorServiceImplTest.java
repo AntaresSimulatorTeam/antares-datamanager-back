@@ -55,9 +55,6 @@ class HydroFileProcessorServiceImplTest {
     @Mock
     private AreaRepository areaRepository;
 
-    @Mock
-    private UserService userService;
-
     @TempDir
     Path tempDir;
 
@@ -76,7 +73,7 @@ class HydroFileProcessorServiceImplTest {
         // Création d'un répertoire "outside" réel, mais hors du répertoire autorisé
         Path outside = tempDir.resolveSibling("outside");
         Files.createDirectories(outside);
-        
+
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(outside);
 
@@ -250,6 +247,10 @@ class HydroFileProcessorServiceImplTest {
         // Nom invalide : il manque le horizon au format attendu avant .csv
         Files.createFile(inflowDir.resolve("ror_FR.csv"));
 
+
+        // Nom invalide : il manque le horizon au format attendu avant .csv
+        Files.createFile(inflowDir.resolve("ror_FR.csv"));
+        
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(
                 any(), any(), any()
         )).thenReturn(baseDirectory);
