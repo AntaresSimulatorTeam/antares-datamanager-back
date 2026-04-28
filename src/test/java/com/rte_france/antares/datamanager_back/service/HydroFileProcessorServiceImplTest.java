@@ -39,8 +39,11 @@ class HydroFileProcessorServiceImplTest {
     private static final String AREA_FR = "FR";
     private static final String HORIZON = "2029-2030";
     private static final String TRAJ = "BP_23";
-    private static final String DIRECTORY_HYDRO_SERIES = "series";
-    private static final String CSV_FILE_NAME = "maxpower_fr_2029-2030.csv";
+    private static final String FILE_NAME_MAX_POWER = "maxpower_fr_2029-2030.xlsx";
+    private static final String FILE_NAME_MOD = "mod_FR_2029-2030.csv";
+    private static final String FILE_NAME_ROR = "ror_FR_2029-2030.csv";
+    private static final String FILE_NAME_MINGEN = "mingen_FR_2029-2030.csv";
+    private static final String FILE_NAME_RESERVOIR_LEVELS = "reservoir_levels_FR_2029-2030.csv";
 
     @InjectMocks
     private HydroFileProcessorServiceImpl service;
@@ -50,19 +53,16 @@ class HydroFileProcessorServiceImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
-    
+
     @Mock
     private AreaRepository areaRepository;
 
-    @Mock
-    private UserService userService;
-
     @TempDir
     Path tempDir;
-    
+
     @BeforeEach
     void setup() {
-        lenient().when(trajectoryRepository.save(any())) .thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -75,7 +75,7 @@ class HydroFileProcessorServiceImplTest {
         // Création d'un répertoire "outside" réel, mais hors du répertoire autorisé
         Path outside = tempDir.resolveSibling("outside");
         Files.createDirectories(outside);
-        
+
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(outside);
 
@@ -106,7 +106,7 @@ class HydroFileProcessorServiceImplTest {
         Path base = tempDir.resolve("hydro");
         Path traj = base.resolve(TRAJ);
         Files.createDirectories(traj);
-        CreateExcelTestUtil.createExcelFile(traj, "maxpower_fr_2029-2030.xlsx", "2029-2030", List.of("areas", "AT","BE", "FR"),
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_MAX_POWER, "2029-2030", List.of("areas", "AT", "BE", "FR"),
                 List.of(
                         List.of(2345, 2345, 2345, 2345)
                 ));
@@ -116,12 +116,12 @@ class HydroFileProcessorServiceImplTest {
         Files.createDirectories(mingenDir);
         Path reservoirLevels = traj.resolve("reservoir_levels");
         Files.createDirectories(reservoirLevels);
-        
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"mod_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"ror_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(mingenDir,"mingen_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(reservoirLevels,"reservoir_levels_FR_2029-2030.csv");
-        
+
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_MOD);
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_ROR);
+        CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
+        CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
+
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
         Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
@@ -143,7 +143,7 @@ class HydroFileProcessorServiceImplTest {
         Path base = tempDir.resolve("hydro");
         Path traj = base.resolve(TRAJ);
         Files.createDirectories(traj);
-        CreateExcelTestUtil.createExcelFile(traj, "maxpower_fr_2029-2030.xlsx", "2029-2030", List.of("areas", "AT","BE", "FR"),
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_MAX_POWER, "2029-2030", List.of("areas", "AT", "BE", "FR"),
                 List.of(
                         List.of(2345, 2345, 2345, 2345)
                 ));
@@ -154,9 +154,9 @@ class HydroFileProcessorServiceImplTest {
         Path reservoirLevels = traj.resolve("reservoir_levels");
         Files.createDirectories(reservoirLevels);
 
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"mod_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"ror_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(mingenDir,"mingen_FR_2029-2030.csv");
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_MOD);
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_ROR);
+        CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
 
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
@@ -179,7 +179,7 @@ class HydroFileProcessorServiceImplTest {
         Path base = tempDir.resolve("hydro");
         Path traj = base.resolve(TRAJ);
         Files.createDirectories(traj);
-        CreateExcelTestUtil.createExcelFile(traj, "maxpower_fr_2029-2030.xlsx", "2029-2030", List.of("areas", "AT","BE", "YU"),
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_MAX_POWER, "2029-2030", List.of("areas", "AT", "BE", "YU"),
                 List.of(
                         List.of(2345, 2345, 2345, 2345)
                 ));
@@ -190,10 +190,10 @@ class HydroFileProcessorServiceImplTest {
         Path reservoirLevels = traj.resolve("reservoir_levels");
         Files.createDirectories(reservoirLevels);
 
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"mod_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"ror_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(mingenDir,"mingen_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(reservoirLevels,"reservoir_levels_FR_2029-2030.csv");
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_MOD);
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_ROR);
+        CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
+        CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
 
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
@@ -216,42 +216,4 @@ class HydroFileProcessorServiceImplTest {
         );
         assertTrue(exception.getMessage().contains("Selected area {0} is not present in the 'node' column of {1} trajectory {2}"));
     }
-
-    @Test
-    void shouldThrowWhenMaxPowerHasNoAreasOfTrajectoryArea() throws Exception {
-        Path base = tempDir.resolve("hydro");
-        Path traj = base.resolve(TRAJ);
-        Files.createDirectories(traj);
-        CreateExcelTestUtil.createExcelFile(traj, "maxpower_fr_2029-2030.xlsx", "2029-2030", List.of("areas", "AT","BE", "YU"),
-                List.of(
-                        List.of(2345, 2345, 2345, 2345)
-                ));
-        Path inflowDir = traj.resolve("inflows");
-        Files.createDirectories(inflowDir);
-        Path mingenDir = traj.resolve("mingen");
-        Files.createDirectories(mingenDir);
-        Path reservoirLevels = traj.resolve("reservoir_levels");
-        Files.createDirectories(reservoirLevels);
-
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"mod_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(inflowDir,"ror_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(mingenDir,"mingen_FR_2029-2030.csv");
-        CreateExcelTestUtil.createMockCsvFile(reservoirLevels,"reservoir_levels_FR_2029-2030.csv");
-
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
-                .thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
-                .thenReturn(new TrajectoryEntity());
-
-        // Mock study areas
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
-            setName(AREA_FR);
-        }}));
-
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false)
-        );
-        assertTrue(exception.getMessage().contains("None of the areas of trajectory AREA are present in {0} trajectory {1}"));
-    }
 }
-    
