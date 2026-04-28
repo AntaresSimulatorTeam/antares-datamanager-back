@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static reactor.core.publisher.Mono.when;
 
 @ExtendWith(MockitoExtension.class)
 class HydroFileProcessorServiceImplTest {
@@ -53,12 +55,36 @@ class HydroFileProcessorServiceImplTest {
     @Mock
     private AreaRepository areaRepository;
 
+    @Mock
+    private UserService userService;
+
     @TempDir
     Path tempDir;
 
     @BeforeEach
     void setup() {
         lenient().when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    @Test
+    void shouldThrowWhenTrajectoryPathIsOutsideDirectory() throws IOException {
+        // Répertoire de base autorisé
+        Path base = tempDir.resolve("hydro");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj);
+
+        // Création d'un répertoire "outside" réel, mais hors du répertoire autorisé
+        Path outside = tempDir.resolveSibling("outside");
+        Files.createDirectories(outside);
+        
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+                .thenReturn(outside);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false)
+        );
+
+        assertTrue(exception.getMessage().contains("Invalid trajectory path"));
     }
 
     @Test
@@ -224,10 +250,8 @@ class HydroFileProcessorServiceImplTest {
         // Nom invalide : il manque le horizon au format attendu avant .csv
         Files.createFile(inflowDir.resolve("ror_FR.csv"));
 
-        when(trajectoryService.normalizeAndValidateDirectory(
-                eq(TrajectoryType.HYDRO_SERIES),
-                eq(area),
-                isNull()
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(
+                any(), any(), any()
         )).thenReturn(baseDirectory);
         
         var trajectory = TrajectoryEntity.builder()
@@ -237,7 +261,7 @@ class HydroFileProcessorServiceImplTest {
                 .area(area)
                 .build();
 
-        when(trajectoryService.buildDirectoryTrajectory(
+        Mockito.when(trajectoryService.buildDirectoryTrajectory(
                 eq(TrajectoryType.HYDRO_SERIES.name()),
                 eq(trajectoryToUse),
                 eq(trajectoryPath),
@@ -307,13 +331,13 @@ class HydroFileProcessorServiceImplTest {
         Path reservoirLevels = missingTrajectoryPath.resolve("reservoir_levels");
         Files.createDirectories(reservoirLevels);
 
-        when(trajectoryService.normalizeAndValidateDirectory(
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(
                 eq(TrajectoryType.HYDRO_SERIES),
                 eq(area),
                 isNull()
         )).thenReturn(baseDirectory);
 
-        when(trajectoryService.buildDirectoryTrajectory(
+        Mockito.when(trajectoryService.buildDirectoryTrajectory(
                 eq(TrajectoryType.HYDRO_SERIES.name()),
                 eq(trajectoryToUse),
                 eq(missingTrajectoryPath),
