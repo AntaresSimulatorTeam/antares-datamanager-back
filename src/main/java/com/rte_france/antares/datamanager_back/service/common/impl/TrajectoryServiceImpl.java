@@ -1488,7 +1488,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                  ));
      }
 
-    public TrajectoryEntity buildDirectoryTrajectory(String type, String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException {
+    public TrajectoryEntity buildDirectoryTrajectory(String type, String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException, BusinessException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String checksum = calculateDirectoryChecksum(trajectoryFilePath);
 
