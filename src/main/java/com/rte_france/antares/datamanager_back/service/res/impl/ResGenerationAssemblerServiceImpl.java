@@ -263,7 +263,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             }
 
             Map<String, Double> techWeights = techWeightsByZone.get(zone);
-            Map<String, String> techSeries = seriesByZoneAndTech.get(zone);
 
             // A zone with zoneWeight > 0 must have technology distribution rows.
             if (techWeights == null || techWeights.isEmpty()) {
@@ -276,25 +275,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         .build();
             }
 
-            // Verify that ALL technologies (even weight 0) have a series file
-            for (Map.Entry<String, Double> entry : techWeights.entrySet()) {
-                if (techSeries == null || !techSeries.containsKey(entry.getKey())) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Missing FR series for tech in active zone: zone={}, group={}, technology={}, techWeight={}, availableSeriesKeys={}",
-                                zone,
-                                normalizedGroup,
-                                entry.getKey(),
-                                entry.getValue(),
-                                techSeries == null ? Collections.emptySet() : techSeries.keySet());
-                    }
-                    throw BusinessException.builder()
-                            .message("Missing RES load factor series for technology " + entry.getKey() + " in zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-            }
-
             if (log.isDebugEnabled()) {
+                Map<String, String> techSeries = seriesByZoneAndTech.get(zone);
                 log.debug("Validated FR tech rows for zone {} in RES group {}: techCount={}, techSum={}, seriesCount={}",
                         zone,
                         normalizedGroup,
