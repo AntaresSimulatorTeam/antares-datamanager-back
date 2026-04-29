@@ -37,7 +37,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String HYDRO_SERIES_INFLOWS_MOD = "mod";
     protected static final String HYDRO_SERIES_MINGEN = "mingen";
     protected static final String HYDRO_SERIES_RESERVOIR_LEVELS = "reservoir_levels";
-    protected static final String FILE_NOT_FOUND = "Not found";
 
     public record SeriesConfig(HydroSeriesType type, List<String> prefixes) {}
     protected static final Map<String, SeriesConfig> REQUIRED_SERIES = Map.of(
@@ -159,10 +158,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             List<Path> files = findSeriesFiles(realPath, horizon, areaParam, config);
 
             if (files.isEmpty()) {
-                throw BusinessException.builder()
-                        .message("No files found for HYDRO series trajectory in " + directory)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+                continue;
             }
 
             files.stream()
@@ -226,7 +222,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         // Validate that the file path is trusted and points to a regular file
         if (filePath == null || !Files.isRegularFile(filePath)) {
             throw BusinessException.builder()
-                    .message(FILE_NOT_FOUND + filePath)
+                    .message("Max power file path is not valid")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
