@@ -77,7 +77,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<HydroSeriesEntity> entities = new ArrayList<>();
         
         processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyId, entities);
-        processRequiredSeries(trajectoryFilePath, horizon, areaParam, entities, trajectory);
+        processRequiredSeries(trajectoryFilePath, horizon, areaParam, entities);
         trajectory.setHydroSeriesEntities(entities);
         entities.forEach(entity -> entity.setTrajectory(trajectory));
         return trajectoryRepository.save(trajectory);
@@ -139,8 +139,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Path trajectoryFilePath,
             String horizon,
             String areaParam,
-            List<HydroSeriesEntity> entities,
-            TrajectoryEntity trajectory
+            List<HydroSeriesEntity> entities
     ) throws IOException, BusinessException {
 
         for (var entry : REQUIRED_SERIES.entrySet()) {
