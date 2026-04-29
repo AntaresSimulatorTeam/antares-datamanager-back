@@ -78,8 +78,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         
         processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyId, entities);
         processRequiredSeries(trajectoryFilePath, horizon, areaParam, entities, trajectory);
-
         trajectory.setHydroSeriesEntities(entities);
+        entities.forEach(entity -> entity.setTrajectory(trajectory));
         return trajectoryRepository.save(trajectory);
     }
 
@@ -148,25 +148,16 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             SeriesConfig config = entry.getValue();
 
             Path seriesDirectoryPath = trajectoryFilePath.resolve(directory).normalize();
+            List<Path> files;
 
-            if (!Files.isDirectory(seriesDirectoryPath)) {
-                continue;
-            }
-
-            Path realPath = seriesDirectoryPath.toRealPath();
-
-            List<Path> files = findSeriesFiles(realPath, horizon, areaParam, config);
-
-            if (files.isEmpty()) {
+            if (!Files.isDirectory(seriesDirectoryPath)
+                    || (files = findSeriesFiles(seriesDirectoryPath.toRealPath(), horizon, areaParam, config)).isEmpty()) {
                 continue;
             }
 
             files.stream()
                     .map(f -> buildHydroSeriesEntity(f.getFileName().toString(), config.type()))
-                    .forEach(e -> {
-                        e.setTrajectory(trajectory);
-                        entities.add(e);
-                    });
+                    .forEach(entities::add);
         }
     }
 
