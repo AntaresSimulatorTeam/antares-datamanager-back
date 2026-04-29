@@ -167,6 +167,15 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             List<ResZonalDistributionEntity> zonalDistributions,
             List<ResSeriesRef> generatedSeries
     ) {
+        if (log.isDebugEnabled()) {
+            log.debug("Building FR aggregation for RES group {} (installedPower={}, zonalRows={}, techRows={}, generatedSeries={})",
+                    normalizedGroup,
+                    installedPower,
+                    zonalDistributions.size(),
+                    technologyDistributions.size(),
+                    generatedSeries.size());
+        }
+
         Map<String, Double> zoneWeights = zonalDistributions.stream()
                 .filter(e -> normalizedGroup.equals(normalizeGroup(e.getGroupe())))
                 .collect(Collectors.toMap(
@@ -184,16 +193,36 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 continue;
             }
             String zone = canonicalFrZone(entity.getPecdZone());
+            double zoneWeight = zoneWeights.getOrDefault(zone, 0d);
+
+            // Skip tech distributions for zones with 0 weight
+            if (zoneWeight <= 0d) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Skipping tech distribution for group {} in zone {} (zoneWeight={})",
+                            normalizedGroup,
+                            zone,
+                            zoneWeight);
+                }
+                continue;
+            }
+
             String technology = toKey(entity.getPecdTechnology());
             double weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
 
+            if (log.isDebugEnabled()) {
+                log.debug("FR tech row for group {}: zone={}, technology={}, weight={}, zoneWeight={}",
+                        normalizedGroup,
+                        zone,
+                        technology,
+                        weight,
+                        zoneWeight);
+            }
+
             techWeightsByZone.computeIfAbsent(zone, ignored -> new LinkedHashMap<>()).put(technology, weight);
 
-            // Only resolve series if weight is > 0 (we skip technologies with no weight)
-            if (weight > 0) {
-                seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
-                        .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
-            }
+            // Resolve TS for all techs in zones with (zoneWeight > 0), even if tech weight is 0
+            seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
+                    .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
         }
 
         validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
@@ -216,35 +245,48 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             return;
         }
 
-        if (zoneWeights.isEmpty() || techWeightsByZone.isEmpty() || seriesByZoneAndTech.isEmpty()) {
+        if (zoneWeights.isEmpty()) {
             throw BusinessException.builder()
                     .message("Missing FR aggregation data for RES group " + normalizedGroup)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
-        double totalZoneWeight = zoneWeights.values().stream().mapToDouble(Double::doubleValue).sum();
-        if (totalZoneWeight < 0d) {
-            throw BusinessException.builder()
-                    .message("FR zone weights sum must be strictly positive for RES group " + normalizedGroup)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
 
         for (String zone : zoneWeights.keySet()) {
+            double zoneWeight = zoneWeights.getOrDefault(zone, 0d);
+            if (zoneWeight <= 0d) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Zone {} has zoneWeight={}, skipping tech/series validation", zone, zoneWeight);
+                }
+                continue;
+            }
+
             Map<String, Double> techWeights = techWeightsByZone.get(zone);
             Map<String, String> techSeries = seriesByZoneAndTech.get(zone);
 
+            // A zone with zoneWeight > 0 must have technology distribution rows.
             if (techWeights == null || techWeights.isEmpty()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Missing FR technology rows for active zone {} in RES group {}", zone, normalizedGroup);
+                }
                 throw BusinessException.builder()
                         .message("Missing FR technology mapping for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
 
-            // Verify that all technologies with weight > 0 have a series file
+            // Verify that ALL technologies (even weight 0) have a series file
             for (Map.Entry<String, Double> entry : techWeights.entrySet()) {
-                if (entry.getValue() > 0 && (techSeries == null || !techSeries.containsKey(entry.getKey()))) {
+                if (techSeries == null || !techSeries.containsKey(entry.getKey())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Missing FR series for tech in active zone: zone={}, group={}, technology={}, techWeight={}, availableSeriesKeys={}",
+                                zone,
+                                normalizedGroup,
+                                entry.getKey(),
+                                entry.getValue(),
+                                techSeries == null ? Collections.emptySet() : techSeries.keySet());
+                    }
                     throw BusinessException.builder()
                             .message("Missing RES load factor series for technology " + entry.getKey() + " in zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
                             .httpStatus(HttpStatus.BAD_REQUEST)
@@ -252,12 +294,13 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 }
             }
 
-            double techSum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
-            if (techSum < 0d) {
-                throw BusinessException.builder()
-                        .message("FR technology weights sum must be strictly positive for zone " + zone + IN_RES_GROUP_SUFFIX + normalizedGroup)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+            if (log.isDebugEnabled()) {
+                log.debug("Validated FR tech rows for zone {} in RES group {}: techCount={}, techSum={}, seriesCount={}",
+                        zone,
+                        normalizedGroup,
+                        techWeights.size(),
+                        techWeights.values().stream().mapToDouble(Double::doubleValue).sum(),
+                        techSeries == null ? 0 : techSeries.size());
             }
         }
     }
@@ -283,6 +326,15 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         List<ResSeriesRef> candidates = generatedSeries.stream()
                 .filter(ref -> candidateTechnologyKeys.stream().anyMatch(candidate -> ref.matchesFr(zone, group, candidate)))
                 .toList();
+
+        if (log.isDebugEnabled()) {
+            log.debug("Resolving FR series for zone={}, group={}, technology={}, candidateKeys={}, matches={}",
+                    zone,
+                    group,
+                    technology,
+                    candidateTechnologyKeys,
+                    candidates.stream().map(ResSeriesRef::arrowPath).toList());
+        }
 
         if (candidates.size() != 1) {
             throw BusinessException.builder()
