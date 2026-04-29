@@ -116,6 +116,28 @@ class ResGenerationAssemblerServiceImplTest {
 
             assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
         }
+
+        @Test
+        void shouldReturnEmptyParsedKeyWhenFrTechTokensAreEmpty() throws IOException {
+            // File 1: This file is intentionally wrong for an FR zone (missing tech tokens).
+            // The parser will return Optional.empty(), and the file will be skipped.
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_FR01_onshore.csv");
+
+            // File 2: A valid series for DE must be present, otherwise resolveSingleSeries
+            // will throw a BusinessException because it findsnone
+            String validFile = "wind_DE_onshore_2030_2031.csv";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, validFile);
+            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("valid_de.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            // assembleResProperties should succeed by ignoring the malformed file and using the valid one.
+            assertDoesNotThrow(() -> service.assembleResProperties(study));
+            verify(nasFileService, times(1)).saveMatrixToNas(any(), eq(OUTPUT_DIR));
+        }
     }
 
     @Nested
@@ -152,6 +174,41 @@ class ResGenerationAssemblerServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
             assertTrue(ex.getMessage().contains("technology mapping"));
         }
+
+        @Test
+        void shouldCoverFrTechLoopAndCandidateKeys() throws IOException {
+            String fileName = "solar_FR01_pv_utility_2030_2031.csv";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
+            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("fr_solar.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 1000)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 100)),
+                    // Tech name "solar_pv_utility" starts with group prefix "solar_pv_"
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "solar pv", "FR01", "solar_pv_utility", 100.0))
+            );
+
+            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+            assertNotNull(result.get("FR").get("solar_pv"));
+        }
+
+        @Test
+        void shouldCoverZeroWeightBranchesInFrLoop() throws IOException {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "wind offshore", 1000)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "wind offshore", "FR01", 0.0)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "wind offshore", "FR01", "techA", 100.0))
+            );
+
+            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+            Map<String, Object> aggregation = (Map<String, Object>) getGroupPayload(result, "FR", "wind_offshore").get("fr_aggregation");
+
+            // zone_weights contains FR01 with 0.0, but tech_weights_by_zone should be empty for that zone
+            assertTrue(((Map<?, ?>) aggregation.get("tech_weights_by_zone")).isEmpty());
+        }
     }
 
     @Nested
@@ -185,6 +242,17 @@ class ResGenerationAssemblerServiceImplTest {
 
             assertThrows(TechnicalException.class, () -> service.assembleResProperties(study));
         }
+
+        @Test
+        void shouldThrowWhenTrajectoryDirectoryDoesNotExist() {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, "non_existent_folder"),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("Invalid RES load trajectory path"));
+        }
     }
 
     private void preparePhysicalFile(String traj, String path) throws IOException {
@@ -214,6 +282,11 @@ class ResGenerationAssemblerServiceImplTest {
 
     private ResZonalDistributionEntity createZonal(String a, String g, String z, double w) {
         return ResZonalDistributionEntity.builder().area(a).groupe(g).pecdZone(z).capacityByYear(BigDecimal.valueOf(w)).build();
+    }
+
+    private ResTechnologyDistributionEntity createTech(String a, String g, String z, String tech, double w) {
+        return ResTechnologyDistributionEntity.builder().area(a).groupe(g).pecdZone(z)
+                .pecdTechnology(tech).capacityByYear(w).build();
     }
 
     @SuppressWarnings("unchecked")
