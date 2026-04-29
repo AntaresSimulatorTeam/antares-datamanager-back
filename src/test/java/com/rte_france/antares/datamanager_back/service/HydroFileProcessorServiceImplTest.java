@@ -260,8 +260,9 @@ class HydroFileProcessorServiceImplTest {
 
     @Test
     void validateMaxPowerFile_throwsBusinessException_whenFilePathIsNull() {
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateMaxPowerFile(
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.validateMaxPowerFile(
                         null,
                         TRAJ,
                         HORIZON,
