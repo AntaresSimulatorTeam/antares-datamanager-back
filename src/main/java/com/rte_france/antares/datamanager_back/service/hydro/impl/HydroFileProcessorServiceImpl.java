@@ -148,7 +148,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String directory = entry.getKey();
             SeriesConfig config = entry.getValue();
 
-            Path realPath = trajectoryFilePath.resolve(directory).toRealPath();
+            Path seriesDirectoryPath = trajectoryFilePath.resolve(directory).normalize();
+
+            if (!Files.isDirectory(seriesDirectoryPath)) {
+                continue;
+            }
+
+            Path realPath = seriesDirectoryPath.toRealPath();
 
             List<Path> files = findSeriesFiles(realPath, horizon, areaParam, config);
 
