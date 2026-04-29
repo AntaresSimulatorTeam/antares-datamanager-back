@@ -38,7 +38,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String HYDRO_SERIES_INFLOWS_MOD = "mod";
     protected static final String HYDRO_SERIES_MINGEN = "mingen";
     protected static final String HYDRO_SERIES_RESERVOIR_LEVELS = "reservoir_levels";
-    protected static final String FILE_NOT_FOUND = "Not found";
 
     public record SeriesConfig(HydroSeriesType type, List<String> prefixes) {}
     protected static final Map<String, SeriesConfig> REQUIRED_SERIES = Map.of(
