@@ -23,7 +23,6 @@ import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
