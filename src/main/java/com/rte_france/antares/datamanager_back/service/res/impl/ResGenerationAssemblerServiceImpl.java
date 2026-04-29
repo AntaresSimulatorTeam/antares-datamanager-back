@@ -189,40 +189,30 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         Map<String, Map<String, String>> seriesByZoneAndTech = new LinkedHashMap<>();
 
         for (ResTechnologyDistributionEntity entity : technologyDistributions) {
-            if (!normalizedGroup.equals(normalizeGroup(entity.getGroupe()))) {
-                continue;
-            }
-            String zone = canonicalFrZone(entity.getPecdZone());
-            double zoneWeight = zoneWeights.getOrDefault(zone, 0d);
+            if (normalizedGroup.equals(normalizeGroup(entity.getGroupe()))) {
+                String zone = canonicalFrZone(entity.getPecdZone());
+                double zoneWeight = zoneWeights.getOrDefault(zone, 0d);
 
-            // Skip tech distributions for zones with 0 weight
-            if (zoneWeight <= 0d) {
-                if (log.isDebugEnabled()) {
+                if (zoneWeight > 0d) {
+                    String technology = toKey(entity.getPecdTechnology());
+                    double weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("FR tech row for group {}: zone={}, technology={}, weight={}, zoneWeight={}",
+                                normalizedGroup, zone, technology, weight, zoneWeight);
+                    }
+
+                    techWeightsByZone.computeIfAbsent(zone, ignored -> new LinkedHashMap<>()).put(technology, weight);
+                    // Resolve TS for all techs in zones with (zoneWeight > 0), even if tech weight is 0
+                    seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
+                            .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
+
+                } else if (log.isDebugEnabled()) {
+                    // Skip tech distributions for zones with 0 weight
                     log.debug("Skipping tech distribution for group {} in zone {} (zoneWeight={})",
-                            normalizedGroup,
-                            zone,
-                            zoneWeight);
+                            normalizedGroup, zone, zoneWeight);
                 }
-                continue;
             }
-
-            String technology = toKey(entity.getPecdTechnology());
-            double weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
-
-            if (log.isDebugEnabled()) {
-                log.debug("FR tech row for group {}: zone={}, technology={}, weight={}, zoneWeight={}",
-                        normalizedGroup,
-                        zone,
-                        technology,
-                        weight,
-                        zoneWeight);
-            }
-
-            techWeightsByZone.computeIfAbsent(zone, ignored -> new LinkedHashMap<>()).put(technology, weight);
-
-            // Resolve TS for all techs in zones with (zoneWeight > 0), even if tech weight is 0
-            seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
-                    .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
         }
 
         validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
@@ -252,16 +242,18 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     .build();
         }
 
+        zoneWeights.forEach((zone, weight) ->
+                validateZoneAggregation(normalizedGroup, zone, weight, techWeightsByZone, seriesByZoneAndTech));
+    }
 
-        for (String zone : zoneWeights.keySet()) {
-            double zoneWeight = zoneWeights.getOrDefault(zone, 0d);
-            if (zoneWeight <= 0d) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Zone {} has zoneWeight={}, skipping tech/series validation", zone, zoneWeight);
-                }
-                continue;
-            }
-
+    private void validateZoneAggregation(
+            String normalizedGroup,
+            String zone,
+            Double zoneWeight,
+            Map<String, Map<String, Double>> techWeightsByZone,
+            Map<String, Map<String, String>> seriesByZoneAndTech
+    ) {
+        if (zoneWeight != null && zoneWeight > 0d) {
             Map<String, Double> techWeights = techWeightsByZone.get(zone);
 
             // A zone with zoneWeight > 0 must have technology distribution rows.
@@ -284,6 +276,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         techWeights.values().stream().mapToDouble(Double::doubleValue).sum(),
                         techSeries == null ? 0 : techSeries.size());
             }
+        } else if (log.isDebugEnabled()) {
+            log.debug("Zone {} has zoneWeight={}, skipping tech/series validation", zone, zoneWeight);
         }
     }
 
@@ -359,58 +353,64 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         List<ResSeriesRef> result = new ArrayList<>();
         for (TrajectoryEntity trajectory : resLoadTrajectories) {
-            String trajectoryFileName = trajectory.getFileName();
-            if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
-                continue;
-            }
-            try {
-                pathSecurityUtil.validatePathFromBaseDir(trajectoryFileName, AntaresDataManagerProperties::getResLoadDirectory);
-                Path trajectoryRoot = base.resolve(trajectoryFileName).normalize();
-                if (!trajectoryRoot.startsWith(base) || !Files.exists(trajectoryRoot)) {
-                    throw BusinessException.builder()
-                            .message("Invalid RES load trajectory path: " + trajectoryFileName)
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-
-                try (var walk = Files.walk(trajectoryRoot)) {
-                    walk.filter(Files::isRegularFile)
-                            .filter(file -> !isInOldSubdirectory(trajectoryRoot, file))
-                            .filter(this::isSupportedSeriesFormat)
-                            .forEach(file -> {
-                                String rel = trajectoryRoot.relativize(file).toString();
-                                Optional<ParsedSeriesKey> parsedSeriesKey = parseSeriesKeyFromRelativePath(rel);
-                                if (parsedSeriesKey.isEmpty()) {
-                                    return;
-                                }
-                                String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
-                                try {
-                                    String arrowName = nasFileService.saveMatrixToNas(file, outputDir);
-                                    result.add(new ResSeriesRef(
-                                            toKey(rel.replace('\\', '/')),
-                                            arrowName,
-                                            parsedSeriesKey.get().area(),
-                                            parsedSeriesKey.get().group(),
-                                            parsedSeriesKey.get().zone(),
-                                            parsedSeriesKey.get().technology()
-                                    ));
-                                } catch (IOException e) {
-                                    throw TechnicalException.builder()
-                                            .message("Could not generate RES arrow file from " + file)
-                                            .cause(e)
-                                            .build();
-                                }
-                            });
-                }
-            } catch (IOException e) {
-                throw TechnicalException.builder()
-                        .message("Could not list RES load trajectory files for " + trajectoryFileName)
-                        .cause(e)
-                        .build();
-            }
+            resolveSeriesInTrajectory(trajectory, base, result);
         }
 
         return result;
+    }
+
+    private void resolveSeriesInTrajectory(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result) {
+        String trajectoryFileName = trajectory.getFileName();
+        if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
+            return;
+        }
+
+        try {
+            pathSecurityUtil.validatePathFromBaseDir(trajectoryFileName, AntaresDataManagerProperties::getResLoadDirectory);
+            Path trajectoryRoot = base.resolve(trajectoryFileName).normalize();
+
+            if (!trajectoryRoot.startsWith(base) || !Files.exists(trajectoryRoot)) {
+                throw BusinessException.builder()
+                        .message("Invalid RES load trajectory path: " + trajectoryFileName)
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            try (var walk = Files.walk(trajectoryRoot)) {
+                walk.filter(Files::isRegularFile)
+                        .filter(file -> !isInOldSubdirectory(trajectoryRoot, file))
+                        .filter(this::isSupportedSeriesFormat)
+                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, result));
+            }
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .message("Could not list RES load trajectory files for " + trajectoryFileName)
+                    .cause(e)
+                    .build();
+        }
+    }
+
+    private void createSeriesFromFile(Path file, Path trajectoryRoot, List<ResSeriesRef> result) {
+        String rel = trajectoryRoot.relativize(file).toString();
+        parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
+            String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
+            try {
+                String arrowName = nasFileService.saveMatrixToNas(file, outputDir);
+                result.add(new ResSeriesRef(
+                        toKey(rel.replace('\\', '/')),
+                        arrowName,
+                        parsedKey.area(),
+                        parsedKey.group(),
+                        parsedKey.zone(),
+                        parsedKey.technology()
+                ));
+            } catch (IOException e) {
+                throw TechnicalException.builder()
+                        .message("Could not generate RES arrow file from " + file)
+                        .cause(e)
+                        .build();
+            }
+        });
     }
 
     private boolean isInOldSubdirectory(Path trajectoryRoot, Path file) {
@@ -426,10 +426,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private boolean isSupportedSeriesFormat(Path file) {
         String lowerName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         boolean hasSupportedExtension = lowerName.endsWith(".csv") || lowerName.endsWith(".txt") || lowerName.endsWith(".xlsx");
-        if (!hasSupportedExtension || lowerName.startsWith(".~lock.")) {
-            return false;
-        }
-        return true;
+        return hasSupportedExtension && !lowerName.startsWith(".~lock.");
     }
 
     private Optional<ParsedSeriesKey> parseSeriesKeyFromRelativePath(String relativePath) {

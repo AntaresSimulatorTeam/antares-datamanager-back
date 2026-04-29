@@ -195,7 +195,7 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
-        void shouldCoverZeroWeightBranchesInFrLoop() throws IOException {
+        void shouldCoverZeroWeightBranchesInFrLoop() {
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "wind offshore", 1000)),
                     createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "wind offshore", "FR01", 0.0)),
