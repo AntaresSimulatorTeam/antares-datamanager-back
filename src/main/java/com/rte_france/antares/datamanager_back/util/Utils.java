@@ -846,7 +846,7 @@ public class Utils {
         }
     }
 
-    public static void throwAlreadyProcessedFileException(Path path) {
+    public static void throwAlreadyProcessedFileException(Path path) throws BusinessException {
         log.info("Le contenu du fichier {} n'a pas changé par rapport à la dernière version enregistrée.", path.getFileName());
         throw BusinessException.builder()
                 .message("File already processed with same content {0}")

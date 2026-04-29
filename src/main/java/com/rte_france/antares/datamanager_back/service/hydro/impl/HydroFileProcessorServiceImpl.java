@@ -127,12 +127,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-            if (files.size() > 1) {
-                throw BusinessException.builder()
-                        .message("Plusieurs fichiers ont pour préfixe " + HYDRO_SERIES_PREFIX_MAX_POWER)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
             return files.getFirst();
         } catch (IOException e) {
             throw BusinessException.builder()
