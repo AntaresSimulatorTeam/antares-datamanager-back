@@ -48,69 +48,41 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     @Override
     public Map<String, Map<String, Object>> assembleResProperties(StudyEntity studyEntity) {
-        if (studyEntity.getTrajectories() == null || studyEntity.getTrajectories().isEmpty()) {
+        var trajectories = studyEntity.getTrajectories();
+        if (trajectories == null || trajectories.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        Map<String, List<ResClusterCapacityEntity>> capacitiesByArea = collectCapacitiesByArea(studyEntity);
-        if (capacitiesByArea.isEmpty()) {
+        var collections = collectTrajectoriesSinglePass(studyEntity);
+        var capacities = collections.capacities();
+
+        if (capacities.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        Map<String, List<ResTechnologyDistributionEntity>> technologyByArea = collectTechnologyByArea(studyEntity);
-        Map<String, List<ResZonalDistributionEntity>> zonalByArea = collectZonalByArea(studyEntity);
-        List<ResSeriesRef> generatedSeries = createArrowSeriesForResLoad(studyEntity);
+        var series = createArrowSeriesForResLoad(studyEntity);
+        var frSeriesIndex = indexFrSeries(series);
+        var nonFrSeriesIndex = indexNonFrSeries(series);
 
-        Map<String, Map<String, Object>> resByArea = new LinkedHashMap<>();
-        capacitiesByArea.forEach((area, capacities) -> {
-            Map<String, Object> clusters = buildClustersForArea(
-                    area,
-                    capacities,
-                    technologyByArea.getOrDefault(area, Collections.emptyList()),
-                    zonalByArea.getOrDefault(area, Collections.emptyList()),
-                    generatedSeries
-            );
+        return processAreaClusters(capacities, collections, frSeriesIndex, nonFrSeriesIndex);
+    }
+
+    private Map<String, Map<String, Object>> processAreaClusters(
+            Map<String, List<ResClusterCapacityEntity>> capacities,
+            TrajectoryCollections collections,
+            Map<String, ResSeriesRef> frSeriesIndex,
+            Map<String, ResSeriesRef> nonFrSeriesIndex
+    ) {
+        var resByArea = new LinkedHashMap<String, Map<String, Object>>();
+
+        capacities.forEach((area, caps) -> {
+            var techs = collections.technologies().getOrDefault(area, Collections.emptyList());
+            var zonals = collections.zonals().getOrDefault(area, Collections.emptyList());
+            var clusters = buildClustersForArea(area, caps, techs, zonals, frSeriesIndex, nonFrSeriesIndex);
             resByArea.put(area, clusters);
         });
 
         return resByArea;
-    }
-
-    private Map<String, List<ResClusterCapacityEntity>> collectCapacitiesByArea(StudyEntity studyEntity) {
-        return studyEntity.getTrajectories().stream()
-                .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.RES_CAPACITY.name().equals(t.getType()))
-                .map(TrajectoryEntity::getResClusterCapacityEntities)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(Objects::nonNull)
-                .filter(e -> Boolean.TRUE.equals(e.getToUse()))
-                .filter(e -> e.getArea() != null && e.getGroupe() != null && e.getCluster() != null)
-                .collect(Collectors.groupingBy(e -> e.getArea().toUpperCase(Locale.ROOT), LinkedHashMap::new, Collectors.toList()));
-    }
-
-    private Map<String, List<ResTechnologyDistributionEntity>> collectTechnologyByArea(StudyEntity studyEntity) {
-        return studyEntity.getTrajectories().stream()
-                .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(t.getType()))
-                .map(TrajectoryEntity::getResTechnologyDistributionCapacityEntities)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(Objects::nonNull)
-                .filter(e -> e.getArea() != null && e.getGroupe() != null && e.getPecdZone() != null && e.getPecdTechnology() != null)
-                .collect(Collectors.groupingBy(e -> e.getArea().toUpperCase(Locale.ROOT), LinkedHashMap::new, Collectors.toList()));
-    }
-
-    private Map<String, List<ResZonalDistributionEntity>> collectZonalByArea(StudyEntity studyEntity) {
-        return studyEntity.getTrajectories().stream()
-                .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.RES_ZONAL_DISTRIBUTION.name().equals(t.getType()))
-                .map(TrajectoryEntity::getResZonalDistributionCapacityEntities)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(Objects::nonNull)
-                .filter(e -> e.getArea() != null && e.getGroupe() != null && e.getPecdZone() != null)
-                .collect(Collectors.groupingBy(e -> e.getArea().toUpperCase(Locale.ROOT), LinkedHashMap::new, Collectors.toList()));
     }
 
     private Map<String, Object> buildClustersForArea(
@@ -118,46 +90,68 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             List<ResClusterCapacityEntity> capacities,
             List<ResTechnologyDistributionEntity> technologyDistributions,
             List<ResZonalDistributionEntity> zonalDistributions,
-            List<ResSeriesRef> generatedSeries
+            Map<String, ResSeriesRef> frSeriesIndex,
+            Map<String, ResSeriesRef> nonFrSeriesIndex
     ) {
-        Map<String, List<ResClusterCapacityEntity>> byGroup = capacities.stream()
+        var byGroup = capacities.stream()
                 .collect(Collectors.groupingBy(cap -> normalizeGroup(cap.getGroupe()), LinkedHashMap::new, Collectors.toList()));
 
-        Map<String, Object> areaRes = new LinkedHashMap<>();
-        byGroup.forEach((groupKey, entities) -> {
-            double installedPower = entities.stream()
-                    .map(ResClusterCapacityEntity::getCapacityByYear)
-                    .filter(Objects::nonNull)
-                    .mapToDouble(BigDecimal::doubleValue)
-                    .sum();
-
-            Map<String, Object> clusterPropertiesMap = new LinkedHashMap<>();
-            clusterPropertiesMap.put(CAPACITY, installedPower);
-            clusterPropertiesMap.put(GROUP, groupKey);
-
-            Map<String, Object> clusterMap = new LinkedHashMap<>();
-            clusterMap.put(PROPERTIES, clusterPropertiesMap);
-
-            if (FR_AREA.equalsIgnoreCase(area)) {
-                List<String> series = Collections.emptyList();
-                Map<String, Object> frAggregation = buildFrAggregation(
-                        groupKey,
-                        installedPower,
-                        technologyDistributions,
-                        zonalDistributions,
-                        generatedSeries
-                );
-                clusterMap.put(SERIES, series);
-                clusterMap.put(FR_AGGREGATION, frAggregation);
-            } else {
-                String series = resolveSingleSeries(area, groupKey, generatedSeries);
-                clusterMap.put(SERIES, List.of(series));
-            }
-
-            areaRes.put(groupKey, clusterMap);
-        });
+        var areaRes = new LinkedHashMap<String, Object>();
+        byGroup.forEach((groupKey, entities) ->
+                processGroupCluster(area, groupKey, entities, technologyDistributions, zonalDistributions, frSeriesIndex, nonFrSeriesIndex, areaRes)
+        );
 
         return areaRes;
+    }
+
+    private void processGroupCluster(
+            String area,
+            String groupKey,
+            List<ResClusterCapacityEntity> entities,
+            List<ResTechnologyDistributionEntity> techDistributions,
+            List<ResZonalDistributionEntity> zonalDistributions,
+            Map<String, ResSeriesRef> frSeriesIndex,
+            Map<String, ResSeriesRef> nonFrSeriesIndex,
+            Map<String, Object> areaRes
+    ) {
+        var installedPower = entities.stream()
+                .map(ResClusterCapacityEntity::getCapacityByYear)
+                .filter(Objects::nonNull)
+                .mapToDouble(BigDecimal::doubleValue)
+                .sum();
+
+        var clusterPropertiesMap = new LinkedHashMap<String, Object>();
+        clusterPropertiesMap.put(CAPACITY, installedPower);
+        clusterPropertiesMap.put(GROUP, groupKey);
+
+        var clusterMap = new LinkedHashMap<String, Object>();
+        clusterMap.put(PROPERTIES, clusterPropertiesMap);
+
+        if (FR_AREA.equalsIgnoreCase(area)) {
+            clusterMap.put(SERIES, Collections.emptyList());
+            clusterMap.put(FR_AGGREGATION, buildFrAggregation(
+                    groupKey, installedPower, techDistributions, zonalDistributions, frSeriesIndex
+            ));
+        } else {
+            var seriesPath = resolveIndexedSingleSeries(area, groupKey, nonFrSeriesIndex);
+            clusterMap.put(SERIES, List.of(seriesPath));
+        }
+
+        areaRes.put(groupKey, clusterMap);
+    }
+
+    private String resolveIndexedSingleSeries(String area, String group, Map<String, ResSeriesRef> nonFrSeriesIndex) {
+        var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT);
+        var match = nonFrSeriesIndex.get(lookupKey);
+
+        if (match != null) {
+            return match.arrowPath();
+        }
+
+        throw BusinessException.builder()
+                .message("Non-FR RES series must resolve to exactly one arrow for area/group " + area + "/" + group)
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
     private Map<String, Object> buildFrAggregation(
@@ -165,18 +159,32 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             double installedPower,
             List<ResTechnologyDistributionEntity> technologyDistributions,
             List<ResZonalDistributionEntity> zonalDistributions,
-            List<ResSeriesRef> generatedSeries
+            Map<String, ResSeriesRef> frSeriesIndex
     ) {
-        if (log.isDebugEnabled()) {
-            log.debug("Building FR aggregation for RES group {} (installedPower={}, zonalRows={}, techRows={}, generatedSeries={})",
-                    normalizedGroup,
-                    installedPower,
-                    zonalDistributions.size(),
-                    technologyDistributions.size(),
-                    generatedSeries.size());
-        }
+        var zoneWeights = calculateZoneWeights(normalizedGroup, zonalDistributions);
+        var techWeightsByZone = new LinkedHashMap<String, Map<String, Double>>();
+        var seriesByZoneAndTech = new LinkedHashMap<String, Map<String, String>>();
 
-        Map<String, Double> zoneWeights = zonalDistributions.stream()
+        technologyDistributions.stream()
+                .filter(entity -> normalizedGroup.equals(normalizeGroup(entity.getGroupe())))
+                .forEach(entity -> processTechnologyEntity(
+                        entity, normalizedGroup, zoneWeights, techWeightsByZone, seriesByZoneAndTech, frSeriesIndex
+                ));
+
+        validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
+
+        var aggregation = new LinkedHashMap<String, Object>();
+        aggregation.put(ZONE_WEIGHTS, zoneWeights);
+        aggregation.put(TECH_WEIGHTS_BY_ZONE, techWeightsByZone);
+        aggregation.put(SERIES_BY_ZONE_AND_TECH, seriesByZoneAndTech);
+        return aggregation;
+    }
+
+    private Map<String, Double> calculateZoneWeights(
+            String normalizedGroup,
+            List<ResZonalDistributionEntity> zonalDistributions
+    ) {
+        return zonalDistributions.stream()
                 .filter(e -> normalizedGroup.equals(normalizeGroup(e.getGroupe())))
                 .collect(Collectors.toMap(
                         e -> canonicalFrZone(e.getPecdZone()),
@@ -184,44 +192,52 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         Double::sum,
                         LinkedHashMap::new
                 ));
+    }
 
-        Map<String, Map<String, Double>> techWeightsByZone = new LinkedHashMap<>();
-        Map<String, Map<String, String>> seriesByZoneAndTech = new LinkedHashMap<>();
+    private void processTechnologyEntity(
+            ResTechnologyDistributionEntity entity,
+            String normalizedGroup,
+            Map<String, Double> zoneWeights,
+            Map<String, Map<String, Double>> techWeightsByZone,
+            Map<String, Map<String, String>> seriesByZoneAndTech,
+            Map<String, ResSeriesRef> frSeriesIndex
+    ) {
+        var zone = canonicalFrZone(entity.getPecdZone());
+        var zoneWeight = zoneWeights.getOrDefault(zone, 0d);
 
-        for (ResTechnologyDistributionEntity entity : technologyDistributions) {
-            if (normalizedGroup.equals(normalizeGroup(entity.getGroupe()))) {
-                String zone = canonicalFrZone(entity.getPecdZone());
-                double zoneWeight = zoneWeights.getOrDefault(zone, 0d);
+        if (zoneWeight <= 0d) {
+            return;
+        }
 
-                if (zoneWeight > 0d) {
-                    String technology = toKey(entity.getPecdTechnology());
-                    double weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
+        var technology = toKey(entity.getPecdTechnology());
+        var weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
 
-                    if (log.isDebugEnabled()) {
-                        log.debug("FR tech row for group {}: zone={}, technology={}, weight={}, zoneWeight={}",
-                                normalizedGroup, zone, technology, weight, zoneWeight);
-                    }
+        techWeightsByZone.computeIfAbsent(zone, k -> new LinkedHashMap<>()).put(technology, weight);
 
-                    techWeightsByZone.computeIfAbsent(zone, ignored -> new LinkedHashMap<>()).put(technology, weight);
-                    // Resolve TS for all techs in zones with (zoneWeight > 0), even if tech weight is 0
-                    seriesByZoneAndTech.computeIfAbsent(zone, ignored -> new LinkedHashMap<>())
-                            .put(technology, resolveFrSeries(zone, normalizedGroup, technology, generatedSeries));
+        var arrowPath = resolveIndexedFrSeries(zone, normalizedGroup, technology, frSeriesIndex);
+        seriesByZoneAndTech.computeIfAbsent(zone, k -> new LinkedHashMap<>()).put(technology, arrowPath);
+    }
 
-                } else if (log.isDebugEnabled()) {
-                    // Skip tech distributions for zones with 0 weight
-                    log.debug("Skipping tech distribution for group {} in zone {} (zoneWeight={})",
-                            normalizedGroup, zone, zoneWeight);
-                }
+    private String resolveIndexedFrSeries(
+            String zone,
+            String group,
+            String technology,
+            Map<String, ResSeriesRef> frSeriesIndex
+    ) {
+        var candidateKeys = buildFrTechnologyCandidateKeys(group, technology);
+
+        for (var candidateKey : candidateKeys) {
+            var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_" + candidateKey.toUpperCase(Locale.ROOT);
+            var match = frSeriesIndex.get(lookupKey);
+            if (match != null) {
+                return match.arrowPath();
             }
         }
 
-        validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
-
-        Map<String, Object> aggregation = new LinkedHashMap<>();
-        aggregation.put(ZONE_WEIGHTS, zoneWeights);
-        aggregation.put(TECH_WEIGHTS_BY_ZONE, techWeightsByZone);
-        aggregation.put(SERIES_BY_ZONE_AND_TECH, seriesByZoneAndTech);
-        return aggregation;
+        throw BusinessException.builder()
+                .message("FR RES series resolution must return exactly one arrow for zone " + zone + " and technology " + technology)
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
     private void validateFrAggregation(
@@ -279,46 +295,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         } else if (log.isDebugEnabled()) {
             log.debug("Zone {} has zoneWeight={}, skipping tech/series validation", zone, zoneWeight);
         }
-    }
-
-    private String resolveSingleSeries(String area, String group, List<ResSeriesRef> generatedSeries) {
-        List<ResSeriesRef> fallbackCandidates = generatedSeries.stream()
-                .filter(ref -> ref.matchesNonFr(area, group))
-                .toList();
-
-        if (fallbackCandidates.size() == 1) {
-            return fallbackCandidates.getFirst().arrowPath();
-        }
-
-        throw BusinessException.builder()
-                .message("Non-FR RES series must resolve to exactly one arrow for area/group " + area + "/" + group)
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build();
-    }
-
-    private String resolveFrSeries(String zone, String group, String technology, List<ResSeriesRef> generatedSeries) {
-        Set<String> candidateTechnologyKeys = buildFrTechnologyCandidateKeys(group, technology);
-
-        List<ResSeriesRef> candidates = generatedSeries.stream()
-                .filter(ref -> candidateTechnologyKeys.stream().anyMatch(candidate -> ref.matchesFr(zone, group, candidate)))
-                .toList();
-
-        if (log.isDebugEnabled()) {
-            log.debug("Resolving FR series for zone={}, group={}, technology={}, candidateKeys={}, matches={}",
-                    zone,
-                    group,
-                    technology,
-                    candidateTechnologyKeys,
-                    candidates.stream().map(ResSeriesRef::arrowPath).toList());
-        }
-
-        if (candidates.size() != 1) {
-            throw BusinessException.builder()
-                    .message("FR RES series resolution must return exactly one arrow for zone " + zone + " and technology " + technology)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        return candidates.getFirst().arrowPath();
     }
 
     private Set<String> buildFrTechnologyCandidateKeys(String group, String technology) {
@@ -592,5 +568,120 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private record ParsedSeriesKey(String area, String group, String zone, String technology) {
+    }
+
+    private Map<String, ResSeriesRef> indexNonFrSeries(List<ResSeriesRef> series) {
+        return series.stream()
+                .filter(ref -> !FR_AREA.equalsIgnoreCase(ref.area()))
+                .collect(Collectors.toMap(
+                        ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT),
+                        ref -> ref,
+                        (existing, replacement) -> {
+                            throw BusinessException.builder()
+                                    .message("Duplicate non-FR series found")
+                                    .httpStatus(HttpStatus.BAD_REQUEST)
+                                    .build();
+                        }
+                ));
+    }
+
+    private Map<String, ResSeriesRef> indexFrSeries(List<ResSeriesRef> series) {
+        return series.stream()
+                .filter(ref -> FR_AREA.equalsIgnoreCase(ref.area()))
+                .collect(Collectors.toMap(
+                        ref -> ref.zone().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.technology().toUpperCase(Locale.ROOT),
+                        ref -> ref,
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private record TrajectoryCollections(
+            Map<String, List<ResClusterCapacityEntity>> capacities,
+            Map<String, List<ResTechnologyDistributionEntity>> technologies,
+            Map<String, List<ResZonalDistributionEntity>> zonals
+    ) {}
+
+    private TrajectoryCollections collectTrajectoriesSinglePass(StudyEntity studyEntity) {
+        var capacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
+        var technologies = new LinkedHashMap<String, List<ResTechnologyDistributionEntity>>();
+        var zonals = new LinkedHashMap<String, List<ResZonalDistributionEntity>>();
+
+        studyEntity.getTrajectories().stream()
+                .filter(Objects::nonNull)
+                .forEach(trajectory -> routeTrajectoryData(trajectory, capacities, technologies, zonals));
+
+        return new TrajectoryCollections(capacities, technologies, zonals);
+    }
+
+    private void routeTrajectoryData(
+            TrajectoryEntity trajectory,
+            Map<String, List<ResClusterCapacityEntity>> capacities,
+            Map<String, List<ResTechnologyDistributionEntity>> technologies,
+            Map<String, List<ResZonalDistributionEntity>> zonals
+    ) {
+        var type = TrajectoryType.valueOf(trajectory.getType());
+
+        switch (type) {
+            case RES_CAPACITY -> extractCapacities(trajectory, capacities);
+            case RES_TECHNOLOGY_DISTRIBUTION -> extractTechnologies(trajectory, technologies);
+            case RES_ZONAL_DISTRIBUTION -> extractZonals(trajectory, zonals);
+            default -> { /* ignore */}
+        }
+    }
+
+    private void extractCapacities(
+            TrajectoryEntity trajectory,
+            Map<String, List<ResClusterCapacityEntity>> accumulator
+    ) {
+        var entities = trajectory.getResClusterCapacityEntities();
+        if (entities == null) return;
+
+        entities.stream()
+                .filter(this::isValidCapacityEntity)
+                .forEach(e -> accumulateByArea(e, e.getArea(), accumulator));
+    }
+
+    private void extractTechnologies(
+            TrajectoryEntity trajectory,
+            Map<String, List<ResTechnologyDistributionEntity>> accumulator
+    ) {
+        var entities = trajectory.getResTechnologyDistributionCapacityEntities();
+        if (entities == null) return;
+
+        entities.stream()
+                .filter(this::isValidTechnologyEntity)
+                .forEach(e -> accumulateByArea(e, e.getArea(), accumulator));
+    }
+
+    private boolean isValidTechnologyEntity(ResTechnologyDistributionEntity e) {
+        return e != null && e.getArea() != null && e.getGroupe() != null
+                && e.getPecdZone() != null && e.getPecdTechnology() != null;
+    }
+
+    private void extractZonals(
+            TrajectoryEntity trajectory,
+            Map<String, List<ResZonalDistributionEntity>> accumulator
+    ) {
+        var entities = trajectory.getResZonalDistributionCapacityEntities();
+        if (entities == null) return;
+
+        entities.stream()
+                .filter(this::isValidZonalEntity)
+                .forEach(e -> accumulateByArea(e, e.getArea(), accumulator));
+    }
+
+    private boolean isValidZonalEntity(ResZonalDistributionEntity e) {
+        return e != null && e.getArea() != null
+                && e.getGroupe() != null && e.getPecdZone() != null;
+    }
+
+    private boolean isValidCapacityEntity(ResClusterCapacityEntity e) {
+        return e != null && Boolean.TRUE.equals(e.getToUse())
+                && e.getArea() != null && e.getGroupe() != null && e.getCluster() != null;
+    }
+
+    private <T> void accumulateByArea(T entity, String rawArea, Map<String, List<T>> map) {
+        var normalizedArea = rawArea.toUpperCase(Locale.ROOT);
+        map.computeIfAbsent(normalizedArea, k -> new ArrayList<>()).add(entity);
     }
 }
