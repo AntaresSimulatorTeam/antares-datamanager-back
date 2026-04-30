@@ -67,78 +67,13 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return processAreaClusters(capacities, collections, frSeriesIndex, nonFrSeriesIndex);
     }
 
-    private Map<String, Map<String, Object>> processAreaClusters(
-            Map<String, List<ResClusterCapacityEntity>> capacities,
-            TrajectoryCollections collections,
-            Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex
-    ) {
-        var resByArea = new LinkedHashMap<String, Map<String, Object>>();
-
-        capacities.forEach((area, caps) -> {
-            var techs = collections.technologies().getOrDefault(area, Collections.emptyList());
-            var zonals = collections.zonals().getOrDefault(area, Collections.emptyList());
-            var clusters = buildClustersForArea(area, caps, techs, zonals, frSeriesIndex, nonFrSeriesIndex);
-            resByArea.put(area, clusters);
-        });
-
-        return resByArea;
-    }
-
-    private Map<String, Object> buildClustersForArea(
+    private record ClusterAggregationContext(
             String area,
-            List<ResClusterCapacityEntity> capacities,
-            List<ResTechnologyDistributionEntity> technologyDistributions,
-            List<ResZonalDistributionEntity> zonalDistributions,
-            Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex
-    ) {
-        var byGroup = capacities.stream()
-                .collect(Collectors.groupingBy(cap -> normalizeGroup(cap.getGroupe()), LinkedHashMap::new, Collectors.toList()));
-
-        var areaRes = new LinkedHashMap<String, Object>();
-        byGroup.forEach((groupKey, entities) ->
-                processGroupCluster(area, groupKey, entities, technologyDistributions, zonalDistributions, frSeriesIndex, nonFrSeriesIndex, areaRes)
-        );
-
-        return areaRes;
-    }
-
-    private void processGroupCluster(
-            String area,
-            String groupKey,
-            List<ResClusterCapacityEntity> entities,
             List<ResTechnologyDistributionEntity> techDistributions,
             List<ResZonalDistributionEntity> zonalDistributions,
             Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex,
-            Map<String, Object> areaRes
-    ) {
-        var installedPower = entities.stream()
-                .map(ResClusterCapacityEntity::getCapacityByYear)
-                .filter(Objects::nonNull)
-                .mapToDouble(BigDecimal::doubleValue)
-                .sum();
-
-        var clusterPropertiesMap = new LinkedHashMap<String, Object>();
-        clusterPropertiesMap.put(CAPACITY, installedPower);
-        clusterPropertiesMap.put(GROUP, groupKey);
-
-        var clusterMap = new LinkedHashMap<String, Object>();
-        clusterMap.put(PROPERTIES, clusterPropertiesMap);
-
-        if (FR_AREA.equalsIgnoreCase(area)) {
-            clusterMap.put(SERIES, Collections.emptyList());
-            clusterMap.put(FR_AGGREGATION, buildFrAggregation(
-                    groupKey, installedPower, techDistributions, zonalDistributions, frSeriesIndex
-            ));
-        } else {
-            var seriesPath = resolveIndexedSingleSeries(area, groupKey, nonFrSeriesIndex);
-            clusterMap.put(SERIES, List.of(seriesPath));
-        }
-
-        areaRes.put(groupKey, clusterMap);
-    }
+            Map<String, ResSeriesRef> nonFrSeriesIndex
+    ) {}
 
     private String resolveIndexedSingleSeries(String area, String group, Map<String, ResSeriesRef> nonFrSeriesIndex) {
         var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT);
@@ -152,6 +87,65 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .message("Non-FR RES series must resolve to exactly one arrow for area/group " + area + "/" + group)
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
+    }
+
+    private Map<String, Map<String, Object>> processAreaClusters(
+            Map<String, List<ResClusterCapacityEntity>> capacities,
+            TrajectoryCollections collections,
+            Map<String, ResSeriesRef> frSeriesIndex,
+            Map<String, ResSeriesRef> nonFrSeriesIndex
+    ) {
+        return capacities.entrySet().stream().collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> {
+                    var area = entry.getKey();
+                    var techs = collections.technologies().getOrDefault(area, Collections.emptyList());
+                    var zonals = collections.zonals().getOrDefault(area, Collections.emptyList());
+                    var context = new ClusterAggregationContext(area, techs, zonals, frSeriesIndex, nonFrSeriesIndex);
+                    return buildClustersForArea(entry.getValue(), context);
+                },
+                (a, b) -> a,
+                LinkedHashMap::new
+        ));
+    }
+
+    private Map<String, Object> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
+        return capacities.stream()
+                .collect(Collectors.groupingBy(cap -> normalizeGroup(cap.getGroupe()), LinkedHashMap::new, Collectors.toList()))
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> buildGroupCluster(entry.getKey(), entry.getValue(), context),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+    }
+
+    private Map<String, Object> buildGroupCluster(String groupKey, List<ResClusterCapacityEntity> entities, ClusterAggregationContext context) {
+        var installedPower = entities.stream()
+                .map(ResClusterCapacityEntity::getCapacityByYear)
+                .filter(Objects::nonNull)
+                .mapToDouble(BigDecimal::doubleValue)
+                .sum();
+
+        var clusterPropertiesMap = new LinkedHashMap<String, Object>();
+        clusterPropertiesMap.put(CAPACITY, installedPower);
+        clusterPropertiesMap.put(GROUP, groupKey);
+
+        var clusterMap = new LinkedHashMap<String, Object>();
+        clusterMap.put(PROPERTIES, clusterPropertiesMap);
+
+        if (FR_AREA.equalsIgnoreCase(context.area())) {
+            clusterMap.put(SERIES, Collections.emptyList());
+            clusterMap.put(FR_AGGREGATION, buildFrAggregation(
+                    groupKey, installedPower, context.techDistributions(), context.zonalDistributions(), context.frSeriesIndex()
+            ));
+        } else {
+            var seriesPath = resolveIndexedSingleSeries(context.area(), groupKey, context.nonFrSeriesIndex());
+            clusterMap.put(SERIES, List.of(seriesPath));
+        }
+
+        return clusterMap;
     }
 
     private Map<String, Object> buildFrAggregation(
