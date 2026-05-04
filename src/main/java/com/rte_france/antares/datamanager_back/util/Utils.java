@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -423,7 +424,7 @@ public class Utils {
         };
     }
 
-    private String canonicalRow(Row row) {
+    private static String canonicalRow(Row row) {
         StringBuilder sb = new StringBuilder();
 
         for (int c = 0; c < row.getLastCellNum(); c++) {
@@ -433,21 +434,20 @@ public class Utils {
         return sb.toString();
     }
 
-    private String hashSheetByArea(Sheet sheet, String areaFilter) {
+    private static String hashSheet(Sheet sheet, Predicate<String> rowFilter) {
         var sb = new StringBuilder();
 
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) { // skip header
-            Row row = sheet.getRow(i);
+        for (var i = 1; i <= sheet.getLastRowNum(); i++) { // skip header
+            var row = sheet.getRow(i);
             if (row == null) continue;
 
-            Cell areaCell = row.getCell(1); // 2ème colonne
+            var areaCell = row.getCell(1); // 2ème colonne
             if (areaCell == null) continue;
 
-            String area = areaCell.getStringCellValue();
-            if (!areaFilter.equals(area)) continue;
-
-            // Construire une ligne canonique
-            sb.append(canonicalRow(row)).append("\n");
+            var area = areaCell.getStringCellValue();
+            if (rowFilter.test(area)) {
+                sb.append(canonicalRow(row)).append("\n");
+            }
         }
 
         return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
@@ -464,8 +464,8 @@ public class Utils {
                         .build();
             }
 
-            // Hash uniquement des lignes correspondant à l'area
-            var hHash = hashSheetByArea(horizonSheet, areaFilter);
+            var isOthers = OTHERS_AREA.equals(areaFilter);
+            var hHash = hashSheet(horizonSheet, area -> isOthers || areaFilter.equals(area));
 
             return Hashing.sha256()
                     .hashString(hHash, StandardCharsets.UTF_8)
