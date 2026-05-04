@@ -16,4 +16,6 @@ public interface StudyTrajectoryRepository extends JpaRepository<StudyTrajectory
   @Query("DELETE FROM studyTrajectory e " +
           "WHERE e.id.scenarioId = :studyId AND e.id.trajectoryId IN :trajectoryIds")
   int deleteByStudyIdAndTrajectoryIds(@Param("studyId") Integer studyId, @Param("trajectoryIds") List<Integer> trajectoryIds);
+
+  boolean existsById_TrajectoryId(Integer trajectoryId);
 }

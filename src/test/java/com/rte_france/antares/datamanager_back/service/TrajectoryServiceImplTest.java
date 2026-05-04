@@ -2971,4 +2971,174 @@ class TrajectoryServiceImplTest {
 
             verify(spyService, times(1)).controlesMiscInstalledPower(eq(studyId), any(), isNull(), isNull());
         }
+
+    @Test
+    void unlinkTrajectoryFromStudy_whenLastDsrWithTimeSeries_deletesOrphanedCmTrajectories() {
+        // Arrange
+        var studyId = 1;
+        var dsrTrajectoryId = 10;
+        var cmTrajectoryId = 20;
+
+        var dsrTrajectory = TrajectoryEntity.builder()
+                .id(dsrTrajectoryId)
+                .type(TrajectoryType.DSR.name())
+                .hasTimeSeries(true)
+                .build();
+
+        var cmTrajectory = TrajectoryEntity.builder()
+                .id(cmTrajectoryId)
+                .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
+                .fileName("cm_test.xlsx")
+                .build();
+
+        var study = StudyEntity.builder().id(studyId).build();
+        var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
+                .trajectoryId(dsrTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
+                .id(dsrStudyTrajectoryKey)
+                .trajectory(dsrTrajectory)
+                .studyEntity(study)
+                .build();
+
+        var cmStudyTrajectoryKey = StudyTrajectoryKey.builder()
+                .trajectoryId(cmTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        var cmStudyTrajectory = StudyTrajectoryEntity.builder()
+                .id(cmStudyTrajectoryKey)
+                .trajectory(cmTrajectory)
+                .studyEntity(study)
+                .build();
+
+        // Simulate that this is the ONLY trajectory in the study
+        study.setStudyTrajectoryEntities(Set.of(dsrStudyTrajectory));
+
+        when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
+        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
+                .thenReturn(List.of(cmTrajectory));
+        when(studyTrajectoryRepository.findById(cmStudyTrajectoryKey)).thenReturn(Optional.of(cmStudyTrajectory));
+
+        // Simulates the CM trajectory becoming orphaned after unlinking from this study
+        when(studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectoryId)).thenReturn(false);
+
+        // Act
+        trajectoryService.unlinkTrajectoryFromStudy(dsrTrajectoryId, studyId);
+
+        // Assert
+        verify(studyTrajectoryRepository).delete(dsrStudyTrajectory);
+        verify(studyTrajectoryRepository).delete(cmStudyTrajectory);
+        verify(trajectoryRepository).delete(cmTrajectory); // Crucial: Verify physical deletion of the orphan
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_whenLastDsrWithTimeSeries_doesNotDeleteNonOrphanedCmTrajectories() {
+        // Arrange
+        var studyId = 1;
+        var dsrTrajectoryId = 10;
+        var cmTrajectoryId = 20;
+
+        var dsrTrajectory = TrajectoryEntity.builder()
+                .id(dsrTrajectoryId)
+                .type(TrajectoryType.DSR.name())
+                .hasTimeSeries(true)
+                .build();
+
+        var cmTrajectory = TrajectoryEntity.builder()
+                .id(cmTrajectoryId)
+                .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
+                .build();
+
+        var study = StudyEntity.builder().id(studyId).build();
+        var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
+                .trajectoryId(dsrTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
+                .id(dsrStudyTrajectoryKey)
+                .trajectory(dsrTrajectory)
+                .studyEntity(study)
+                .build();
+
+        var cmStudyTrajectoryKey = StudyTrajectoryKey.builder()
+                .trajectoryId(cmTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        var cmStudyTrajectory = StudyTrajectoryEntity.builder()
+                .id(cmStudyTrajectoryKey)
+                .trajectory(cmTrajectory)
+                .studyEntity(study)
+                .build();
+
+        study.setStudyTrajectoryEntities(Set.of(dsrStudyTrajectory));
+
+        when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
+        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
+                .thenReturn(List.of(cmTrajectory));
+        when(studyTrajectoryRepository.findById(cmStudyTrajectoryKey)).thenReturn(Optional.of(cmStudyTrajectory));
+
+        // Simulates the CM trajectory still being linked to another study
+        when(studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectoryId)).thenReturn(true);
+
+        // Act
+        trajectoryService.unlinkTrajectoryFromStudy(dsrTrajectoryId, studyId);
+
+        // Assert
+        verify(studyTrajectoryRepository).delete(dsrStudyTrajectory);
+        verify(studyTrajectoryRepository).delete(cmStudyTrajectory);
+        verify(trajectoryRepository, never()).delete(cmTrajectory); // Crucial: Must NOT delete non-orphaned trajectory
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_whenNotLastDsrWithTimeSeries_doesNotTriggerCmDeletion() {
+        // Arrange
+        var studyId = 1;
+        var dsrTrajectoryId = 10;
+        var otherDsrTrajectoryId = 11;
+
+        var dsrTrajectory = TrajectoryEntity.builder()
+                .id(dsrTrajectoryId)
+                .type(TrajectoryType.DSR.name())
+                .hasTimeSeries(true)
+                .build();
+
+        var otherDsrTrajectory = TrajectoryEntity.builder()
+                .id(otherDsrTrajectoryId)
+                .type(TrajectoryType.DSR.name())
+                .hasTimeSeries(true)
+                .build();
+
+        var study = StudyEntity.builder().id(studyId).build();
+        var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
+                .trajectoryId(dsrTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
+                .id(dsrStudyTrajectoryKey)
+                .trajectory(dsrTrajectory)
+                .studyEntity(study)
+                .build();
+
+        var otherDsrStudyTrajectory = StudyTrajectoryEntity.builder()
+                .id(StudyTrajectoryKey.builder().trajectoryId(otherDsrTrajectoryId).scenarioId(studyId).build())
+                .trajectory(otherDsrTrajectory)
+                .studyEntity(study)
+                .build();
+
+        // Simulate another DSR with time series remaining in the study
+        study.setStudyTrajectoryEntities(Set.of(dsrStudyTrajectory, otherDsrStudyTrajectory));
+
+        when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
+        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
+
+        // Act
+        trajectoryService.unlinkTrajectoryFromStudy(dsrTrajectoryId, studyId);
+
+        // Assert
+        verify(studyTrajectoryRepository).delete(dsrStudyTrajectory);
+        verify(trajectoryRepository, never()).findByTypeAndStudyId(eq(TrajectoryType.DSR_CAPACITY_MODULATION.name()), any());
+    }
 }
