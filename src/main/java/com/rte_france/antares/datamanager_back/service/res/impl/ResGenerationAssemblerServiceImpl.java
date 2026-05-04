@@ -363,7 +363,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private void createSeriesFromFile(Path file, Path trajectoryRoot, List<ResSeriesRef> result) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
-            String outputDir = antaresDataManagerProperties.getOutputLoadDirectory();
+            String outputDir = antaresDataManagerProperties.getResTsOutputDirectory();
             try {
                 String arrowName = nasFileService.saveMatrixToNas(file, outputDir);
                 result.add(new ResSeriesRef(
