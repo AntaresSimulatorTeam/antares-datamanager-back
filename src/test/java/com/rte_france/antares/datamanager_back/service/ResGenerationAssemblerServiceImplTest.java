@@ -44,6 +44,7 @@ class ResGenerationAssemblerServiceImplTest {
         properties.trajectoryFilePath = "INPUT";
         properties.resLoadDirectory = "RES/load";
         properties.outputLoadDirectory = OUTPUT_DIR;
+        properties.resTsOutputDirectory = OUTPUT_DIR;
 
         nasFileService = mock(NasFileService.class);
         service = new ResGenerationAssemblerServiceImpl(nasFileService, properties, new PathSecurityUtil(properties));
