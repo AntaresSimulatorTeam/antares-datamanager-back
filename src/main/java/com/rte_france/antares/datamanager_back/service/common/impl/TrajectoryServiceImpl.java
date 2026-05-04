@@ -619,20 +619,68 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     @Override
+    @Transactional
     public void unlinkTrajectoryFromStudy(Integer trajectoryId, Integer studyId) {
         validateAreaTrajectoryDeletion(trajectoryId, studyId);
 
-        studyTrajectoryRepository.findById(StudyTrajectoryKey.builder()
-                        .trajectoryId(trajectoryId)
-                        .scenarioId(studyId)
-                        .build())
-                .ifPresentOrElse(studyTrajectoryRepository::delete,
-                        () -> {
-                            throw BusinessException.builder()
-                                    .message("Link not found")
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        });
+        var key = StudyTrajectoryKey.builder()
+                .trajectoryId(trajectoryId)
+                .scenarioId(studyId)
+                .build();
+
+        studyTrajectoryRepository.findById(key).ifPresentOrElse(
+                studyTrajectory -> processTrajectoryUnlinking(studyTrajectory, studyId),
+                () -> {
+                    throw BusinessException.builder()
+                            .message("Link not found")
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+        );
+    }
+
+    private void processTrajectoryUnlinking(StudyTrajectoryEntity studyTrajectory, Integer studyId) {
+        var trajectory = studyTrajectory.getTrajectory();
+
+        var isDsrWithTimeSeries = trajectory != null
+                && TrajectoryType.DSR.name().equals(trajectory.getType())
+                && Boolean.TRUE.equals(trajectory.getHasTimeSeries());
+
+        if (isDsrWithTimeSeries && !hasOtherDsrWithTimeSeries(studyTrajectory.getStudyEntity(), trajectory.getId())) {
+            deleteRelatedCmTrajectories(studyId);
+        }
+
+        studyTrajectoryRepository.delete(studyTrajectory);
+    }
+
+    private boolean hasOtherDsrWithTimeSeries(StudyEntity study, Integer currentTrajectoryId) {
+        return study.getStudyTrajectoryEntities().stream()
+                .map(StudyTrajectoryEntity::getTrajectory)
+                .filter(Objects::nonNull)
+                .anyMatch(t -> TrajectoryType.DSR.name().equals(t.getType())
+                        && Boolean.TRUE.equals(t.getHasTimeSeries())
+                        && !t.getId().equals(currentTrajectoryId));
+    }
+
+    private void deleteRelatedCmTrajectories(Integer studyId) {
+        var cmTrajectories = trajectoryRepository.findByTypeAndStudyId(
+                TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId);
+
+        cmTrajectories.forEach(cmTrajectory -> processCmTrajectoryDeletion(cmTrajectory, studyId));
+    }
+
+    private void processCmTrajectoryDeletion(TrajectoryEntity cmTrajectory, Integer studyId) {
+        var key = StudyTrajectoryKey.builder()
+                .trajectoryId(cmTrajectory.getId())
+                .scenarioId(studyId)
+                .build();
+
+        studyTrajectoryRepository.findById(key).ifPresent(studyTrajectoryRepository::delete);
+
+        if (!studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectory.getId())) {
+            trajectoryRepository.delete(cmTrajectory);
+            log.info("Deleted CM trajectory: {}", cmTrajectory.getFileName());
+        }
     }
 
     //********************** Private and utils Methods *****************************//
