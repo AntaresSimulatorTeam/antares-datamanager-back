@@ -49,6 +49,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     private final TrajectoryServiceImpl trajectoryService;
     private final PathSecurityUtil pathSecurityUtil;
+    private final ResCoherenceCheckService resCoherenceCheckService;
 
     protected static final String GROUP_COLUMN = "Group";
     protected static final String CLUSTER_COLUMN = "Cluster";
@@ -104,9 +105,17 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 })
                 .reduce(this::merge)
                 .orElse(null);
-        Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
-        return saveTrajectory(horizon, areaParam, technology, referencePath, aggregated, TrajectoryType.RES_CAPACITY);
-    }
+          Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
+          
+          // Construire la trajectoire complète AVANT la validation
+          TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, referencePath, TrajectoryType.RES_CAPACITY, aggregated);
+          
+          // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
+          resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+          
+          // Sauvegarder uniquement si validation OK
+          return trajectoryRepository.save(trajectory);
+     }
 
     @Override
     public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws IOException {
@@ -197,16 +206,22 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     isCivilYear,
                     TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
             );
-        } catch (IOException e) {
-            throw BusinessException.builder()
-                    .message("Could not import RES technology distribution trajectory")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+         } catch (IOException e) {
+              throw BusinessException.builder()
+                      .message("Could not import RES technology distribution trajectory")
+                      .httpStatus(HttpStatus.BAD_REQUEST)
+                      .build();
+          }
 
-
-        return saveTrajectory(horizon, areaParam, technology, filePath, result, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
-    }
+          // Construire la trajectoire complète AVANT la validation
+          TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, filePath, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, result);
+          
+          // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
+          resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+          
+          // Sauvegarder uniquement si validation OK
+          return trajectoryRepository.save(trajectory);
+     }
 
     @Transactional
     @Override
@@ -525,9 +540,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
-            if (technology != null && trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
-                validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
-            }
+           if (technology != null && trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
+            validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
+        }
             validateInvalidCombos(result.invalidCombos(), trajectoryToUse, trajectoryType);
 
             return result;
@@ -952,6 +967,29 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             ResRowProcessingResult result,
             TrajectoryType trajectoryType
     ) throws IOException {
+        TrajectoryEntity trajectory = buildCompleteTrajectory(
+                horizon,
+                areaParam,
+                technology,
+                filePath,
+                trajectoryType,
+                result
+        );
+        
+        return trajectoryRepository.save(trajectory);
+    }
+
+    /**
+     * Construit une trajectoire complète avec tous ses éléments.
+     */
+    private TrajectoryEntity buildCompleteTrajectory(
+            String horizon,
+            String areaParam,
+            String technology,
+            Path filePath,
+            TrajectoryType trajectoryType,
+            ResRowProcessingResult result
+    ) throws IOException {
         TrajectoryEntity trajectory = buildResTrajectory(
                 horizon,
                 areaParam,
@@ -972,7 +1010,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     trajectory.setResZonalDistributionCapacityEntities(zonal.entities());
         }
 
-        return trajectoryRepository.save(trajectory);
+        return trajectory;
     }
 
     private ResRowProcessingResult merge(ResRowProcessingResult left, ResRowProcessingResult right) {

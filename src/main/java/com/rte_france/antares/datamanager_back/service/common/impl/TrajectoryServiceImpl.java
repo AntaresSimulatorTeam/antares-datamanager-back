@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -100,6 +101,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final MiscClusterCapacityRepository miscClusterCapacityRepository;
 
     private final DefaultConfigService defaultConfigService;
+
+    private final ResCoherenceCheckService resCoherenceCheckService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -615,6 +618,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
+        
+        // Validation de cohérence entre InstalledPower et Technology Distribution
+        String trajectoryType = trajectory.getType();
+        if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
+            TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+            resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+        }
+        
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()

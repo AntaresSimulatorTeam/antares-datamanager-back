@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -88,6 +89,9 @@ public class ResFileProcessorServiceImplTest {
 
     @Mock
     private PathSecurityUtil pathSecurityUtil;
+
+    @Mock
+    private ResCoherenceCheckService resCoherenceCheckService;
 
     // ======================================================
     // INSTALLED POWER RES
