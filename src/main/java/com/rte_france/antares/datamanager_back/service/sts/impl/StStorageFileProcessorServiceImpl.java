@@ -260,14 +260,39 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
     }
 
+    private boolean isBooleanStringValue(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return "true".equals(normalized)
+                || "false".equals(normalized)
+                || "1".equals(normalized)
+                || "0".equals(normalized);
+    }
+
     private boolean isBooleanCell(Cell cell) {
         if (cell == null) return false;
         CellType t = cell.getCellType();
         if (t == CellType.BOOLEAN) return true;
-        if (t == CellType.FORMULA) return cell.getCachedFormulaResultType() == CellType.BOOLEAN;
+        if (t == CellType.NUMERIC) {
+            double value = cell.getNumericCellValue();
+            return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
+        }
+        if (t == CellType.FORMULA) {
+            CellType cachedType = cell.getCachedFormulaResultType();
+            if (cachedType == CellType.BOOLEAN) return true;
+            if (cachedType == CellType.NUMERIC) {
+                double value = cell.getNumericCellValue();
+                return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
+            }
+            if (cachedType == CellType.STRING) {
+                return isBooleanStringValue(cell.getStringCellValue());
+            }
+            return false;
+        }
         if (t == CellType.STRING) {
-            String s = cell.getStringCellValue().trim().toLowerCase(Locale.ROOT);
-            return "true".equals(s) || "false".equals(s);
+            return isBooleanStringValue(cell.getStringCellValue());
         }
         return false;
     }
@@ -424,7 +449,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         if (cell.getCellType() == CellType.BOOLEAN || cell.getCellType() == CellType.FORMULA) return cell.getBooleanCellValue();
         String s = cell.toString().trim().toLowerCase(Locale.ROOT);
         if (s.isEmpty()) return false;
-        return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);
+        return "true".equals(s) || "1".equals(s);
     }
 
 
