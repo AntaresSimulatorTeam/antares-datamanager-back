@@ -135,6 +135,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
 
+        var requiresCmCleanup = isRemovingLastDsrWithTimeSeries(studyId, ids);
+
+        // CM trajectories must be found BEFORE the bulk delete removes their link
+        var cmTrajectories = requiresCmCleanup
+                ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
+                : List.<TrajectoryEntity>of();
+
         var deleted = studyTrajectoryRepository.deleteByStudyIdAndTrajectoryIds(studyId, ids);
         if (deleted != ids.size()) {
             throw BusinessException.builder()
@@ -143,20 +150,26 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.CONFLICT)
                     .build();
         }
+
+        if (requiresCmCleanup) {
+            cmTrajectories.forEach(cm -> processCmTrajectoryDeletion(cm, studyId));
+        }
     }
 
     @Override
     @Transactional
     public void unlinkAllTrajectoriesFromStudy(Integer studyId) {
         var links = studyTrajectoryRepository.findById_ScenarioId(studyId);
-        if (!links.isEmpty()) {
-            studyTrajectoryRepository.deleteAll(links);
-        } else {
+        if (links.isEmpty()) {
             throw BusinessException.builder()
                     .message("No links found")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+
+        var cmTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId);
+        studyTrajectoryRepository.deleteAll(links);
+        cmTrajectories.forEach(cm -> processCmTrajectoryDeletion(cm, studyId));
     }
 
     @Override
@@ -628,45 +641,37 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .scenarioId(studyId)
                 .build();
 
-        studyTrajectoryRepository.findById(key).ifPresentOrElse(
-                studyTrajectory -> processTrajectoryUnlinking(studyTrajectory, studyId),
-                () -> {
-                    throw BusinessException.builder()
-                            .message("Link not found")
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-        );
-    }
+        var requiresCmCleanup = isRemovingLastDsrWithTimeSeries(studyId, List.of(trajectoryId));
+        var cmTrajectories = requiresCmCleanup
+                ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
+                : List.<TrajectoryEntity>of();
 
-    private void processTrajectoryUnlinking(StudyTrajectoryEntity studyTrajectory, Integer studyId) {
-        var trajectory = studyTrajectory.getTrajectory();
-
-        var isDsrWithTimeSeries = trajectory != null
-                && TrajectoryType.DSR.name().equals(trajectory.getType())
-                && Boolean.TRUE.equals(trajectory.getHasTimeSeries());
-
-        if (isDsrWithTimeSeries && !hasOtherDsrWithTimeSeries(studyTrajectory.getStudyEntity(), trajectory.getId())) {
-            deleteRelatedCmTrajectories(studyId);
-        }
+        var studyTrajectory = studyTrajectoryRepository.findById(key)
+                .orElseThrow(() -> BusinessException.builder()
+                        .message("Link not found")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
 
         studyTrajectoryRepository.delete(studyTrajectory);
+
+        if (requiresCmCleanup) {
+            cmTrajectories.forEach(cm -> processCmTrajectoryDeletion(cm, studyId));
+        }
     }
 
-    private boolean hasOtherDsrWithTimeSeries(StudyEntity study, Integer currentTrajectoryId) {
-        return study.getStudyTrajectoryEntities().stream()
-                .map(StudyTrajectoryEntity::getTrajectory)
-                .filter(Objects::nonNull)
-                .anyMatch(t -> TrajectoryType.DSR.name().equals(t.getType())
-                        && Boolean.TRUE.equals(t.getHasTimeSeries())
-                        && !t.getId().equals(currentTrajectoryId));
+    private boolean isRemovingLastDsrWithTimeSeries(Integer studyId, List<Integer> trajectoryIdsToRemove) {
+        var currentDsrTs = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId).stream()
+                .filter(this::isDsrWithTimeSeries)
+                .map(TrajectoryEntity::getId)
+                .toList();
+
+        return !currentDsrTs.isEmpty() && new HashSet<>(trajectoryIdsToRemove).containsAll(currentDsrTs);
     }
 
-    private void deleteRelatedCmTrajectories(Integer studyId) {
-        var cmTrajectories = trajectoryRepository.findByTypeAndStudyId(
-                TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId);
-
-        cmTrajectories.forEach(cmTrajectory -> processCmTrajectoryDeletion(cmTrajectory, studyId));
+    private boolean isDsrWithTimeSeries(TrajectoryEntity trajectory) {
+        return trajectory != null
+                && TrajectoryType.DSR.name().equals(trajectory.getType())
+                && Boolean.TRUE.equals(trajectory.getHasTimeSeries());
     }
 
     private void processCmTrajectoryDeletion(TrajectoryEntity cmTrajectory, Integer studyId) {
