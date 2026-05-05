@@ -2991,7 +2991,6 @@ class TrajectoryServiceImplTest {
                 .fileName("cm_test.xlsx")
                 .build();
 
-        var study = StudyEntity.builder().id(studyId).build();
         var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
                 .trajectoryId(dsrTrajectoryId)
                 .scenarioId(studyId)
@@ -2999,7 +2998,6 @@ class TrajectoryServiceImplTest {
         var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(dsrStudyTrajectoryKey)
                 .trajectory(dsrTrajectory)
-                .studyEntity(study)
                 .build();
 
         var cmStudyTrajectoryKey = StudyTrajectoryKey.builder()
@@ -3009,20 +3007,19 @@ class TrajectoryServiceImplTest {
         var cmStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(cmStudyTrajectoryKey)
                 .trajectory(cmTrajectory)
-                .studyEntity(study)
                 .build();
 
-        // Simulate that this is the ONLY trajectory in the study
-        study.setStudyTrajectoryEntities(Set.of(dsrStudyTrajectory));
-
         when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
-        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId))
+                .thenReturn(List.of(dsrTrajectory));
+
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
                 .thenReturn(List.of(cmTrajectory));
-        when(studyTrajectoryRepository.findById(cmStudyTrajectoryKey)).thenReturn(Optional.of(cmStudyTrajectory));
 
-        // Simulates the CM trajectory becoming orphaned after unlinking from this study
-        when(studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectoryId)).thenReturn(false);
+        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
+        when(studyTrajectoryRepository.findById(cmStudyTrajectoryKey)).thenReturn(Optional.of(cmStudyTrajectory));
+        when(studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectoryId)).thenReturn(false); // Orphaned!
 
         // Act
         trajectoryService.unlinkTrajectoryFromStudy(dsrTrajectoryId, studyId);
@@ -3030,7 +3027,7 @@ class TrajectoryServiceImplTest {
         // Assert
         verify(studyTrajectoryRepository).delete(dsrStudyTrajectory);
         verify(studyTrajectoryRepository).delete(cmStudyTrajectory);
-        verify(trajectoryRepository).delete(cmTrajectory); // Crucial: Verify physical deletion of the orphan
+        verify(trajectoryRepository).delete(cmTrajectory);
     }
 
     @Test
@@ -3051,7 +3048,6 @@ class TrajectoryServiceImplTest {
                 .type(TrajectoryType.DSR_CAPACITY_MODULATION.name())
                 .build();
 
-        var study = StudyEntity.builder().id(studyId).build();
         var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
                 .trajectoryId(dsrTrajectoryId)
                 .scenarioId(studyId)
@@ -3059,7 +3055,6 @@ class TrajectoryServiceImplTest {
         var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(dsrStudyTrajectoryKey)
                 .trajectory(dsrTrajectory)
-                .studyEntity(study)
                 .build();
 
         var cmStudyTrajectoryKey = StudyTrajectoryKey.builder()
@@ -3069,18 +3064,21 @@ class TrajectoryServiceImplTest {
         var cmStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(cmStudyTrajectoryKey)
                 .trajectory(cmTrajectory)
-                .studyEntity(study)
                 .build();
 
-        study.setStudyTrajectoryEntities(Set.of(dsrStudyTrajectory));
-
         when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
-        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
+
+        // mock the pre evaluation check
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId))
+                .thenReturn(List.of(dsrTrajectory));
+
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
                 .thenReturn(List.of(cmTrajectory));
+
+        when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
         when(studyTrajectoryRepository.findById(cmStudyTrajectoryKey)).thenReturn(Optional.of(cmStudyTrajectory));
 
-        // Simulates the CM trajectory still being linked to another study
+        // Simulates the CM trajectory still being linked to another study (NOT orphaned)
         when(studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectoryId)).thenReturn(true);
 
         // Act
@@ -3089,7 +3087,7 @@ class TrajectoryServiceImplTest {
         // Assert
         verify(studyTrajectoryRepository).delete(dsrStudyTrajectory);
         verify(studyTrajectoryRepository).delete(cmStudyTrajectory);
-        verify(trajectoryRepository, never()).delete(cmTrajectory); // Crucial: Must NOT delete non-orphaned trajectory
+        verify(trajectoryRepository, never()).delete(cmTrajectory); // Must NOT delete
     }
 
     @Test
@@ -3111,7 +3109,6 @@ class TrajectoryServiceImplTest {
                 .hasTimeSeries(true)
                 .build();
 
-        var study = StudyEntity.builder().id(studyId).build();
         var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
                 .trajectoryId(dsrTrajectoryId)
                 .scenarioId(studyId)
@@ -3119,19 +3116,14 @@ class TrajectoryServiceImplTest {
         var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(dsrStudyTrajectoryKey)
                 .trajectory(dsrTrajectory)
-                .studyEntity(study)
                 .build();
-
-        var otherDsrStudyTrajectory = StudyTrajectoryEntity.builder()
-                .id(StudyTrajectoryKey.builder().trajectoryId(otherDsrTrajectoryId).scenarioId(studyId).build())
-                .trajectory(otherDsrTrajectory)
-                .studyEntity(study)
-                .build();
-
-        // Simulate another DSR with time series remaining in the study
-        study.setStudyTrajectoryEntities(Set.of(dsrStudyTrajectory, otherDsrStudyTrajectory));
 
         when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
+
+        // mock the Pre-Evaluation check returning MULTIPLE DSR trajectories
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId))
+                .thenReturn(List.of(dsrTrajectory, otherDsrTrajectory));
+
         when(studyTrajectoryRepository.findById(dsrStudyTrajectoryKey)).thenReturn(Optional.of(dsrStudyTrajectory));
 
         // Act
