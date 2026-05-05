@@ -133,7 +133,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                                       List<String> studyAreas, Integer studyId)throws IOException {
         List<StStorageEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
-        // cache alreday parsed additional constraints once per file path
+        // cache already parsed additional constraints once per file path
         Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache = new HashMap<>();
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -141,6 +141,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
             String[] expectedColumns = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
+
 
             boolean foundStudyArea = false;
 
@@ -181,7 +182,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 }
 
 
-                validateNumericRange(row, 3, 8, rowArea, clusterName, trajectoryFileName);
+                validateNumericRange(row, 3, 8, trajectoryFileName);
 
                 StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
                         clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
@@ -220,13 +221,13 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return cell == null ? null : cell.getStringCellValue();
     }
 
-    private void validateNumericRange(Row row, int fromIdx, int toIdx, String rowArea, String clusterName, String trajectoryFileName) {
+    private void validateNumericRange(Row row, int fromIdx, int toIdx, String trajectoryFileName) {
         for (int idx = fromIdx; idx <= toIdx; idx++) {
             Cell numericCell = row.getCell(idx);
             if (!isNumericCell(numericCell)) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                        .message("Values for node {0} / cluster  {1} are not numeric in STS trajectory {2}")
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Values Injection, Withdrawal, Storage, Efficiency_injection, Efficiency_withdrawal and Initial_level must be numeric in STS trajectory {0}")
                         .build();
             }
         }
@@ -443,7 +444,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         try {
             parsedTemplateParams = constraintsParamsCache.computeIfAbsent(additionalConstraintsPath, path -> {
                 try {
-                    return stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(path, areaParam, studyAreas);
+                    Integer trajectoryId = storage.getTrajectory() != null ? storage.getTrajectory().getId() : null;
+                    return stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(path, rowAreaName, studyAreas, technology, clusterName, trajectoryFileName, trajectoryId);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -451,6 +453,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
+
 
         // clone cached templates (for concurrency)
         List<StConstraintsParameterEntity> newParams = deepCopyParams(parsedTemplateParams);
@@ -489,6 +492,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
         storage.setConstraintsPath(fullConstraintsPath.toString());
     }
+
+
 
     /**
      * Merges the new parameters into the storage entity's parameter list, ensuring that
