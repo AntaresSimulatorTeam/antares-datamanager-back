@@ -13,15 +13,16 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.sts.impl.StStorageFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -34,8 +35,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -128,7 +127,7 @@ class StStorageFileProcessorServiceImplTest {
 
         // stubs for repository/user
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
+            setNni("TEST_NNI");
         }});
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -157,7 +156,7 @@ class StStorageFileProcessorServiceImplTest {
 
         // stubs for repository/user
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
+            setNni("TEST_NNI");
         }});
         var trajectoryEntity = mock(TrajectoryEntity.class);
         trajectoryEntity.setType(TrajectoryType.STS.name());
@@ -185,7 +184,7 @@ class StStorageFileProcessorServiceImplTest {
         Path xlsx = createWorkbookWithSeriesTrue("2030", area, clusterName);
         placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
 
-        // Create STS directory but WITHOUT required files
+        // Create the STS directory but WITHOUT required files
         Path stsDir = tempDir
                 .resolve("trajectories")
                 .resolve("STS")
@@ -217,7 +216,7 @@ class StStorageFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenOTHERSAreaNonePresent() throws IOException {
-        // study areas contain only FR (set in setUp), file contains area XX -> no study area found -> exception
+        // study areas contain only FR (set in setUp), the file contains area XX -> no study area found -> exception
         Path file = tempDir.resolve("test.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet("2030");
@@ -339,20 +338,19 @@ class StStorageFileProcessorServiceImplTest {
                 .findTrajectoryFileCaseInsensitive(anyString(), anyString());
 
         // WHEN / THEN
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> serviceSpy.processStStorageFile(
-                        "cluster_battery_test.xlsx",
-                        "horizon-2025",
-                        1,
-                        false,
-                        areaParam,
-                        technology
-                )
-        );
-
-        assertThat(ex.getMessage()).contains("Selected area {0}");
-        assertThat(ex.getErrorMessageArguments()).contains(areaParam);
+        assertThatThrownBy(() -> serviceSpy.processStStorageFile(
+                "cluster_battery_test.xlsx",
+                "horizon-2025",
+                1,
+                false,
+                areaParam,
+                technology
+        )).isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Selected area {0}");
+                    assertThat(be.getErrorMessageArguments()).contains(areaParam);
+                });
     }
 
     @Test
@@ -391,19 +389,15 @@ class StStorageFileProcessorServiceImplTest {
                 .findTrajectoryFileCaseInsensitive(anyString(), anyString());
 
         // WHEN / THEN
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> serviceSpy.processStStorageFile(
-                        "cluster_battery_test.xlsx",
-                        "horizon-2025",
-                        1,
-                        false,
-                        areaParam,
-                        technology
-                )
-        );
-
-        assertTrue(ex.getMessage().contains("Missing columns"));
+        assertThatThrownBy(() -> serviceSpy.processStStorageFile(
+                "cluster_battery_test.xlsx",
+                "horizon-2025",
+                1,
+                false,
+                areaParam,
+                technology
+        )).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing columns");
     }
 
     @Test
@@ -711,7 +705,7 @@ class StStorageFileProcessorServiceImplTest {
         when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(paramWithHours(area, clusterName)));
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
+            setNni("TEST_NNI");
         }});
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -822,7 +816,7 @@ class StStorageFileProcessorServiceImplTest {
         placeInClusters(file, technology, "cluster_battery_test.xlsx");
 
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
+            setNni("TEST_NNI");
         }});
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -925,7 +919,7 @@ class StStorageFileProcessorServiceImplTest {
                 .thenReturn(List.of(paramWithHours(area, "cluster1"), paramWithHours(area, "cluster2")));
         when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
+            setNni("TEST_NNI");
         }});
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -1006,12 +1000,9 @@ class StStorageFileProcessorServiceImplTest {
                 .thenThrow(new IOException("cannot parse constraints"));
         when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
 
-        IOException ex = assertThrows(
-                IOException.class,
-                () -> service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology)
-        );
-
-        assertThat(ex).hasMessageContaining("cannot parse constraints");
+        assertThatThrownBy(() -> service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("cannot parse constraints");
     }
 
     @Test
@@ -1039,7 +1030,7 @@ class StStorageFileProcessorServiceImplTest {
                 .thenReturn(List.of(frParam, beParam));
         when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of("FR"));
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-            setNni("TESTNNI");
+            setNni("TEST_NNI");
         }});
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
                 anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -1158,6 +1149,121 @@ class StStorageFileProcessorServiceImplTest {
             }
         }
         return file;
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "false, true",
+            "TRUE, true",
+            "FALSE, true",
+            "1, true",
+            "0, true",
+            " 1 , true",
+            "abc, false",
+            "'', false",
+    })
+    void shouldTestIsBooleanStringValue(String value, boolean expected) {
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanStringValue", value);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldReturnFalseForNullInIsBooleanStringValue() {
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanStringValue", (Object) null);
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void shouldReturnFalseWhenCellIsNullInIsBooleanCell() {
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", (Cell) null);
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void shouldReturnTrueForBooleanCellInIsBooleanCell() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "0.0, true",
+            "1.0, true",
+            "0.5, false"
+    })
+    void shouldTestNumericCellInIsBooleanCell(double value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.NUMERIC);
+        when(cell.getNumericCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "false, true",
+            "1, true",
+            "0, true",
+            "abc, false"
+    })
+    void shouldTestStringCellInIsBooleanCell(String value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.STRING);
+        when(cell.getStringCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldTestFormulaBooleanCellInIsBooleanCell() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.BOOLEAN);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "0.0, true",
+            "1.0, true",
+            "2.0, false"
+    })
+    void shouldTestFormulaNumericCellInIsBooleanCell(double value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.NUMERIC);
+        when(cell.getNumericCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "false, true",
+            "abc, false"
+    })
+    void shouldTestFormulaStringCellInIsBooleanCell(String value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+        when(cell.getStringCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldReturnFalseForOtherFormulaResultTypeInIsBooleanCell() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.ERROR);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isFalse();
     }
 
     private StConstraintsParameterEntity paramWithHours(String zone, String cluster) {
