@@ -761,7 +761,18 @@ public class Utils {
             Sheet sheet,
             String[] expectedColumns,
             String trajectoryName,
-            TrajectoryType type
+            TrajectoryType trajectoryType
+    ) {
+        checkMissingColumns(sheet, expectedColumns, trajectoryName, trajectoryType, null, null);
+    }
+
+    public static void checkMissingColumns(
+            Sheet sheet,
+            String[] expectedColumns,
+            String trajectoryName,
+            TrajectoryType trajectoryType,
+            String sheetDisplayName,
+            String technology
     ) {
         Row headerRow = sheet.getRow(0);
         List<String> missingColumns = new ArrayList<>();
@@ -786,7 +797,13 @@ public class Utils {
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
-            String label = getErrorMessageLabelFromType(type);
+            if (trajectoryType == TrajectoryType.STS && sheetDisplayName != null && technology != null) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(missingList, sheetDisplayName, technology))
+                        .message("Missing columns {0} in {1} tab in STS {2} Additional Constraint file")
+                        .build();
+            }
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(missingList, label, trajectoryName))
                     .message("Missing columns {0} in {1} trajectory {2}")
@@ -900,6 +917,7 @@ public class Utils {
             case RES_CAPACITY -> "RES Installed power";
             case RES_TECHNOLOGY_DISTRIBUTION -> "Technological repartition";
             case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
+            case STS->"STS";
             default -> "trajectory";
         };
     }
@@ -910,7 +928,7 @@ public class Utils {
             Object... values
     ) {
         List<String> missing = new ArrayList<>();
-        
+
         for (int i = 0; i < requiredColumns.length; i++) {
             if (i >= values.length || values[i] == null) {
                 missing.add(requiredColumns[i]);
@@ -1167,7 +1185,7 @@ public class Utils {
                 .message("Error processing file: " + e.getMessage())
                 .build();
     }
-    
+
     public void validateDataPresence(Boolean onlyHeader, String trajectoryFileName, String horizon) {
         if (Boolean.TRUE.equals(onlyHeader)) {
             throw BusinessException.builder()

@@ -183,6 +183,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
 
                 validateNumericRange(row, 3, 8, trajectoryFileName);
+                validateZeroToOneRange(row, trajectoryFileName);
+                validateBooleanRange(row, 9, 12, trajectoryFileName);
 
                 StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
                         clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
@@ -231,6 +233,43 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                         .build();
             }
         }
+    }
+
+    private void validateZeroToOneRange(Row row, String trajectoryFileName) {
+        int[] indices = {6, 8}; // Efficiency_injection (G), Initial_level (I)
+        for (int idx : indices) {
+            double value = row.getCell(idx).getNumericCellValue();
+            if (value < 0 || value > 1) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Values Efficiency_injection and Initial_level must be between 0 and 1 in STS trajectory {0}")
+                        .build();
+            }
+        }
+    }
+
+    private void validateBooleanRange(Row row, int fromIdx, int toIdx, String trajectoryFileName) {
+        for (int idx = fromIdx; idx <= toIdx; idx++) {
+            Cell cell = row.getCell(idx);
+            if (!isBooleanCell(cell)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Values Initial_level_optim, Enabled, Series and Constraints must be boolean in STS trajectory {0}")
+                        .build();
+            }
+        }
+    }
+
+    private boolean isBooleanCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.BOOLEAN) return true;
+        if (t == CellType.FORMULA) return cell.getCachedFormulaResultType() == CellType.BOOLEAN;
+        if (t == CellType.STRING) {
+            String s = cell.getStringCellValue().trim().toLowerCase(Locale.ROOT);
+            return "true".equals(s) || "false".equals(s);
+        }
+        return false;
     }
 
     private StStorageEntity mapRowToEntity(Row row, Path trajectoryFilePath, String technology, String rowAreaName, String clusterName,

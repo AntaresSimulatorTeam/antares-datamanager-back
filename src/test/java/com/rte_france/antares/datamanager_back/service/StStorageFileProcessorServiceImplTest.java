@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -211,7 +212,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Values for node");
+                .hasMessageContaining("must be numeric in STS trajectory");
     }
 
     @Test
@@ -492,7 +493,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(5).setCellValue(30); // storage
             r.createCell(6).setCellValue(0.9); // eff inj
             r.createCell(7).setCellValue(5); // eff w
-            r.createCell(8).setCellValue(50); // initial level
+            r.createCell(8).setCellValue(0.5); // initial level
             r.createCell(9).setCellValue("true");
             r.createCell(10).setCellValue("false");
             r.createCell(11).setCellValue(series);
@@ -525,7 +526,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(5).setCellValue(30);
             r.createCell(6).setCellValue(0.9);
             r.createCell(7).setCellValue(5);
-            r.createCell(8).setCellValue(50);
+            r.createCell(8).setCellValue(0.5);
             r.createCell(9).setCellValue("true");
             r.createCell(10).setCellValue("false");
             r.createCell(11).setCellValue("true"); // series true
@@ -707,6 +708,8 @@ class StStorageFileProcessorServiceImplTest {
 
         Files.createFile(constraintsDir.resolve("test.xlsx"));
 
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of(paramWithHours(area, clusterName)));
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
             setNni("TESTNNI");
         }});
@@ -917,13 +920,9 @@ class StStorageFileProcessorServiceImplTest {
         Files.createFile(additionalConstraintsPath);
         Files.createFile(constraintsDir.resolve("test.xlsx"));
 
-        StConstraintsParameterEntity parsedParam = new StConstraintsParameterEntity();
-        parsedParam.setName("daily_min_ev_fr");
-        parsedParam.setZone(area);
-        parsedParam.setCluster("cluster1");
-
         when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
-                any(Path.class), anyString(), anyList())).thenReturn(List.of(parsedParam));
+                any(Path.class), anyString(), anyList(), anyString(), anyString(), anyString(), anyInt()))
+                .thenReturn(List.of(paramWithHours(area, "cluster1"), paramWithHours(area, "cluster2")));
         when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
             setNni("TESTNNI");
@@ -937,7 +936,7 @@ class StStorageFileProcessorServiceImplTest {
 
         assertThat(trajectory.getStStorageEntities()).hasSize(2);
         verify(stStorageConstraintsFileProcessorService, times(1))
-                .processConstraintsParametersAnHoursFile(eq(additionalConstraintsPath), eq(area), anyList());
+                .processConstraintsParametersAnHoursFile(eq(additionalConstraintsPath), eq(area), anyList(), anyString(), anyString(), anyString(), any());
     }
 
     private Path createWorkbookWithTwoConstraintsRows(String horizon, String area) throws IOException {
@@ -966,9 +965,12 @@ class StStorageFileProcessorServiceImplTest {
             second.createCell(0).setCellValue(area);
             second.createCell(1).setCellValue("cluster2");
             second.createCell(2).setCellValue("g2");
-            for (int i = 3; i <= 8; i++) {
-                second.createCell(i).setCellValue(2.0);
-            }
+            second.createCell(3).setCellValue(2.0);
+            second.createCell(4).setCellValue(2.0);
+            second.createCell(5).setCellValue(2.0);
+            second.createCell(6).setCellValue(0.8); // efficiency_injection must be in [0,1]
+            second.createCell(7).setCellValue(2.0);
+            second.createCell(8).setCellValue(0.5); // initial_level must be in [0,1]
             second.createCell(9).setCellValue(true);
             second.createCell(10).setCellValue(true);
             second.createCell(11).setCellValue(false);
@@ -1000,7 +1002,7 @@ class StStorageFileProcessorServiceImplTest {
         Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
         Files.createFile(constraintsDir.resolve("test.xlsx"));
 
-        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList()))
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList(), anyString(), anyString(), anyString(), any()))
                 .thenThrow(new IOException("cannot parse constraints"));
         when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of());
 
@@ -1030,17 +1032,10 @@ class StStorageFileProcessorServiceImplTest {
         Files.createFile(constraintsDir.resolve("Additional-constraints.xlsx"));
         Files.createFile(constraintsDir.resolve("test.xlsx"));
 
-        StConstraintsParameterEntity frParam = new StConstraintsParameterEntity();
-        frParam.setName("daily_min_fr");
-        frParam.setZone("FR");
-        frParam.setCluster("cluster1");
+        StConstraintsParameterEntity frParam = paramWithHours("FR", "cluster1");
+        StConstraintsParameterEntity beParam = paramWithHours("BE", "cluster1");
 
-        StConstraintsParameterEntity beParam = new StConstraintsParameterEntity();
-        beParam.setName("daily_min_be");
-        beParam.setZone("BE");
-        beParam.setCluster("cluster1");
-
-        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList()))
+        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), anyString(), anyList(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(List.of(frParam, beParam));
         when(trajectoryRepository.findAreasByStudyIdAndType(anyInt(), eq("STS"))).thenReturn(List.of("FR"));
         when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -1056,5 +1051,129 @@ class StStorageFileProcessorServiceImplTest {
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
         List<StConstraintsParameterEntity> parameters = trajectory.getStStorageEntities().getFirst().getParameters();
         assertThat(parameters).extracting(StConstraintsParameterEntity::getZone).containsExactly("BE");
+    }
+
+    @Test
+    void shouldThrowWhenEfficiencyInjectionIsOutOfRange() throws IOException {
+        Path xlsx = createWorkbookWithOutOfRangeValue("2030", 6, 1.5);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
+        ).isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Efficiency_injection and Initial_level must be between 0 and 1 in STS trajectory {0}");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("cluster_battery_test.xlsx");
+                });
+    }
+
+    @Test
+    void shouldThrowWhenInitialLevelIsOutOfRange() throws IOException {
+        Path xlsx = createWorkbookWithOutOfRangeValue("2030", 8, -0.1);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
+        ).isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Efficiency_injection and Initial_level must be between 0 and 1 in STS trajectory {0}");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("cluster_battery_test.xlsx");
+                });
+    }
+
+    @Test
+    void shouldThrowWhenBooleanColumnsContainNonBooleanValues() throws IOException {
+        Path xlsx = createWorkbookWithNonBooleanColumn("2030", 9);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() ->
+                service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
+        ).isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Initial_level_optim, Enabled, Series and Constraints must be boolean in STS trajectory {0}");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("cluster_battery_test.xlsx");
+                });
+    }
+
+    private Path createWorkbookWithOutOfRangeValue(String horizon, int colIdx, double outOfRangeValue) throws IOException {
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet(horizon);
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue("FR");
+            r.createCell(1).setCellValue("cluster1");
+            r.createCell(2).setCellValue("g1");
+            r.createCell(3).setCellValue(10);
+            r.createCell(4).setCellValue(20);
+            r.createCell(5).setCellValue(30);
+            r.createCell(6).setCellValue(0.9);  // valid by default
+            r.createCell(7).setCellValue(5);
+            r.createCell(8).setCellValue(0.5);  // valid by default
+            r.createCell(colIdx).setCellValue(outOfRangeValue); // override with out-of-range
+            r.createCell(9).setCellValue(true);
+            r.createCell(10).setCellValue(false);
+            r.createCell(11).setCellValue(false);
+            r.createCell(12).setCellValue(false);
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
+    }
+
+    private Path createWorkbookWithNonBooleanColumn(String horizon, int boolColIdx) throws IOException {
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet(horizon);
+            Row header = s.createRow(0);
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue("FR");
+            r.createCell(1).setCellValue("cluster1");
+            r.createCell(2).setCellValue("g1");
+            r.createCell(3).setCellValue(10);
+            r.createCell(4).setCellValue(20);
+            r.createCell(5).setCellValue(30);
+            r.createCell(6).setCellValue(0.9);
+            r.createCell(7).setCellValue(5);
+            r.createCell(8).setCellValue(0.5);
+            r.createCell(9).setCellValue(true);
+            r.createCell(10).setCellValue(true);
+            r.createCell(11).setCellValue(false);
+            r.createCell(12).setCellValue(false);
+            r.createCell(boolColIdx).setCellValue(42); // override with non-boolean numeric
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
+    }
+
+    private StConstraintsParameterEntity paramWithHours(String zone, String cluster) {
+        StStorageEntity storage = new StStorageEntity();
+        storage.setTrajectory(new TrajectoryEntity());
+        StConstraintsHoursEntity hour = StConstraintsHoursEntity.builder()
+                .occurrence(1).startHour(1).endHour(2).build();
+        StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
+                .name("c_" + zone + "_" + cluster)
+                .zone(zone)
+                .cluster(cluster)
+                .enabled(true)
+                .storage(storage)
+                .hours(List.of(hour))
+                .build();
+        hour.setParameter(param);
+        return param;
     }
 }

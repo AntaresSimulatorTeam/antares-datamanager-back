@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StStorageMapper;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
@@ -240,24 +239,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .findFirst();
     }
 
-    @SuppressWarnings("unused")
-    private TimeSeriesMatrix readConstraintsMatrix(Path file, String horizon) throws IOException {
-        String fileName = file.getFileName().toString().toLowerCase();
-        if (!fileName.endsWith(".xlsx")) {
-            throw BusinessException.builder()
-                    .message("Only .xlsx supported")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        TimeSeriesMatrix matrix = timeSeriesReader.readFromXlsx(file, horizon);
-        if (matrix.columns().isEmpty()) {
-            throw TechnicalException.builder()
-                    .message("Matrix is empty: " + file.getFileName())
-                    .build();
-        }
-        return matrix;
-    }
-
 
     private Path buildStsConstraintsBasePath() {
         return Path.of(antaresDataManagerProperties.getNasDirectory())
@@ -433,7 +414,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         return result;
     }
-
     private List<List<Integer>> expandHoursPerOccurrence(StConstraintsParameterEntity param) {
         Map<Integer, List<Integer>> byOccurrence = new LinkedHashMap<>();
 

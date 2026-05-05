@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
@@ -662,42 +661,6 @@ class StsPropertiesAssemblerServiceImplTest {
 
         assertEquals(2, result.size());
         verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon));
-    }
-
-    @Test
-    void readConstraintsMatrix_ShouldRejectNonXlsxFile() {
-        Path nonXlsx = tempDir.resolve("constraints.csv");
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> ReflectionTestUtils.invokeMethod(
-                        stsPropertiesAssemblerService,
-                        "readConstraintsMatrix",
-                        nonXlsx,
-                        "2030"
-                )
-        );
-
-        assertEquals("Only .xlsx supported", ex.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-    }
-
-    @Test
-    void readConstraintsMatrix_ShouldThrowTechnicalExceptionWhenMatrixIsEmpty() throws Exception {
-        when(timeSeriesReader.readFromXlsx(any(Path.class), anyString()))
-                .thenReturn(new TimeSeriesMatrix(List.of()));
-        Path additionalConstraints = tempDir.resolve("Additional-constraints.xlsx");
-
-        TechnicalException ex = assertThrows(
-                TechnicalException.class,
-                () -> ReflectionTestUtils.invokeMethod(
-                        stsPropertiesAssemblerService,
-                        "readConstraintsMatrix",
-                        additionalConstraints,
-                        "2030"
-                )
-        );
-
-        assertTrue(ex.getMessage().contains("Matrix is empty"));
     }
 
     @Test
