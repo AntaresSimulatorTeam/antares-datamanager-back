@@ -135,10 +135,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
 
-        var requiresCmCleanup = isRemovingLastDsrWithTimeSeries(studyId, ids);
-
-        // CM trajectories must be found BEFORE the bulk delete removes their link
-        var cmTrajectories = requiresCmCleanup
+        var requiresCmUnlink = isRemovingLastDsrWithTimeSeries(studyId, ids);
+        var cmTrajectories = requiresCmUnlink
                 ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
                 : List.<TrajectoryEntity>of();
 
@@ -151,8 +149,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
 
-        if (requiresCmCleanup) {
-            cmTrajectories.forEach(cm -> processCmTrajectoryDeletion(cm, studyId));
+        if (requiresCmUnlink) {
+            cmTrajectories.forEach(cm -> processCmTrajectoryUnlinking(cm, studyId));
         }
     }
 
@@ -169,7 +167,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         var cmTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId);
         studyTrajectoryRepository.deleteAll(links);
-        cmTrajectories.forEach(cm -> processCmTrajectoryDeletion(cm, studyId));
+        cmTrajectories.forEach(cm -> processCmTrajectoryUnlinking(cm, studyId));
     }
 
     @Override
@@ -641,8 +639,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .scenarioId(studyId)
                 .build();
 
-        var requiresCmCleanup = isRemovingLastDsrWithTimeSeries(studyId, List.of(trajectoryId));
-        var cmTrajectories = requiresCmCleanup
+        var requiresCmUnlink = isRemovingLastDsrWithTimeSeries(studyId, List.of(trajectoryId));
+        var cmTrajectories = requiresCmUnlink
                 ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
                 : List.<TrajectoryEntity>of();
 
@@ -654,8 +652,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         studyTrajectoryRepository.delete(studyTrajectory);
 
-        if (requiresCmCleanup) {
-            cmTrajectories.forEach(cm -> processCmTrajectoryDeletion(cm, studyId));
+        if (requiresCmUnlink) {
+            cmTrajectories.forEach(cm -> processCmTrajectoryUnlinking(cm, studyId));
         }
     }
 
@@ -674,18 +672,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 && Boolean.TRUE.equals(trajectory.getHasTimeSeries());
     }
 
-    private void processCmTrajectoryDeletion(TrajectoryEntity cmTrajectory, Integer studyId) {
+    private void processCmTrajectoryUnlinking(TrajectoryEntity cmTrajectory, Integer studyId) {
         var key = StudyTrajectoryKey.builder()
                 .trajectoryId(cmTrajectory.getId())
                 .scenarioId(studyId)
                 .build();
 
         studyTrajectoryRepository.findById(key).ifPresent(studyTrajectoryRepository::delete);
-
-        if (!studyTrajectoryRepository.existsById_TrajectoryId(cmTrajectory.getId())) {
-            trajectoryRepository.delete(cmTrajectory);
-            log.info("Deleted CM trajectory: {}", cmTrajectory.getFileName());
-        }
+        log.info("Unlinked CM trajectory: {} from study: {}", cmTrajectory.getFileName(), studyId);
     }
 
     //********************** Private and utils Methods *****************************//
