@@ -439,14 +439,11 @@ public class Utils {
 
         for (var i = 1; i <= sheet.getLastRowNum(); i++) { // skip header
             var row = sheet.getRow(i);
-            if (row == null) continue;
-
-            var areaCell = row.getCell(1); // 2ème colonne
-            if (areaCell == null) continue;
-
-            var area = areaCell.getStringCellValue();
-            if (rowFilter.test(area)) {
-                sb.append(canonicalRow(row)).append("\n");
+            if (row != null && row.getCell(1 /* 2ème colonne */) != null) {
+                var area = row.getCell(1).getStringCellValue();
+                if (rowFilter.test(area)) {
+                    sb.append(canonicalRow(row)).append("\n");
+                }
             }
         }
 
@@ -464,8 +461,13 @@ public class Utils {
                         .build();
             }
 
-            var isOthers = OTHERS_AREA.equals(areaFilter);
-            var hHash = hashSheet(horizonSheet, area -> isOthers || areaFilter.equals(area));
+            var normalizedAreaFilter = areaFilter == null ? null : areaFilter.toUpperCase(Locale.ROOT);
+            var isOthers = OTHERS_AREA.equals(normalizedAreaFilter);
+            var hHash = hashSheet(horizonSheet, area ->
+                    isOthers || StringUtils.equals(
+                            normalizedAreaFilter,
+                            area == null ? null : area.toUpperCase(Locale.ROOT))
+            );
 
             return Hashing.sha256()
                     .hashString(hHash, StandardCharsets.UTF_8)
