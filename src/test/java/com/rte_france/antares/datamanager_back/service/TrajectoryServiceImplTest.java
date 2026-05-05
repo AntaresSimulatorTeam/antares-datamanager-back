@@ -1195,7 +1195,6 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getHydroParametersDirectory()).thenReturn(hydroTechnicalParametersDir.toString());
-
         // When
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, "FR", null, null);
 
