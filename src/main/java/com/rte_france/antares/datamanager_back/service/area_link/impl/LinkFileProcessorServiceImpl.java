@@ -193,8 +193,14 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet hurdleCostSheet = workbook.getSheet("parameters");
+            Sheet parametersSheet = workbook.getSheet("parameters");
             Sheet sLinksSheet = workbook.getSheet(horizon);
+
+            // get hurdle_cost and hvdc since they're fixed in param sheet
+            int horizonCellIndex = findCellIndexByHorizon(parametersSheet, horizon);
+            double hurdleCost = parametersSheet.getRow(1).getCell(horizonCellIndex).getNumericCellValue();
+            boolean hvdc = getBooleanCellValue(parametersSheet.getRow(2).getCell(horizonCellIndex)).orElse(false);
+
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
@@ -208,10 +214,12 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .summerHcDirectMw(row.getCell(7).getNumericCellValue())
                             .summerHcIndirectMw(row.getCell(8).getNumericCellValue())
                             .flowbasedPerimeter(getBooleanCellValue(row.getCell(9)).orElseThrow())
-                            .hvdc(getBooleanCellValue(row.getCell(10)).orElseThrow())
-                            .specificTs(getBooleanCellValue(row.getCell(11)).orElseThrow())
-                            .forcedOutageHvac(getBooleanCellValue(row.getCell(12)).orElseThrow())
-                            .hurdleCost(hurdleCostSheet.getRow(1).getCell(findCellIndexByHorizon(hurdleCostSheet, horizon)).getNumericCellValue())
+                            .hvdcMwDirect(row.getCell(10).getNumericCellValue())
+                            .hvdcMwIndirect(row.getCell(11).getNumericCellValue())
+                            .hvdcNb(row.getCell(12).getNumericCellValue())
+                            .hvdcfoRate(row.getCell(13).getNumericCellValue())
+                            .hurdleCost(hurdleCost)
+                            .hvdc(hvdc)
                             .build();
                     linkEntities.add(link);
 

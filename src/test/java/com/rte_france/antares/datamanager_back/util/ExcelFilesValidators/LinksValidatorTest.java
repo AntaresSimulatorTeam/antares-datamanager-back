@@ -112,10 +112,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("AT/FR", 100, 200, 5, 150, 175, 300, 400, 250, false, false, true, false),
-                        List.of("BE/GE", 110, 210, 160, 185, 310, 410, 260, 285, true,true, true, false)
+                        List.of("AT/FR", 100, 200, 5, 150, 175, 300, 400, 250, false, 50.0, 25.0, 2.0, 0.1),
+                        List.of("BE/GE", 110, 210, 160, 185, 310, 410, 260, 285, true, 75.0, 30.0, 1.0, 0.2)
                 )
         );
         ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036", TrajectoryType.LINK.name());
@@ -131,10 +131,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("AT-FR", 100, 200, 5, 150, 175, 300, 400, 250, "TRUE", "false", "true", "false"),
-                        List.of("BE-GE", 110, 210, 160, 185, 310, 410, 260, 285, "true","FALSE", "true", "false")
+                        List.of("AT-FR", 100, 200, 5, 150, 175, 300, 400, 250, "TRUE", 50.0, 25.0, 2.0, 0.1),
+                        List.of("BE-GE", 110, 210, 160, 185, 310, 410, 260, 285, "true", 75.0, 30.0, 1.0, 0.2)
                 )
         );
         LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2035-2036");
@@ -149,10 +149,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("ES-FR", "A", "B", 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("ES-IT", 110, 210,"C", 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("ES-FR", "A", "B", 150, 175, 300, 400, 250, 275, 500, 60.0, 75.0, 1.0, 0.1),
+                        List.of("ES-IT", 110, 210,"C", 185, 310, 410, 260, 285, 510, 65.0, 80.0, 2.0, 0.2)
                 )
         );
 
@@ -181,10 +181,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("ES-FR", -100, -300, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("ES-IT", 110, 210,20, 185, 310, -410, 260, 285, 510, 65, 80, 95)
+                        List.of("ES-FR", -100, -300, 150, 175, 300, 400, 250, 275, 500, 60.0, 75.0, 1.0, 0.1),
+                        List.of("ES-IT", 110, 210,20, 185, 310, -410, 260, 285, 510, 65.0, 80.0, 2.0, 0.2)
                 )
         );
 
@@ -212,10 +212,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("ES-FR", 100.3, 300, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("ES-IT", 110, 210,20.2, 185, 310, 410, "26,3", 285, 510, 65, 80, 95)
+                        List.of("ES-FR", 100.3, 300, 150, 175, 300, 400, 250, 275, 500, 60.0, 75.0, 1.0, 0.1),
+                        List.of("ES-IT", 110, 210,20.2, 185, 310, 410, "26,3", 285, 510, 65.0, 80.0, 2.0, 0.2)
                 )
         );
 
@@ -244,10 +244,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("Area1/Area2", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
-                        List.of("Area3/Area4", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                        List.of("Area1/Area2", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0.0, 0.0, 0.0, 0.0),
+                        List.of("Area3/Area4", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", 50.0, 25.0, 1.0, 0.1)
                 )
         );
 
@@ -264,10 +264,10 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("Area1/Area2", 10, 0, 10, 0, 10, 0, 10, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
-                        List.of("Area3/Area4", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                        List.of("Area1/Area2", 10, 0, 10, 0, 10, 0, 10, 0, "TRUE", 50.0, 0.0, 1.0, 0.1),
+                        List.of("Area3/Area4", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", 50.0, 25.0, 1.0, 0.1)
                 )
         );
 
@@ -304,11 +304,11 @@ class LinksValidatorTest {
     @Test
     void shouldFailWhenInvalidBooleanValuesArePresentInLinks() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidBooleanLinks.xlsx", "2030-2031",
-                List.of("Name", "Winter_HP_Direct_MW", "Flowbased_perimeter", "HVDC",
-                         "Forced_Outage_HVAC", "Specific_TS"),
+                List.of("Name", "Winter_HP_Direct_MW", "Flowbased_perimeter", "HVDC_MW_direct",
+                         "HVDC_MW_Indirect", "HVDC_nb"),
                 List.of(
-                        List.of("Link1-Link2", 100, 420, "True", "True", "False"),
-                        List.of("Link2-Link3", 200, "123", "False", 360, "True")
+                        List.of("Link1-Link2", 100, "True", 50.0, 25.0, 2.0),
+                        List.of("Link2-Link3", 200, "FalseBad", 75.0, 30.0, 1.0)
                 )
         );
 
@@ -328,7 +328,7 @@ class LinksValidatorTest {
                         exception.getMessage()),
                 () -> assertIterableEquals(
                         List.of(
-                                "Flowbased_perimeter, HVDC, Specific_TS, Forced_Outage_HVAC",
+                                "Flowbased_perimeter",
                                 "LINK"
                         ),
                         exception.getErrorMessageArguments()),
@@ -344,11 +344,11 @@ class LinksValidatorTest {
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"),
                 List.of(
-                        List.of("Area1/Area2", "", 0, "", 0, 10, 0, 10, 0, "TRUE", "FALSE", "TRUE", "FALSE"),
-                        List.of("Area3/Area4", 10, 20, 30, 40, "", 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE"),
-                        List.of("Area5/Area6", 10, 20, 30, 40, 200, 60, 70, 80, "TRUE", "FALSE", "TRUE", "FALSE")
+                        List.of("Area1/Area2", "", 0, "", 0, 10, 0, 10, 0, "TRUE", 50.0, 25.0, 1.0, 0.1),
+                        List.of("Area3/Area4", 10, 20, 30, 40, "", 60, 70, 80, "TRUE", 50.0, 25.0, 1.0, 0.1),
+                        List.of("Area5/Area6", 10, 20, 30, 40, 200, 60, 70, 80, "TRUE", 50.0, 25.0, 1.0, 0.1)
                 )
         );
 

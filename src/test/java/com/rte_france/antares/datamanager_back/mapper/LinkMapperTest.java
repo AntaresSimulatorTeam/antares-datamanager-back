@@ -21,9 +21,11 @@ class LinkMapperTest {
                 .summerHpIndirectMw(40.0)
                 .summerHcIndirectMw(15.0)
                 .flowbasedPerimeter(true)
+                .hvdcMwDirect(75.5)
+                .hvdcMwIndirect(25.3)
+                .hvdcNb(2.0)
+                .hvdcfoRate(0.15)
                 .hvdc(false)
-                .specificTs(true)
-                .forcedOutageHvac(false)
                 .hurdleCost(0.5)
                 .build();
         //When
@@ -41,9 +43,11 @@ class LinkMapperTest {
         assertEquals(40.0, dto.getSummerHpIndirectMw());
         assertEquals(15.0, dto.getSummerHcIndirectMw());
         assertEquals("true", dto.getFlowbasedPerimeter());
+        assertEquals(75.5, dto.getHvdcMwDirect());
+        assertEquals(25.3, dto.getHvdcMwIndirect());
+        assertEquals(2.0, dto.getHvdcNb());
+        assertEquals(0.15, dto.getHvdcfoRate());
         assertEquals("false", dto.getHvdc());
-        assertEquals("true", dto.getSpecificTs());
-        assertEquals("false", dto.getForcedOutageHvac());
         assertEquals(0.5, dto.getHurdleCost());
     }
 

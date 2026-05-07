@@ -30,9 +30,11 @@ public class LinkEntity {
     private Double summerHcDirectMw;
     private Double summerHcIndirectMw;
     private Boolean flowbasedPerimeter;
+    private Double hvdcMwDirect;
+    private Double hvdcMwIndirect;
+    private Double hvdcNb;
+    private Double hvdcfoRate;
     private Boolean hvdc;
-    private Boolean specificTs;
-    private Boolean forcedOutageHvac;
     private double hurdleCost;
 
     @ManyToOne(fetch = FetchType.LAZY)
