@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -11,15 +12,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * Service de validation pour vérifier la cohérence entre InstalledPower (IP/RES_CAPACITY)
  * et Technology Distribution (TD/RES_TECHNOLOGY_DISTRIBUTION).
+ * Et également la cohérence entre IP et Load Factor (LF/RES_LOAD).
  * <p>
  * Règles de contrôle:
  * - Validation conditionnelle basée sur les combinaisons de trajectoires
@@ -36,16 +38,24 @@ import java.util.stream.Stream;
  * * Area_specific (FR, BE, etc) sans technology
  * * Area_specific avec technology
  * <p>
+ * Pour LF:
+ * - Les 4 combinaisons requises doivent être complètes :
+ * * Area_specific (FR, BE, etc) sans technology
+ * * Area_specific avec technology
+ * * OTHERS sans technology
+ * * OTHERS avec technology
+ * <p>
  * Note: area_specific peut être n'importe quel area défini dans defaultConfigService.fetchAllDefaults()
- * Le contrôle de cohérence IP/TD se lance seulement quand TOUTES les combinaisons existent.
+ * Le contrôle de cohérence IP/TD et IP/LF se lance seulement quand TOUTES les combinaisons existent.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ResCoherenceCheckService {
 
-    private final TrajectoryRepository trajectoryRepository;
+     private final TrajectoryRepository trajectoryRepository;
     private final DefaultConfigService defaultConfigService;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private static final String OTHERS_AREA = "OTHERS";
 
@@ -311,8 +321,6 @@ public class ResCoherenceCheckService {
      * Format: "area/groupe/cluster"
      */
     private Set<String> extractTDKeys(List<TrajectoryEntity> tdTrajectories, String area, Set<String> availableTechnologies) {
-        // Extraire les technologies disponibles dans les trajectoires TD avec technologie
-        
         return tdTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null
                         ? trajectory.getResTechnologyDistributionCapacityEntities().stream()
@@ -341,5 +349,272 @@ public class ResCoherenceCheckService {
                 groupe != null ? groupe : "",
                 cluster != null ? cluster : ""
         );
+    }
+
+
+    /**
+     * Valide la cohérence entre les trajectoires IP et LF pour un study donné.
+     * Contrôle du Scénario 13: Import/Sélection d'une trajectoire IP avec Trajectoire(s) LF liée(s) à l'étude.
+     * 
+     * La validation s'effectue en deux étapes:
+     * 1. Vérifier que les combinaisons requises existent (4 pour IP, 2 pour LF)
+     * 2. Vérifier que pour chaque groupe/cluster/area de l'IP, il existe les fichiers correspondants dans le NAS
+     *
+     * @param studyId l'identifiant de l'étude
+     * @throws BusinessException si l'import viole les conditions de cohérence
+     */
+    public void validateIPLoadFactorCoherence(Integer studyId) {
+        validateIPLoadFactorCoherence(studyId, null);
+    }
+
+    /**
+     * Valide la cohérence entre les trajectoires IP et LF pour un study donné.
+     * Permet d'inclure une trajectoire temporaire (en cours d'import) dans la validation.
+     *
+     * @param studyId l'identifiant de l'étude
+     * @param trajectoryBeingImported trajectoire optionnelle en cours d'import à inclure dans la validation
+     * @throws BusinessException si la cohérence n'est pas respectée
+     */
+    public void validateIPLoadFactorCoherence(Integer studyId, TrajectoryEntity trajectoryBeingImported) {
+        // Pas de validation si pas de trajectoire à importer
+        if (trajectoryBeingImported == null) {
+            log.debug("Pas de trajectoire en cours d'import, validation IP/LF skippée");
+            return;
+        }
+
+        List<TrajectoryEntity> bdIpTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId);
+        List<TrajectoryEntity> bdLfTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId);
+
+        String trajectoryType = trajectoryBeingImported.getType();
+
+        // Validation conditionnelle basée sur le type de trajectoire à importer
+        if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType)) {
+            // Import d'une IP : vérifier les combinaisons IP et LF
+            if (!validateIPCoherence(bdIpTrajectories, trajectoryBeingImported) || !validateLFCoherence(bdLfTrajectories, trajectoryBeingImported)) {
+                log.debug("Prérequis IP/LF non satisfaits, validation clés skippée");
+                return;
+            }
+            // Si les combinaisons sont complètes et qu'il y a des LF, valider les fichiers
+            if (!bdLfTrajectories.isEmpty()) {
+                validateIPLFFilesCoherence(bdIpTrajectories, trajectoryBeingImported, bdLfTrajectories);
+            }
+        } else if (TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
+            // Import d'une LF : vérifier les combinaisons LF et IP
+            if (!validateLFCoherence(bdLfTrajectories, trajectoryBeingImported) || !validateIPCoherence(bdIpTrajectories, trajectoryBeingImported)) {
+                log.debug("Prérequis IP/LF non satisfaits, validation clés skippée");
+                return;
+            }
+            // Si les combinaisons sont complètes et qu'il y a des IP, valider les fichiers
+            if (!bdIpTrajectories.isEmpty()) {
+                validateIPLFFilesCoherence(bdIpTrajectories, trajectoryBeingImported, bdLfTrajectories);
+            }
+        }
+    }
+
+    /**
+     * Valide que les 4 combinaisons requises de LF existent après l'import.
+     * Ne lève pas d'exception, retourne simplement un booléen.
+     * Les 4 combinaisons = area_specific (sans tech) + area_specific (avec tech) + OTHERS (sans tech) + OTHERS (avec tech)
+     *
+     * @return true si les 4 combinaisons existent, false sinon
+     */
+    private boolean validateLFCoherence(List<TrajectoryEntity> bdLfTrajectories, TrajectoryEntity trajectoryBeingImported) {
+        String areaParam = trajectoryBeingImported.getArea();
+        String technology = trajectoryBeingImported.getTechnology();
+
+        // Obtenir la liste des areas spécifiques (définis dans DefaultConfig)
+        Set<String> defaultAreas = getDefaultAreas();
+
+        // Identifier quelle combinaison on importe
+        if (OTHERS_AREA.equalsIgnoreCase(areaParam) || defaultAreas.contains(areaParam.toUpperCase())) {
+            // Construire la liste avec cette nouvelle LF
+            List<TrajectoryEntity> allLfTrajectories = new ArrayList<>(bdLfTrajectories);
+            allLfTrajectories.add(trajectoryBeingImported);
+            // Vérifier que les 4 combinaisons complètes existent
+            return hasCompletedLFCombinations(allLfTrajectories, areaParam, technology);
+        } else {
+            // Area non reconnu, pas de validation
+            log.debug("Area {} non reconnu pour LF, validation skippée", areaParam);
+            return true; // On laisse passer
+        }
+    }
+
+    /**
+     * Vérifie si les 4 combinaisons requises de LF sont présentes pour une area donnée.
+     * Les 4 combinaisons = area_specific (sans tech) + area_specific (avec tech) + OTHERS (sans tech) + OTHERS (avec tech)
+     * où area_specific peut être FR, BE, DE, etc. (n'importe quel defaultArea)
+     *
+     * @param areaParam filtre sur l'area spécifique requise
+     * @return true si les 4 combinaisons sont complètes, false sinon
+     */
+    private boolean hasCompletedLFCombinations(List<TrajectoryEntity> lfTrajectories, String areaParam, String importedTechnology) {
+        // Vérifications communes
+        boolean hasAreaWithoutTech = lfTrajectories.stream()
+                .anyMatch(trajectory -> trajectory.getArea().equalsIgnoreCase(areaParam) && isBlankOrEmpty(trajectory.getTechnology()));
+
+        boolean hasOthersWithoutTech = lfTrajectories.stream()
+                .anyMatch(trajectory -> trajectory.getArea().equalsIgnoreCase(OTHERS_AREA) && isBlankOrEmpty(trajectory.getTechnology()));
+
+        // Si importedTechnology est null : vérifier hasAreaWithoutTech, hasOthersWithoutTech 
+        // et au moins deux trajectoires avec la même technology (une pour area, une pour OTHERS)
+        if (isBlankOrEmpty(importedTechnology)) {
+            // Obtenir les technologies disponibles pour l'area spécifique
+            Set<String> areaWithTechList = lfTrajectories.stream()
+                    .filter(trajectory -> trajectory.getArea().equalsIgnoreCase(areaParam) && !isBlankOrEmpty(trajectory.getTechnology()))
+                    .map(TrajectoryEntity::getTechnology)
+                    .collect(Collectors.toSet());
+
+            // Obtenir les technologies disponibles pour OTHERS
+            Set<String> othersWithTechList = lfTrajectories.stream()
+                    .filter(trajectory -> trajectory.getArea().equalsIgnoreCase(OTHERS_AREA) && !isBlankOrEmpty(trajectory.getTechnology()))
+                    .map(TrajectoryEntity::getTechnology)
+                    .collect(Collectors.toSet());
+
+            // Vérifier qu'il existe une technology commune entre l'area et OTHERS
+            boolean hasSharedTechnology = areaWithTechList.stream()
+                    .anyMatch(othersWithTechList::contains);
+
+            return hasAreaWithoutTech && hasOthersWithoutTech && hasSharedTechnology;
+        }
+
+        // Si importedTechnology n'est pas null : vérifier les 4 combinaisons requises
+        boolean hasAreaWithTech = lfTrajectories.stream()
+                .anyMatch(trajectory -> trajectory.getArea().equalsIgnoreCase(areaParam) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equalsIgnoreCase(importedTechnology));
+
+        boolean hasOthersWithTech = lfTrajectories.stream()
+                .anyMatch(trajectory -> trajectory.getArea().equalsIgnoreCase(OTHERS_AREA) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equalsIgnoreCase(importedTechnology));
+
+        return hasAreaWithoutTech && hasAreaWithTech && hasOthersWithoutTech && hasOthersWithTech;
+    }
+
+    /**
+     * Valide que toutes les clés (area/groupe/cluster) de IP existent dans les fichiers LF du NAS.
+     * Contrôle du Scénario 13: vérification des fichiers dans \RES\load factor\...
+     * Les prérequis de combinaisons doivent déjà être validés.
+     */
+    public void validateIPLFFilesCoherence(List<TrajectoryEntity> bdIpTrajectories,
+                                            TrajectoryEntity trajectoryBeingImported,
+                                            List<TrajectoryEntity> bdLfTrajectories) {
+        String area = null;
+        String horizon = null;
+        List<TrajectoryEntity> allIpTrajectories = new ArrayList<>(bdIpTrajectories);
+
+        // Récupérer l'area, l'horizon et construire les listes complètes selon le type
+        if (trajectoryBeingImported != null) {
+            area = trajectoryBeingImported.getArea();
+            horizon = trajectoryBeingImported.getHorizon();
+            if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryBeingImported.getType())) {
+                allIpTrajectories.add(trajectoryBeingImported);
+            }
+        } else if (!allIpTrajectories.isEmpty()) {
+            area = allIpTrajectories.getFirst().getArea();
+            horizon = allIpTrajectories.getFirst().getHorizon();
+        }
+
+        if (isBlankOrEmpty(area) || isBlankOrEmpty(horizon)) {
+            log.warn("Area ou horizon non trouvé, validation fichiers LF skippée");
+            return;
+        }
+
+        // Extraire les technologies disponibles dans les trajectoires LF avec technologie
+        Set<String> availableLFTechnologies = bdLfTrajectories.stream()
+                .map(TrajectoryEntity::getTechnology)
+                .filter(trajectoryTechnology -> !isBlankOrEmpty(trajectoryTechnology))
+                .collect(Collectors.toSet());
+
+        // Extraire les clés IP filtrées par area et technologies disponibles
+        Set<String> ipKeys = extractIPKeys(allIpTrajectories, area, availableLFTechnologies);
+
+        // Pour chaque clé IP, vérifier que le fichier existe dans le répertoire NAS pour au moins une LF
+        Set<String> missingFiles = new HashSet<>();
+        for (String ipKey : ipKeys) {
+            String[] parts = ipKey.split("/");
+            if (parts.length >= 3) {
+                String areaKey = parts[0];
+                String groupe = parts[1];
+                String cluster = parts[2];
+                
+                boolean fileFoundInLF = false;
+                for (TrajectoryEntity lfTrajectory : bdLfTrajectories) {
+                    // Vérifier si le fichier existe dans le répertoire NAS pour cette LF
+                    if (checkIfLoadFactorFileExists(lfTrajectory.getFileName(), groupe, cluster, areaKey, horizon)) {
+                        fileFoundInLF = true;
+                        break;
+                    }
+                }
+                
+                if (!fileFoundInLF) {
+                    missingFiles.add(ipKey);
+                }
+            }
+        }
+        
+        // Si des fichiers manquent, lever une exception
+        if (!missingFiles.isEmpty()) {
+            String missingFilesStr = String.join(", ", missingFiles);
+            log.error("Fichiers Load Factor manquants pour les clés IP: {}", missingFilesStr);
+            throw BusinessException.builder()
+                    .message("Cohérence IP/Load Factor échouée. Fichiers Load Factor manquants pour les clés: {0}")
+                    .errorMessageArguments(List.of(missingFilesStr))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        log.info("Validation des fichiers Load Factor réussie");
+    }
+
+
+    /**
+     * Vérifie si un fichier Load Factor existe dans le répertoire NAS.
+     * Chemin: \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\<cluster><area>_<horizon>.csv
+     *
+     * @param trajectoryFileName nom du fichier de la trajectoire LF
+     * @param groupe groupe du cluster
+     * @param cluster nom du cluster
+     * @param area area
+     * @param horizon horizon
+     * @return true si le fichier existe, false sinon
+     */
+    public boolean checkIfLoadFactorFileExists(String trajectoryFileName, String groupe, String cluster, String area, String horizon) {
+        try {
+            Path nasBasePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                    .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+            
+            // Chemin: RES/load factor/<trajectoryFileName>/<groupe>/<cluster>/
+            Path lfDirectoryPath = nasBasePath
+                    .resolve("RES")
+                    .resolve("load factor")
+                    .resolve(trajectoryFileName)
+                    .resolve(groupe)
+                    .resolve(cluster)
+                    .normalize();
+            
+            // Vérifier que le chemin commence par le répertoire de base (sécurité)
+            if (!lfDirectoryPath.startsWith(nasBasePath.getParent())) {
+                log.warn("Tentative d'accès à un chemin non autorisé: {}", lfDirectoryPath);
+                return false;
+            }
+            
+            // Construire le nom du fichier: <cluster><area>_<horizon>.csv
+            String fileName = String.format("%s%s_%s.csv", cluster, area, horizon);
+            Path filePath = lfDirectoryPath.resolve(fileName);
+            
+            // Vérifier que le chemin du fichier commence par le répertoire de base (sécurité)
+            if (!filePath.startsWith(nasBasePath.getParent())) {
+                log.warn("Tentative d'accès à un fichier non autorisé: {}", filePath);
+                return false;
+            }
+            
+            boolean exists = Files.exists(filePath) && Files.isRegularFile(filePath);
+            if (exists) {
+                log.debug("Fichier Load Factor trouvé: {}", filePath);
+            } else {
+                log.debug("Fichier Load Factor non trouvé: {}", filePath);
+            }
+            return exists;
+        } catch (Exception e) {
+            log.warn("Erreur lors de la vérification du fichier Load Factor: {}", e.getMessage());
+            return false;
+        }
     }
 }
