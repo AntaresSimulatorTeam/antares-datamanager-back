@@ -13,7 +13,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkFilePr
 import com.rte_france.antares.datamanager_back.service.common.WarningService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
+
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
