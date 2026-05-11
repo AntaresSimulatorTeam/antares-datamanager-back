@@ -83,16 +83,24 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return trajectoryRepository.save(trajectory);
     }
 
-    private Path validateAndResolveTrajectoryPath(Path directoryPath, String trajectoryToUse) throws BusinessException {
-        Path trajectoryFilePath = directoryPath.resolve(trajectoryToUse).normalize();
+    private Path validateAndResolveTrajectoryPath(Path directoryPath, String trajectoryToUse) throws IOException, BusinessException {
+        Path realDirectoryPath = directoryPath.toRealPath();
+        Path trajectoryFilePath = realDirectoryPath.resolve(trajectoryToUse).normalize();
 
-        if (!trajectoryFilePath.startsWith(directoryPath)) {
+        if (!trajectoryFilePath.startsWith(realDirectoryPath)) {
             throw BusinessException.builder()
                     .message("Invalid trajectory path: " + trajectoryToUse)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return trajectoryFilePath;
+        Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
+        if (!realTrajectoryFilePath.startsWith(realDirectoryPath)) {
+            throw BusinessException.builder()
+                    .message("Invalid trajectory path: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return realTrajectoryFilePath;
     }
 
     private void processMaxPowerFile(
@@ -142,15 +150,21 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             List<HydroSeriesEntity> entities
     ) throws IOException, BusinessException {
 
+        Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
+
         for (var entry : REQUIRED_SERIES.entrySet()) {
             String directory = entry.getKey();
             SeriesConfig config = entry.getValue();
 
             Path seriesDirectoryPath = trajectoryFilePath.resolve(directory).normalize();
-            List<Path> files;
+            Path realSeriesDirectoryPath = seriesDirectoryPath.toRealPath();
 
-            if (!Files.isDirectory(seriesDirectoryPath)
-                    || (files = findSeriesFiles(seriesDirectoryPath.toRealPath(), horizon, areaParam, config)).isEmpty()) {
+            if (!Files.isDirectory(seriesDirectoryPath) || !isPathWithinDirectory(realTrajectoryFilePath, realSeriesDirectoryPath)) {
+                continue;
+            }
+            
+            List<Path> files = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config);
+            if (files.isEmpty()) {
                 continue;
             }
 
@@ -158,6 +172,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .map(f -> buildHydroSeriesEntity(f.getFileName().toString(), config.type()))
                     .forEach(entities::add);
         }
+    }
+
+    private boolean isPathWithinDirectory(Path parentDirectoryRealPath, Path childRealPath) {
+        return childRealPath.startsWith(parentDirectoryRealPath);
     }
 
     private List<Path> findSeriesFiles(
@@ -195,7 +213,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
     private HydroSeriesEntity buildHydroSeriesEntity(String fileName, HydroSeriesType type) {
         HydroSeriesEntity entity = new HydroSeriesEntity();
-        entity.setType(String.valueOf(type));
+        entity.setType(type != null ? type.name() : null);
         entity.setTsName(fileName);
         return entity;
     }
@@ -223,7 +241,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
             
-            Sheet sheet = getRequiredSheet(workbook, horizon, filePath);
+            Sheet sheet = getRequiredSheet(workbook, horizon, filePath, TrajectoryType.HYDRO_SERIES.name());
             Row header = getHeaderOrThrow(sheet, filePath, TrajectoryType.HYDRO_SERIES);
             List<String> headerAreas = new ArrayList<>();
 

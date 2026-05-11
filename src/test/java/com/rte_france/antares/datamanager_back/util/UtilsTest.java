@@ -1393,7 +1393,10 @@ class UtilsTest {
             );
 
             // Then
-            assertThat(ex.getMessage()).contains("Missing header in {0} file: {1}");
+            assertThat(ex).isNotNull();
+            assertThat(ex.getErrorMessageArguments())
+                    .contains(TrajectoryType.RES_CAPACITY.name(), filePath.getFileName().toString());
+            assertThat(ex.getMessage()).isEqualTo("Missing header in {0} file: {1}");
         }
 
     @Test
