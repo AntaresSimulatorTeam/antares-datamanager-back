@@ -1,5 +1,5 @@
 -- liquibase formatted sql
--- changeset salemsd:110V044-1
+-- changeset salemsd:110V045-1
 
 -- Update LINKS table schema for HVDC
 

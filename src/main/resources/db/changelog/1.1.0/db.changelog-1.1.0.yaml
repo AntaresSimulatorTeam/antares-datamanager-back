@@ -94,5 +94,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V43-add-code-column-to-res-type.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V44-alter-hydro-series-table.sql
-
-
+  - include:
+      file: classpath*:db/changelog/1.1.0/V45-update-link-table-hvdc-columns.sql
