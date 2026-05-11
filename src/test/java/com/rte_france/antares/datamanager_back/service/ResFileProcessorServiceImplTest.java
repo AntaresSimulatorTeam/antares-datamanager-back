@@ -11,7 +11,6 @@ import com.rte_france.antares.datamanager_back.service.common.impl.TrajectorySer
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
-import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -482,7 +481,7 @@ public class ResFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
-            
+
             assertThatThrownBy(() ->
                     resFileProcessorServiceImpl.processInstalledResFile(
                             "BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
@@ -770,7 +769,7 @@ public class ResFileProcessorServiceImplTest {
         void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws Exception {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
-            
+
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
             // Given
             ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
@@ -807,24 +806,18 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setType(TrajectoryType.RES_LOAD.name());
-            trajectoryEntity.setArea(AREA_FR);
-            trajectoryEntity.setFileName(TRAJECTORY_NAME);
-            trajectoryEntity.setVersion(1);
-            trajectoryEntity.setHorizon(HORIZON_2029_2030);
-            trajectoryEntity.setTechnology(TECHNOLOGY_SOLAR_PV);
-            trajectoryEntity.setHasTimeSeries(true);
-            
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);     
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -893,7 +886,7 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             TrajectoryEntity existingTrajectory = new TrajectoryEntity();
             existingTrajectory.setVersion(2);
@@ -903,11 +896,12 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setVersion(existingTrajectory.getVersion() + 1);
-
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -927,21 +921,22 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             TrajectoryEntity existingTrajectory = new TrajectoryEntity();
             existingTrajectory.setVersion(2);
             existingTrajectory.setChecksum(CHECKSUM_OLD);
 
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setVersion(existingTrajectory.getVersion() + 1);
-
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -962,22 +957,19 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_WIND_NAME).resolve(TECHNOLOGY_WIND_ONSHORE).resolve(TECHNOLOGY_WIND_ONSHORE);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, "timeseries_1.csv");
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, "timeseries_2.csv");
+            createMockCsvFile(trajectoryDir, "timeseries_1.csv");
+            createMockCsvFile(trajectoryDir, "timeseries_2.csv");
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_AT, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setType(TrajectoryType.RES_LOAD.name());
-            trajectoryEntity.setFileName(TRAJECTORY_WIND_NAME);
-            trajectoryEntity.setCreatedBy(ANOTHER_USER);
-            trajectoryEntity.setHasTimeSeries(true);
-            trajectoryEntity.setChecksum("checksum");
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(ANOTHER_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -1000,7 +992,7 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
@@ -1044,16 +1036,18 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setFileName(TRAJECTORY_NAME);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN - Process with valid path
@@ -1074,19 +1068,22 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             TrajectoryEntity existingTrajectory = new TrajectoryEntity();
             existingTrajectory.setVersion(1);
             existingTrajectory.setChecksum("EXISTING_CHECKSUM");
-            existingTrajectory.setFileName(TRAJECTORY_NAME);
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(existingTrajectory);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
                 TrajectoryEntity saved = invocation.getArgument(0);
                 saved.setId(999);
@@ -1110,19 +1107,20 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_WIND_ONSHORE).resolve(TECHNOLOGY_WIND_ONSHORE);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, "2030.csv");
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, "2031.csv");
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, "2032.csv");
+            createMockCsvFile(trajectoryDir, "2030.csv");
+            createMockCsvFile(trajectoryDir, "2031.csv");
+            createMockCsvFile(trajectoryDir, "2032.csv");
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setTechnology(TECHNOLOGY_WIND_ONSHORE);
-            trajectoryEntity.setHasTimeSeries(true);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -1144,7 +1142,7 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, "data.csv");
+            createMockCsvFile(trajectoryDir, "data.csv");
             Files.createFile(trajectoryDir.resolve("readme.txt"));
             Files.createFile(trajectoryDir.resolve("metadata.json"));
 
@@ -1152,10 +1150,12 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setHasTimeSeries(true);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -1168,6 +1168,11 @@ public class ResFileProcessorServiceImplTest {
             assertTrue(result.getHasTimeSeries());
         }
 
+        private void createMockCsvFile(Path directory, String fileName) throws IOException {
+            Path csvFile = directory.resolve(fileName);
+            Files.writeString(csvFile, "timestamp,value\n2030-01-01,0.5\n2030-01-02,0.6\n");
+        }
+
         // ======================================================
         // Tests for new behavior when technology is not specified
         // ======================================================
@@ -1178,7 +1183,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             // Create all 4 required technologies with CSV files
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
@@ -1189,15 +1194,12 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setHasTimeSeries(true);
-            trajectoryEntity.setTechnology(null);
-            trajectoryEntity.setFileName(TRAJECTORY_NAME);
-            trajectoryEntity.setVersion(1);
-            trajectoryEntity.setArea(AREA_FR);
-            trajectoryEntity.setType(TrajectoryType.RES_LOAD.name());
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), isNull()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), eq(null)))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN - Call without technology parameter (null)
@@ -1222,7 +1224,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
 
@@ -1269,7 +1271,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
             createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
@@ -1298,7 +1300,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
             createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
@@ -1312,11 +1314,12 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setHasTimeSeries(true);
-            trajectoryEntity.setVersion(3);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), isNull()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), eq(null)))
+                    .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -1337,18 +1340,18 @@ public class ResFileProcessorServiceImplTest {
             Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
             Files.createDirectories(trajectoryDir);
-            CreateExcelTestUtil.createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
+            createMockCsvFile(trajectoryDir, CSV_FILE_NAME);
 
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setHasTimeSeries(true);
-            trajectoryEntity.setTechnology(TECHNOLOGY_SOLAR_PV);
-            trajectoryEntity.setVersion(1);
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN - Call WITH technology parameter (should use original behavior)
@@ -1402,7 +1405,7 @@ public class ResFileProcessorServiceImplTest {
         private void createTechnologyWithCsv(Path trajectoryBaseDir, String technologyFolder, String leafFolder) throws IOException {
             Path technologyDir = trajectoryBaseDir.resolve(technologyFolder).resolve(leafFolder);
             Files.createDirectories(technologyDir);
-            CreateExcelTestUtil.createMockCsvFile(technologyDir, leafFolder + "_data.csv");
+            createMockCsvFile(technologyDir, leafFolder + "_data.csv");
         }
     }
 
@@ -1427,11 +1430,11 @@ public class ResFileProcessorServiceImplTest {
                     String currentArea = areas.get(i);
                     Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
                     var value = isNumericValues ? (100.0 + (i * 10)) : "truc";
-                    dataRow.createCell(0).setCellValue(technology);  
-                    dataRow.createCell(1).setCellValue(technology);  
-                    dataRow.createCell(2).setCellValue(currentArea); 
-                    dataRow.createCell(3).setCellValue(currentArea+"0"+i);  
-                    dataRow.createCell(4).setCellValue("SP199_HH200"); 
+                    dataRow.createCell(0).setCellValue(technology);
+                    dataRow.createCell(1).setCellValue(technology);
+                    dataRow.createCell(2).setCellValue(currentArea);
+                    dataRow.createCell(3).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(4).setCellValue("SP199_HH200");
                     if (value instanceof Number n) {
                         dataRow.createCell(5).setCellValue(n.doubleValue());
                     } else {
@@ -1522,7 +1525,7 @@ public class ResFileProcessorServiceImplTest {
             }
             return file;
         }
-        
+
         @Test
         void successfulProcessingWhenAreaWithoutTechnology(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
@@ -1717,7 +1720,7 @@ public class ResFileProcessorServiceImplTest {
         void throwsExceptionForAreaWhenNoAreaForArea(@TempDir Path tempRoot) throws Exception {
             // GIVEN : Créer la structure de dossiers temporaire
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
-            
+
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
@@ -1811,7 +1814,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFileWithMissingColumns(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv");
-            
+
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
@@ -1827,7 +1830,7 @@ public class ResFileProcessorServiceImplTest {
             );
             assertTrue(exception.getMessage().contains("Missing columns"));
         }
-        
+
         @Test
         void throwsExceptionWhenOnlyEmptyRows(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
