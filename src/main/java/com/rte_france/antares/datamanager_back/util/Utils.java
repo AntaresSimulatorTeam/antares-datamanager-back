@@ -1199,15 +1199,4 @@ public class Utils {
                     .build();
         }
     }
-
-    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
-        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
-        if (sheet == null) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the STS trajectory {1}")
-                    .build();
-        }
-        return sheet;
-    }
 }
