@@ -159,15 +159,23 @@ class HydroFileProcessorServiceImplTest {
     @Test
     void processHydroSeriesFile_throwsBusinessException_whenTrajectoryPathIsOutsideBaseDirectory() throws IOException {
         // Given
-        Path baseDirectory = Path.of("/tmp/hydro/series").normalize();
+        Path baseDirectory = tempDir.resolve("hydro").resolve("series");
+        Files.createDirectories(baseDirectory);
+        String maliciousTrajectoryToUse = "../outside";
+        Path trajectoryPath = baseDirectory.resolve(maliciousTrajectoryToUse);
+        
+        Path inflowDir = trajectoryPath.resolve("inflows");
+        Files.createDirectories(inflowDir);
+        Path mingenDir = trajectoryPath.resolve("mingen");
+        Files.createDirectories(mingenDir);
+        Path reservoirLevels = trajectoryPath.resolve("reservoir_levels");
+        Files.createDirectories(reservoirLevels);
 
-        when(trajectoryService.normalizeAndValidateDirectory(
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(
                 eq(TrajectoryType.HYDRO_SERIES),
                 eq("FR"),
                 isNull()
         )).thenReturn(baseDirectory);
-
-        String maliciousTrajectoryToUse = "../outside";
 
         // When / Then
         BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -206,12 +214,15 @@ class HydroFileProcessorServiceImplTest {
                 List.of(
                         List.of(2345, 2345, 2345, 2345)
                 ));
-        Path inflowsDirectory = trajectoryPath.resolve("inflows");
-
-        Files.createDirectories(inflowsDirectory);
+        Path inflowDir = trajectoryPath.resolve("inflows");
+        Files.createDirectories(inflowDir);
+        Path mingenDir = trajectoryPath.resolve("mingen");
+        Files.createDirectories(mingenDir);
+        Path reservoirLevels = trajectoryPath.resolve("reservoir_levels");
+        Files.createDirectories(reservoirLevels);
 
         // Nom invalide : il manque le horizon au format attendu avant .csv
-        Files.createFile(inflowsDirectory.resolve("ror_FR.csv"));
+        Files.createFile(inflowDir.resolve("ror_FR.csv"));
 
         when(trajectoryService.normalizeAndValidateDirectory(
                 eq(TrajectoryType.HYDRO_SERIES),
@@ -289,6 +300,13 @@ class HydroFileProcessorServiceImplTest {
 
         Path missingTrajectoryPath = baseDirectory.resolve(trajectoryToUse);
 
+        Path inflowDir = missingTrajectoryPath.resolve("inflows");
+        Files.createDirectories(inflowDir);
+        Path mingenDir = missingTrajectoryPath.resolve("mingen");
+        Files.createDirectories(mingenDir);
+        Path reservoirLevels = missingTrajectoryPath.resolve("reservoir_levels");
+        Files.createDirectories(reservoirLevels);
+
         when(trajectoryService.normalizeAndValidateDirectory(
                 eq(TrajectoryType.HYDRO_SERIES),
                 eq(area),
@@ -320,7 +338,7 @@ class HydroFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Invalid trajectory path for maxpower", exception.getMessage());
+        assertEquals("No maxpower file found for HYDRO series trajectory.", exception.getMessage());
 
         verify(trajectoryRepository, never()).save(any());
     }
