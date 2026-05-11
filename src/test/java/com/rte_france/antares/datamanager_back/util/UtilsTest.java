@@ -1395,7 +1395,7 @@ class UtilsTest {
             // Then
             assertThat(ex).isNotNull();
             assertThat(ex.getErrorMessageArguments())
-                    .contains(TrajectoryType.RES_CAPACITY.name(), filePath.getFileName().toString());
+                    .contains("RES Installed power", filePath.getFileName().toString());
             assertThat(ex.getMessage()).isEqualTo("Missing header in {0} file: {1}");
         }
 
