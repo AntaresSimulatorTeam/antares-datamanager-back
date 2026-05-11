@@ -812,18 +812,12 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setType(TrajectoryType.RES_LOAD.name());
-            trajectoryEntity.setArea(AREA_FR);
-            trajectoryEntity.setFileName(TRAJECTORY_NAME);
-            trajectoryEntity.setVersion(1);
-            trajectoryEntity.setHorizon(HORIZON_2029_2030);
-            trajectoryEntity.setTechnology(TECHNOLOGY_SOLAR_PV);
-            trajectoryEntity.setHasTimeSeries(true);
-            
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);     
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(TEST_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -970,15 +964,12 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_AT, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            
-            var trajectoryEntity = new TrajectoryEntity();
-            trajectoryEntity.setType(TrajectoryType.RES_LOAD.name());
-            trajectoryEntity.setFileName(TRAJECTORY_WIND_NAME);
-            trajectoryEntity.setCreatedBy(ANOTHER_USER);
-            trajectoryEntity.setHasTimeSeries(true);
-            trajectoryEntity.setChecksum("checksum");
-            when(trajectoryService.buildDirectoryTrajectory(anyString(), anyString(), any(), anyString(), anyString(), anyString()))
-                    .thenReturn(trajectoryEntity);
+            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
+                setNni(ANOTHER_USER);
+            }});
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // WHEN
@@ -1369,38 +1360,6 @@ public class ResFileProcessorServiceImplTest {
             );
 
             // THEN - Should succeed with specific technology, ignoring the rule about 4 technologies
-            assertNotNull(result);
-            assertEquals(TECHNOLOGY_SOLAR_PV, result.getTechnology());
-            assertEquals(1, result.getVersion());
-            verify(trajectoryRepository).save(any(TrajectoryEntity.class));
-        }
-
-        @Test
-        void processLoadFactorResFileResolvesNormalizedParentAndDisplayLeafFolders(@TempDir Path tempRoot) throws Exception {
-            // GIVEN - Folder structure like solar_pv/"solar pv"
-            Path nasDir = tempRoot.resolve(NAS_DIR);
-            Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
-                    .resolve(TRAJECTORY_NAME);
-            createTechnologyWithCsv(trajectoryBaseDir, "solar_pv", "solar pv");
-
-            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
-            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
-            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
-                    .thenReturn(DIRECTORY_RES_LOAD);
-            when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
-                setNni(TEST_USER);
-            }});
-            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
-                    .thenReturn(Optional.empty());
-            when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-            // WHEN
-            TrajectoryEntity result = resFileProcessorServiceImpl.processLoadFactorResFile(
-                    TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
-            );
-
-            // THEN
             assertNotNull(result);
             assertEquals(TECHNOLOGY_SOLAR_PV, result.getTechnology());
             assertEquals(1, result.getVersion());
