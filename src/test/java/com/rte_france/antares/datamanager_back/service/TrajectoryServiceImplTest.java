@@ -3067,4 +3067,158 @@ class TrajectoryServiceImplTest {
         verify(studyTrajectoryRepository).delete(dsrStudyTrajectory);
         verify(trajectoryRepository, never()).findByTypeAndStudyId(eq(TrajectoryType.DSR_CAPACITY_MODULATION.name()), any());
     }
+
+        @Test
+        void shouldCreateNewTrajectoryWhenNoExistingTrajectory() throws Exception {
+            Path base = tempDir.resolve("hydro");
+            Path traj = base.resolve("BP_23");
+            Files.createDirectories(traj);
+            // GIVEN
+            String type = "TYPE";
+            String fileName = "BP_23";
+            String horizon = "2030";
+            String area = "AREA";
+            String tech = "TECH";
+            
+            when(userService.getCurrentUserDetails())
+                    .thenReturn(UserInfoDto.builder().nni("NNI123").build());
+                    
+            try (var mockedStatic = mockStatic(Utils.class)) {
+                mockedStatic.when(() -> Utils.calculateDirectoryChecksum(traj)).thenReturn("checksum123");
+                when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                        fileName, type, horizon, area, tech
+                )).thenReturn(Optional.empty());
+
+                // WHEN
+                TrajectoryEntity result = trajectoryService.buildDirectoryTrajectory(
+                        type, fileName, traj, horizon, area, tech
+                );
+
+                // THEN
+                assertEquals(1, result.getVersion());
+                assertEquals("checksum123", result.getChecksum());
+                assertEquals("NNI123", result.getCreatedBy());
+                assertEquals(fileName, result.getFileName());
+                assertTrue(result.getFileSize() > 0);
+                assertTrue(result.getHasTimeSeries());
+            }
+           
+        }
+
+        @Test
+        void shouldIncrementVersionWhenExistingTrajectoryWithDifferentChecksum() throws Exception {
+            Path base = tempDir.resolve("hydro");
+            Path traj = base.resolve("BP_23");
+            Files.createDirectories(traj);
+            // GIVEN
+            String type = "TYPE";
+            String fileName = "file.csv";
+            String horizon = "2030";
+            String area = "AREA";
+            String tech = "TECH";
+
+            TrajectoryEntity existing = TrajectoryEntity.builder()
+                    .version(3)
+                    .checksum("oldChecksum")
+                    .build();
+            
+            when(userService.getCurrentUserDetails())
+                    .thenReturn(UserInfoDto.builder().nni("NNI123").build());
+            try (var mockedStatic = mockStatic(Utils.class)) {
+                mockedStatic.when(() -> Utils.calculateDirectoryChecksum(traj)).thenReturn("newChecksum");
+                when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                        fileName, type, horizon, area, tech
+                )).thenReturn(Optional.of(existing));
+
+                // WHEN
+                TrajectoryEntity result = trajectoryService.buildDirectoryTrajectory(
+                        type, fileName, traj, horizon, area, tech
+                );
+
+                // THEN
+                assertEquals(4, result.getVersion());
+                assertEquals("newChecksum", result.getChecksum());
+            }
+        }
+        
+    @Test
+    void shouldThrowExceptionWhenChecksumIsSame() throws Exception {
+        Path base = tempDir.resolve("hydro");
+        Path traj = base.resolve("BP_23");
+        Files.createDirectories(traj);
+
+        String type = "TYPE";
+        String fileName = "BP_23";
+        String horizon = "2030";
+        String area = "AREA";
+        String tech = "TECH";
+
+        String checkSum = "checksum123";
+
+        TrajectoryEntity existing = TrajectoryEntity.builder()
+                .version(2)
+                .checksum(checkSum)
+                .fileName(fileName)
+                .horizon(horizon)
+                .build();
+
+        when(userService.getCurrentUserDetails())
+                .thenReturn(UserInfoDto.builder().nni("NNI123").build());
+
+        try (var mockedStatic = mockStatic(Utils.class, CALLS_REAL_METHODS)) {
+
+            mockedStatic.when(() -> Utils.calculateDirectoryChecksum(traj))
+                    .thenReturn(checkSum);
+
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    fileName,
+                    type,
+                    horizon,
+                    area,
+                    tech
+            )).thenReturn(Optional.of(existing));
+
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    trajectoryService.buildDirectoryTrajectory(
+                            type, fileName, traj, horizon, area, tech
+                    )
+            );
+
+            assertNotNull(exception);
+            verify(trajectoryRepository).findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    fileName,
+                    type,
+                    horizon,
+                    area,
+                    tech
+            );
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals("File already processed with same content {0}", exception.getMessage());
+            assertEquals(List.of(traj.getFileName().toString()), exception.getErrorMessageArguments());
+        }
+    }
+
+    @Test
+        void shouldUseUnknownUserWhenUserIsNull() throws Exception {
+            Path base = tempDir.resolve("hydro");
+            Path traj = base.resolve("BP_23");
+            Files.createDirectories(traj);
+            // GIVEN
+            when(userService.getCurrentUserDetails()).thenReturn(null);
+           
+            try (var mockedStatic = mockStatic(Utils.class)) {
+                mockedStatic.when(() -> Utils.calculateDirectoryChecksum(traj)).thenReturn("checksum123");
+                when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                        any(), any(), any(), any(), any()
+                )).thenReturn(Optional.empty());
+
+                // WHEN
+                TrajectoryEntity result = trajectoryService.buildDirectoryTrajectory(
+                        "TYPE", "file.csv", traj, "2030", "AREA", "TECH"
+                );
+
+                // THEN
+                assertEquals("UNKNOWN__USER", result.getCreatedBy());
+            }
+        }
 }
