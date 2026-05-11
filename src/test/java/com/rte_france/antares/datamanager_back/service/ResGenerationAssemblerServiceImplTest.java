@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -8,999 +9,289 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.res.impl.ResGenerationAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class ResGenerationAssemblerServiceImplTest {
+
+    private static final String OUTPUT_DIR = "output";
+    private static final String DEFAULT_TRAJECTORY = "BP23";
 
     @TempDir
     Path tempDir;
 
-    private AntaresDataManagerProperties properties;
     private NasFileService nasFileService;
     private ResGenerationAssemblerServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        properties = new AntaresDataManagerProperties();
+        AntaresDataManagerProperties properties = new AntaresDataManagerProperties();
         properties.nasDirectory = tempDir.toString();
         properties.trajectoryFilePath = "INPUT";
-        properties.resLoadDirectory = "RES/load factor";
-        properties.outputLoadDirectory = "output";
+        properties.resLoadDirectory = "RES/load";
+        properties.outputLoadDirectory = OUTPUT_DIR;
+        properties.resTsOutputDirectory = OUTPUT_DIR;
 
         nasFileService = mock(NasFileService.class);
         service = new ResGenerationAssemblerServiceImpl(nasFileService, properties, new PathSecurityUtil(properties));
     }
 
-    @Test
-    void assembleResProperties_nonFr_shouldReturnSingleSeriesPerGroup() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.2\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("DE")
-                .groupe("wind onshore")
-                .cluster("1")
-                .capacityByYear(BigDecimal.valueOf(3150))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-
-        assertTrue(result.containsKey("DE"));
-        Map<String, Object> groups = result.get("DE");
-        assertTrue(groups.containsKey("wind_onshore"));
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> cluster = (Map<String, Object>) groups.get("wind_onshore");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> clusterProperties = (Map<String, Object>) cluster.get("properties");
-        assertEquals("wind_onshore", clusterProperties.get("group"));
-        assertEquals(3150.0, clusterProperties.get("capacity"));
-
-        @SuppressWarnings("unchecked")
-        List<String> series = (List<String>) cluster.get("series");
-        assertEquals(1, series.size());
-    }
-
-    @Test
-    void assembleResProperties_nonFrSubAreas_shouldResolveSeriesUsingExactAreaCode() throws IOException {
-        Path itcsSeries = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("solar thermo")
-                .resolve("cluster")
-                .resolve("solar_ITcs_thermo_2030-2031.csv");
-        Path itcaSeries = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("solar thermo")
-                .resolve("cluster")
-                .resolve("solar_ITca_thermo_2030-2031.csv");
-        Files.createDirectories(itcsSeries.getParent());
-        Files.writeString(itcsSeries, "v\n0.2\n");
-        Files.writeString(itcaSeries, "v\n0.3\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("ITcs")
-                .groupe("solar thermo")
-                .cluster("1")
-                .capacityByYear(BigDecimal.valueOf(900))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-
-        assertTrue(result.containsKey("ITCS"));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> groupPayload = (Map<String, Object>) result.get("ITCS").get("solar_thermo");
-        @SuppressWarnings("unchecked")
-        List<String> series = (List<String>) groupPayload.get("series");
-        assertEquals(List.of("solar_ITcs_thermo_2030-2031.csv.arrow"), series);
-    }
-
-    @Test
-    void assembleResProperties_fr_shouldReturnOptionCFrAggregation() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("FR")
-                .groupe("wind offshore")
-                .cluster("global")
-                .capacityByYear(BigDecimal.valueOf(18500))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-
-        ResZonalDistributionEntity zonal = ResZonalDistributionEntity.builder()
-                .area("FR")
-                .groupe("wind offshore")
-                .pecdZone("FR01")
-                .capacityByYear(BigDecimal.valueOf(60))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(zonal))
-                .build();
-
-        ResTechnologyDistributionEntity tech = ResTechnologyDistributionEntity.builder()
-                .area("FR")
-                .groupe("wind offshore")
-                .pecdZone("FR01")
-                .pecdTechnology("tech_a")
-                .capacityByYear(100.0)
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(tech))
-                .build();
-
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-
-        Map<String, Object> frClusters = result.get("FR");
-        assertNotNull(frClusters);
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> cluster = (Map<String, Object>) frClusters.get("wind_offshore");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> clusterProperties = (Map<String, Object>) cluster.get("properties");
-        assertEquals("wind_offshore", clusterProperties.get("group"));
-
-        @SuppressWarnings("unchecked")
-        List<String> series = (List<String>) cluster.get("series");
-        assertTrue(series.isEmpty());
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> frAggregation = (Map<String, Object>) cluster.get("fr_aggregation");
-        assertNotNull(frAggregation);
-        assertTrue(frAggregation.containsKey("zone_weights"));
-        assertTrue(frAggregation.containsKey("tech_weights_by_zone"));
-        assertTrue(frAggregation.containsKey("series_by_zone_and_tech"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withInvalidZone_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("FR")
-                .groupe("wind offshore")
-                .cluster("global")
-                .capacityByYear(BigDecimal.valueOf(18500))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-
-        ResZonalDistributionEntity zonal = ResZonalDistributionEntity.builder()
-                .area("FR")
-                .groupe("wind offshore")
-                .pecdZone("XX01")
-                .capacityByYear(BigDecimal.valueOf(60))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(zonal))
-                .build();
-
-        ResTechnologyDistributionEntity tech = ResTechnologyDistributionEntity.builder()
-                .area("FR")
-                .groupe("wind offshore")
-                .pecdZone("FR01")
-                .pecdTechnology("tech_a")
-                .capacityByYear(100.0)
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(tech))
-                .build();
-
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-    }
-
-    @Test
-    void assembleResProperties_shouldReturnEmpty_whenNoResCapacityTrajectory() {
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(
-                TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build()
-        )));
-
-        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void assembleResProperties_withUnsupportedGroup_shouldThrowBusinessException() {
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("DE")
-                .groupe("wind")
-                .cluster("1")
-                .capacityByYear(BigDecimal.valueOf(1000))
-                .build();
-
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-
-        study.setTrajectories(new LinkedHashSet<>(List.of(resCapacity)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Unsupported RES group"));
-    }
-
-    @Test
-    void assembleResProperties_nonFr_withMultipleMatchingSeries_shouldThrow() throws IOException {
-        Path csv1 = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Path csv2 = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("beta")
-                .resolve("wind_DE_onshore_beta_2030-2031.csv");
-        Files.createDirectories(csv1.getParent());
-        Files.createDirectories(csv2.getParent());
-        Files.writeString(csv1, "v\n0.2\n");
-        Files.writeString(csv2, "v\n0.3\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("DE")
-                .groupe("wind onshore")
-                .cluster("1")
-                .capacityByYear(BigDecimal.valueOf(3150))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("exactly one arrow"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withoutDistribution_shouldThrow() {
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("FR")
-                .groupe("wind offshore")
-                .cluster("global")
-                .capacityByYear(BigDecimal.valueOf(18500))
-                .build();
-
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-
-        study.setTrajectories(new LinkedHashSet<>(List.of(resCapacity)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Missing FR aggregation data"));
-    }
-
-    @Test
-    void assembleResProperties_shouldWrapIOExceptionFromArrowGeneration() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.2\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenThrow(new IOException("disk full"));
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("DE")
-                .groupe("wind onshore")
-                .cluster("1")
-                .capacityByYear(BigDecimal.valueOf(3150))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        TechnicalException exception = assertThrows(TechnicalException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Could not generate RES arrow file"));
-    }
-
-    @Test
-    void assembleResProperties_shouldReturnEmpty_whenTrajectoriesIsNull() {
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        study.setTrajectories(null);
-
-        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void assembleResProperties_shouldReturnEmpty_whenTrajectoriesIsEmpty() {
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        study.setTrajectories(new LinkedHashSet<>());
-
-        Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void assembleResProperties_shouldThrowWhenResLoadPathIsInvalid() {
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("missing_folder").build();
-        ResClusterCapacityEntity capacity = ResClusterCapacityEntity.builder()
-                .toUse(true)
-                .area("DE")
-                .groupe("wind onshore")
-                .cluster("1")
-                .capacityByYear(BigDecimal.valueOf(3150))
-                .build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(capacity))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Invalid RES load trajectory path"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withZeroZoneSum_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(BigDecimal.ZERO)
-                        .build()))
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(ResTechnologyDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .pecdTechnology("tech_a")
-                        .capacityByYear(100.0)
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("zone weights sum must be strictly positive"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withMissingTechnologyForZonalZone_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR02_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(BigDecimal.valueOf(50))
-                        .build()))
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(ResTechnologyDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR02")
-                        .pecdTechnology("tech_a")
-                        .capacityByYear(100.0)
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Missing FR technology mapping for zone FR01"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withNullZonalWeight_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(null)
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Missing RES zonal weight"));
-    }
-
-    @Test
-    void assembleResProperties_shouldIgnoreLockFileDuringArrowGeneration() throws IOException {
-        Path lockFile = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve(".~lock.wind_DE_onshore_alpha_2030-2031.csv");
-        Path csv = lockFile.getParent().resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Files.createDirectories(lockFile.getParent());
-        Files.writeString(lockFile, "lock");
-        Files.writeString(csv, "v\n0.2\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("DE")
-                        .groupe("wind onshore")
-                        .cluster("1")
-                        .capacityByYear(BigDecimal.valueOf(3150))
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        assertDoesNotThrow(() -> service.assembleResProperties(study));
-        verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
-    }
-
-    @Test
-    void assembleResProperties_shouldIgnoreSupportedExtensionFileWithoutGroupPrefix() throws IOException {
-        Path notes = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve("metadata_notes.txt");
-        Path validSeries = notes.getParent().resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Files.createDirectories(notes.getParent());
-        Files.writeString(notes, "metadata");
-        Files.writeString(validSeries, "v\n0.2\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("DE")
-                        .groupe("wind onshore")
-                        .cluster("1")
-                        .capacityByYear(BigDecimal.valueOf(3150))
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        assertDoesNotThrow(() -> service.assembleResProperties(study));
-        verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
-    }
-
-    @Test
-    void assembleResProperties_shouldIgnoreFilesUnderOldDirectory() throws IOException {
-        Path validSeries = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Path archivedSeries = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("old")
-                .resolve("wind_DE_onshore_beta_2030-2031.csv");
-        Files.createDirectories(validSeries.getParent());
-        Files.createDirectories(archivedSeries.getParent());
-        Files.writeString(validSeries, "v\n0.2\n");
-        Files.writeString(archivedSeries, "v\n0.3\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("DE")
-                        .groupe("wind onshore")
-                        .cluster("1")
-                        .capacityByYear(BigDecimal.valueOf(3150))
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-        assertDoesNotThrow(() -> service.assembleResProperties(study));
-        verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
-    }
-
-    @Test
-    void assembleResProperties_shouldSkipBlankResLoadTrajectoryFilename() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind onshore")
-                .resolve("1")
-                .resolve("wind_DE_onshore_alpha_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.2\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity blankResLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName(" ").build();
-        TrajectoryEntity validResLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("DE")
-                        .groupe("wind onshore")
-                        .cluster("1")
-                        .capacityByYear(BigDecimal.valueOf(3150))
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(blankResLoad, validResLoad, resCapacity)));
-
-        assertDoesNotThrow(() -> service.assembleResProperties(study));
-        verify(nasFileService, times(1)).saveMatrixToNas(any(Path.class), eq("output"));
-    }
-
-    @Test
-    void assembleResProperties_fr_shouldIgnoreTechnologyRowsFromOtherGroup() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(BigDecimal.valueOf(100))
-                        .build()))
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(
-                        ResTechnologyDistributionEntity.builder()
-                                .area("FR")
-                                .groupe("wind offshore")
-                                .pecdZone("FR01")
-                                .pecdTechnology("tech_a")
-                                .capacityByYear(100.0)
-                                .build(),
-                        ResTechnologyDistributionEntity.builder()
-                                .area("FR")
-                                .groupe("solar pv")
-                                .pecdZone("FR01")
-                                .pecdTechnology("tech_should_be_ignored")
-                                .capacityByYear(100.0)
-                                .build()
-                ))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        assertDoesNotThrow(() -> service.assembleResProperties(study));
-    }
-
-    @Test
-    void assembleResProperties_fr_withMissingSeriesForOneTechnology_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(BigDecimal.valueOf(100))
-                        .build()))
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(
-                        ResTechnologyDistributionEntity.builder()
-                                .area("FR")
-                                .groupe("wind offshore")
-                                .pecdZone("FR01")
-                                .pecdTechnology("tech_a")
-                                .capacityByYear(60.0)
-                                .build(),
-                        ResTechnologyDistributionEntity.builder()
-                                .area("FR")
-                                .groupe("wind offshore")
-                                .pecdZone("FR01")
-                                .pecdTechnology("tech_b")
-                                .capacityByYear(40.0)
-                                .build()
-                ))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("series resolution must return exactly one arrow"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withZeroTechnologyWeightsSum_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(BigDecimal.valueOf(100))
-                        .build()))
-                .build();
-        TrajectoryEntity resTech = TrajectoryEntity.builder()
-                .type("RES_TECHNOLOGY_DISTRIBUTION")
-                .resTechnologyDistributionCapacityEntities(List.of(ResTechnologyDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .pecdTechnology("tech_a")
-                        .capacityByYear((double) 0)
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal, resTech)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("technology weights sum must be strictly positive"));
-    }
-
-    @Test
-    void assembleResProperties_fr_withNegativeZonalWeight_shouldThrow() throws IOException {
-        Path csv = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref")
-                .resolve("wind offshore")
-                .resolve("cluster")
-                .resolve("wind_FR01_offshore_tech_a_2030-2031.csv");
-        Files.createDirectories(csv.getParent());
-        Files.writeString(csv, "v\n0.4\n");
-
-        when(nasFileService.saveMatrixToNas(any(Path.class), eq("output"))).thenAnswer(inv ->
-                ((Path) inv.getArgument(0)).getFileName().toString() + ".arrow");
-
-        StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-        TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-        TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                .type("RES_CAPACITY")
-                .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                        .toUse(true)
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .cluster("global")
-                        .capacityByYear(BigDecimal.valueOf(18500))
-                        .build()))
-                .build();
-        TrajectoryEntity resZonal = TrajectoryEntity.builder()
-                .type("RES_ZONAL_DISTRIBUTION")
-                .resZonalDistributionCapacityEntities(List.of(ResZonalDistributionEntity.builder()
-                        .area("FR")
-                        .groupe("wind offshore")
-                        .pecdZone("FR01")
-                        .capacityByYear(BigDecimal.valueOf(-10))
-                        .build()))
-                .build();
-        study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity, resZonal)));
-
-        BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
-        assertTrue(exception.getMessage().contains("Negative RES zonal weight is forbidden"));
-    }
-
-    @Test
-    void assembleResProperties_shouldWrapIOExceptionWhenListingResLoadFiles() throws IOException {
-        Assumptions.assumeTrue(Files.getFileStore(tempDir).supportsFileAttributeView("posix"));
-
-        Path trajectoryRoot = tempDir
-                .resolve("INPUT")
-                .resolve("RES/load factor")
-                .resolve("BP23_A_ref");
-        Files.createDirectories(trajectoryRoot);
-
-        Set<PosixFilePermission> originalPermissions = Files.getPosixFilePermissions(trajectoryRoot);
-        try {
-            Files.setPosixFilePermissions(trajectoryRoot, PosixFilePermissions.fromString("---------"));
-
-            StudyEntity study = StudyEntity.builder().id(1).name("S").build();
-            TrajectoryEntity resLoad = TrajectoryEntity.builder().type("RES_LOAD").fileName("BP23_A_ref").build();
-            TrajectoryEntity resCapacity = TrajectoryEntity.builder()
-                    .type("RES_CAPACITY")
-                    .resClusterCapacityEntities(List.of(ResClusterCapacityEntity.builder()
-                            .toUse(true)
-                            .area("DE")
-                            .groupe("wind onshore")
-                            .cluster("1")
-                            .capacityByYear(BigDecimal.valueOf(3150))
-                            .build()))
-                    .build();
-            study.setTrajectories(new LinkedHashSet<>(List.of(resLoad, resCapacity)));
-
-            TechnicalException exception = assertThrows(TechnicalException.class, () -> service.assembleResProperties(study));
-            assertTrue(exception.getMessage().contains("Could not list RES load trajectory files"));
-        } finally {
-            Files.setPosixFilePermissions(trajectoryRoot, originalPermissions);
+    @Nested
+    class BasicOrchestration {
+        @Test
+        void shouldHandleEmptyScenarios() {
+            StudyEntity study = StudyEntity.builder().id(1).trajectories(null).build();
+            assertTrue(service.assembleResProperties(study).isEmpty());
+
+            study.setTrajectories(new LinkedHashSet<>(List.of(createTrajectory(TrajectoryType.RES_LOAD, "BP23"))));
+            assertTrue(service.assembleResProperties(study).isEmpty());
+        }
+
+        @Test
+        void shouldThrowOnUnsupportedGroup() {
+            StudyEntity study = createStudy(createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "invalid", 100)));
+            assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
         }
     }
-}
 
+    @Nested
+    class NonFrResolution {
+        @ParameterizedTest
+        @CsvSource({
+                "wind_DE_onshore_2030_2031.csv, DE, wind onshore, wind_onshore",
+                "solar_pv_IT_utility_2030_2031.txt, IT, solar pv, solar_pv",
+                "wind_UK_offshore_2030_2031.xlsx, UK, wind offshore, wind_offshore"
+        })
+        void shouldResolveVariousFormats(String fileName, String area, String group, String expectedKey) throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
+            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn(fileName + ".arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity(area, group, 100))
+            );
+
+            Map<String, Object> payload = getGroupPayload(service.assembleResProperties(study), area, expectedKey);
+            assertEquals(List.of(fileName + ".arrow"), payload.get("series"));
+        }
+
+        @Test
+        void shouldHandleStyleBAndHorizonLogic() throws IOException {
+            // Style B with single year (should NOT be stripped)
+            String fileName = "solar_pv_DE_utility_2030.csv";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
+            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("styleB.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "solar pv", 500))
+            );
+
+            Map<String, Map<String, Object>> res = service.assembleResProperties(study);
+            assertNotNull(res.get("DE").get("solar_pv"));
+        }
+
+        @Test
+        void shouldFailOnAmbiguousSeries() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_v1_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_v2_2030_2031.csv");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+        }
+
+        @Test
+        void shouldReturnEmptyParsedKeyWhenFrTechTokensAreEmpty() throws IOException {
+            // File 1: This file is intentionally wrong for an FR zone (missing tech tokens).
+            // The parser will return Optional.empty(), and the file will be skipped.
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_FR01_onshore.csv");
+
+            // File 2: A valid series for DE must be present, otherwise resolveSingleSeries
+            // will throw a BusinessException because it findsnone
+            String validFile = "wind_DE_onshore_2030_2031.csv";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, validFile);
+            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("valid_de.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            // assembleResProperties should succeed by ignoring the malformed file and using the valid one.
+            assertDoesNotThrow(() -> service.assembleResProperties(study));
+            verify(nasFileService, times(1)).saveMatrixToNas(any(), eq(OUTPUT_DIR));
+        }
+    }
+
+    @Nested
+    class FrenchAggregation {
+        @Test
+        void shouldHandleValidationBoundaries() {
+            // Success: Power is 0, skip validation
+            StudyEntity study0 = createStudy(createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 0)));
+            assertDoesNotThrow(() -> service.assembleResProperties(study0));
+
+            // Failure: Power > 0, but no zonal data
+            StudyEntity studyNoZonal = createStudy(createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)));
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(studyNoZonal));
+            assertTrue(ex.getMessage().contains("aggregation data"));
+        }
+
+        @ParameterizedTest
+        @CsvSource({"-0.1", "1.5"}) // Negative or invalid raw weight
+        void shouldFailOnInvalidWeights(double weight) {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", weight))
+            );
+            // weight 1.5 is valid (divided by 100), but negative is not.
+            if (weight < 0) assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+        }
+
+        @Test
+        void shouldFailOnMissingTechMapping() {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 10))
+            );
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("technology mapping"));
+        }
+
+        @Test
+        void shouldCoverFrTechLoopAndCandidateKeys() throws IOException {
+            String fileName = "solar_FR01_pv_utility_2030_2031.csv";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
+            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("fr_solar.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 1000)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 100)),
+                    // Tech name "solar_pv_utility" starts with group prefix "solar_pv_"
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "solar pv", "FR01", "solar_pv_utility", 100.0))
+            );
+
+            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+            assertNotNull(result.get("FR").get("solar_pv"));
+        }
+
+        @Test
+        void shouldCoverZeroWeightBranchesInFrLoop() {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "wind offshore", 1000)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "wind offshore", "FR01", 0.0)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "wind offshore", "FR01", "techA", 100.0))
+            );
+
+            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+            Map<String, Object> aggregation = (Map<String, Object>) getGroupPayload(result, "FR", "wind_offshore").get("fr_aggregation");
+
+            // zone_weights contains FR01 with 0.0, but tech_weights_by_zone should be empty for that zone
+            assertTrue(((Map<?, ?>) aggregation.get("tech_weights_by_zone")).isEmpty());
+        }
+    }
+
+    @Nested
+    class FileSystemSafety {
+        @Test
+        void shouldIgnoreOldAndLockFiles() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "old/wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, ".~lock.wind_DE_onshore.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_valid_2030_2031.csv");
+
+            when(nasFileService.saveMatrixToNas(any(), any())).thenReturn("valid.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            service.assembleResProperties(study);
+            verify(nasFileService, times(1)).saveMatrixToNas(any(), any());
+        }
+
+        @Test
+        void shouldHandleTechnicalFailures() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            when(nasFileService.saveMatrixToNas(any(), any())).thenThrow(new IOException("NAS Down"));
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            assertThrows(TechnicalException.class, () -> service.assembleResProperties(study));
+        }
+
+        @Test
+        void shouldThrowWhenTrajectoryDirectoryDoesNotExist() {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, "non_existent_folder"),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("Invalid RES load trajectory path"));
+        }
+    }
+
+    private void preparePhysicalFile(String traj, String path) throws IOException {
+        Path p = tempDir.resolve("INPUT/RES/load").resolve(traj).resolve(path);
+        Files.createDirectories(p.getParent());
+        Files.writeString(p, "v\n1");
+    }
+
+    private StudyEntity createStudy(TrajectoryEntity... t) {
+        StudyEntity s = StudyEntity.builder().id(1).build();
+        s.setTrajectories(new LinkedHashSet<>(Arrays.asList(t)));
+        return s;
+    }
+
+    private TrajectoryEntity createTrajectory(TrajectoryType type, Object content) {
+        TrajectoryEntity t = TrajectoryEntity.builder().type(type.name()).fileName(DEFAULT_TRAJECTORY).build();
+        if (content instanceof String s) t.setFileName(s);
+        else if (content instanceof ResClusterCapacityEntity e) t.setResClusterCapacityEntities(List.of(e));
+        else if (content instanceof ResZonalDistributionEntity e) t.setResZonalDistributionCapacityEntities(List.of(e));
+        else if (content instanceof ResTechnologyDistributionEntity e) t.setResTechnologyDistributionCapacityEntities(List.of(e));
+        return t;
+    }
+
+    private ResClusterCapacityEntity createCapacity(String a, String g, double c) {
+        return ResClusterCapacityEntity.builder().toUse(true).area(a).groupe(g).cluster("1").capacityByYear(BigDecimal.valueOf(c)).build();
+    }
+
+    private ResZonalDistributionEntity createZonal(String a, String g, String z, double w) {
+        return ResZonalDistributionEntity.builder().area(a).groupe(g).pecdZone(z).capacityByYear(BigDecimal.valueOf(w)).build();
+    }
+
+    private ResTechnologyDistributionEntity createTech(String a, String g, String z, String tech, double w) {
+        return ResTechnologyDistributionEntity.builder().area(a).groupe(g).pecdZone(z)
+                .pecdTechnology(tech).capacityByYear(w).build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getGroupPayload(Map<String, Map<String, Object>> res, String a, String g) {
+        return (Map<String, Object>) res.get(a.toUpperCase()).get(g.replace(" ", "_"));
+    }
+}

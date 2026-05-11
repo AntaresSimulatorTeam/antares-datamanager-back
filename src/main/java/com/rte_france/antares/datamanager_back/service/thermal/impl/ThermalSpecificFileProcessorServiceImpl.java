@@ -76,7 +76,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
                 String clusterName = castString(getCellValue(row, 4));
 
-                checkNumericColumns(row, header, rowArea, clusterName, trajectoryName);
+                checkNumericColumns(row, rowArea, clusterName, trajectoryName);
                 processThermalSpecificRow(row, header, specificParams, trajectoryName);
             }
 
@@ -265,7 +265,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         return s.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
-    private void checkNumericColumns(Row row, Row header, String areaName, String clusterName, String trajectoryName) {
+    private void checkNumericColumns(Row row, String areaName, String clusterName, String trajectoryName) {
         for (int i = 5; i <= 43; i++) { // Columns F to AR
             Object v = getCellValue(row, i);
             if (v == null) continue; // allow blanks

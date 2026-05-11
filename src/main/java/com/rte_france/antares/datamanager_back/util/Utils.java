@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -423,7 +424,7 @@ public class Utils {
         };
     }
 
-    private String canonicalRow(Row row) {
+    private static String canonicalRow(Row row) {
         StringBuilder sb = new StringBuilder();
 
         for (int c = 0; c < row.getLastCellNum(); c++) {
@@ -433,21 +434,17 @@ public class Utils {
         return sb.toString();
     }
 
-    private String hashSheetByArea(Sheet sheet, String areaFilter) {
+    private static String hashSheet(Sheet sheet, Predicate<String> rowFilter) {
         var sb = new StringBuilder();
 
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) { // skip header
-            Row row = sheet.getRow(i);
-            if (row == null) continue;
-
-            Cell areaCell = row.getCell(1); // 2ème colonne
-            if (areaCell == null) continue;
-
-            String area = areaCell.getStringCellValue();
-            if (!areaFilter.equals(area)) continue;
-
-            // Construire une ligne canonique
-            sb.append(canonicalRow(row)).append("\n");
+        for (var i = 1; i <= sheet.getLastRowNum(); i++) { // skip header
+            var row = sheet.getRow(i);
+            if (row != null && row.getCell(1 /* 2ème colonne */) != null) {
+                var area = row.getCell(1).getStringCellValue();
+                if (rowFilter.test(area)) {
+                    sb.append(canonicalRow(row)).append("\n");
+                }
+            }
         }
 
         return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
@@ -464,8 +461,13 @@ public class Utils {
                         .build();
             }
 
-            // Hash uniquement des lignes correspondant à l'area
-            var hHash = hashSheetByArea(horizonSheet, areaFilter);
+            var normalizedAreaFilter = areaFilter == null ? null : areaFilter.toUpperCase(Locale.ROOT);
+            var isOthers = OTHERS_AREA.equals(normalizedAreaFilter);
+            var hHash = hashSheet(horizonSheet, area ->
+                    isOthers || StringUtils.equals(
+                            normalizedAreaFilter,
+                            area == null ? null : area.toUpperCase(Locale.ROOT))
+            );
 
             return Hashing.sha256()
                     .hashString(hHash, StandardCharsets.UTF_8)
@@ -759,7 +761,18 @@ public class Utils {
             Sheet sheet,
             String[] expectedColumns,
             String trajectoryName,
-            TrajectoryType type
+            TrajectoryType trajectoryType
+    ) {
+        checkMissingColumns(sheet, expectedColumns, trajectoryName, trajectoryType, null, null);
+    }
+
+    public static void checkMissingColumns(
+            Sheet sheet,
+            String[] expectedColumns,
+            String trajectoryName,
+            TrajectoryType trajectoryType,
+            String sheetDisplayName,
+            String technology
     ) {
         Row headerRow = sheet.getRow(0);
         List<String> missingColumns = new ArrayList<>();
@@ -784,7 +797,13 @@ public class Utils {
         }
         if (!missingColumns.isEmpty()) {
             String missingList = String.join(", ", missingColumns);
-            String label = getErrorMessageLabelFromType(type);
+            if (trajectoryType == TrajectoryType.STS && sheetDisplayName != null && technology != null) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(missingList, sheetDisplayName, technology))
+                        .message("Missing columns {0} in {1} tab in STS {2} Additional Constraint file")
+                        .build();
+            }
+            String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(missingList, label, trajectoryName))
                     .message("Missing columns {0} in {1} trajectory {2}")
@@ -898,6 +917,7 @@ public class Utils {
             case RES_CAPACITY -> "RES Installed power";
             case RES_TECHNOLOGY_DISTRIBUTION -> "Technological repartition";
             case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
+            case STS->"STS";
             default -> "trajectory";
         };
     }
@@ -908,7 +928,7 @@ public class Utils {
             Object... values
     ) {
         List<String> missing = new ArrayList<>();
-        
+
         for (int i = 0; i < requiredColumns.length; i++) {
             if (i >= values.length || values[i] == null) {
                 missing.add(requiredColumns[i]);
@@ -1165,7 +1185,7 @@ public class Utils {
                 .message("Error processing file: " + e.getMessage())
                 .build();
     }
-    
+
     public void validateDataPresence(Boolean onlyHeader, String trajectoryFileName, String horizon) {
         if (Boolean.TRUE.equals(onlyHeader)) {
             throw BusinessException.builder()

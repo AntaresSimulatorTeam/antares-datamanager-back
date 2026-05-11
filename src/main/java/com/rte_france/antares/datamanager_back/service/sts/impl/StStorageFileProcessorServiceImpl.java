@@ -133,7 +133,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                                       List<String> studyAreas, Integer studyId)throws IOException {
         List<StStorageEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
-        // cache alreday parsed additional constraints once per file path
+        // cache already parsed additional constraints once per file path
         Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache = new HashMap<>();
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -141,6 +141,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
             String[] expectedColumns = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
+
 
             boolean foundStudyArea = false;
 
@@ -181,7 +182,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 }
 
 
-                validateNumericRange(row, 3, 8, rowArea, clusterName, trajectoryFileName);
+                validateNumericRange(row, 3, 8, trajectoryFileName);
+                validateZeroToOneRange(row, trajectoryFileName);
+                validateBooleanRange(row, 9, 12, trajectoryFileName);
 
                 StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
                         clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
@@ -220,16 +223,78 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return cell == null ? null : cell.getStringCellValue();
     }
 
-    private void validateNumericRange(Row row, int fromIdx, int toIdx, String rowArea, String clusterName, String trajectoryFileName) {
+    private void validateNumericRange(Row row, int fromIdx, int toIdx, String trajectoryFileName) {
         for (int idx = fromIdx; idx <= toIdx; idx++) {
             Cell numericCell = row.getCell(idx);
             if (!isNumericCell(numericCell)) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                        .message("Values for node {0} / cluster  {1} are not numeric in STS trajectory {2}")
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Values Injection, Withdrawal, Storage, Efficiency_injection, Efficiency_withdrawal and Initial_level must be numeric in STS trajectory {0}")
                         .build();
             }
         }
+    }
+
+    private void validateZeroToOneRange(Row row, String trajectoryFileName) {
+        int[] indices = {6, 8}; // Efficiency_injection (G), Initial_level (I)
+        for (int idx : indices) {
+            double value = row.getCell(idx).getNumericCellValue();
+            if (value < 0 || value > 1) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Values Efficiency_injection and Initial_level must be between 0 and 1 in STS trajectory {0}")
+                        .build();
+            }
+        }
+    }
+
+    private void validateBooleanRange(Row row, int fromIdx, int toIdx, String trajectoryFileName) {
+        for (int idx = fromIdx; idx <= toIdx; idx++) {
+            Cell cell = row.getCell(idx);
+            if (!isBooleanCell(cell)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .message("Values Initial_level_optim, Enabled, Series and Constraints must be boolean in STS trajectory {0}")
+                        .build();
+            }
+        }
+    }
+
+    private boolean isBooleanStringValue(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return "true".equals(normalized)
+                || "false".equals(normalized)
+                || "1".equals(normalized)
+                || "0".equals(normalized);
+    }
+
+    private boolean isBooleanCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.BOOLEAN) return true;
+        if (t == CellType.NUMERIC) {
+            double value = cell.getNumericCellValue();
+            return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
+        }
+        if (t == CellType.FORMULA) {
+            CellType cachedType = cell.getCachedFormulaResultType();
+            if (cachedType == CellType.BOOLEAN) return true;
+            if (cachedType == CellType.NUMERIC) {
+                double value = cell.getNumericCellValue();
+                return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
+            }
+            if (cachedType == CellType.STRING) {
+                return isBooleanStringValue(cell.getStringCellValue());
+            }
+            return false;
+        }
+        if (t == CellType.STRING) {
+            return isBooleanStringValue(cell.getStringCellValue());
+        }
+        return false;
     }
 
     private StStorageEntity mapRowToEntity(Row row, Path trajectoryFilePath, String technology, String rowAreaName, String clusterName,
@@ -384,7 +449,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         if (cell.getCellType() == CellType.BOOLEAN || cell.getCellType() == CellType.FORMULA) return cell.getBooleanCellValue();
         String s = cell.toString().trim().toLowerCase(Locale.ROOT);
         if (s.isEmpty()) return false;
-        return "true".equals(s) || "1".equals(s) || "yes".equals(s) || "y".equals(s);
+        return "true".equals(s) || "1".equals(s);
     }
 
 
@@ -443,7 +508,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         try {
             parsedTemplateParams = constraintsParamsCache.computeIfAbsent(additionalConstraintsPath, path -> {
                 try {
-                    return stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(path, areaParam, studyAreas);
+                    Integer trajectoryId = storage.getTrajectory() != null ? storage.getTrajectory().getId() : null;
+                    return stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(path, rowAreaName, studyAreas, technology, clusterName, trajectoryFileName, trajectoryId);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -451,6 +517,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
+
 
         // clone cached templates (for concurrency)
         List<StConstraintsParameterEntity> newParams = deepCopyParams(parsedTemplateParams);
@@ -489,6 +556,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
         storage.setConstraintsPath(fullConstraintsPath.toString());
     }
+
+
 
     /**
      * Merges the new parameters into the storage entity's parameter list, ensuring that

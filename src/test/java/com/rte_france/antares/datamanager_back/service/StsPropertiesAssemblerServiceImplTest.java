@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
@@ -36,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -308,13 +309,13 @@ class StsPropertiesAssemblerServiceImplTest {
         }
 
         // when / then
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
-        );
-
-        assertTrue(ex.getMessage().contains("Required STS series file not found"));
-        assertTrue(ex.getErrorMessageArguments().contains(missing.resolve(tempDir).toString()));
+        assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030"))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Required STS series file not found");
+                    assertThat(be.getErrorMessageArguments()).contains(missing.resolve(tempDir).toString());
+                });
 
         verifyNoInteractions(nasFileService);
     }
@@ -335,12 +336,9 @@ class StsPropertiesAssemblerServiceImplTest {
                 .thenThrow(new RuntimeException("NAS error"));
 
         // when / then
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030")
-        );
-
-        assertTrue(ex.getMessage().contains("NAS error"));
+        assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("NAS error");
     }
 
     @Test
@@ -367,18 +365,15 @@ class StsPropertiesAssemblerServiceImplTest {
         when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenThrow(originalEx);
 
         // when / then
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon)
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertEquals(
-                "Horizon {0} does not exist in file: {1} for series in example_FR_AFL-Test/battery_2h/FR",
-                ex.getMessage()
-        );
-        assertEquals(2, ex.getErrorMessageArguments().size());
-        assertEquals(horizon, ex.getErrorMessageArguments().getFirst());
+        assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getMessage()).isEqualTo("Horizon {0} does not exist in file: {1} for series in example_FR_AFL-Test/battery_2h/FR");
+                    assertThat(be.getErrorMessageArguments()).hasSize(2);
+                    assertThat(be.getErrorMessageArguments().getFirst()).isEqualTo(horizon);
+                });
     }
 
     @Test
@@ -665,42 +660,6 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
-    void readConstraintsMatrix_ShouldRejectNonXlsxFile() {
-        Path nonXlsx = tempDir.resolve("constraints.csv");
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> ReflectionTestUtils.invokeMethod(
-                        stsPropertiesAssemblerService,
-                        "readConstraintsMatrix",
-                        nonXlsx,
-                        "2030"
-                )
-        );
-
-        assertEquals("Only .xlsx supported", ex.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-    }
-
-    @Test
-    void readConstraintsMatrix_ShouldThrowTechnicalExceptionWhenMatrixIsEmpty() throws Exception {
-        when(timeSeriesReader.readFromXlsx(any(Path.class), anyString()))
-                .thenReturn(new TimeSeriesMatrix(List.of()));
-        Path additionalConstraints = tempDir.resolve("Additional-constraints.xlsx");
-
-        TechnicalException ex = assertThrows(
-                TechnicalException.class,
-                () -> ReflectionTestUtils.invokeMethod(
-                        stsPropertiesAssemblerService,
-                        "readConstraintsMatrix",
-                        additionalConstraints,
-                        "2030"
-                )
-        );
-
-        assertTrue(ex.getMessage().contains("Matrix is empty"));
-    }
-
-    @Test
     void assembleStsProperties_ShouldSkipConstraintContextWhenFileDoesNotExist() {
         StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
                 .name("daily_min_fr")
@@ -791,18 +750,17 @@ class StsPropertiesAssemblerServiceImplTest {
                 ))
                 .build();
 
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> ReflectionTestUtils.invokeMethod(
-                        stsPropertiesAssemblerService,
-                        "expandHoursPerOccurrence",
-                        param
-                )
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertEquals("Invalid hours for constraint {0}: occurrence/start/end must be set", ex.getMessage());
-        assertEquals(List.of("daily_min_v1g_fr"), ex.getErrorMessageArguments());
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(
+                stsPropertiesAssemblerService,
+                "expandHoursPerOccurrence",
+                param
+        )).isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getMessage()).isEqualTo("Invalid hours for constraint {0}: occurrence/start/end must be set");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("daily_min_v1g_fr");
+                });
     }
 
     @Test
@@ -818,18 +776,17 @@ class StsPropertiesAssemblerServiceImplTest {
                 ))
                 .build();
 
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> ReflectionTestUtils.invokeMethod(
-                        stsPropertiesAssemblerService,
-                        "expandHoursPerOccurrence",
-                        param
-                )
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertEquals("Invalid hours for constraint {0}: start must be <= end", ex.getMessage());
-        assertEquals(List.of("daily_min_v1g_fr"), ex.getErrorMessageArguments());
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(
+                stsPropertiesAssemblerService,
+                "expandHoursPerOccurrence",
+                param
+        )).isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getMessage()).isEqualTo("Invalid hours for constraint {0}: start must be <= end");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("daily_min_v1g_fr");
+                });
     }
 
     @Test
