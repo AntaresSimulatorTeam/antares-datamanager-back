@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.res.ResTypeService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -15,6 +16,7 @@ import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,6 +94,9 @@ public class ResFileProcessorServiceImplTest {
 
     @Mock
     private ResCoherenceCheckService resCoherenceCheckService;
+
+    @Mock
+    private ResTypeService resTypeService;
 
     // ======================================================
     // INSTALLED POWER RES
@@ -803,6 +808,17 @@ public class ResFileProcessorServiceImplTest {
 
     @Nested
     class processLoadFactorResFile {
+        @BeforeEach
+        void setup() {
+            // Mock the 4 required RES technologies (used only when technology parameter is null)
+            Mockito.lenient().when(resTypeService.getAllResTypes()).thenReturn(List.of(
+                    createMockResType("wind onshore"),
+                    createMockResType("wind offshore"),
+                    createMockResType("solar pv"),
+                    createMockResType("solar thermo")
+            ));
+        }
+
         @Test
         void processLoadFactorResFileSucceedsWithValidCsvFiles(@TempDir Path tempRoot) throws Exception {
             // GIVEN
@@ -2409,5 +2425,12 @@ public class ResFileProcessorServiceImplTest {
             assertEquals("Could not import RES zonal distribution trajectory", ex.getMessage());
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         }
+    }
+
+    // Helper method to create mock ResTypeEntity
+    private com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity createMockResType(String code) {
+        var resType = new com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity();
+        resType.setCode(code);
+        return resType;
     }
 }

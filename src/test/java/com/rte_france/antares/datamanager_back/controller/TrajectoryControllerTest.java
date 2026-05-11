@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -93,7 +94,7 @@ class TrajectoryControllerTest {
         this.mockMvc.perform(get("/v1/trajectory/db")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryType", "AREA")
-                        .param("fileNameStartsWith", "test")
+                        .param("fileNameContains", "test")
                         .param("horizon", "2023-2024")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
 
@@ -121,7 +122,7 @@ class TrajectoryControllerTest {
 
     @Test
     void getTrajectoriesByStudyIdAndType_returnListForNullType() throws Exception {
-        when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId("nonExistentType", 1)).thenReturn(List.of());
+        when(trajectoryServiceImpl.findTrajectoriesByTypeAndStudyId(null, 1)).thenReturn(List.of());
         this.mockMvc.perform(get("/v1/trajectory")
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
@@ -316,11 +317,13 @@ class TrajectoryControllerTest {
     void countWarningMessage() throws Exception {
         Integer studyId = 1;
 
-        when(trajectoryServiceImpl.countWarningMessage(studyId)).thenReturn(any());
+        when(trajectoryServiceImpl.countWarningMessage(studyId)).thenReturn(Map.of("AREA", 2, "STS", 1));
 
         this.mockMvc.perform(get("/v1/trajectory/count/warning/{id}",studyId)
                         .contentType(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.AREA").value(2))
+                .andExpect(jsonPath("$.STS").value(1));
     }
 
     @Test

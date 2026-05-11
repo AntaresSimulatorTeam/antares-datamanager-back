@@ -4,11 +4,9 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.ResTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
-import com.rte_france.antares.datamanager_back.repository.model.ResZonalDistributionEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -44,6 +42,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AreaRepository areaRepository;
+
+    private final ResTypeService resTypeService;
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
@@ -107,14 +107,17 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .orElse(null);
           Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
           
-          // Construire la trajectoire complète AVANT la validation
-          TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, referencePath, TrajectoryType.RES_CAPACITY, aggregated);
-          
-          // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
-          resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
-          
-          // Sauvegarder uniquement si validation OK
-          return trajectoryRepository.save(trajectory);
+           // Construire la trajectoire complète AVANT la validation
+           TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, referencePath, TrajectoryType.RES_CAPACITY, aggregated);
+
+           // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
+           resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+
+           // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
+           resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+
+           // Sauvegarder uniquement si validation OK
+           return trajectoryRepository.save(trajectory);
      }
 
     @Override
@@ -136,6 +139,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             checkExistingTs(technologyFolder, trajectoryToUse);
             TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, technologyFolder, horizon, area, technology);
+
+            // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
+            resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+
             return trajectoryRepository.save(trajectory);
         } else {
             Path trajectoryFolder = basePath
@@ -145,6 +152,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             checkAllRequiredTechnologiesExist(trajectoryFolder, trajectoryToUse);
 
             TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFolder, horizon, area, null);
+
+            // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
+            resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+
             return trajectoryRepository.save(trajectory);
         }
     }
@@ -296,9 +307,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
     }
 
-    private static void checkAllRequiredTechnologiesExist(Path trajectoryFolder, String trajectoryToUse) throws IOException {
+    public  void checkAllRequiredTechnologiesExist(Path trajectoryFolder, String trajectoryToUse) throws IOException {
         // List of 4 required technologies
-        String[] requiredTechnologies = {"wind onshore", "wind offshore", "solar pv", "solar thermo"};
+        List<String> requiredTechnologies = resTypeService.getAllResTypes().stream().map(ResTypeEntity::getCode).toList();
         List<String> missingTechnologies = new ArrayList<>();
 
         if (!Files.exists(trajectoryFolder)) {

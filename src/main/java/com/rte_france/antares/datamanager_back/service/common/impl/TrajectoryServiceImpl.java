@@ -626,6 +626,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
         }
         
+        // Validation de cohérence entre InstalledPower et Load Factor (Scénario 13)
+        if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
+            TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
+            resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+        }
+        
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
