@@ -607,15 +607,12 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             case TrajectoryType.HYDRO_ALLOCATION ->
                     result = new HydroAllocationRowProcessingResult(new ArrayList<>(),
                             new StringBuilder(),
-                            new ArrayList<>(),
-                            new HashSet<>());
+                            new ArrayList<>());
             default ->
                     result = new HydroParametersRowProcessingResult(
                             new ArrayList<>(),
                             new StringBuilder(),
-                            new ArrayList<>(),
-                            new HashSet<>()
-                    );
+                            new ArrayList<>());
         }
         return result;
     }

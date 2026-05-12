@@ -3,13 +3,11 @@ package com.rte_france.antares.datamanager_back.service.hydro;
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersEntity;
 
 import java.util.List;
-import java.util.Set;
 
 public record HydroParametersRowProcessingResult(
         List<HydroParametersEntity> entities,
         StringBuilder checksum,
-        List<String> fileAreas,
-        Set<String> invalidCombos
+        List<String> fileAreas
 ) implements HydroTechnicalParametersRowProcessingResult {
     @Override
     public void addArea(String area) {
@@ -29,5 +27,3 @@ public record HydroParametersRowProcessingResult(
         return entities;
     }
 }
-
-
