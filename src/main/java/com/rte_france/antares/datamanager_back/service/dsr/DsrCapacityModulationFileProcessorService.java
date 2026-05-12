@@ -6,4 +6,6 @@ import java.io.IOException;
 
 public interface DsrCapacityModulationFileProcessorService {
     TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
+    void validateDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 }
