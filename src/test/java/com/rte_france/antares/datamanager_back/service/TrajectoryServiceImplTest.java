@@ -262,7 +262,7 @@ class TrajectoryServiceImplTest {
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .id(trajectoryId)
                 .type(type.name())
-                .fileName("cm_capacity_test")
+                .fileName("capacity_test")
                 .horizon("2029-2030")
                 .warningMessages(new HashSet<>())
                 .build();
@@ -293,7 +293,7 @@ class TrajectoryServiceImplTest {
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .id(trajectoryId)
                 .type(type.name())
-                .fileName("cm_capacity_test")
+                .fileName("capacity_test")
                 .horizon("2029-2030")
                 .warningMessages(new HashSet<>())
                 .build();

@@ -46,14 +46,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     @Override
     public TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         // Check trajectory file name prefix
-        boolean prefixMatch = startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION);
-        if (!prefixMatch) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(DSR_CAPACITY_MODULATION))
-                    .message("The trajectory file name must start with {0}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        validateTrajectoryPrefix(trajectoryToUse);
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
         List<String> clusterKeys = getClusterKeys(studyId);
@@ -69,8 +62,20 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
 
     @Override
     public void validateDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        //must start with the cm_ prefix
+        validateTrajectoryPrefix(trajectoryToUse);
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
         buildDsrCapacityModulationEntity(horizon, trajectoryFilePath, getClusterKeys(studyId));
+    }
+
+    private void validateTrajectoryPrefix(String trajectoryToUse) {
+        if (!startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(DSR_CAPACITY_MODULATION))
+                    .message("The trajectory file name must start with {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     public List<DsrCapacityModulationEntity> buildDsrCapacityModulationEntity(String horizon, Path trajectoryFilePath, List<String> dsrClusters) throws IOException {
