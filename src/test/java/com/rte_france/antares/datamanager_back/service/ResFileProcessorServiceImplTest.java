@@ -1849,7 +1849,7 @@ public class ResFileProcessorServiceImplTest {
                             "repartition_techno_BP23_Aref", HORIZON_2029_2030, STUDY_ID, AREA_FR, "solar_pv", false
                     )
             );
-            assertTrue(exception.getMessage().contains("No area found in"));
+            assertTrue(exception.getMessage().contains("No data found in"));
         }
 
         @Test
@@ -2311,7 +2311,7 @@ public class ResFileProcessorServiceImplTest {
                             ZONAL_REPARTITION_FILE_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, null, false
                     )
             );
-            assertTrue(exception.getMessage().contains("No area found in"));
+            assertTrue(exception.getMessage().contains("No data found in"));
         }
 
         @Test
