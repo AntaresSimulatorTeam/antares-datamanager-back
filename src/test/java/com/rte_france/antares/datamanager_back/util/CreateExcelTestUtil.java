@@ -105,4 +105,9 @@ public class CreateExcelTestUtil {
 
         return filePath;
     }
+
+    public static void createMockCsvFile(Path directory, String fileName) throws IOException {
+        Path csvFile = directory.resolve(fileName);
+        Files.writeString(csvFile, "timestamp,value\n2030-01-01,0.5\n2030-01-02,0.6\n");
+    }
 }

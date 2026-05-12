@@ -514,7 +514,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 requiredColumns = REQUIRED_ZONAL_DISTRIBUTION_COLUMNS;
             }
             Sheet sheet = getSheetOrThrow(workbook, filePath, indexSheet);
-            Row header = getHeaderOrThrow(sheet, filePath);
+            Row header = getHeaderOrThrow(sheet, filePath, trajectoryType);
 
             validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse, trajectoryType);
 
@@ -553,12 +553,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (!ExcelCommonValidator.isRowEmpty(row)) {
                 allRowsEmpty = false;
                 switch (trajectoryType) {
-                case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
-                        processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
-                case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
-                        processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
-                default ->
-                    processResIPCapacityRow(context, (ResRowProcessingCapacityResult) result, row, isOffshore, requiredColumns);
+                    case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
+                            processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
+                    case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
+                            processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
+                    default ->
+                            processResIPCapacityRow(context, (ResRowProcessingCapacityResult) result, row, isOffshore, requiredColumns);
                 }
             }
         }
@@ -995,7 +995,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     fileAreasLeft.addAll(fileAreasRight);
                     fileTechLeft.addAll(fileTechRight);
                     invalidCombosLeft.addAll(invalidCombosRight);
-                     yield left;
+                    yield left;
                 }
                 case ResRowProcessingTechnologyDistributionResult ignored ->  throw new IllegalArgumentException("Cannot merge different result types");
                 default -> throw new IllegalStateException("Unexpected value: " + right);

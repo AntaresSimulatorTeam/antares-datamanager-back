@@ -137,7 +137,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache = new HashMap<>();
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath);
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath, TrajectoryType.STS.name());
 
             String[] expectedColumns = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
@@ -201,17 +201,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             }
         }
         return results;
-    }
-
-    private Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath) {
-        Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
-        if (sheet == null) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the STS trajectory {1}")
-                    .build();
-        }
-        return sheet;
     }
 
     private boolean shouldIncludeRow(String rowArea, String areaParam) {

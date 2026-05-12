@@ -1353,7 +1353,7 @@ class UtilsTest {
             Path filePath = Path.of("test.xlsx");
 
             // When
-            Row result = Utils.getHeaderOrThrow(sheet, filePath);
+            Row result = Utils.getHeaderOrThrow(sheet, filePath, TrajectoryType.RES_CAPACITY);
 
             // Then
             assertThat(result).isSameAs(expectedHeader);
@@ -1368,15 +1368,14 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.getHeaderOrThrow(sheet, filePath),
+                    () -> Utils.getHeaderOrThrow(sheet, filePath, TrajectoryType.RES_CAPACITY),
                     BusinessException.class
             );
 
             // Then
             assertThat(ex).isNotNull();
             assertThat(ex.getMessage())
-                    .contains("Missing header")
-                    .contains("missingHeader.xlsx");
+                    .contains("Missing header");
             assertThat(ex.getHttpStatus().value()).isEqualTo(400);
         }
 
@@ -1389,12 +1388,15 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.getHeaderOrThrow(sheet, filePath),
+                    () -> Utils.getHeaderOrThrow(sheet, filePath, TrajectoryType.RES_CAPACITY),
                     BusinessException.class
             );
 
             // Then
-            assertThat(ex.getMessage()).contains("headerFile.xlsx");
+            assertThat(ex).isNotNull();
+            assertThat(ex.getErrorMessageArguments())
+                    .contains("RES Installed power", filePath.getFileName().toString());
+            assertThat(ex.getMessage()).isEqualTo("Missing header in {0} file: {1}");
         }
 
     @Test

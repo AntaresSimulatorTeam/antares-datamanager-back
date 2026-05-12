@@ -481,7 +481,7 @@ public class ResFileProcessorServiceImplTest {
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
-            
+
             assertThatThrownBy(() ->
                     resFileProcessorServiceImpl.processInstalledResFile(
                             "BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
@@ -769,7 +769,7 @@ public class ResFileProcessorServiceImplTest {
         void shouldThrowBusinessExceptionWhenProcessingFails(@TempDir Path tempRoot) throws Exception {
             List<String> areas = List.of(AREA_AT, AREA_AT);
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", areas, "solar_pv", true);
-            
+
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
             // Given
             ResFileProcessorServiceImpl spy = spy(resFileProcessorServiceImpl);
@@ -1183,7 +1183,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             // Create all 4 required technologies with CSV files
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
@@ -1224,7 +1224,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
 
@@ -1271,7 +1271,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
             createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
@@ -1300,7 +1300,7 @@ public class ResFileProcessorServiceImplTest {
             Path nasDir = tempRoot.resolve(NAS_DIR);
             Path trajectoryBaseDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
                     .resolve(TRAJECTORY_NAME);
-            
+
             createTechnologyWithCsv(trajectoryBaseDir, "wind onshore");
             createTechnologyWithCsv(trajectoryBaseDir, "wind offshore");
             createTechnologyWithCsv(trajectoryBaseDir, "solar pv");
@@ -1430,11 +1430,11 @@ public class ResFileProcessorServiceImplTest {
                     String currentArea = areas.get(i);
                     Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
                     var value = isNumericValues ? (100.0 + (i * 10)) : "truc";
-                    dataRow.createCell(0).setCellValue(technology);  
-                    dataRow.createCell(1).setCellValue(technology);  
-                    dataRow.createCell(2).setCellValue(currentArea); 
-                    dataRow.createCell(3).setCellValue(currentArea+"0"+i);  
-                    dataRow.createCell(4).setCellValue("SP199_HH200"); 
+                    dataRow.createCell(0).setCellValue(technology);
+                    dataRow.createCell(1).setCellValue(technology);
+                    dataRow.createCell(2).setCellValue(currentArea);
+                    dataRow.createCell(3).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(4).setCellValue("SP199_HH200");
                     if (value instanceof Number n) {
                         dataRow.createCell(5).setCellValue(n.doubleValue());
                     } else {
@@ -1525,7 +1525,7 @@ public class ResFileProcessorServiceImplTest {
             }
             return file;
         }
-        
+
         @Test
         void successfulProcessingWhenAreaWithoutTechnology(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
@@ -1720,7 +1720,7 @@ public class ResFileProcessorServiceImplTest {
         void throwsExceptionForAreaWhenNoAreaForArea(@TempDir Path tempRoot) throws Exception {
             // GIVEN : Créer la structure de dossiers temporaire
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
-            
+
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
@@ -1814,7 +1814,7 @@ public class ResFileProcessorServiceImplTest {
             List<String> areas = List.of(AREA_FR);
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFileWithMissingColumns(tempRoot, "repartition_techno_BP23_Aref.xlsx", areas, "solar_pv");
-            
+
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
@@ -1830,7 +1830,7 @@ public class ResFileProcessorServiceImplTest {
             );
             assertTrue(exception.getMessage().contains("Missing columns"));
         }
-        
+
         @Test
         void throwsExceptionWhenOnlyEmptyRows(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
