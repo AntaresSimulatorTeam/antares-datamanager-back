@@ -23,8 +23,10 @@ class LinkMapperTest {
                 .flowbasedPerimeter(true)
                 .hvdcMwDirect(75.5)
                 .hvdcMwIndirect(25.3)
-                .hvdcNb(2.0)
-                .hvdcfoRate(0.15)
+                .hvdcNbDirect(2.0)
+                .hvdcNbIndirect(1.0)
+                .hvdcfoRateDirect(1.0)
+                .hvdcfoRateIndirect(1.0)
                 .hvdc(false)
                 .hurdleCost(0.5)
                 .build();
@@ -45,8 +47,10 @@ class LinkMapperTest {
         assertEquals("true", dto.getFlowbasedPerimeter());
         assertEquals(75.5, dto.getHvdcMwDirect());
         assertEquals(25.3, dto.getHvdcMwIndirect());
-        assertEquals(2.0, dto.getHvdcNb());
-        assertEquals(0.15, dto.getHvdcfoRate());
+        assertEquals(2.0, dto.getHvdcNbDirect());
+        assertEquals(1.0, dto.getHvdcNbIndirect());
+        assertEquals(1.0, dto.getHvdcfoRateDirect());
+        assertEquals(1.0, dto.getHvdcfoRateIndirect());
         assertEquals("false", dto.getHvdc());
         assertEquals(0.5, dto.getHurdleCost());
     }

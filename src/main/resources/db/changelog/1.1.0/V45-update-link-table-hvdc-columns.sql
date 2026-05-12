@@ -13,7 +13,9 @@ ALTER TABLE link ADD COLUMN hvdc_mw_direct NUMERIC;
 
 -- Add new HVDC columns
 ALTER TABLE link ADD COLUMN hvdc_mw_indirect NUMERIC;
-ALTER TABLE link ADD COLUMN hvdc_nb NUMERIC;
-ALTER TABLE link ADD COLUMN hvdcfo_rate NUMERIC;
+ALTER TABLE link ADD COLUMN hvdc_nb_direct NUMERIC;
+ALTER TABLE link ADD COLUMN hvdc_nb_indirect NUMERIC;
+ALTER TABLE link ADD COLUMN hvdc_fo_rate_direct NUMERIC;
+ALTER TABLE link ADD COLUMN hvdc_fo_rate_indirect NUMERIC;
 ALTER TABLE link ADD COLUMN hvdc BOOLEAN DEFAULT FALSE;
 

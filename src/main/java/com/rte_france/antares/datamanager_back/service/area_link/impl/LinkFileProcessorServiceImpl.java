@@ -216,8 +216,10 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .flowbasedPerimeter(getBooleanCellValue(row.getCell(9)).orElseThrow())
                             .hvdcMwDirect(row.getCell(10).getNumericCellValue())
                             .hvdcMwIndirect(row.getCell(11).getNumericCellValue())
-                            .hvdcNb(row.getCell(12).getNumericCellValue())
-                            .hvdcfoRate(row.getCell(13).getNumericCellValue())
+                            .hvdcNbDirect(row.getCell(12).getNumericCellValue())
+                            .hvdcNbIndirect(row.getCell(13).getNumericCellValue())
+                            .hvdcfoRateDirect(row.getCell(14).getNumericCellValue())
+                            .hvdcfoRateIndirect(row.getCell(15).getNumericCellValue())
                             .hurdleCost(hurdleCost)
                             .hvdc(hvdc)
                             .build();

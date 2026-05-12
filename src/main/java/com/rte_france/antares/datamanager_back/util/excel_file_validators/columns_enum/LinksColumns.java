@@ -19,8 +19,10 @@ public enum LinksColumns {
     FLOWBASED_PERIMETER("Flowbased_perimeter"),
     HVDC_MW_DIRECT("HVDC_MW_Direct"),
     HVDC_MW_INDIRECT("HVDC_MW_Indirect"),
-    HVDC_NB("HVDC_nb"),
-    HVDC_FO_RATE("HVDC_FO_Rate");
+    HVDC_NB_DIRECT("HVDC_nb_direct"),
+    HVDC_NB_INDIRECT("HVDC_nb_indirect"),
+    HVDC_FO_RATE_DIRECT("HVDC_FO_Rate_direct"),
+    HVDC_FO_RATE_INDIRECT("HVDC_FO_Rate_indirect");
 
     private final String displayName;
 
@@ -38,7 +40,7 @@ public enum LinksColumns {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
                 .filter(name -> name.startsWith("Summer") || name.startsWith("Winter")
-                        || name.startsWith("HVDC_MW") || name.equals("HVDC_nb") || name.equals("HVDC_FO_Rate"))
+                        || name.startsWith("HVDC_MW") || name.startsWith("HVDC_nb") || name.startsWith("HVDC_FO_Rate"))
                 .toList();
     }
 

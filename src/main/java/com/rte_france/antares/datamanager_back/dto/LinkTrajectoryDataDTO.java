@@ -23,8 +23,10 @@ public class LinkTrajectoryDataDTO implements TrajectoryDataDTO{
     private String flowbasedPerimeter;
     private Double hvdcMwDirect;
     private Double hvdcMwIndirect;
-    private Double hvdcNb;
-    private Double hvdcfoRate;
+    private Double hvdcNbDirect;
+    private Double hvdcNbIndirect;
+    private Double hvdcfoRateDirect;
+    private Double hvdcfoRateIndirect;
     private String hvdc;
     private Double hurdleCost;
 }

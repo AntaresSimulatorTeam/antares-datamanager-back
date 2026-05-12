@@ -127,15 +127,15 @@ class LinkFileProcessorServiceImplTest {
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate")
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
                 ),
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
-                        List.of(
-                                List.of("CH-IT", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0),
-                                List.of("CH-FR", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", 10, 10, 1, 1),
-                                List.of("FR-GE", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0)
-                        )
+                List.of(
+                        List.of("CH-IT", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0, 0, 0),
+                        List.of("CH-FR", 10, 20, 30, 40, 50, 60, 70, 80, "TRUE", 10, 10, 1, 1, 1, 1),
+                        List.of("FR-GE", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0, 0, 0)
+                )
                 ));
 
 
@@ -168,15 +168,15 @@ class LinkFileProcessorServiceImplTest {
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate")
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
                 ),
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
-                        List.of(
-                                List.of("CH-IT", 0, 15, 0, 20, 0, 30, 0, 50, "TRUE", 0, 10, 1, 1),
-                                List.of("CH-FR", 10, 0, 30, 0, 50, 0, 70, 0, "TRUE", 10, 0, 1, 1),
-                                List.of("FR-GE", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", 10, 10, 1, 1)
-                        )
+                List.of(
+                        List.of("CH-IT", 0, 15, 0, 20, 0, 30, 0, 50, "TRUE", 0, 10, 1, 1, 1, 1),
+                        List.of("CH-FR", 10, 0, 30, 0, 50, 0, 70, 0, "TRUE", 10, 0, 1, 1, 1, 1),
+                        List.of("FR-GE", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", 10, 10, 1, 1, 1, 1)
+                )
                 ));
 
 
@@ -208,15 +208,15 @@ class LinkFileProcessorServiceImplTest {
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate")
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
                 ),
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
-                        List.of(
-                                List.of("CH-IT", 10, 15, 10, 20, 10, 30, 10, 50, "TRUE", 10, 0, 1, 1),
-                                List.of("FR-CH", 10, 50, 30, 530, 50, 20, 70, 30, "TRUE", 0, 10, 1, 1),
-                                List.of("GE-FR", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", 10, 10, 1, 1)
-                        )
+                List.of(
+                        List.of("CH-IT", 10, 15, 10, 20, 10, 30, 10, 50, "TRUE", 10, 0, 1, 1, 1, 1),
+                        List.of("FR-CH", 10, 50, 30, 530, 50, 20, 70, 30, "TRUE", 0, 10, 1, 1, 1, 1),
+                        List.of("GE-FR", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", 10, 10, 1, 1, 1, 1)
+                )
                 ));
 
 
@@ -316,7 +316,7 @@ class LinkFileProcessorServiceImplTest {
             parametersSheet.createRow(2).createCell(0).setCellValue("HVDC");
             parametersSheet.createRow(2).createCell(1).setCellValue(false);
             Object[][] mockValues = {
-                    {"CH-FR", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", 75.0, 25.0, 2.0, 1}
+                    {"CH-FR", 200.0, 150.0, 120.0, 100.0, 80.0, 60.0, 50.0, 30.0, "true", 75.0, 25.0, 2, 1, 1, 1}
             };
 
             Row headerRow = sheet.createRow(0);
@@ -324,7 +324,7 @@ class LinkFileProcessorServiceImplTest {
                     "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                     "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                     "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                    "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate"};
+                    "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"};
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
             }
@@ -357,13 +357,13 @@ class LinkFileProcessorServiceImplTest {
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate")
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
                 ),
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
                         List.of(
-                                List.of("CH-FR", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0),
-                                List.of("FR-IT", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0)
+                                List.of("CH-FR", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0, 0, 0),
+                                List.of("FR-IT", 0, 0, 0, 0, 0, 0, 0, 0, "TRUE", 0, 0, 0, 0, 0, 0)
                         )
                 ));
 
@@ -396,12 +396,12 @@ class LinkFileProcessorServiceImplTest {
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate")
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
                 ),
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
                         List.of(
-                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", 10, 10, 1, 1)
+                                List.of("FR-IT", 20, 50, 50, 30, 40, 60, 80, 90, "TRUE", 10, 10, 1, 1, 1, 1)
                         )
                 ));
 
@@ -436,14 +436,14 @@ class LinkFileProcessorServiceImplTest {
                                 "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                                 "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                                 "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb", "HVDC_FO_Rate")
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
                 ),
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
                         List.of(
-                                List.of("CH-FR", 0, 50, 0, 30, 0, 10, 0, 90, "TRUE", 0, 10, 1, 1),
-                                List.of("FR-IT", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 1),
-                                List.of("FR-GE", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 1)
+                                List.of("CH-FR", 0, 50, 0, 30, 0, 10, 0, 90, "TRUE", 0, 10, 1, 1, 1, 1),
+                                List.of("FR-IT", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 1, 1, 1),
+                                List.of("FR-GE", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 1, 1, 1)
                         )
                 ));
 

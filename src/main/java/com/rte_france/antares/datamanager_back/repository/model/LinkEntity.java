@@ -32,8 +32,10 @@ public class LinkEntity {
     private Boolean flowbasedPerimeter;
     private Double hvdcMwDirect;
     private Double hvdcMwIndirect;
-    private Double hvdcNb;
-    private Double hvdcfoRate;
+    private Double hvdcNbDirect;
+    private Double hvdcNbIndirect;
+    private Double hvdcfoRateDirect;
+    private Double hvdcfoRateIndirect;
     private Boolean hvdc;
     private double hurdleCost;
 

@@ -28,8 +28,10 @@ public class LinkMapper {
                 .flowbasedPerimeter(String.valueOf(linkEntity.getFlowbasedPerimeter()))
                 .hvdcMwDirect(linkEntity.getHvdcMwDirect())
                 .hvdcMwIndirect(linkEntity.getHvdcMwIndirect())
-                .hvdcNb(linkEntity.getHvdcNb())
-                .hvdcfoRate(linkEntity.getHvdcfoRate())
+                .hvdcNbDirect(linkEntity.getHvdcNbDirect())
+                .hvdcNbIndirect(linkEntity.getHvdcNbIndirect())
+                .hvdcfoRateDirect(linkEntity.getHvdcfoRateDirect())
+                .hvdcfoRateIndirect(linkEntity.getHvdcfoRateIndirect())
                 .hvdc(String.valueOf(linkEntity.getHvdc()))
                 .hurdleCost(linkEntity.getHurdleCost())
                 .build();
