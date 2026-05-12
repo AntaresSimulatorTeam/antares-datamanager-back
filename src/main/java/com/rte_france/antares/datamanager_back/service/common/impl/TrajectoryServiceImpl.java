@@ -1224,10 +1224,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private void verifyDsrCapacityModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {
-        String prefixed = DSR_CAPACITY_PREFIX + trajectory.getFileName();
-        dsrCapacityModulationFileProcessorService.validateDsrCapacityModulationFile(
-                prefixed,
-                trajectory.getHorizon(),
+        dsrCapacityModulationFileProcessorService.validateDsrCapacityModulationCoherence(
+                trajectory,
                 studyId
         );
     }

@@ -237,7 +237,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     }
 
     @Test
-    void validateDsrCapacityModulationFile_shouldReuseImportValidationRules() throws IOException {
+    void validateDsrCapacityModulationCoherence_shouldReuseImportValidationRules() throws IOException {
         List<String> clusters = List.of("DSR_industries");
 
         Path xlsx = tempDir.resolve("cm_validation_test.xlsx");
@@ -254,7 +254,10 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
 
-        service.validateDsrCapacityModulationFile("cm_validation_test", "2029-2030", 1);
+        TrajectoryEntity trajectoryToValidate = new TrajectoryEntity();
+        trajectoryToValidate.setFileName("cm_validation_test");
+        trajectoryToValidate.setHorizon("2029-2030");
+        service.validateDsrCapacityModulationCoherence(trajectoryToValidate, 1);
 
         verify(trajectoryRepository, never()).save(any());
     }
