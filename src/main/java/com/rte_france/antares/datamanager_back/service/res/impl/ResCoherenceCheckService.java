@@ -22,6 +22,7 @@ import java.util.stream.Stream;
  * Service de validation pour vérifier la cohérence entre InstalledPower (IP/RES_CAPACITY)
  * et Technology Distribution (TD/RES_TECHNOLOGY_DISTRIBUTION).
  * Et également la cohérence entre IP et Load Factor (LF/RES_LOAD).
+ * Et également la cohérence entre Load Factor (LF/RES_LOAD) et Distribution Technology (DT/RES_TECHNOLOGY_DISTRIBUTION).
  * <p>
  * Règles de contrôle:
  * - Validation conditionnelle basée sur les combinaisons de trajectoires
@@ -46,7 +47,7 @@ import java.util.stream.Stream;
  * * OTHERS avec technology
  * <p>
  * Note: area_specific peut être n'importe quel area défini dans defaultConfigService.fetchAllDefaults()
- * Le contrôle de cohérence IP/TD et IP/LF se lance seulement quand TOUTES les combinaisons existent.
+ * Le contrôle de cohérence IP/TD, IP/LF et LF/DT se lance seulement quand TOUTES les combinaisons existent.
  */
 @Slf4j
 @Service
@@ -563,9 +564,211 @@ public class ResCoherenceCheckService {
         log.info("Validation des fichiers Load Factor réussie");
     }
 
+    /**
+     * Valide la cohérence entre les trajectoires LF et DT pour un study donné.
+     * Permet d'inclure une trajectoire temporaire (en cours d'import) dans la validation.
+     *
+     * @param studyId l'identifiant de l'étude
+     * @param trajectoryBeingImported trajectoire optionnelle en cours d'import à inclure dans la validation
+     * @throws BusinessException si la cohérence n'est pas respectée
+     */
+    public void validateLFDTCoherence(Integer studyId, TrajectoryEntity trajectoryBeingImported) {
+        // Pas de validation si pas de trajectoire à importer
+        if (trajectoryBeingImported == null) {
+            log.debug("Pas de trajectoire en cours d'import, validation LF/DT skippée");
+            return;
+        }
+
+        List<TrajectoryEntity> bdLfTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId);
+        List<TrajectoryEntity> bdDtTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId);
+
+        String trajectoryType = trajectoryBeingImported.getType();
+
+        // Validation conditionnelle basée sur le type de trajectoire à importer
+        if (TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
+            // Import d'une LF : vérifier les combinaisons LF et DT
+            if (!validateLFCoherence(bdLfTrajectories, trajectoryBeingImported) || !validateDTCoherence(bdDtTrajectories, trajectoryBeingImported)) {
+                log.debug("Prérequis LF/DT non satisfaits, validation clés skippée");
+                return;
+            }
+            // Si les combinaisons sont complètes et qu'il y a des DT, valider les fichiers
+            if (!bdDtTrajectories.isEmpty()) {
+                validateLFDTFilesCoherence(bdLfTrajectories, trajectoryBeingImported, bdDtTrajectories);
+            }
+        } else if (TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+            // Import d'une DT : vérifier les combinaisons DT et LF
+            if (!validateDTCoherence(bdDtTrajectories, trajectoryBeingImported) || !validateLFCoherence(bdLfTrajectories, trajectoryBeingImported)) {
+                log.debug("Prérequis LF/DT non satisfaits, validation clés skippée");
+                return;
+            }
+            // Si les combinaisons sont complètes et qu'il y a des LF, valider les fichiers
+            if (!bdLfTrajectories.isEmpty()) {
+                validateLFDTFilesCoherence(bdLfTrajectories, trajectoryBeingImported, bdDtTrajectories);
+            }
+        }
+    }
 
     /**
-     * Vérifie si un fichier Load Factor existe dans le répertoire NAS.
+     * Valide que les 2 combinaisons requises de DT existent après l'import.
+     * Ne lève pas d'exception, retourne simplement un booléen.
+     * Les 2 combinaisons = area_specific (sans tech) + area_specific (avec tech)
+     *
+     * @return true si les 2 combinaisons existent, false sinon
+     */
+    public boolean validateDTCoherence(List<TrajectoryEntity> bdDtTrajectories, TrajectoryEntity trajectoryBeingImported) {
+        String area = trajectoryBeingImported.getArea();
+        String technology = trajectoryBeingImported.getTechnology();
+
+        // Obtenir la liste des areas spécifiques
+        Set<String> defaultAreas = getDefaultAreas();
+
+        // DT ne concerne que les areas spécifiques (pas OTHERS)
+        if (!defaultAreas.contains(area.toUpperCase())) {
+            log.debug("DT avec area {} non reconnu, validation skippée", area);
+            return true; // On laisse passer
+        }
+
+        // On importe DT, construire la liste avec cette nouvelle DT
+        List<TrajectoryEntity> allDtTrajectories = new ArrayList<>(bdDtTrajectories);
+        allDtTrajectories.add(trajectoryBeingImported);
+
+        // Vérifier que les 2 combinaisons complètes existent pour cet area
+        return hasCompletedDTCombinations(allDtTrajectories, area, technology);
+    }
+
+    /**
+     * Vérifie si les 2 combinaisons requises de DT sont présentes pour une area donnée.
+     * Les 2 combinaisons = area_specific (sans tech) + area_specific (avec tech)
+     * où area_specific peut être FR, BE, DE, etc. (n'importe quel defaultArea)
+     *
+     * @return true si les 2 combinaisons sont complètes, false sinon
+     */
+    public boolean hasCompletedDTCombinations(List<TrajectoryEntity> dtTrajectories, String area, String importedTechnology) {
+        // Vérifier qu'il existe une trajectoire avec area sans technology
+        boolean hasDTWithoutTech = dtTrajectories.stream()
+                .anyMatch(trajectory -> trajectory.getArea().equals(area) && isBlankOrEmpty(trajectory.getTechnology()));
+
+        // Si importedTechnology est null : vérifier qu'il existe au moins une avec n'importe quelle technology
+        if (isBlankOrEmpty(importedTechnology)) {
+            boolean hasDTWithSomeTech = dtTrajectories.stream()
+                    .anyMatch(trajectory -> trajectory.getArea().equals(area) && !isBlankOrEmpty(trajectory.getTechnology()));
+            return hasDTWithoutTech && hasDTWithSomeTech;
+        }
+
+        // Si importedTechnology n'est pas null : vérifier qu'il existe une avec cette technology
+        boolean hasDTWithImportedTech = dtTrajectories.stream()
+                .anyMatch(trajectory -> trajectory.getArea().equals(area) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equals(importedTechnology));
+
+        return hasDTWithoutTech && hasDTWithImportedTech;
+    }
+
+    /**
+     * Valide la cohérence entre les trajectoires LF et DT en vérifiant l'existence des fichiers.
+     * Pour chaque groupe/cluster/zone PECD/techno PECD présent dans la DT, vérifie que 
+     * le fichier correspondant existe dans le répertoire NAS.
+     * 
+     * Règle de comparaison:
+     * - Comparer group/cluster/zone PECD/techno PECD des LF avec group/cluster/zone PECD/techno PECD des DT
+     * - Vérifier dans chaque répertoire du NAS : \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\
+     *   la présence des fichiers nommés <cluster>_<zone PECD>_<techno PECD>_<horizon>.csv
+     * 
+     * Chemin du fichier: \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\<cluster>_<zone PECD>_<techno PECD>_<horizon>.csv
+     */
+    public void validateLFDTFilesCoherence(List<TrajectoryEntity> bdLfTrajectories,
+                                            TrajectoryEntity trajectoryBeingImported,
+                                            List<TrajectoryEntity> bdDtTrajectories) {
+        String area = null;
+        String horizon = null;
+        List<TrajectoryEntity> allDtTrajectories = new ArrayList<>(bdDtTrajectories);
+
+        // Récupérer l'area, l'horizon et construire les listes complètes selon le type
+        if (trajectoryBeingImported != null) {
+            area = trajectoryBeingImported.getArea();
+            horizon = trajectoryBeingImported.getHorizon();
+            if (TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryBeingImported.getType())) {
+                allDtTrajectories.add(trajectoryBeingImported);
+            }
+        } else if (!allDtTrajectories.isEmpty()) {
+            area = allDtTrajectories.getFirst().getArea();
+            horizon = allDtTrajectories.getFirst().getHorizon();
+        }
+
+        if (isBlankOrEmpty(area) || isBlankOrEmpty(horizon)) {
+            log.warn("Area ou horizon non trouvé, validation fichiers LF/DT skippée");
+            return;
+        }
+
+        // Extraire les technologies disponibles dans les trajectoires DT avec technologie
+        Set<String> availableDTTechnologies = allDtTrajectories.stream()
+                .map(TrajectoryEntity::getTechnology)
+                .filter(trajectoryTechnology -> !isBlankOrEmpty(trajectoryTechnology))
+                .collect(Collectors.toSet());
+
+        // Extraire les clés DT complètes (area/groupe/cluster/pecdZone/pecdTechnology) filtrées par area et technologies disponibles
+        Set<String> dtKeysWithPecd = extractDTKeysWithPecd(allDtTrajectories, area, availableDTTechnologies);
+
+        // Pour chaque clé DT, vérifier que le fichier existe dans le répertoire NAS pour au moins une LF
+        Set<String> missingFiles = new HashSet<>();
+        for (String dtKey : dtKeysWithPecd) {
+            String[] parts = dtKey.split("/");
+            if (parts.length >= 5) {
+                String areaKey = parts[0];
+                String groupe = parts[1];
+                String cluster = parts[2];
+                String pecdZone = parts[3];
+                String pecdTechnology = parts[4];
+                
+                boolean fileFoundInLF = false;
+                for (TrajectoryEntity lfTrajectory : bdLfTrajectories) {
+                    // Vérifier si le fichier existe dans le répertoire NAS pour cette LF
+                    if (checkIfLoadFactorFileExists(lfTrajectory.getFileName(), groupe, cluster, pecdZone, pecdTechnology, horizon)) {
+                        fileFoundInLF = true;
+                        break;
+                    }
+                }
+                
+                if (!fileFoundInLF) {
+                    missingFiles.add(dtKey);
+                }
+            }
+        }
+        
+        // Si des fichiers manquent, lever une exception
+        if (!missingFiles.isEmpty()) {
+            String missingFilesStr = String.join(", ", missingFiles);
+            log.error("Fichiers Load Factor manquants pour les clés Distribution Technology: {}", missingFilesStr);
+            throw BusinessException.builder()
+                    .message("Cohérence LF/Distribution Technology échouée. Fichiers Load Factor manquants pour les clés: {0}")
+                    .errorMessageArguments(List.of(missingFilesStr))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        log.info("Validation des fichiers Load Factor pour Distribution Technology réussie");
+    }
+
+    /**
+     * Extrait les clés uniques (area/groupe/cluster/pecdZone/pecdTechnology) de tous les DT.
+     * Retourne les clés filtrées par area et technologies disponibles.
+     * Format: "area/groupe/cluster/pecdZone/pecdTechnology"
+     */
+    private Set<String> extractDTKeysWithPecd(List<TrajectoryEntity> dtTrajectories, String area, Set<String> availableTechnologies) {
+        return dtTrajectories.stream()
+                .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null
+                        ? trajectory.getResTechnologyDistributionCapacityEntities().stream()
+                        : Stream.empty())
+                .filter(entity -> (entity.getArea().equals(area) || area.equals(OTHERS_AREA)) && availableTechnologies.contains(entity.getGroupe()))
+                .map(entity -> String.format("%s/%s/%s/%s/%s",
+                        entity.getArea() != null ? entity.getArea() : "",
+                        entity.getGroupe() != null ? entity.getGroupe() : "",
+                        entity.getCluster() != null ? entity.getCluster() : "",
+                        entity.getPecdZone() != null ? entity.getPecdZone() : "",
+                        entity.getPecdTechnology() != null ? entity.getPecdTechnology() : ""))
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Vérifie si un fichier Load Factor existe dans le répertoire NAS pour IP/LF validation.
      * Chemin: \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\<cluster><area>_<horizon>.csv
      *
      * @param trajectoryFileName nom du fichier de la trajectoire LF
@@ -597,6 +800,61 @@ public class ResCoherenceCheckService {
             
             // Construire le nom du fichier: <cluster><area>_<horizon>.csv
             String fileName = String.format("%s%s_%s.csv", cluster, area, horizon);
+            Path filePath = lfDirectoryPath.resolve(fileName);
+            
+            // Vérifier que le chemin du fichier commence par le répertoire de base (sécurité)
+            if (!filePath.startsWith(nasBasePath.getParent())) {
+                log.warn("Tentative d'accès à un fichier non autorisé: {}", filePath);
+                return false;
+            }
+            
+            boolean exists = Files.exists(filePath) && Files.isRegularFile(filePath);
+            if (exists) {
+                log.debug("Fichier Load Factor trouvé: {}", filePath);
+            } else {
+                log.debug("Fichier Load Factor non trouvé: {}", filePath);
+            }
+            return exists;
+        } catch (Exception e) {
+            log.warn("Erreur lors de la vérification du fichier Load Factor: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Vérifie si un fichier Load Factor existe dans le répertoire NAS pour LF/DT validation.
+     * Chemin: \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\<cluster>_<pecdZone>_<pecdTechnology>_<horizon>.csv
+     *
+     * @param trajectoryFileName nom du fichier de la trajectoire LF
+     * @param groupe groupe du cluster
+     * @param cluster nom du cluster
+     * @param pecdZone zone PECD du cluster
+     * @param pecdTechnology technologie PECD du cluster
+     * @param horizon horizon
+     * @return true si le fichier existe, false sinon
+     */
+    public boolean checkIfLoadFactorFileExists(String trajectoryFileName, String groupe, String cluster, String pecdZone, String pecdTechnology, String horizon) {
+        try {
+            Path nasBasePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                    .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+            
+            // Chemin: RES/load factor/<trajectoryFileName>/<groupe>/<cluster>/
+            Path lfDirectoryPath = nasBasePath
+                    .resolve("RES")
+                    .resolve("load factor")
+                    .resolve(trajectoryFileName)
+                    .resolve(groupe)
+                    .resolve(cluster)
+                    .normalize();
+            
+            // Vérifier que le chemin commence par le répertoire de base (sécurité)
+            if (!lfDirectoryPath.startsWith(nasBasePath.getParent())) {
+                log.warn("Tentative d'accès à un chemin non autorisé: {}", lfDirectoryPath);
+                return false;
+            }
+            
+            // Construire le nom du fichier: <cluster>_<pecdZone>_<pecdTechnology>_<horizon>.csv
+            String fileName = String.format("%s_%s_%s_%s.csv", cluster, pecdZone, pecdTechnology, horizon);
             Path filePath = lfDirectoryPath.resolve(fileName);
             
             // Vérifier que le chemin du fichier commence par le répertoire de base (sécurité)

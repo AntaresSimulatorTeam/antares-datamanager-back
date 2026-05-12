@@ -3363,4 +3363,59 @@ class TrajectoryServiceImplTest {
         verify(resCoherenceCheckService, never()).validateIPTDCoherence(any(), any());
         verify(resCoherenceCheckService, never()).validateIPLoadFactorCoherence(any(), any());
     }
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateLFDTCoherence_whenTrajectoryTypeIsRES_TECHNOLOGY_DISTRIBUTION() throws IOException {
+        // Given
+        Integer trajectoryId = 6;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
+
+        // Then
+        verify(resCoherenceCheckService, times(1)).validateIPTDCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, times(1)).validateLFDTCoherence(studyId, trajectory);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateLFDTCoherence_whenTrajectoryTypeIsRES_LOAD_AndImportedWithoutTechnology() throws IOException {
+        // Given
+        Integer trajectoryId = 7;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_LOAD.name())
+                .technology(null) // LF without technology triggers LF/DT validation
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_LOAD);
+
+        // Then
+        verify(resCoherenceCheckService, times(1)).validateIPLoadFactorCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, times(1)).validateLFDTCoherence(studyId, trajectory);
+    }
 }
