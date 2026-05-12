@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
@@ -81,6 +82,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final StudyRepository studyRepository;
 
     private final StudyTrajectoryRepository studyTrajectoryRepository;
+
+    private final DsrCapacityModulationFileProcessorService dsrCapacityModulationFileProcessorService;
 
     private final AreaConfigRepository areaConfigRepository;
 
@@ -610,6 +613,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
                 TrajectoryType.MISC_CAPACITY,
                 TrajectoryType.MISC_LOAD,
+                TrajectoryType.DSR_CAPACITY_MODULATION,
                 TrajectoryType.RES_CAPACITY,
                 TrajectoryType.RES_LOAD,
                 TrajectoryType.RES_ZONAL_DISTRIBUTION,
@@ -1098,6 +1102,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
             case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
             case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
+            case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
             case "RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION" ->
                     log.info("No additional coherence check for RES trajectory type {} yet", type);
             default -> throw TechnicalException.builder()
@@ -1216,6 +1221,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         thermalControlService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
         thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
 
+    }
+
+    private void verifyDsrCapacityModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {
+        dsrCapacityModulationFileProcessorService.validateDsrCapacityModulationFile(
+                trajectory.getFileName(),
+                trajectory.getHorizon(),
+                studyId
+        );
     }
 
     public void verifyParamModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {

@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
@@ -72,6 +73,8 @@ class TrajectoryServiceImplTest {
     private StudyRepository studyRepository;
     @Mock
     private StudyTrajectoryRepository studyTrajectoryRepository;
+    @Mock
+    private DsrCapacityModulationFileProcessorService dsrCapacityModulationFileProcessorService;
     @Mock
     private WarningRepository warningRepository;
     @Mock
@@ -246,6 +249,67 @@ class TrajectoryServiceImplTest {
 
         assertEquals(trajectory.getId(), result.getId());
         verify(studyTrajectoryRepository, times(1)).save(any());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_validatesDsrCapacityModulationTrajectoryBeforeLinking() throws IOException {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.DSR_CAPACITY_MODULATION;
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(type.name())
+                .fileName("cm_capacity_test")
+                .horizon("2029-2030")
+                .warningMessages(new HashSet<>())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        doNothing().when(dsrCapacityModulationFileProcessorService)
+                .validateDsrCapacityModulationFile("cm_capacity_test", "2029-2030", studyId);
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
+
+        verify(dsrCapacityModulationFileProcessorService)
+                .validateDsrCapacityModulationFile("cm_capacity_test", "2029-2030", studyId);
+        verify(studyTrajectoryRepository, times(1)).save(any());
+        assertEquals(trajectory.getId(), result.getId());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_rejectsInvalidDsrCapacityModulationTrajectory() throws IOException {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        TrajectoryType type = TrajectoryType.DSR_CAPACITY_MODULATION;
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(type.name())
+                .fileName("cm_capacity_test")
+                .horizon("2029-2030")
+                .warningMessages(new HashSet<>())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        doThrow(BusinessException.builder()
+                .message("Missing Areas/Clusters")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(dsrCapacityModulationFileProcessorService)
+                .validateDsrCapacityModulationFile("cm_capacity_test", "2029-2030", studyId);
+
+        assertThrows(BusinessException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
+        verify(studyTrajectoryRepository, never()).save(any());
     }
 
     @Test
