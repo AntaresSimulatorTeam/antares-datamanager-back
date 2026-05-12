@@ -46,7 +46,13 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     @Override
     public TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         // Check trajectory file name prefix
-        validateTrajectoryPrefix(trajectoryToUse);
+        if (!startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(DSR_CAPACITY_MODULATION))
+                    .message("The trajectory file name must start with {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
         List<String> clusterKeys = getClusterKeys(studyId);
@@ -61,21 +67,15 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     }
 
     @Override
-    public void validateDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        //must start with the cm_ prefix
-        validateTrajectoryPrefix(trajectoryToUse);
-        Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        buildDsrCapacityModulationEntity(horizon, trajectoryFilePath, getClusterKeys(studyId));
-    }
-
-    private void validateTrajectoryPrefix(String trajectoryToUse) {
-        if (!startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION)) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(DSR_CAPACITY_MODULATION))
-                    .message("The trajectory file name must start with {0}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+    public void validateDsrCapacityModulationCoherence(TrajectoryEntity trajectory, Integer studyId) throws IOException {
+        // reconstruct filename for the nas (prefix)
+        String fileName = trajectory.getFileName();
+        if (!startsWithIgnoreCase(fileName, DSR_CAPACITY_MODULATION)) {
+            fileName = DSR_CAPACITY_MODULATION + fileName;
         }
+
+        Path trajectoryFilePath = getTrajectoryFilePath(fileName);
+        buildDsrCapacityModulationEntity(trajectory.getHorizon(), trajectoryFilePath, getClusterKeys(studyId));
     }
 
     public List<DsrCapacityModulationEntity> buildDsrCapacityModulationEntity(String horizon, Path trajectoryFilePath, List<String> dsrClusters) throws IOException {

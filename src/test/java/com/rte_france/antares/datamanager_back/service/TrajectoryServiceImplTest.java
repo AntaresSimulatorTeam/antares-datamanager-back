@@ -271,13 +271,13 @@ class TrajectoryServiceImplTest {
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         doNothing().when(dsrCapacityModulationFileProcessorService)
-                .validateDsrCapacityModulationFile("cm_capacity_test", "2029-2030", studyId);
+                .validateDsrCapacityModulationCoherence(trajectory, studyId);
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
 
         verify(dsrCapacityModulationFileProcessorService)
-                .validateDsrCapacityModulationFile("cm_capacity_test", "2029-2030", studyId);
+                .validateDsrCapacityModulationCoherence(trajectory, studyId);
         verify(studyTrajectoryRepository, times(1)).save(any());
         assertEquals(trajectory.getId(), result.getId());
     }
@@ -306,7 +306,7 @@ class TrajectoryServiceImplTest {
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build())
                 .when(dsrCapacityModulationFileProcessorService)
-                .validateDsrCapacityModulationFile("cm_capacity_test", "2029-2030", studyId);
+                .validateDsrCapacityModulationCoherence(trajectory, studyId);
 
         assertThrows(BusinessException.class, () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type));
         verify(studyTrajectoryRepository, never()).save(any());
