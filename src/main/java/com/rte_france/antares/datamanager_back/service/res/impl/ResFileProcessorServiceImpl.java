@@ -232,65 +232,72 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
           // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
           resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
           resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+        resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
           
           // Sauvegarder uniquement si validation OK
           return trajectoryRepository.save(trajectory);
      }
 
-    @Transactional
-    @Override
-    public TrajectoryEntity processZonalDistributionResFile(
-            String trajectoryToUse,
-            String horizon,
-            Integer studyId,
-            String areaParam,
-            String technology,
-            boolean isCivilYear
-    ) throws IOException {
+     @Transactional
+     @Override
+     public TrajectoryEntity processZonalDistributionResFile(
+             String trajectoryToUse,
+             String horizon,
+             Integer studyId,
+             String areaParam,
+             String technology,
+             boolean isCivilYear
+     ) throws IOException {
 
-        List<String> studyAreas = loadStudyAreas(studyId);
-        String technologyParam = technology != null ? toSnakeCase(technology): null;
+         List<String> studyAreas = loadStudyAreas(studyId);
+         String technologyParam = technology != null ? toSnakeCase(technology): null;
 
-        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
-                TrajectoryType.RES_ZONAL_DISTRIBUTION,
-                areaParam,
-                null
-        );
+         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
+                 TrajectoryType.RES_ZONAL_DISTRIBUTION,
+                 areaParam,
+                 null
+         );
 
-        validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_ZONAL_DISTRIBUTION, RES_ZONAL_DISTRIBUTION_PREFIX);
+         validatePrefixIfNeeded(areaParam, trajectoryToUse, TrajectoryType.RES_ZONAL_DISTRIBUTION, RES_ZONAL_DISTRIBUTION_PREFIX);
 
-        String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
-        Path filePath = directoryPath.resolve(fileName).normalize();
+         String fileName = trajectoryToUse.endsWith(FILE_FORMAT) ? trajectoryToUse : trajectoryToUse + FILE_FORMAT;
+         Path filePath = directoryPath.resolve(fileName).normalize();
 
-        if (!filePath.startsWith(directoryPath)) {
-            throw BusinessException.builder()
-                    .message(FILE_NOT_FOUND + filePath)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+         if (!filePath.startsWith(directoryPath)) {
+             throw BusinessException.builder()
+                     .message(FILE_NOT_FOUND + filePath)
+                     .httpStatus(HttpStatus.BAD_REQUEST)
+                     .build();
+         }
 
-        ResRowProcessingResult result = null;
-        try {
-            result = processResCapacityFile(
-                    filePath,
-                    filePath.getFileName().toString(),
-                    horizon,
-                    areaParam,
-                    technologyParam,
-                    studyAreas,
-                    isCivilYear,
-                    TrajectoryType.RES_ZONAL_DISTRIBUTION
-            );
-        } catch (IOException e) {
-            throw BusinessException.builder()
-                    .message("Could not import RES zonal distribution trajectory")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+         ResRowProcessingResult result = null;
+         try {
+             result = processResCapacityFile(
+                     filePath,
+                     filePath.getFileName().toString(),
+                     horizon,
+                     areaParam,
+                     technologyParam,
+                     studyAreas,
+                     isCivilYear,
+                     TrajectoryType.RES_ZONAL_DISTRIBUTION
+             );
+         } catch (IOException e) {
+             throw BusinessException.builder()
+                     .message("Could not import RES zonal distribution trajectory")
+                     .httpStatus(HttpStatus.BAD_REQUEST)
+                     .build();
+         }
 
-
-        return saveTrajectory(horizon, areaParam, technologyParam, filePath, result, TrajectoryType.RES_ZONAL_DISTRIBUTION);
-    }
+         // Construire la trajectoire complète AVANT la validation
+         TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, filePath, TrajectoryType.RES_ZONAL_DISTRIBUTION, result);
+         
+         // Valider la cohérence entre Distribution Technology et Distribution Zonal (clé: area/group/zone PECD)
+         resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+         
+         // Sauvegarder uniquement si validation OK
+         return trajectoryRepository.save(trajectory);
+     }
 
 
     private static void checkExistingTs(Path trajectoryFilePath, String trajectoryToUse) throws IOException {

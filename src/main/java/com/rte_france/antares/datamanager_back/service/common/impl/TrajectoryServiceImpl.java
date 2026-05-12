@@ -618,26 +618,32 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
-        
-         // Validation de cohérence entre InstalledPower et Technology Distribution
-         String trajectoryType = trajectory.getType();
-         if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
-             TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
-             resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
-         }
          
-         // Validation de cohérence entre InstalledPower et Load Factor (Scénario 13)
-         if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
-             TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
-             resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
-         }
+          // Validation de cohérence entre InstalledPower et Technology Distribution
+          String trajectoryType = trajectory.getType();
+          if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
+              TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+          }
+          
+          // Validation de cohérence entre InstalledPower et Load Factor (Scénario 13)
+          if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
+              TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+          }
 
-         // Validation de cohérence entre Load Factor et Distribution Technology
-         if (TrajectoryType.RES_LOAD.name().equals(trajectoryType) || 
-             TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
-             resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
-         }
-         
+          // Validation de cohérence entre Load Factor et Distribution Technology
+          if (TrajectoryType.RES_LOAD.name().equals(trajectoryType) || 
+              TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+          }
+
+          // Validation de cohérence entre Distribution Technology et Distribution Zonal (clé: area/group/zone PECD)
+          if (TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType) || 
+              TrajectoryType.RES_ZONAL_DISTRIBUTION.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+          }
+          
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
