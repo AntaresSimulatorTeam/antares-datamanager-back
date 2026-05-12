@@ -821,58 +821,222 @@ public class ResCoherenceCheckService {
         }
     }
 
-    /**
-     * Vérifie si un fichier Load Factor existe dans le répertoire NAS pour LF/DT validation.
-     * Chemin: \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\<cluster>_<pecdZone>_<pecdTechnology>_<horizon>.csv
-     *
-     * @param trajectoryFileName nom du fichier de la trajectoire LF
-     * @param groupe groupe du cluster
-     * @param cluster nom du cluster
-     * @param pecdZone zone PECD du cluster
-     * @param pecdTechnology technologie PECD du cluster
-     * @param horizon horizon
-     * @return true si le fichier existe, false sinon
-     */
-    public boolean checkIfLoadFactorFileExists(String trajectoryFileName, String groupe, String cluster, String pecdZone, String pecdTechnology, String horizon) {
-        try {
-            Path nasBasePath = Path.of(antaresDataManagerProperties.getNasDirectory())
-                    .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
-            
-            // Chemin: RES/load factor/<trajectoryFileName>/<groupe>/<cluster>/
-            Path lfDirectoryPath = nasBasePath
-                    .resolve("RES")
-                    .resolve("load factor")
-                    .resolve(trajectoryFileName)
-                    .resolve(groupe)
-                    .resolve(cluster)
-                    .normalize();
-            
-            // Vérifier que le chemin commence par le répertoire de base (sécurité)
-            if (!lfDirectoryPath.startsWith(nasBasePath.getParent())) {
-                log.warn("Tentative d'accès à un chemin non autorisé: {}", lfDirectoryPath);
-                return false;
-            }
-            
-            // Construire le nom du fichier: <cluster>_<pecdZone>_<pecdTechnology>_<horizon>.csv
-            String fileName = String.format("%s_%s_%s_%s.csv", cluster, pecdZone, pecdTechnology, horizon);
-            Path filePath = lfDirectoryPath.resolve(fileName);
-            
-            // Vérifier que le chemin du fichier commence par le répertoire de base (sécurité)
-            if (!filePath.startsWith(nasBasePath.getParent())) {
-                log.warn("Tentative d'accès à un fichier non autorisé: {}", filePath);
-                return false;
-            }
-            
-            boolean exists = Files.exists(filePath) && Files.isRegularFile(filePath);
-            if (exists) {
-                log.debug("Fichier Load Factor trouvé: {}", filePath);
-            } else {
-                log.debug("Fichier Load Factor non trouvé: {}", filePath);
-            }
-            return exists;
-        } catch (Exception e) {
-            log.warn("Erreur lors de la vérification du fichier Load Factor: {}", e.getMessage());
-            return false;
-        }
-    }
+     /**
+      * Vérifie si un fichier Load Factor existe dans le répertoire NAS pour LF/DT validation.
+      * Chemin: \RES\load factor\<trajectoryFileName>\<groupe>\<cluster>\<cluster>_<pecdZone>_<pecdTechnology>_<horizon>.csv
+      *
+      * @param trajectoryFileName nom du fichier de la trajectoire LF
+      * @param groupe groupe du cluster
+      * @param cluster nom du cluster
+      * @param pecdZone zone PECD du cluster
+      * @param pecdTechnology technologie PECD du cluster
+      * @param horizon horizon
+      * @return true si le fichier existe, false sinon
+      */
+     public boolean checkIfLoadFactorFileExists(String trajectoryFileName, String groupe, String cluster, String pecdZone, String pecdTechnology, String horizon) {
+         try {
+             Path nasBasePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                     .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+             
+             // Chemin: RES/load factor/<trajectoryFileName>/<groupe>/<cluster>/
+             Path lfDirectoryPath = nasBasePath
+                     .resolve("RES")
+                     .resolve("load factor")
+                     .resolve(trajectoryFileName)
+                     .resolve(groupe)
+                     .resolve(cluster)
+                     .normalize();
+             
+             // Vérifier que le chemin commence par le répertoire de base (sécurité)
+             if (!lfDirectoryPath.startsWith(nasBasePath.getParent())) {
+                 log.warn("Tentative d'accès à un chemin non autorisé: {}", lfDirectoryPath);
+                 return false;
+             }
+             
+             // Construire le nom du fichier: <cluster>_<pecdZone>_<pecdTechnology>_<horizon>.csv
+             String fileName = String.format("%s_%s_%s_%s.csv", cluster, pecdZone, pecdTechnology, horizon);
+             Path filePath = lfDirectoryPath.resolve(fileName);
+             
+             // Vérifier que le chemin du fichier commence par le répertoire de base (sécurité)
+             if (!filePath.startsWith(nasBasePath.getParent())) {
+                 log.warn("Tentative d'accès à un fichier non autorisé: {}", filePath);
+                 return false;
+             }
+             
+             boolean exists = Files.exists(filePath) && Files.isRegularFile(filePath);
+             if (exists) {
+                 log.debug("Fichier Load Factor trouvé: {}", filePath);
+             } else {
+                 log.debug("Fichier Load Factor non trouvé: {}", filePath);
+             }
+             return exists;
+         } catch (Exception e) {
+             log.warn("Erreur lors de la vérification du fichier Load Factor: {}", e.getMessage());
+             return false;
+         }
+     }
+
+     /**
+      * Valide la cohérence entre les trajectoires DT et DZ pour un study donné.
+      * Permet d'inclure une trajectoire temporaire (en cours d'import) dans la validation.
+      * 
+      * Règles de contrôle:
+      * - DT doit avoir 2 combinaisons (area sans tech + area avec tech) par technologie
+      * - DZ doit avoir exactement 1 trajectoire
+      * - La clé de comparaison est area/groupe/pecdZone
+      * - Vérifie que pour chaque clé (area/groupe/pecdZone) présente dans DT, les données correspondantes existent dans DZ
+      *
+      * @param studyId l'identifiant de l'étude
+      * @param trajectoryBeingImported trajectoire optionnelle en cours d'import à inclure dans la validation
+      * @throws BusinessException si la cohérence n'est pas respectée
+      */
+     public void validateDTDZCoherence(Integer studyId, TrajectoryEntity trajectoryBeingImported) {
+         // Pas de validation si pas de trajectoire à importer
+         if (trajectoryBeingImported == null) {
+             log.debug("Pas de trajectoire en cours d'import, validation DT/DZ skippée");
+             return;
+         }
+
+         List<TrajectoryEntity> bdDtTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId);
+         List<TrajectoryEntity> bdDzTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId);
+
+         String trajectoryType = trajectoryBeingImported.getType();
+
+         // Validation conditionnelle basée sur le type de trajectoire à importer
+         if (TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+             // Import d'une DT : vérifier les combinaisons DT (2 par technologie) et DZ (exactement 1)
+             if (!validateDTCoherence(bdDtTrajectories, trajectoryBeingImported)) {
+                 log.debug("Prérequis DT non satisfaits (2 combinaisons requises), validation clés DT/DZ skippée");
+                 return;
+             }
+             // DZ doit être exactement 1 trajectoire
+             if (bdDzTrajectories.size() != 1) {
+                 log.debug("Prérequis DZ non satisfaits (1 trajectoire requise, trouvé: {}), validation clés DT/DZ skippée", bdDzTrajectories.size());
+                 return;
+             }
+             // Les combinaisons sont complètes, valider les clés
+             validateDTDZKeysCoherence(bdDtTrajectories, trajectoryBeingImported, bdDzTrajectories);
+         } else if (TrajectoryType.RES_ZONAL_DISTRIBUTION.name().equals(trajectoryType)) {
+             // Import d'une DZ : vérifier qu'il n'y a qu'une seule DZ au total après import
+             List<TrajectoryEntity> allDzTrajectories = new ArrayList<>(bdDzTrajectories);
+             allDzTrajectories.add(trajectoryBeingImported);
+             
+             if (allDzTrajectories.size() != 1) {
+                 log.debug("Prérequis DZ non satisfaits (1 trajectoire requise, trouvé: {}), validation clés DT/DZ skippée", allDzTrajectories.size());
+                 return;
+             }
+             
+             // DT doit avoir 2 combinaisons
+             if (bdDtTrajectories.isEmpty()) {
+                 log.debug("Pas de DT trajectoires, validation clés DT/DZ skippée");
+                 return;
+             }
+             
+             // Vérifier que DT a les bonnes combinaisons (utiliser la trajectoire DZ pour obtenir l'area)
+             String dzArea = trajectoryBeingImported.getArea();
+             if (!validateDTCombinationsForDZValidation(bdDtTrajectories, dzArea)) {
+                 log.debug("Prérequis DT non satisfaits (2 combinaisons requises), validation clés DT/DZ skippée");
+                 return;
+             }
+             
+             validateDTDZKeysCoherence(bdDtTrajectories, null, allDzTrajectories);
+         }
+     }
+
+     /**
+      * Vérifie que DT a exactement 2 combinaisons (sans tech + avec tech) pour une area donnée.
+      */
+     private boolean validateDTCombinationsForDZValidation(List<TrajectoryEntity> dtTrajectories, String area) {
+         // Vérifier qu'il existe une trajectoire DT avec area sans technology
+         boolean hasDTWithoutTech = dtTrajectories.stream()
+                 .anyMatch(trajectory -> trajectory.getArea().equals(area) && isBlankOrEmpty(trajectory.getTechnology()));
+
+         if (!hasDTWithoutTech) {
+             return false;
+         }
+
+         // Vérifier qu'il existe une trajectoire DT avec area et une technology
+         boolean hasDTWithSomeTech = dtTrajectories.stream()
+                 .anyMatch(trajectory -> trajectory.getArea().equals(area) && !isBlankOrEmpty(trajectory.getTechnology()));
+
+         return hasDTWithSomeTech;
+     }
+
+     /**
+      * Extrait les clés uniques (area/groupe/pecdZone) de tous les DT.
+      * Format: "area/groupe/pecdZone"
+      */
+     private Set<String> extractDTKeysForDZComparison(List<TrajectoryEntity> dtTrajectories, String area) {
+         return dtTrajectories.stream()
+                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null
+                         ? trajectory.getResTechnologyDistributionCapacityEntities().stream()
+                         : Stream.empty())
+                 .filter(entity -> entity.getArea().equals(area) || area.equals(OTHERS_AREA))
+                 .map(entity -> String.format("%s/%s/%s",
+                         entity.getArea() != null ? entity.getArea() : "",
+                         entity.getGroupe() != null ? entity.getGroupe() : "",
+                         entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                 .collect(Collectors.toSet());
+     }
+
+     /**
+      * Extrait les clés uniques (area/groupe/pecdZone) de tous les DZ.
+      * Format: "area/groupe/pecdZone"
+      */
+     private Set<String> extractDZKeys(List<TrajectoryEntity> dzTrajectories, String area) {
+         return dzTrajectories.stream()
+                 .flatMap(trajectory -> trajectory.getResZonalDistributionCapacityEntities() != null
+                         ? trajectory.getResZonalDistributionCapacityEntities().stream()
+                         : Stream.empty())
+                 .filter(entity -> entity.getArea().equals(area) || area.equals(OTHERS_AREA))
+                 .map(entity -> String.format("%s/%s/%s",
+                         entity.getArea() != null ? entity.getArea() : "",
+                         entity.getGroupe() != null ? entity.getGroupe() : "",
+                         entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                 .collect(Collectors.toSet());
+     }
+
+     /**
+      * Valide que toutes les clés (area/groupe/pecdZone) de DT existent dans DZ.
+      * Les prérequis doivent déjà être validés.
+      */
+     private void validateDTDZKeysCoherence(List<TrajectoryEntity> bdDtTrajectories,
+                                           TrajectoryEntity dtBeingImported,
+                                           List<TrajectoryEntity> bdDzTrajectories) {
+         String area = null;
+         // Construire la liste complète des DT (BD + nouvelle si c'est une DT)
+         List<TrajectoryEntity> allDtTrajectories = new ArrayList<>(bdDtTrajectories);
+         if (dtBeingImported != null) {
+             area = dtBeingImported.getArea();
+             allDtTrajectories.add(dtBeingImported);
+         } else if (!allDtTrajectories.isEmpty()) {
+             area = allDtTrajectories.getFirst().getArea();
+         }
+
+         if (area == null || area.trim().isEmpty()) {
+             log.warn("Area non trouvé, validation clés DT/DZ skippée");
+             return;
+         }
+
+         // Extraire les clés DT et DZ filtrées par area
+         Set<String> dtKeys = extractDTKeysForDZComparison(allDtTrajectories, area);
+         Set<String> dzKeys = extractDZKeys(bdDzTrajectories, area);
+
+         // Vérifier que chaque clé DT existe dans DZ
+         Set<String> missingKeys = dtKeys.stream()
+                 .filter(key -> !dzKeys.contains(key))
+                 .collect(Collectors.toSet());
+
+         if (!missingKeys.isEmpty()) {
+             String missingKeysStr = String.join(", ", missingKeys);
+             log.error("Clés manquantes dans Distribution Zonal (DZ): {}", missingKeysStr);
+             throw BusinessException.builder()
+                     .message("Cohérence DT/DZ échouée. Clés manquantes dans Distribution Zonal: {0}")
+                     .errorMessageArguments(List.of(missingKeysStr))
+                     .httpStatus(HttpStatus.BAD_REQUEST)
+                     .build();
+         }
+
+         log.info("Validation des clés DT/DZ réussie");
+     }
 }

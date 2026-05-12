@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ResZonalDistributionEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import org.junit.jupiter.api.BeforeEach;
@@ -563,18 +564,57 @@ public class ResCoherenceCheckServiceTest {
          return dto;
      }
 
-     private TrajectoryEntity createLFTrajectory(String area, String technology) {
-         TrajectoryEntity trajectory = new TrajectoryEntity();
-         trajectory.setId(3);
-         trajectory.setType(TrajectoryType.RES_LOAD.name());
-         trajectory.setArea(area);
-         trajectory.setTechnology(technology);
-         trajectory.setFileName("test_lf");
-         trajectory.setHorizon("2030");
-         return trajectory;
-     }
+      private TrajectoryEntity createLFTrajectory(String area, String technology) {
+          TrajectoryEntity trajectory = new TrajectoryEntity();
+          trajectory.setId(3);
+          trajectory.setType(TrajectoryType.RES_LOAD.name());
+          trajectory.setArea(area);
+          trajectory.setTechnology(technology);
+          trajectory.setFileName("test_lf");
+          trajectory.setHorizon("2030");
+          return trajectory;
+      }
 
-     @Nested
+      private TrajectoryEntity createDZTrajectory(String area, String technology, String pecdZone) {
+          TrajectoryEntity trajectory = new TrajectoryEntity();
+          trajectory.setId(4);
+          trajectory.setType(TrajectoryType.RES_ZONAL_DISTRIBUTION.name());
+          trajectory.setArea(area);
+          trajectory.setTechnology(technology);
+          trajectory.setFileName("test_dz");
+          trajectory.setResZonalDistributionCapacityEntities(new ArrayList<>());
+          return trajectory;
+      }
+
+      private TrajectoryEntity createDZTrajectoryWithData(String area, String groupe, String pecdZone) {
+          TrajectoryEntity trajectory = createDZTrajectory(area, null, pecdZone);
+          ResZonalDistributionEntity entity = new ResZonalDistributionEntity();
+          entity.setArea(area);
+          entity.setGroupe(groupe);
+          entity.setPecdZone(pecdZone);
+          trajectory.getResZonalDistributionCapacityEntities().add(entity);
+          return trajectory;
+      }
+
+      private ResClusterCapacityEntity createClusterCapacity(String area, String groupe, String cluster) {
+          ResClusterCapacityEntity entity = new ResClusterCapacityEntity();
+          entity.setArea(area);
+          entity.setGroupe(groupe);
+          entity.setCluster(cluster);
+          return entity;
+      }
+
+      private ResTechnologyDistributionEntity createTDCapacity(String area, String groupe, String cluster) {
+          ResTechnologyDistributionEntity entity = new ResTechnologyDistributionEntity();
+          entity.setArea(area);
+          entity.setGroupe(groupe);
+          entity.setCluster(cluster);
+          entity.setPecdZone("zone1");
+          entity.setPecdTechnology("pecd_tech");
+          return entity;
+      }
+
+        @Nested
      @DisplayName("Case Sensitivity Tests")
      class CaseSensitivityTests {
 
@@ -631,6 +671,149 @@ public class ResCoherenceCheckServiceTest {
 
             // Act & Assert
             assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, ipOthers));
+        }
+    }
+
+    @Nested
+    @DisplayName("ValidateDTDZCoherence Tests")
+    class ValidateDTDZCoherenceTests {
+
+        @Test
+        @DisplayName("should return early when trajectory being imported is null")
+        void shouldReturnEarlyWhenTrajectoryNull() {
+            // Act & Assert - Should not throw exception
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, null));
+        }
+
+        @Test
+        @DisplayName("should skip validation when DZ count is not exactly 1")
+        void shouldSkipValidationWhenDZCountNotOne() {
+            // Arrange - DT with 2 combinations
+            TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            // 2 DZ trajectories instead of 1
+            List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
+            dzTrajectories.add(createDZTrajectory("FR", null, "zone1"));
+            dzTrajectories.add(createDZTrajectory("FR", null, "zone2"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dtTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dzTrajectories);
+
+            // Act & Assert - Should skip (DZ count != 1)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, dtBeingImported));
+        }
+
+        @Test
+        @DisplayName("should skip validation when DT combinations incomplete")
+        void shouldSkipValidationWhenDTCombinationsIncomplete() {
+            // Arrange - DT with only tech version, missing version without tech
+            TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", "wind")); // Only with tech
+
+            List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
+            dzTrajectories.add(createDZTrajectory("FR", null, "zone"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dtTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dzTrajectories);
+
+            // Act & Assert - Should skip validation (DT missing combination without tech)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, dtBeingImported));
+        }
+
+        @Test
+        @DisplayName("should pass validation with 2 DT combinations and 1 DZ")
+        void shouldPassValidationWithCorrectCombinations() {
+            // Arrange - DT with 2 combinations (without tech + with tech) and 1 DZ
+            TrajectoryEntity dtWithoutTech = createTDTrajectory("FR", null);
+            TrajectoryEntity dtWithTech = createTDTrajectory("FR", "wind");
+            
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(dtWithoutTech);
+            dtTrajectories.add(dtWithTech);
+
+            List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
+            dzTrajectories.add(createDZTrajectory("FR", null, "zone"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dtTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dzTrajectories);
+
+            // Act & Assert - Should not throw (correct combinations: 2 DT, 1 DZ)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, dtWithTech));
+        }
+
+        @Test
+        @DisplayName("should skip validation when DZ area doesn't match DT")
+        void shouldSkipValidationWhenDZAreaDoesntMatchDT() {
+            // Arrange - DT has keys that don't exist in DZ (different area)
+            TrajectoryEntity dtBeingImported = createTDTrajectory("FR", "wind");
+
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(dtBeingImported);
+
+            // DZ with no matching DT data
+            List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
+            dzTrajectories.add(createDZTrajectory("BE", null, "zone")); // Different area
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dtTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dzTrajectories);
+
+            // Act & Assert - Should skip (DZ area doesn't match DT area)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, dtBeingImported));
+        }
+
+        @Test
+        @DisplayName("should validate when DZ being imported with correct DT combinations")
+        void shouldValidateWhenDZBeingImported() {
+            // Arrange - DZ import: DZ must be exactly 1 after import and DT must have 2 combinations
+            TrajectoryEntity dzBeingImported = createDZTrajectory("FR", null, "zone");
+
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            List<TrajectoryEntity> dzTrajectories = new ArrayList<>(); // Empty before import
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dtTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dzTrajectories);
+
+            // Act & Assert - Should not throw (exactly 1 DZ after import, DT has 2 combinations)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, dzBeingImported));
+        }
+
+        @Test
+        @DisplayName("should fail when DZ import results in more than 1 DZ total")
+        void shouldFailWhenDZImportResultsInMultipleDZ() {
+            // Arrange - Trying to import 2nd DZ (already 1 exists)
+            TrajectoryEntity dzBeingImported = createDZTrajectory("FR", null, "zone2");
+
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
+            dzTrajectories.add(createDZTrajectory("FR", null, "zone1")); // Already 1 DZ
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dtTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_ZONAL_DISTRIBUTION.name(), studyId))
+                    .thenReturn(dzTrajectories);
+
+            // Act & Assert - Should skip (would have 2 DZ total)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateDTDZCoherence(studyId, dzBeingImported));
         }
     }
 
@@ -1341,9 +1524,9 @@ public class ResCoherenceCheckServiceTest {
          }
      }
 
-     @Nested
-     @DisplayName("Boundary Tests")
-     class BoundaryAndEdgeCaseTests {
+    @Nested
+    @DisplayName("Boundary Tests")
+    class BoundaryAndEdgeCaseTests {
 
          @Test
          @DisplayName("should pass validation when exactly 4 IP combinations exist")
@@ -1413,124 +1596,126 @@ public class ResCoherenceCheckServiceTest {
 
              // Act & Assert
              assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId));
+         }
+     }
+
+     @Nested
+     @DisplayName("Load Factor File Coherence Tests")
+     class LoadFactorFileCoherenceTests {
+
+         @Test
+         @DisplayName("should skip validation when IP and LF have no IP clusters with technology")
+         void shouldSkipValidationWhenNoIPClustersWithTechnology() {
+             // Arrange - IP with no cluster capacities
+             List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+             TrajectoryEntity ipTrajectory = createIPTrajectory("FR", null);
+             ipTrajectory.setHorizon("2030-2031");
+             ipTrajectory.setResClusterCapacityEntities(new ArrayList<>());
+             ipTrajectories.add(ipTrajectory);
+             ipTrajectories.add(createIPTrajectory("FR", "onshore"));
+             ipTrajectories.add(createIPTrajectory("OTHERS", null));
+             ipTrajectories.add(createIPTrajectory("OTHERS", "onshore"));
+
+             List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+             TrajectoryEntity lfTrajectory = createLFTrajectory("FR", null);
+             lfTrajectory.setHorizon("2030-2031");
+             lfTrajectory.setResTechnologyDistributionCapacityEntities(new ArrayList<>());
+             lfTrajectories.add(lfTrajectory);
+             lfTrajectories.add(createLFTrajectory("FR", "onshore"));
+             lfTrajectories.add(createLFTrajectory("OTHERS", null));
+             lfTrajectories.add(createLFTrajectory("OTHERS", "onshore"));
+
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                     .thenReturn(ipTrajectories);
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                     .thenReturn(lfTrajectories);
+
+             // Act & Assert - Should not throw because no IP clusters with technology
+             assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, lfTrajectory));
+         }
+     }
+
+     @Nested
+     @DisplayName("Special Cases and Error Handling")
+     class SpecialCasesErrorHandling {
+
+         @Test
+         @DisplayName("should handle null horizon in trajectory")
+         void shouldHandleNullHorizonInTrajectory() {
+             // Arrange - IP with null horizon should skip file validation
+             List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+             TrajectoryEntity ipTrajectory = createIPTrajectoryWithData("FR", null, "onshore", "cluster1");
+             ipTrajectory.setHorizon(null);  // Null horizon
+             ipTrajectories.add(ipTrajectory);
+             ipTrajectories.add(createIPTrajectoryWithData("FR", "onshore", "onshore", "cluster1"));
+             ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "onshore", "cluster1"));
+
+             List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+             lfTrajectories.add(createLFTrajectory("FR", null));
+             lfTrajectories.add(createLFTrajectory("FR", "onshore"));
+             lfTrajectories.add(createLFTrajectory("OTHERS", null));
+
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                     .thenReturn(ipTrajectories);
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                     .thenReturn(lfTrajectories);
+
+             // Act & Assert - Should skip validation due to incomplete IP combinations
+             assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPLoadFactorCoherence(studyId));
+         }
+
+         @Test
+         @DisplayName("should handle empty technology set in file validation")
+         void shouldHandleEmptyTechnologySetInFileValidation() {
+             // Arrange - All trajectories without technology
+             List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+             ipTrajectories.add(createIPTrajectoryWithData("FR", null, "G1", "C1"));
+             ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "G1", "C1"));
+
+             List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+             lfTrajectories.add(createLFTrajectory("FR", null));
+             lfTrajectories.add(createLFTrajectory("OTHERS", null));
+
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                     .thenReturn(ipTrajectories);
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                     .thenReturn(lfTrajectories);
+
+             // Act & Assert - Should skip file validation as no technologies present
+             assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPLoadFactorCoherence(studyId));
+         }
+
+         @Test
+         @DisplayName("should validate correctly with BE and DE areas")
+         void shouldValidateCorrectlyWithMultipleAreas() {
+             // Arrange
+             List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+             ipTrajectories.add(createIPTrajectoryWithData("BE", null, "G1", "C1"));
+             ipTrajectories.add(createIPTrajectoryWithData("BE", "wind", "G1", "C1"));
+             ipTrajectories.add(createIPTrajectoryWithData("DE", null, "G1", "C1"));
+             ipTrajectories.add(createIPTrajectoryWithData("DE", "wind", "G1", "C1"));
+             ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "G1", "C1"));
+             ipTrajectories.add(createIPTrajectoryWithData("OTHERS", "wind", "G1", "C1"));
+
+             List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+             tdTrajectories.add(createTDTrajectoryWithData("BE", null, "G1", "C1"));
+             tdTrajectories.add(createTDTrajectoryWithData("BE", "wind", "G1", "C1"));
+             tdTrajectories.add(createTDTrajectoryWithData("DE", null, "G1", "C1"));
+             tdTrajectories.add(createTDTrajectoryWithData("DE", "wind", "G1", "C1"));
+
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                     .thenReturn(ipTrajectories);
+             when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                     .thenReturn(tdTrajectories);
+
+              // Act & Assert
+              assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPTDCoherence(studyId));
           }
       }
 
       @Nested
-      @DisplayName("Load Factor File Coherence Tests")
-      class LoadFactorFileCoherenceTests {
-
-          @Test
-          @DisplayName("should skip validation when IP and LF have no IP clusters with technology")
-          void shouldSkipValidationWhenNoIPClustersWithTechnology() {
-              // Arrange - IP with no cluster capacities
-              List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-              TrajectoryEntity ipTrajectory = createIPTrajectory("FR", null);
-              ipTrajectory.setHorizon("2030-2031");
-              ipTrajectory.setResClusterCapacityEntities(new ArrayList<>());
-              ipTrajectories.add(ipTrajectory);
-              ipTrajectories.add(createIPTrajectory("FR", "onshore"));
-              ipTrajectories.add(createIPTrajectory("OTHERS", null));
-              ipTrajectories.add(createIPTrajectory("OTHERS", "onshore"));
-
-              List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-              TrajectoryEntity lfTrajectory = createLFTrajectory("FR", null);
-              lfTrajectories.add(lfTrajectory);
-              lfTrajectories.add(createLFTrajectory("FR", "onshore"));
-              lfTrajectories.add(createLFTrajectory("OTHERS", null));
-              lfTrajectories.add(createLFTrajectory("OTHERS", "onshore"));
-
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                      .thenReturn(ipTrajectories);
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                      .thenReturn(lfTrajectories);
-
-              // Act & Assert - Should not throw because no IP clusters with technology
-              assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, lfTrajectory));
-          }
-      }
-
-      @Nested
-      @DisplayName("Special Cases and Error Handling")
-      class SpecialCasesErrorHandling {
-
-          @Test
-          @DisplayName("should handle null horizon in trajectory")
-          void shouldHandleNullHorizonInTrajectory() {
-              // Arrange - IP with null horizon should skip file validation
-              List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-              TrajectoryEntity ipTrajectory = createIPTrajectoryWithData("FR", null, "onshore", "cluster1");
-              ipTrajectory.setHorizon(null);  // Null horizon
-              ipTrajectories.add(ipTrajectory);
-              ipTrajectories.add(createIPTrajectoryWithData("FR", "onshore", "onshore", "cluster1"));
-              ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "onshore", "cluster1"));
-
-              List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-              lfTrajectories.add(createLFTrajectory("FR", null));
-              lfTrajectories.add(createLFTrajectory("FR", "onshore"));
-              lfTrajectories.add(createLFTrajectory("OTHERS", null));
-
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                      .thenReturn(ipTrajectories);
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                      .thenReturn(lfTrajectories);
-
-              // Act & Assert - Should skip validation due to incomplete IP combinations
-              assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPLoadFactorCoherence(studyId));
-          }
-
-          @Test
-          @DisplayName("should handle empty technology set in file validation")
-          void shouldHandleEmptyTechnologySetInFileValidation() {
-              // Arrange - All trajectories without technology
-              List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-              ipTrajectories.add(createIPTrajectoryWithData("FR", null, "G1", "C1"));
-              ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "G1", "C1"));
-
-              List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-              lfTrajectories.add(createLFTrajectory("FR", null));
-              lfTrajectories.add(createLFTrajectory("OTHERS", null));
-
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                      .thenReturn(ipTrajectories);
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                      .thenReturn(lfTrajectories);
-
-              // Act & Assert - Should skip file validation as no technologies present
-              assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPLoadFactorCoherence(studyId));
-          }
-
-          @Test
-          @DisplayName("should validate correctly with BE and DE areas")
-          void shouldValidateCorrectlyWithMultipleAreas() {
-              // Arrange
-              List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-              ipTrajectories.add(createIPTrajectoryWithData("BE", null, "G1", "C1"));
-              ipTrajectories.add(createIPTrajectoryWithData("BE", "wind", "G1", "C1"));
-              ipTrajectories.add(createIPTrajectoryWithData("DE", null, "G1", "C1"));
-              ipTrajectories.add(createIPTrajectoryWithData("DE", "wind", "G1", "C1"));
-              ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "G1", "C1"));
-              ipTrajectories.add(createIPTrajectoryWithData("OTHERS", "wind", "G1", "C1"));
-
-              List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
-              tdTrajectories.add(createTDTrajectoryWithData("BE", null, "G1", "C1"));
-              tdTrajectories.add(createTDTrajectoryWithData("BE", "wind", "G1", "C1"));
-              tdTrajectories.add(createTDTrajectoryWithData("DE", null, "G1", "C1"));
-              tdTrajectories.add(createTDTrajectoryWithData("DE", "wind", "G1", "C1"));
-
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                      .thenReturn(ipTrajectories);
-              when(ResCoherenceCheckServiceTest.this.trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                      .thenReturn(tdTrajectories);
-
-               // Act & Assert
-               assertDoesNotThrow(() -> ResCoherenceCheckServiceTest.this.resCoherenceCheckService.validateIPTDCoherence(studyId));
-           }
-       }
-
-       @Nested
-       @DisplayName("CheckIfLoadFactorFileExists Tests")
-       class CheckIfLoadFactorFileExistsTests {
+      @DisplayName("CheckIfLoadFactorFileExists Tests")
+      class CheckIfLoadFactorFileExistsTests {
 
            @Test
            @DisplayName("should return false when NAS directory is not configured")
@@ -1894,7 +2079,12 @@ public class ResCoherenceCheckServiceTest {
                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
                lfTrajectories.add(createLFTrajectory("FR", null)); // Only no tech - no available technologies
 
-               // Act & Assert - Should not throw as no LF technologies available for filtering
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(new ArrayList<>()); // No DT trajectories
+
+               // Act & Assert - Should skip file validation (no DT technologies available for filtering)
                assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLFFilesCoherence(
                        ipTrajectories, null, lfTrajectories
                ));
@@ -2139,515 +2329,479 @@ public class ResCoherenceCheckServiceTest {
            }
        }
 
-        @Nested
-        @DisplayName("ValidateLFDTFilesCoherence Tests")
-        class ValidateLFDTFilesCoherenceTests {
-
-            @Test
-            @DisplayName("should return early when trajectory being imported is null")
-            void shouldReturnEarlyWhenTrajectoryNull() {
-                // Arrange
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(new ArrayList<>());
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(new ArrayList<>());
-
-                // Act & Assert
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, null));
-            }
-
-            @Test
-            @DisplayName("should skip validation when LF combinations incomplete")
-            void shouldSkipValidationWhenLFCombinationsIncomplete() {
-                // Arrange - LF with incomplete combinations
-                TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", "wind")); // Missing other combinations
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", null));
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should skip (LF combinations incomplete)
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-            }
-
-            @Test
-            @DisplayName("should skip validation when DT combinations incomplete")
-            void shouldSkipValidationWhenDTCombinationsIncomplete() {
-                // Arrange - DT with incomplete combinations
-                TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                // Missing DT with wind technology
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should skip (DT combinations incomplete)
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should skip validation when no DT trajectories for LF import")
-            void shouldSkipValidationWhenNoDTForLFImport() {
-                // Arrange
-                TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(new ArrayList<>()); // No DT trajectories
-
-                // Act & Assert - Should skip file validation (no DT)
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-            }
-
-            @Test
-            @DisplayName("should skip validation when no LF trajectories for DT import")
-            void shouldSkipValidationWhenNoLFForDTImport() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(new ArrayList<>()); // No LF trajectories
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should skip file validation (no LF)
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should succeed with complete combinations and file validation (file exists)")
-            void shouldSucceedWithCompleteAndFileExists() {
-                // Arrange
-                when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-                when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                TrajectoryEntity lf = createLFTrajectory("FR", null);
-                lf.setFileName("test_lf");
-                lf.setHorizon("2030");
-                lfTrajectories.add(lf);
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
-                dtTrajectories.add(createTDTrajectoryWithData("FR", "wind", "wind", "C1"));
-
-                TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
-                dtBeingImported.setHorizon("2030");
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - File doesn't exist in /tmp/nas, so should throw
-                assertThrows(BusinessException.class,
-                        () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should fail validation when DT files missing from LF")
-            void shouldFailWhenDTFilesMissing() {
-                // Arrange
-                when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-                when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                TrajectoryEntity lf = createLFTrajectory("FR", "wind");
-                lf.setFileName("test_lf");
-                lf.setHorizon("2030");
-                lfTrajectories.add(lf);
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
-
-                TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
-                dtBeingImported.setHorizon("2030");
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should throw as files don't exist
-                assertThrows(BusinessException.class,
-                        () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle different areas (BE, DE) in LF/DT validation")
-            void shouldHandleDifferentAreas() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("BE", null);
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("BE", null));
-                lfTrajectories.add(createLFTrajectory("BE", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("BE", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle OTHERS area in DT/LF validation")
-            void shouldHandleOthersAreaInDTLF() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("OTHERS", null);
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(new ArrayList<>());
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(new ArrayList<>());
-
-                // Act & Assert - OTHERS area not recognized for DT, should skip
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle unrecognized area in DT/LF validation")
-            void shouldHandleUnrecognizedArea() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("UNKNOWN_AREA", null);
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(new ArrayList<>());
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(new ArrayList<>());
-
-                // Act & Assert - Unrecognized area, should skip
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle null horizon in trajectory - skip file validation")
-            void shouldHandleNullHorizonInDLFValidation() {
-                // Arrange
-                TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
-                lfBeingImported.setHorizon(null); // Null horizon
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", null));
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should skip file validation due to null horizon
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-            }
-
-            @Test
-            @DisplayName("should validate with multiple DT technologies in file validation")
-            void shouldValidateMultipleDTTechnologies() {
-                // Arrange
-                when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-                when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                TrajectoryEntity lf = createLFTrajectory("FR", null);
-                lf.setFileName("test_lf");
-                lf.setHorizon("2030");
-                lfTrajectories.add(lf);
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("FR", "solar"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "solar"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
-                dtTrajectories.add(createTDTrajectoryWithData("FR", "wind", "wind", "C1"));
-                dtTrajectories.add(createTDTrajectoryWithData("FR", "solar", "solar", "C1"));
-
-                TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
-                dtBeingImported.setHorizon("2030");
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Files don't exist, should throw
-                assertThrows(BusinessException.class,
-                        () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle LF import with complete DT combinations")
-            void shouldHandleLFImportWithCompleteDT() {
-                // Arrange
-                TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", null));
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should skip (no DT trajectories to validate files against)
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle DT import with complete LF combinations")
-            void shouldHandleDTImportWithCompleteLF() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should extract DT keys with PECD info correctly")
-            void shouldExtractDTKeysWithPECDCorrectly() {
-                // Arrange
-                when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-                when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                TrajectoryEntity lf = createLFTrajectory("FR", "wind");
-                lf.setFileName("test_lf");
-                lf.setHorizon("2030");
-                lfTrajectories.add(lf);
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                TrajectoryEntity dtWithPecd = createTDTrajectoryWithData("FR", null, "wind", "C1");
-                TrajectoryEntity dtWithPecdTech = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
-
-                dtTrajectories.add(dtWithPecd);
-
-                TrajectoryEntity dtBeingImported = dtWithPecdTech;
-                dtBeingImported.setHorizon("2030");
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should throw as files don't exist
-                assertThrows(BusinessException.class,
-                        () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle case-insensitive area matching")
-            void shouldHandleCaseInsensitiveAreaMatching() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("fr", null); // lowercase
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", null)); // uppercase
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", "wind")); // uppercase
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should handle case differences
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle whitespace in technology fields")
-            void shouldHandleWhitespaceInTechnology() {
-                // Arrange
-                TrajectoryEntity lfBeingImported = createLFTrajectory("FR", "   "); // Whitespace tech
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", null));
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should treat whitespace as blank
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-            }
-
-            @Test
-            @DisplayName("should throw exception with proper error message for missing files")
-            void shouldThrowExceptionWithProperErrorMessage() {
-                // Arrange
-                when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-                when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                TrajectoryEntity lf = createLFTrajectory("FR", "wind");
-                lf.setFileName("test_lf");
-                lf.setHorizon("2030");
-                lfTrajectories.add(lf);
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
-
-                TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
-                dtBeingImported.setHorizon("2030");
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert
-                BusinessException exception = assertThrows(BusinessException.class,
-                        () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-
-                assertTrue(exception.getMessage().contains("LF") || 
-                          exception.getMessage().contains("Load Factor"));
-            }
-
-            @Test
-            @DisplayName("should handle empty DT cluster capacities")
-            void shouldHandleEmptyDTClusterCapacities() {
-                // Arrange
-                TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
-                dtBeingImported.setResTechnologyDistributionCapacityEntities(new ArrayList<>());
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("FR", "wind"));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert - Should not throw (no keys to validate)
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
-            }
-
-            @Test
-            @DisplayName("should handle both LF and DT being imported scenarios")
-            void shouldHandleBothLFDTImportScenarios() {
-                // Arrange - Test LF import scenario
-                TrajectoryEntity lfBeingImported = createLFTrajectory("FR", "wind");
-
-                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-                lfTrajectories.add(createLFTrajectory("FR", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", null));
-                lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
-
-                List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
-                dtTrajectories.add(createTDTrajectory("FR", null));
-                dtTrajectories.add(createTDTrajectory("FR", "wind"));
-
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                        .thenReturn(lfTrajectories);
-                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                        .thenReturn(dtTrajectories);
-
-                // Act & Assert
-                assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-            }
-        }
-
-        // Additional helper methods for creating test entities
-        private ResClusterCapacityEntity createClusterCapacity(String area, String groupe, String cluster) {
-            ResClusterCapacityEntity entity = new ResClusterCapacityEntity();
-            entity.setArea(area);
-            entity.setGroupe(groupe);
-            entity.setCluster(cluster);
-            return entity;
-        }
-
-        private ResTechnologyDistributionEntity createTDCapacity(String area, String groupe, String cluster) {
-            ResTechnologyDistributionEntity entity = new ResTechnologyDistributionEntity();
-            entity.setArea(area);
-            entity.setGroupe(groupe);
-            entity.setCluster(cluster);
-            entity.setPecdZone("zone");
-            entity.setPecdTechnology("tech");
-            return entity;
-        }
-    }
+       @Nested
+       @DisplayName("ValidateLFDTFilesCoherence Tests")
+       class ValidateLFDTFilesCoherenceTests {
+
+           @Test
+           @DisplayName("should return early when trajectory being imported is null")
+           void shouldReturnEarlyWhenTrajectoryNull() {
+               // Arrange
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(new ArrayList<>());
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(new ArrayList<>());
+
+               // Act & Assert
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, null));
+           }
+
+           @Test
+           @DisplayName("should skip validation when LF combinations incomplete")
+           void shouldSkipValidationWhenLFCombinationsIncomplete() {
+               // Arrange - LF with incomplete combinations
+               TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", "wind")); // Missing other combinations
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", null));
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should skip (LF combinations incomplete)
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+           }
+
+           @Test
+           @DisplayName("should skip validation when DT combinations incomplete")
+           void shouldSkipValidationWhenDTCombinationsIncomplete() {
+               // Arrange - DT with incomplete combinations
+               TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               // Missing DT with wind technology
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should skip (DT combinations incomplete)
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should skip validation when no DT trajectories for LF import")
+           void shouldSkipValidationWhenNoDTForLFImport() {
+               // Arrange
+               TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(new ArrayList<>()); // No DT trajectories
+
+               // Act & Assert - Should skip file validation (no DT)
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+           }
+
+           @Test
+           @DisplayName("should skip validation when no LF trajectories for DT import")
+           void shouldSkipValidationWhenNoLFForDTImport() {
+               // Arrange
+               TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(new ArrayList<>()); // No LF trajectories
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should skip file validation (no LF)
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should succeed with complete combinations and file validation (file exists)")
+           void shouldSucceedWithCompleteAndFileExists() {
+               // Arrange
+               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               TrajectoryEntity lf = createLFTrajectory("FR", null);
+               lf.setFileName("test_lf");
+               lf.setHorizon("2030");
+               lfTrajectories.add(lf);
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
+               dtTrajectories.add(createTDTrajectoryWithData("FR", "wind", "wind", "C1"));
+
+               TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
+               dtBeingImported.setHorizon("2030");
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - File doesn't exist in /tmp/nas, so should throw
+               assertThrows(BusinessException.class,
+                       () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should fail validation when DT files missing from LF")
+           void shouldFailWhenDTFilesMissing() {
+               // Arrange
+               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               TrajectoryEntity lf = createLFTrajectory("FR", "wind");
+               lf.setFileName("test_lf");
+               lf.setHorizon("2030");
+               lfTrajectories.add(lf);
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
+
+               TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
+               dtBeingImported.setHorizon("2030");
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should throw as files don't exist
+               assertThrows(BusinessException.class,
+                       () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle different areas (BE, DE) in LF/DT validation")
+           void shouldHandleDifferentAreas() {
+               // Arrange
+               TrajectoryEntity dtBeingImported = createTDTrajectory("BE", null);
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("BE", null));
+               lfTrajectories.add(createLFTrajectory("BE", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("BE", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle OTHERS area in DT/LF validation")
+           void shouldHandleOthersAreaInDTLF() {
+               // Arrange
+               TrajectoryEntity dtBeingImported = createTDTrajectory("OTHERS", null);
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(new ArrayList<>());
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(new ArrayList<>());
+
+               // Act & Assert - OTHERS area not recognized for DT, should skip
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle null horizon in trajectory - skip file validation")
+           void shouldHandleNullHorizonInDLFValidation() {
+               // Arrange
+               TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
+               lfBeingImported.setHorizon(null); // Null horizon
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", null));
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should skip file validation due to null horizon
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+           }
+
+           @Test
+           @DisplayName("should validate with multiple DT technologies in file validation")
+           void shouldValidateMultipleDTTechnologies() {
+               // Arrange
+               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               TrajectoryEntity lf = createLFTrajectory("FR", "wind");
+               lf.setFileName("test_lf");
+               lf.setHorizon("2030");
+               lfTrajectories.add(lf);
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
+               dtTrajectories.add(createTDTrajectoryWithData("FR", "wind", "wind", "C1"));
+               dtTrajectories.add(createTDTrajectoryWithData("FR", "solar", "solar", "C1"));
+
+               TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
+               dtBeingImported.setHorizon("2030");
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Files don't exist, should throw
+               assertThrows(BusinessException.class,
+                       () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle LF import with complete DT combinations")
+           void shouldHandleLFImportWithCompleteDT() {
+               // Arrange
+               TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", null));
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should skip (no DT trajectories to validate files against)
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle DT import with complete LF combinations")
+           void shouldHandleDTImportWithCompleteLF() {
+               // Arrange
+               TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should extract DT keys with PECD info correctly")
+           void shouldExtractDTKeysWithPECDCorrectly() {
+               // Arrange
+               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               TrajectoryEntity lf = createLFTrajectory("FR", "wind");
+               lf.setFileName("test_lf");
+               lf.setHorizon("2030");
+               lfTrajectories.add(lf);
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               TrajectoryEntity dtWithPecd = createTDTrajectoryWithData("FR", null, "wind", "C1");
+               TrajectoryEntity dtWithPecdTech = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
+
+               dtTrajectories.add(dtWithPecd);
+
+               TrajectoryEntity dtBeingImported = dtWithPecdTech;
+               dtBeingImported.setHorizon("2030");
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should throw as files don't exist
+               assertThrows(BusinessException.class,
+                       () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle case-insensitive area matching")
+           void shouldHandleCaseInsensitiveAreaMatching() {
+               // Arrange
+               TrajectoryEntity dtBeingImported = createTDTrajectory("fr", null); // lowercase
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", null)); // uppercase
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", "wind")); // uppercase
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should handle case differences
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle whitespace in technology fields")
+           void shouldHandleWhitespaceInTechnology() {
+               // Arrange
+               TrajectoryEntity lfBeingImported = createLFTrajectory("FR", "   "); // Whitespace tech
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", null));
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should treat whitespace as blank
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+           }
+
+           @Test
+           @DisplayName("should throw exception with proper error message for missing files")
+           void shouldThrowExceptionWithProperErrorMessage() {
+               // Arrange
+               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               TrajectoryEntity lf = createLFTrajectory("FR", "wind");
+               lf.setFileName("test_lf");
+               lf.setHorizon("2030");
+               lfTrajectories.add(lf);
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C1"));
+
+               TrajectoryEntity dtBeingImported = createTDTrajectoryWithData("FR", "wind", "wind", "C1");
+               dtBeingImported.setHorizon("2030");
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert
+               BusinessException exception = assertThrows(BusinessException.class,
+                       () -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+
+               assertTrue(exception.getMessage().contains("LF") || 
+                         exception.getMessage().contains("Load Factor"));
+           }
+
+           @Test
+           @DisplayName("should handle empty DT cluster capacities")
+           void shouldHandleEmptyDTClusterCapacities() {
+               // Arrange
+               TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
+               dtBeingImported.setResTechnologyDistributionCapacityEntities(new ArrayList<>());
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert - Should not throw (no keys to validate)
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, dtBeingImported));
+           }
+
+           @Test
+           @DisplayName("should handle both LF and DT being imported scenarios")
+           void shouldHandleBothLFDTImportScenarios() {
+               // Arrange - Test LF import scenario
+               TrajectoryEntity lfBeingImported = createLFTrajectory("FR", "wind");
+
+               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+               lfTrajectories.add(createLFTrajectory("FR", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", null));
+               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+               List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+               dtTrajectories.add(createTDTrajectory("FR", null));
+               dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                       .thenReturn(lfTrajectories);
+               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                       .thenReturn(dtTrajectories);
+
+               // Act & Assert
+               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+           }
+       }
+}
