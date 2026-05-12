@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 @Getter
 public enum LinksColumns {
@@ -39,29 +40,35 @@ public enum LinksColumns {
     public static List<String> getNumericColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.startsWith("Summer") || name.startsWith("Winter")
-                        || name.startsWith("HVDC_MW") || name.startsWith("HVDC_nb") || name.startsWith("HVDC_FO_Rate"))
+                .filter(name -> {
+                    String lowerName = name.toLowerCase(Locale.ROOT);
+                    return lowerName.startsWith("summer") || lowerName.startsWith("winter")
+                            || lowerName.startsWith("hvdc_mw") || lowerName.startsWith("hvdc_nb") || lowerName.startsWith("hvdc_fo_rate");
+                })
                 .toList();
     }
 
     public static List<String> getBooleanColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.equals("Flowbased_perimeter"))
+                .filter(name -> name.equalsIgnoreCase("Flowbased_perimeter"))
                 .toList();
     }
 
     public static List<String> getDirectColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.contains("Direct"))
+                .filter(name -> {
+                    String lowerName = name.toLowerCase(Locale.ROOT);
+                    return lowerName.contains("direct") && !lowerName.contains("indirect");
+                })
                 .toList();
     }
 
     public static List<String> getIndirectColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.contains("Indirect"))
+                .filter(name -> name.toLowerCase(Locale.ROOT).contains("indirect"))
                 .toList();
     }
 
