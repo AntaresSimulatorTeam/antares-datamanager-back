@@ -142,6 +142,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
             resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+            resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
 
             return trajectoryRepository.save(trajectory);
         } else {
@@ -155,6 +156,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
             resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+            resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
 
             return trajectoryRepository.save(trajectory);
         }
@@ -229,6 +231,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
           
           // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
           resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+          resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
           
           // Sauvegarder uniquement si validation OK
           return trajectoryRepository.save(trajectory);
