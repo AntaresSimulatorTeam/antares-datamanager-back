@@ -556,7 +556,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryType, trajectoryToUse, requiredColumns.length, isCivilYear);
 
-            ResRowProcessingContext context = new ResRowProcessingContext(studyAreas, areaParam, yearColIndex, trajectoryToUse, technology, trajectoryType);
+            ResRowProcessingContext context = ResRowProcessingContext.builder().studyAreas(studyAreas).areaParam(areaParam).yearColIndex(yearColIndex).trajectoryToUse(trajectoryToUse).technology(technology).trajectoryType(trajectoryType).build();
 
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
