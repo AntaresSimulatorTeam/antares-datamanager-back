@@ -173,8 +173,8 @@ class LinkFileProcessorServiceImplTest {
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
                 List.of(
-                        List.of("CH-IT", 0, 15, 0, 20, 0, 30, 0, 50, "TRUE", 0, 10, 1, 1, 1, 1),
-                        List.of("CH-FR", 10, 0, 30, 0, 50, 0, 70, 0, "TRUE", 10, 0, 1, 1, 1, 1),
+                        List.of("CH-IT", 0, 15, 0, 20, 0, 30, 0, 50, "TRUE", 0, 10, 0, 1, 0, 1),
+                        List.of("CH-FR", 10, 0, 30, 0, 50, 0, 70, 0, "TRUE", 10, 0, 1, 0, 1, 0),
                         List.of("FR-GE", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", 10, 10, 1, 1, 1, 1)
                 )
                 ));
@@ -441,9 +441,9 @@ class LinkFileProcessorServiceImplTest {
                 List.of(
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
                         List.of(
-                                List.of("CH-FR", 0, 50, 0, 30, 0, 10, 0, 90, "TRUE", 0, 10, 1, 1, 1, 1),
-                                List.of("FR-IT", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 1, 1, 1),
-                                List.of("FR-GE", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 1, 1, 1)
+                                List.of("CH-FR", 0, 50, 0, 30, 0, 10, 0, 90, "TRUE", 0, 10, 0, 1, 0, 1),
+                                List.of("FR-IT", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 0, 1, 0),
+                                List.of("FR-GE", 10, 0, 30, 0, 50, 0, 80, 0, "TRUE", 10, 0, 1, 0, 1, 0)
                         )
                 ));
 
