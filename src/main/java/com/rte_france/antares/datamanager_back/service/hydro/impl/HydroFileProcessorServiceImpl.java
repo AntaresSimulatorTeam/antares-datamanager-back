@@ -67,7 +67,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String INTER_DAILY_MODULATION_COLUMN = "intra.daily.modulation";
     protected static final String INTER_MONTHLY_BREAKDOWN_COLUMN = "inter.monthly.breakdown";
     protected static final String INITIALIZE_RESERVOIR_DATE_COLUMN = "initialize.reservoir.date";
-    protected static final String PUMPING_EFFICIENCY_COLUMN = "initialize.reservoir.date";
+    protected static final String PUMPING_EFFICIENCY_COLUMN = "pumping.efficiency";
     protected static final String RESERVOIR_COLUMN = "reservoir";
     protected static final String RESERVOIR_CAPACITY_COLUMN = "reservoir.capacity";
     protected static final String FOLLOW_LOAD_COLUMN = "follow.load";
@@ -254,7 +254,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                         : HYDRO_TECHNICAL_PREFIX_PARAMETERS;
 
                 Path match = allFiles.stream()
-                        .filter(p -> p.getFileName().toString().startsWith(prefix))
+                        .filter(p -> p.getFileName().toString().startsWith(prefix+trajectoryFilePath.getFileName().toString()))
                         .findFirst()
                         .orElse(null);
 
