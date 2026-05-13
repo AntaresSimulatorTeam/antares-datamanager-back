@@ -107,4 +107,71 @@ class HydroControllerTest {
 
         verifyNoInteractions(hydroFileProcessorService);
     }
+
+    @Test
+    void uploadTechnicalParametersHydroTrajectory_returns201_andCallsService() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(123);
+        entity.setFileName(TRAJ);
+        entity.setType("HYDRO_TECHNICAL_PARAMETERS");
+        entity.setVersion(1);
+        entity.setArea(AREA_FR);
+        entity.setHasTimeSeries(false);
+
+        when(hydroFileProcessorService.processHydroTechnicalParametersFile(
+                TRAJ,
+                HORIZON,
+                1,
+                AREA_FR,
+                false
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-technical-parameters")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("area", AREA_FR)
+                        .param("trajectoryToUse", TRAJ)
+                        .param("horizon", HORIZON)
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false"))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(123))
+                .andExpect(jsonPath("$.trajectoryName").value(TRAJ))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.area").value(AREA_FR));
+
+        verify(hydroFileProcessorService, times(1))
+                .processHydroTechnicalParametersFile(TRAJ, HORIZON, 1, AREA_FR, false);
+        verifyNoMoreInteractions(hydroFileProcessorService);
+    }
+
+    @Test
+    void uploadTechnicalParametersHydroTrajectory_whenTrajectoryNameTooLong_returns400_andDoesNotCallService() throws Exception {
+        String tooLong = "x".repeat(41);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-technical-parameters")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("area", AREA_FR)
+                        .param("trajectoryToUse", tooLong)
+                        .param("horizon", HORIZON)
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroFileProcessorService);
+    }
+
+    @Test
+    void uploadTechnicalParametersHydroTrajectory_whenHorizonInvalid_returns400_andDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/hydro-technical-parameters")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("area", AREA_FR)
+                        .param("trajectoryToUse", TRAJ)
+                        .param("horizon", "2030")
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroFileProcessorService);
+    }
 }
