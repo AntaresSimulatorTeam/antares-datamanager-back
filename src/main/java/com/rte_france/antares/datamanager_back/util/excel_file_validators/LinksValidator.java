@@ -36,6 +36,7 @@ public class LinksValidator {
             if (fileType == ExcelFileType.LINKS) {
                 checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), horizon, true, TrajectoryType.LINK.name());
                 checkColumnsRules(sheet, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
+                checkBooleanInParametersSheet(workbook, horizon, 2, "HVDC");
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -336,5 +337,36 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
         return parametersForWarnings;
     }
 
+    private static void checkBooleanInParametersSheet(Workbook workbook, String horizon, int rowIndex, String parameterName) {
+        Sheet parametersSheet = workbook.getSheet("parameters"); // already valdiated
+
+        Row headerRow = parametersSheet.getRow(0);
+        if (headerRow == null) {
+            return;
+        }
+
+        int horizonIndex = -1;
+        for (Cell cell : headerRow) {
+            if (cell.getCellType() == CellType.STRING && horizon.equals(cell.getStringCellValue().trim())) {
+                horizonIndex = cell.getColumnIndex();
+                break;
+            }
+        }
+
+        if (horizonIndex != -1) {
+            Row paramRow = parametersSheet.getRow(rowIndex);
+            if (paramRow != null) {
+                Cell paramCell = paramRow.getCell(horizonIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+
+                if (!ExcelCommonValidator.isValidBoolean(paramCell)) {
+                    throw BusinessException.builder()
+                            .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
+                            .errorMessageArguments(List.of(parameterName, TrajectoryType.LINK.name()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+        }
+    }
 
 }

@@ -30,115 +30,131 @@ class LinksValidatorTest {
 
     @Test
     void testCheckForIdenticalDuplicateLinks() throws IOException {
-
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
                 List.of(
-                        List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("Area1-Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, "TRUE", 50.0, 25.0, 2, 1, 1, 1),
+                        List.of("Area1-Area2", 110, 210, 160, 185, 310, 410, 260, 285, "TRUE", 75.0, 30.0, 1, 1, 1, 1)
                 )
         );
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2030-2031"));
         assertAll(
-                () -> assertEquals("Duplicate value for {0}(s): {1} for {2} trajectory",
-                        exception.getMessage()),
-                () -> assertIterableEquals(
-                        Arrays.asList("link", "Area1-Area2", TrajectoryType.LINK.name()),
-                        exception.getErrorMessageArguments()),
-
+                () -> assertEquals("Duplicate value for {0}(s): {1} for {2} trajectory", exception.getMessage()),
+                () -> assertIterableEquals(Arrays.asList("link", "Area1-Area2", TrajectoryType.LINK.name()), exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
-
         );
     }
 
     @Test
     void testCheckForSymmetricDuplicateLinks() throws IOException {
-
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
                 List.of(
-                        List.of("Area3-Area4", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95),
-                        List.of("Area4-Area3", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("Area3-Area4", 110, 210, 160, 185, 310, 410, 260, 285, "TRUE", 65.0, 80.0, 2, 1, 1, 1),
+                        List.of("Area4-Area3", 110, 210, 160, 185, 310, 410, 260, 285, "TRUE", 65.0, 80.0, 2, 1, 1, 1)
                 )
         );
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2030-2031"));
         assertAll(
-                () -> assertEquals("Duplicate value in column 'Name' for horizon {0} in {1} trajectory. Values: {2} are considered identical",
-                        exception.getMessage()),
-                () -> assertIterableEquals(
-                        Arrays.asList("2030-2031", TrajectoryType.LINK.name(), "Area3-Area4, Area4-Area3"),
-                        exception.getErrorMessageArguments()),
-
+                () -> assertEquals("Duplicate value in column 'Name' for horizon {0} in {1} trajectory. Values: {2} are considered identical", exception.getMessage()),
+                () -> assertIterableEquals(Arrays.asList("2030-2031", TrajectoryType.LINK.name(), "Area3-Area4, Area4-Area3"), exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
-
         );
     }
+
     @Test
     void testCheckForInvalidColumnsNames() throws IOException {
-
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
                 List.of("name", "winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
-                        "Winter_HC_Direct_MW", "Winter_nb_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_nb_Indirect_MW", // Invalid column name injected here
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "rosa_Direct_MW", "Summer_hc_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC", "Specific_TS", "Forced_Outage_HVAC"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
                 List.of(
-                        List.of("Area1/Area2", 100, 200, 150, 175, 300, 400, 250, 275, 500, 60, 75, 90),
-                        List.of("Area1/Area2", 110, 210, 160, 185, 310, 410, 260, 285, 510, 65, 80, 95)
+                        List.of("Area1/Area2", 100, 200, 150, 175, 300, 400, 250, 275, "TRUE", 50.0, 25.0, 2, 1, 1, 1)
                 )
         );
 
-        BusinessException exception =assertThrows(BusinessException.class, () ->
+        BusinessException exception = assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2030-2031", TrajectoryType.LINK.name()));
 
         Assertions.assertTrue(exception.getMessage().contains("Invalid column"));
     }
-
     @Test
     void testLinksFileIsOK() throws IOException {
+        String horizon = "2035-2036";
+        List<String> sheetNames = List.of(horizon, "parameters");
 
-        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2035-2036",
+        List<List<String>> headers = List.of(
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                List.of("Parameter", horizon)
+        );
+
+        List<List<List<?>>> rows = List.of(
                 List.of(
                         List.of("AT/FR", 100, 200, 5, 150, 175, 300, 400, 250, false, 50.0, 25.0, 2, 1, 1, 1),
                         List.of("BE/GE", 110, 210, 160, 185, 310, 410, 260, 285, true, 75.0, 30.0, 1, 1, 1, 1)
+                ),
+                List.of(
+                        List.of("hurdle_cost", 10.5),
+                        List.of("HVDC", false)
                 )
         );
-        ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036", TrajectoryType.LINK.name());
-        LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2035-2036");
-        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036",TrajectoryType.LINK.name()));
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(tempDir, "TestFile.xlsx", sheetNames, headers, rows);
+
+        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, horizon, TrajectoryType.LINK.name()));
+        assertDoesNotThrow(() -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, horizon));
     }
 
     @Test
     void testLinksFileIsOKWithTrueAndFalseAsStrings() throws IOException {
+        String horizon = "2035-2036";
+        List<String> sheetNames = List.of(horizon, "parameters");
 
-        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2035-2036",
+        List<List<String>> headers = List.of(
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
-                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                List.of("Parameter", horizon)
+        );
+
+        List<List<List<?>>> rows = List.of(
                 List.of(
                         List.of("AT-FR", 100, 200, 5, 150, 175, 300, 400, 250, "TRUE", 50.0, 25.0, 2, 1, 1, 1),
                         List.of("BE-GE", 110, 210, 160, 185, 310, 410, 260, 285, "true", 75.0, 30.0, 1, 1, 1, 1)
+                ),
+                List.of(
+                        List.of("hurdle_cost", 10.5),
+                        List.of("HVDC", "FALSE")
                 )
         );
-        LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2035-2036");
-        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2035-2036", TrajectoryType.LINK.name()));
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(tempDir, "TestFile.xlsx", sheetNames, headers, rows);
+
+        assertDoesNotThrow(() -> ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, horizon, TrajectoryType.LINK.name()));
+        assertDoesNotThrow(() -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, horizon));
     }
 
 
@@ -368,4 +384,49 @@ class LinksValidatorTest {
 
     }
 
+    @Test
+    void shouldFailWhenHvdcInParametersSheetIsInvalid() throws IOException {
+        String horizon = "2030-2031";
+
+        List<String> sheetNames = List.of(horizon, "parameters");
+
+        List<List<String>> headers = List.of(
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                // Headers for the parameters sheet (Row 0)
+                List.of("Parameter", horizon)
+        );
+
+        List<List<List<?>>> rows = List.of(
+                List.of(
+                        List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, "TRUE", 50.0, 25.0, 2, 1, 1, 1)
+                ),
+                // Data for the parameters sheet (Starting at Row 1)
+                List.of(
+                        List.of("hurdle_cost", 10.5),           // Row 1
+                        List.of("HVDC", "NotABoolean")          // Row 2
+                )
+        );
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "InvalidHvdc.xlsx",
+                sheetNames,
+                headers,
+                rows
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, horizon));
+
+        assertAll(
+                () -> assertEquals("Waiting for boolean value(s) in column(s) {0} in {1} trajectory", exception.getMessage()),
+                () -> assertIterableEquals(List.of("HVDC", TrajectoryType.LINK.name()), exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+    }
 }

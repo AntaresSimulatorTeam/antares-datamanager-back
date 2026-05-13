@@ -291,7 +291,7 @@ public class ExcelCommonValidator {
     }
 
 
-    private static boolean isValidBoolean(Cell cell) {
+    public static boolean isValidBoolean(Cell cell) {
         if (isInvalidOrUndefinedCell(cell)) return true;
         var value = getBooleanCellValue(cell);
         return value.isPresent();
