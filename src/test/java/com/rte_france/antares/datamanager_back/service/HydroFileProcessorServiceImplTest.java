@@ -23,6 +23,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
+import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -119,6 +120,81 @@ class HydroFileProcessorServiceImplTest {
         TrajectoryEntity result = service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false);
 
         assertNotNull(result);
+        assertEquals(5, result.getHydroSeriesEntities().size());
+    }
+
+    @Test
+    void shouldProcessHydroSeriesTrajectorySuccessfully_whenAreaIsOthers() throws Exception {
+        Path base = tempDir.resolve("hydro_others");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj);
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_MAX_POWER, "2029-2030", List.of("areas", "AT", "BE", "FR"),
+                List.of(
+                        List.of(2345, 2345, 2345, 2345)
+                ));
+        Path inflowDir = traj.resolve("inflows");
+        Files.createDirectories(inflowDir);
+        Path mingenDir = traj.resolve("mingen");
+        Files.createDirectories(mingenDir);
+        Path reservoirLevels = traj.resolve("reservoir_levels");
+        Files.createDirectories(reservoirLevels);
+
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_MOD);
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_ROR);
+        CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
+        CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
+
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+                .thenReturn(base);
+        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+
+        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
+
+        TrajectoryEntity result = service.processHydroSeriesFile(TRAJ, HORIZON, 1, OTHERS_AREA, false);
+
+        assertNotNull(result);
+        assertEquals(5, result.getHydroSeriesEntities().size());
+    }
+
+    @Test
+    void shouldExcludeSeriesFilesForAreasNotInStudyAreas_whenAreaIsOthers() throws Exception {
+        Path base = tempDir.resolve("hydro_others_exclude");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj);
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_MAX_POWER, "2029-2030", List.of("areas", "AT", "BE", "FR"),
+                List.of(
+                        List.of(2345, 2345, 2345, 2345)
+                ));
+        Path inflowDir = traj.resolve("inflows");
+        Files.createDirectories(inflowDir);
+        Path mingenDir = traj.resolve("mingen");
+        Files.createDirectories(mingenDir);
+        Path reservoirLevels = traj.resolve("reservoir_levels");
+        Files.createDirectories(reservoirLevels);
+
+        // FR est dans studyAreas → inclus ; DE n'est pas dans studyAreas → exclu
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_MOD);
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_ROR);
+        CreateExcelTestUtil.createMockCsvFile(inflowDir, "mod_DE_2029-2030.csv");
+        CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
+        CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
+
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+                .thenReturn(base);
+        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+
+        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
+
+        TrajectoryEntity result = service.processHydroSeriesFile(TRAJ, HORIZON, 1, OTHERS_AREA, false);
+
+        assertNotNull(result);
+        // 1 maxpower + 4 series FR (mod_DE exclu car DE pas dans studyAreas)
         assertEquals(5, result.getHydroSeriesEntities().size());
     }
 

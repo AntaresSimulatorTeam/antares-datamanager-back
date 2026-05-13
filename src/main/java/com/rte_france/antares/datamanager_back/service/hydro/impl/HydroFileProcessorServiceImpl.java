@@ -101,11 +101,11 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 areaParam,
                 null
         );
-
+        List<String> studyAreas = loadStudyAreas(studyId);
         List<HydroSeriesEntity> entities = new ArrayList<>();
         
-        processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyId, entities);
-        processRequiredSeries(trajectoryFilePath, horizon, areaParam, entities);
+        processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, entities);
+        processRequiredSeries(trajectoryFilePath, horizon, areaParam, entities, studyAreas);
         trajectory.setHydroSeriesEntities(entities);
         entities.forEach(entity -> entity.setTrajectory(trajectory));
         return trajectoryRepository.save(trajectory);
@@ -191,14 +191,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String trajectoryToUse,
             String horizon,
             String areaParam,
-            Integer studyId,
+            List<String> studyAreas,
             List<HydroSeriesEntity> entities
     ) throws IOException {
 
         Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath);
 
         if (fileMaxPowerPath != null) {
-            List<String> studyAreas = loadStudyAreas(studyId);
             validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, TrajectoryType.HYDRO_SERIES);
 
             entities.add(buildHydroSeriesEntity(fileMaxPowerPath.getFileName().toString(), null));
@@ -284,7 +283,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Path trajectoryFilePath,
             String horizon,
             String areaParam,
-            List<HydroSeriesEntity> entities
+            List<HydroSeriesEntity> entities,
+            List<String> studyAreas
     ) throws IOException, BusinessException {
 
         Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
@@ -300,7 +300,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 continue;
             }
             
-            List<Path> files = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config);
+            List<Path> files = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config, studyAreas);
             if (files.isEmpty()) {
                 continue;
             }
@@ -319,19 +319,20 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Path realPath,
             String horizon,
             String areaParam,
-            SeriesConfig config
+            SeriesConfig config,
+            List<String> studyAreas
     ) throws IOException {
 
         try (Stream<Path> stream = Files.walk(realPath, 1)) {
             return stream
                     .filter(Files::isRegularFile)
-                    .filter(p -> isValidSeriesFile(p.getFileName().toString(), horizon, areaParam, config.prefixes()))
+                    .filter(p -> isValidSeriesFile(p.getFileName().toString(), horizon, areaParam, config.prefixes(), studyAreas))
                     .sorted()
                     .toList();
         }
     }
 
-    private boolean isValidSeriesFile(String name, String horizon, String areaParam, List<String> prefixes) {
+    private boolean isValidSeriesFile(String name, String horizon, String areaParam, List<String> prefixes, List<String> studyAreas) {
         if (!name.matches("^[^_]+(?:_[^_]+){1,2}_\\d+-\\d+\\.csv$")) {
             return false;
         }
@@ -343,8 +344,12 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String area = parts[parts.length - 2];
         String prefix = String.join("_", Arrays.copyOf(parts, parts.length - 2));
 
+        boolean areaMatches = Objects.equals(areaParam, OTHERS_AREA)
+                ? studyAreas.contains(area)
+                : areaParam.equals(area);
+
         return prefixes.contains(prefix)
-                && areaParam.equals(area)
+                && areaMatches
                 && horizon.equals(horizonFile);
     }
 
