@@ -34,10 +34,15 @@ public class ExcelCommonValidator {
      * @param horizon  sheet name to be read
      */
     public static void checkIfColumnsAreValid(Path path, ExcelFileType fileType, String horizon, String trajectoryType) {
+        checkIfColumnsAreValid(path, fileType, horizon, trajectoryType, List.of());
+    }
+
+    public static void checkIfColumnsAreValid(Path path, ExcelFileType fileType, String horizon, String trajectoryType, List<String> requiredSheets) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = getSheet(workbook, path, horizon);
+            requiredSheets.forEach(requiredSheet -> getSheet(workbook, path, requiredSheet));
             Row headerRow = getHeaderRow(sheet, path);
 
             List<String> actualColumns = extractActualColumns(headerRow);
@@ -286,7 +291,7 @@ public class ExcelCommonValidator {
     }
 
 
-    private static boolean isValidBoolean(Cell cell) {
+    public static boolean isValidBoolean(Cell cell) {
         if (isInvalidOrUndefinedCell(cell)) return true;
         var value = getBooleanCellValue(cell);
         return value.isPresent();

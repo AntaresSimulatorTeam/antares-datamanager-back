@@ -8,7 +8,7 @@ import java.util.*;
 @Getter
 public enum ExcelFileType {
     AREAS(9, AreaColumns.class),
-    LINKS(13, LinksColumns.class);
+    LINKS(16, LinksColumns.class);
 
     private final int columnCount;
     private final List<String> columnNames;

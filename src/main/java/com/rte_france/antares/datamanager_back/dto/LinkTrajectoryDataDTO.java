@@ -21,8 +21,12 @@ public class LinkTrajectoryDataDTO implements TrajectoryDataDTO{
     private Double summerHcDirectMw;
     private Double summerHcIndirectMw;
     private String flowbasedPerimeter;
+    private Double hvdcMwDirect;
+    private Double hvdcMwIndirect;
+    private Double hvdcNbDirect;
+    private Double hvdcNbIndirect;
+    private Double hvdcfoRateDirect;
+    private Double hvdcfoRateIndirect;
     private String hvdc;
-    private String specificTs;
-    private String forcedOutageHvac;
     private Double hurdleCost;
 }
