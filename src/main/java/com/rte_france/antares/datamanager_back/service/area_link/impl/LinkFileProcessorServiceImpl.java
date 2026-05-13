@@ -218,8 +218,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .hvdcMwIndirect(row.getCell(11).getNumericCellValue())
                             .hvdcNbDirect(row.getCell(12).getNumericCellValue())
                             .hvdcNbIndirect(row.getCell(13).getNumericCellValue())
-                            .hvdcfoRateDirect(row.getCell(14).getNumericCellValue())
-                            .hvdcfoRateIndirect(row.getCell(15).getNumericCellValue())
+                            .hvdcFoRateDirect(row.getCell(14).getNumericCellValue())
+                            .hvdcFoRateIndirect(row.getCell(15).getNumericCellValue())
                             .hurdleCost(hurdleCost)
                             .hvdc(hvdc)
                             .build();
