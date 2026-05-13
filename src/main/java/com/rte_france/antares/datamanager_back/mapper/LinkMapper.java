@@ -30,8 +30,8 @@ public class LinkMapper {
                 .hvdcMwIndirect(linkEntity.getHvdcMwIndirect())
                 .hvdcNbDirect(linkEntity.getHvdcNbDirect())
                 .hvdcNbIndirect(linkEntity.getHvdcNbIndirect())
-                .hvdcfoRateDirect(linkEntity.getHvdcFoRateDirect())
-                .hvdcfoRateIndirect(linkEntity.getHvdcFoRateIndirect())
+                .hvdcFoRateDirect(linkEntity.getHvdcFoRateDirect())
+                .hvdcFoRateIndirect(linkEntity.getHvdcFoRateIndirect())
                 .hvdc(String.valueOf(linkEntity.getHvdc()))
                 .hurdleCost(linkEntity.getHurdleCost())
                 .build();
