@@ -44,8 +44,8 @@ class HydroFileProcessorServiceImplTest {
     private static final String FILE_NAME_ROR = "ror_FR_2029-2030.csv";
     private static final String FILE_NAME_MINGEN = "mingen_FR_2029-2030.csv";
     private static final String FILE_NAME_RESERVOIR_LEVELS = "reservoir_levels_FR_2029-2030.csv";
-    private static final String FILE_NAME_ALLOCATION = "hydroAllocation_FR_2029-2030.xlsx";
-    private static final String FILE_NAME_PARAMETERS = "hydroParameters_FR_2029-2030.xlsx";
+    private static final String FILE_NAME_ALLOCATION = "hydroAllocation_BP_23.xlsx";
+    private static final String FILE_NAME_PARAMETERS = "hydroParameters_BP_23.xlsx";
 
     @InjectMocks
     private HydroFileProcessorServiceImpl service;
@@ -360,7 +360,7 @@ class HydroFileProcessorServiceImplTest {
 
         CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_PARAMETERS, HORIZON,
                 List.of("node", "inter.daily.breakdown", "intra.daily.modulation", "inter.monthly.breakdown",
-                        "initialize.reservoir.date", "initialize.reservoir.date",
+                        "initialize.reservoir.date", "pumping.efficiency",
                         "reservoir", "reservoir.capacity", "follow.load", "use.water"),
                 List.of(List.of("FR", 1, 1, 1, 1, 1, true, 1000, false, true)));
 
@@ -466,7 +466,7 @@ class HydroFileProcessorServiceImplTest {
         Files.createDirectories(dir);
         Path filePath = CreateExcelTestUtil.createExcelFile(dir, "hydroParameters_test.xlsx", HORIZON,
                 List.of("node", "inter.daily.breakdown", "intra.daily.modulation", "inter.monthly.breakdown",
-                        "initialize.reservoir.date", "initialize.reservoir.date",
+                        "initialize.reservoir.date", "pumping.efficiency",
                         "reservoir", "reservoir.capacity", "follow.load", "use.water"),
                 List.of(List.of("FR", 2, 3, 4, 5, 6, true, 1000, false, true)));
 

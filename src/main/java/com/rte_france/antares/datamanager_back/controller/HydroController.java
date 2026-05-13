@@ -40,7 +40,7 @@ public class HydroController {
         return new ResponseEntity<>(toTrajectoryDTO(hydroFileProcessorService.processHydroSeriesFile(trajectoryToUse, horizon, studyId, area, isCivilYear)), HttpStatus.CREATED);
     }
 
-    @Operation(summary = "import HYDRO series trajectory to database ")
+    @Operation(summary = "import HYDRO technical parameters trajectory to database ")
     @PostMapping("/hydro-technical-parameters")
     public ResponseEntity<TrajectoryDTO> uploadTechnicalParametersHydroTrajectory(
             @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
