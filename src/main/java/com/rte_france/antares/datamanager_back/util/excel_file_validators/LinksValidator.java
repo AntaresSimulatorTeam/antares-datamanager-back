@@ -36,6 +36,7 @@ public class LinksValidator {
             if (fileType == ExcelFileType.LINKS) {
                 checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), horizon, true, TrajectoryType.LINK.name());
                 checkColumnsRules(sheet, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
+                checkBooleanInParametersSheet(workbook, horizon, 2, "HVDC");
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -48,29 +49,28 @@ public class LinksValidator {
     }
 
     private static void checkColumnsRules(Sheet sheet, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
-        checkNumbersAreIntegers(sheet, horizon, numericColumns);
+        checkNumericColumns(sheet, horizon, numericColumns);
         checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
-        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.LINK.name()));
+        stringColumns.forEach(column -> checkStringColumns(sheet, horizon, column, TrajectoryType.LINK.name()));
     }
 
     /**
      * @param sheet          to be read in Excel file
      * @param horizon        to make error clearer
-     * @param numericColumns numeric columns must be integers and positive values
+     * @param numericColumns numeric columns must be numeric and positive values
      */
-    private static void checkNumbersAreIntegers(Sheet sheet, String horizon, List<String> numericColumns) {
+    private static void checkNumericColumns(Sheet sheet, String horizon, List<String> numericColumns) {
         int nameColumnIndex = findColumnIndex(sheet, "Name", horizon, TrajectoryType.LINK.name());
 
         Map<String, Set<String>> notNumericByColumn = new HashMap<>();
-        Map<String, Set<String>> notIntegerByColumn = new HashMap<>();
         Map<String, Set<String>> negativeValuesByColumn = new HashMap<>();
 
         for (String columnName : numericColumns) {
             int columnIndex = findColumnIndex(sheet, columnName, horizon, TrajectoryType.LINK.name());
-            processColumn(sheet, nameColumnIndex, columnIndex, columnName, notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
+            processColumn(sheet, nameColumnIndex, columnIndex, columnName, notNumericByColumn, negativeValuesByColumn);
         }
 
-        handleErrors(notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
+        handleErrors(notNumericByColumn, negativeValuesByColumn);
     }
 
 /**
@@ -79,35 +79,32 @@ public class LinksValidator {
   * @param columnIndex Index of the column to validate
   * @param columnName Name of the column to validate
   * @param notNumericByColumn Map to store links with non-numeric values by column
-  * @param notIntegerByColumn Map to store links with non-integer values by column
   * @param negativeValuesByColumn Map to store links with negative values by column
- **/
+  **/
 
 private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIndex, String columnName,
-                                  Map<String, Set<String>> notNumericByColumn,
-                                  Map<String, Set<String>> notIntegerByColumn,
-                                  Map<String, Set<String>> negativeValuesByColumn) {
-    Set<String> notNumericLinks = new LinkedHashSet<>();
-    Set<String> notIntegerLinks = new LinkedHashSet<>();
-    Set<String> negativeLinks = new LinkedHashSet<>();
+                                   Map<String, Set<String>> notNumericByColumn,
+                                   Map<String, Set<String>> negativeValuesByColumn) {
+     Set<String> notNumericLinks = new LinkedHashSet<>();
+     Set<String> negativeLinks = new LinkedHashSet<>();
 
-    int lastRowNum = sheet.getLastRowNum();
+     int lastRowNum = sheet.getLastRowNum();
 
-    for (int rowIndex = 1; rowIndex <= lastRowNum; rowIndex++) {
-        Row row = sheet.getRow(rowIndex);
-        if (row == null) continue;
+     for (int rowIndex = 1; rowIndex <= lastRowNum; rowIndex++) {
+         Row row = sheet.getRow(rowIndex);
+         if (row == null) continue;
 
-        Cell nameCell = row.getCell(nameColumnIndex);
-        if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
-            String linkName = nameCell.getStringCellValue().trim();
-            if (!linkName.isEmpty()) {
-                processValueCell(row.getCell(columnIndex), linkName, notNumericLinks, notIntegerLinks, negativeLinks);
-            }
-        }
-    }
+         Cell nameCell = row.getCell(nameColumnIndex);
+         if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
+             String linkName = nameCell.getStringCellValue().trim();
+             if (!linkName.isEmpty()) {
+                 processValueCell(row.getCell(columnIndex), linkName, notNumericLinks, negativeLinks);
+             }
+         }
+     }
 
-    addNonEmptyResults(columnName, notNumericLinks, notIntegerLinks, negativeLinks,
-            notNumericByColumn, notIntegerByColumn, negativeValuesByColumn);
+     addNonEmptyResults(columnName, notNumericLinks, negativeLinks,
+             notNumericByColumn, negativeValuesByColumn);
 }
     /**
      * Processes a value cell and checks its compliance with validation rules.
@@ -117,12 +114,11 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
      * @param valueCell The cell to check
      * @param linkName The name of the link associated with the cell
      * @param notNumericLinks Set of links with non-numeric values
-     * @param notIntegerLinks Set of links with non-integer values
      * @param negativeLinks Set of links with negative values
      */
 
     private static void processValueCell(Cell valueCell, String linkName,
-                                         Set<String> notNumericLinks, Set<String> notIntegerLinks, Set<String> negativeLinks) {
+                                         Set<String> notNumericLinks, Set<String> negativeLinks) {
         if (valueCell == null) {
             notNumericLinks.add(linkName);
             return;
@@ -132,12 +128,12 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
             String stringValue = valueCell.getStringCellValue().trim();
             try {
                 double value = Double.parseDouble(stringValue.replace(",", "."));
-                checkNumericValue(value, linkName, notIntegerLinks, negativeLinks);
+                checkNumericValue(value, linkName, negativeLinks);
             } catch (NumberFormatException e) {
                 notNumericLinks.add(linkName);
             }
         } else if (valueCell.getCellType() == CellType.NUMERIC) {
-            checkNumericValue(valueCell.getNumericCellValue(), linkName, notIntegerLinks, negativeLinks);
+            checkNumericValue(valueCell.getNumericCellValue(), linkName, negativeLinks);
         } else {
             notNumericLinks.add(linkName);
         }
@@ -148,23 +144,17 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
      *
      * @param columnName Name of the processed column
      * @param notNumericLinks Set of links with non-numeric values
-     * @param notIntegerLinks Set of links with non-integer values
      * @param negativeLinks Set of links with negative values
      * @param notNumericByColumn Destination map for non-numeric errors
-     * @param notIntegerByColumn Destination map for non-integer errors
      * @param negativeValuesByColumn Destination map for negative value errors
      */
 
     private static void addNonEmptyResults(String columnName,
-                                           Set<String> notNumericLinks, Set<String> notIntegerLinks, Set<String> negativeLinks,
+                                           Set<String> notNumericLinks, Set<String> negativeLinks,
                                            Map<String, Set<String>> notNumericByColumn,
-                                           Map<String, Set<String>> notIntegerByColumn,
                                            Map<String, Set<String>> negativeValuesByColumn) {
         if (!notNumericLinks.isEmpty()) {
             notNumericByColumn.put(columnName, notNumericLinks);
-        }
-        if (!notIntegerLinks.isEmpty()) {
-            notIntegerByColumn.put(columnName, notIntegerLinks);
         }
         if (!negativeLinks.isEmpty()) {
             negativeValuesByColumn.put(columnName, negativeLinks);
@@ -172,32 +162,24 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
     }
     /**
      * Checks if a numeric value complies with validation rules.
-     * A value must be positive and integer.
+     * A value must be positive.
      *
      * @param value The numeric value to check
      * @param linkName The name of the link associated with the value
-     * @param notIntegerLinks Set of links with non-integer values
      * @param negativeLinks Set of links with negative values
      */
 
-    private static void checkNumericValue(double value, String linkName,
-                                          Set<String> notIntegerLinks, Set<String> negativeLinks) {
+    private static void checkNumericValue(double value, String linkName, Set<String> negativeLinks) {
         if (value < 0) {
             negativeLinks.add(linkName);
-        } else if (value % 1 != 0) {
-            notIntegerLinks.add(linkName);
         }
     }
 
 
     private static void handleErrors(Map<String, Set<String>> notNumericByColumn,
-                                     Map<String, Set<String>> notIntegerByColumn,
                                      Map<String, Set<String>> negativeValuesByColumn) {
         if (!notNumericByColumn.isEmpty()) {
             throwFormatError(notNumericByColumn);
-        }
-        if (!notIntegerByColumn.isEmpty()) {
-            throwNotIntegerError(notIntegerByColumn);
         }
         if (!negativeValuesByColumn.isEmpty()) {
             throwNegativeError(negativeValuesByColumn);
@@ -222,41 +204,23 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
                 .build();
     }
 
-    private static void throwNotIntegerError(Map<String, Set<String>> notIntegerByColumn) {
-            String columnNames = notIntegerByColumn.keySet().stream()
-                    .sorted()
-                    .collect(Collectors.joining(", "));
+    private static void throwNegativeError(Map<String, Set<String>> negativeValuesByColumn) {
+        String columnNames = negativeValuesByColumn.keySet().stream()
+                .sorted()
+                .collect(Collectors.joining(", "));
 
-            String linkNames = notIntegerByColumn.values().stream()
-                    .flatMap(Set::stream)
-                    .distinct()
-                    .sorted()
-                    .collect(Collectors.joining(", "));
+        String linkNames = negativeValuesByColumn.values().stream()
+                .flatMap(Set::stream)
+                .distinct()
+                .sorted()
+                .collect(Collectors.joining(", "));
 
-            throw BusinessException.builder()
-                    .message("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) {1} in LINK trajectory")
-                    .errorMessageArguments(List.of(columnNames, linkNames))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        private static void throwNegativeError(Map<String, Set<String>> negativeValuesByColumn) {
-            String columnNames = negativeValuesByColumn.keySet().stream()
-                    .sorted()
-                    .collect(Collectors.joining(", "));
-
-            String linkNames = negativeValuesByColumn.values().stream()
-                    .flatMap(Set::stream)
-                    .distinct()
-                    .sorted()
-                    .collect(Collectors.joining(", "));
-
-            throw BusinessException.builder()
-                    .message("Waiting for Positive Value(s) in column(s) {0} for link(s) {1} in LINK trajectory")
-                    .errorMessageArguments(List.of(columnNames, linkNames))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        throw BusinessException.builder()
+                .message("Waiting for Positive Value(s) in column(s) {0} for link(s) {1} in LINK trajectory")
+                .errorMessageArguments(List.of(columnNames, linkNames))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
 
 
 
@@ -371,6 +335,38 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
         }
 
         return parametersForWarnings;
+    }
+
+    private static void checkBooleanInParametersSheet(Workbook workbook, String horizon, int rowIndex, String parameterName) {
+        Sheet parametersSheet = workbook.getSheet("parameters"); // already valdiated
+
+        Row headerRow = parametersSheet.getRow(0);
+        if (headerRow == null) {
+            return;
+        }
+
+        int horizonIndex = -1;
+        for (Cell cell : headerRow) {
+            if (cell.getCellType() == CellType.STRING && horizon.equals(cell.getStringCellValue().trim())) {
+                horizonIndex = cell.getColumnIndex();
+                break;
+            }
+        }
+
+        if (horizonIndex != -1) {
+            Row paramRow = parametersSheet.getRow(rowIndex);
+            if (paramRow != null) {
+                Cell paramCell = paramRow.getCell(horizonIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+
+                if (!ExcelCommonValidator.isValidBoolean(paramCell)) {
+                    throw BusinessException.builder()
+                            .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
+                            .errorMessageArguments(List.of(parameterName, TrajectoryType.LINK.name()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+        }
     }
 
 }

@@ -26,9 +26,13 @@ public class LinkMapper {
                 .summerHpIndirectMw(linkEntity.getSummerHpIndirectMw())
                 .summerHcIndirectMw(linkEntity.getSummerHcIndirectMw())
                 .flowbasedPerimeter(String.valueOf(linkEntity.getFlowbasedPerimeter()))
+                .hvdcMwDirect(linkEntity.getHvdcMwDirect())
+                .hvdcMwIndirect(linkEntity.getHvdcMwIndirect())
+                .hvdcNbDirect(linkEntity.getHvdcNbDirect())
+                .hvdcNbIndirect(linkEntity.getHvdcNbIndirect())
+                .hvdcfoRateDirect(linkEntity.getHvdcfoRateDirect())
+                .hvdcfoRateIndirect(linkEntity.getHvdcfoRateIndirect())
                 .hvdc(String.valueOf(linkEntity.getHvdc()))
-                .specificTs(String.valueOf(linkEntity.getSpecificTs()))
-                .forcedOutageHvac(String.valueOf(linkEntity.getForcedOutageHvac()))
                 .hurdleCost(linkEntity.getHurdleCost())
                 .build();
     }

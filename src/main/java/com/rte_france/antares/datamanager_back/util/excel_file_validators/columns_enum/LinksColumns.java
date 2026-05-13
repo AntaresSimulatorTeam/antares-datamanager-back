@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 @Getter
 public enum LinksColumns {
@@ -17,9 +18,12 @@ public enum LinksColumns {
     SUMMER_HC_DIRECT("Summer_HC_Direct_MW"),
     SUMMER_HC_INDIRECT("Summer_HC_Indirect_MW"),
     FLOWBASED_PERIMETER("Flowbased_perimeter"),
-    HVDC("HVDC"),
-    SPECIFIC_TS("Specific_TS"),
-    FORCED_OUTAGE_HVAC("Forced_Outage_HVAC");
+    HVDC_MW_DIRECT("HVDC_MW_Direct"),
+    HVDC_MW_INDIRECT("HVDC_MW_Indirect"),
+    HVDC_NB_DIRECT("HVDC_nb_direct"),
+    HVDC_NB_INDIRECT("HVDC_nb_indirect"),
+    HVDC_FO_RATE_DIRECT("HVDC_FO_Rate_direct"),
+    HVDC_FO_RATE_INDIRECT("HVDC_FO_Rate_indirect");
 
     private final String displayName;
 
@@ -36,29 +40,35 @@ public enum LinksColumns {
     public static List<String> getNumericColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.startsWith("Summer") || name.startsWith("Winter"))
+                .filter(name -> {
+                    String lowerName = name.toLowerCase(Locale.ROOT);
+                    return lowerName.startsWith("summer") || lowerName.startsWith("winter")
+                            || lowerName.startsWith("hvdc_mw") || lowerName.startsWith("hvdc_nb") || lowerName.startsWith("hvdc_fo_rate");
+                })
                 .toList();
     }
 
     public static List<String> getBooleanColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.equals("Flowbased_perimeter") || name.equals("HVDC")
-                        || name.equals("Forced_Outage_HVAC") || name.equals("Specific_TS"))
+                .filter(name -> name.equalsIgnoreCase("Flowbased_perimeter"))
                 .toList();
     }
 
     public static List<String> getDirectColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.contains("Direct"))
+                .filter(name -> {
+                    String lowerName = name.toLowerCase(Locale.ROOT);
+                    return lowerName.contains("direct") && !lowerName.contains("indirect");
+                })
                 .toList();
     }
 
     public static List<String> getIndirectColumnNames() {
         return Arrays.stream(values())
                 .map(LinksColumns::getDisplayName)
-                .filter(name -> name.contains("Indirect"))
+                .filter(name -> name.toLowerCase(Locale.ROOT).contains("indirect"))
                 .toList();
     }
 
