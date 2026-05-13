@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
@@ -96,6 +97,9 @@ class TrajectoryServiceImplTest {
 
     @TempDir
     Path tempDir;
+
+    @Mock
+    private ResCoherenceCheckService resCoherenceCheckService;
 
     @BeforeEach
     void setUp() {
@@ -3079,10 +3083,10 @@ class TrajectoryServiceImplTest {
             String horizon = "2030";
             String area = "AREA";
             String tech = "TECH";
-            
+
             when(userService.getCurrentUserDetails())
                     .thenReturn(UserInfoDto.builder().nni("NNI123").build());
-                    
+
             try (var mockedStatic = mockStatic(Utils.class)) {
                 mockedStatic.when(() -> Utils.calculateDirectoryChecksum(traj)).thenReturn("checksum123");
                 when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
@@ -3102,7 +3106,7 @@ class TrajectoryServiceImplTest {
                 assertTrue(result.getFileSize() > 0);
                 assertTrue(result.getHasTimeSeries());
             }
-           
+
         }
 
         @Test
@@ -3121,7 +3125,7 @@ class TrajectoryServiceImplTest {
                     .version(3)
                     .checksum("oldChecksum")
                     .build();
-            
+
             when(userService.getCurrentUserDetails())
                     .thenReturn(UserInfoDto.builder().nni("NNI123").build());
             try (var mockedStatic = mockStatic(Utils.class)) {
@@ -3140,7 +3144,7 @@ class TrajectoryServiceImplTest {
                 assertEquals("newChecksum", result.getChecksum());
             }
         }
-        
+
     @Test
     void shouldThrowExceptionWhenChecksumIsSame() throws Exception {
         Path base = tempDir.resolve("hydro");
@@ -3205,7 +3209,7 @@ class TrajectoryServiceImplTest {
             Files.createDirectories(traj);
             // GIVEN
             when(userService.getCurrentUserDetails()).thenReturn(null);
-           
+
             try (var mockedStatic = mockStatic(Utils.class)) {
                 mockedStatic.when(() -> Utils.calculateDirectoryChecksum(traj)).thenReturn("checksum123");
                 when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
@@ -3221,4 +3225,197 @@ class TrajectoryServiceImplTest {
                 assertEquals("UNKNOWN__USER", result.getCreatedBy());
             }
         }
+
+    // ==================== RES Coherence Validation Tests ====================
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateIPTDCoherence_whenTrajectoryTypeIsRES_CAPACITY() throws IOException {
+        // Given
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_CAPACITY.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_CAPACITY);
+
+        // Then
+        verify(resCoherenceCheckService, times(1)).validateIPTDCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, times(1)).validateIPLoadFactorCoherence(studyId, trajectory);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateIPTDCoherence_whenTrajectoryTypeIsRES_TECHNOLOGY_DISTRIBUTION() throws IOException {
+        // Given
+        Integer trajectoryId = 2;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
+
+        // Then
+        verify(resCoherenceCheckService, times(1)).validateIPTDCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, never()).validateIPLoadFactorCoherence(studyId, trajectory);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateIPLoadFactorCoherence_whenTrajectoryTypeIsRES_LOAD() throws IOException {
+        // Given
+        Integer trajectoryId = 3;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_LOAD.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_LOAD);
+
+        // Then
+        verify(resCoherenceCheckService, never()).validateIPTDCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, times(1)).validateIPLoadFactorCoherence(studyId, trajectory);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldNotValidateRESCoherence_whenTrajectoryTypeIsRES_ZONAL_DISTRIBUTION() throws IOException {
+        // Given
+        Integer trajectoryId = 4;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_ZONAL_DISTRIBUTION.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_ZONAL_DISTRIBUTION);
+
+        // Then
+        verify(resCoherenceCheckService, never()).validateIPTDCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, never()).validateIPLoadFactorCoherence(studyId, trajectory);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldNotValidateRESCoherence_whenTrajectoryTypeIsNonRES() throws IOException {
+        // Given
+        Integer trajectoryId = 5;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.THERMAL_CAPACITY);
+
+        // Then
+        verify(resCoherenceCheckService, never()).validateIPTDCoherence(any(), any());
+        verify(resCoherenceCheckService, never()).validateIPLoadFactorCoherence(any(), any());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateLFDTCoherence_whenTrajectoryTypeIsRES_TECHNOLOGY_DISTRIBUTION() throws IOException {
+        // Given
+        Integer trajectoryId = 6;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION);
+
+        // Then
+        verify(resCoherenceCheckService, times(1)).validateIPTDCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, times(1)).validateLFDTCoherence(studyId, trajectory);
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldValidateLFDTCoherence_whenTrajectoryTypeIsRES_LOAD_AndImportedWithoutTechnology() throws IOException {
+        // Given
+        Integer trajectoryId = 7;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.RES_LOAD.name())
+                .technology(null) // LF without technology triggers LF/DT validation
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.RES_LOAD);
+
+        // Then
+        verify(resCoherenceCheckService, times(1)).validateIPLoadFactorCoherence(studyId, trajectory);
+        verify(resCoherenceCheckService, times(1)).validateLFDTCoherence(studyId, trajectory);
+    }
 }
