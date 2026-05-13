@@ -214,8 +214,8 @@ class LinksValidatorTest {
                         "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
                         "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
                 List.of(
-                        List.of("ES-FR", 100.3, 300, 150, 175, 300, 400, 250, 275, 500, 60.0, 75.0, 1, 1, 1, 1),
-                        List.of("ES-IT", 110, 210,20.2, 185, 310, 410, "26,3", 285, 510, 65.0, 80.0, 2, 1, 1, 1)
+                        List.of("ES-FR", 100.3, 300, 150, 175, 300, 400, -250, 275, "TRUE", 60.0, 75.0, 1, 1, 1, 1),
+                        List.of("ES-IT", 110, 210, 20.2, 185, 310, 410, 260, -285, "FALSE", 65.0, 80.0, 2, 1, 1, 1)
                 )
         );
 
@@ -225,10 +225,10 @@ class LinksValidatorTest {
         );
 
         assertAll(
-                () -> assertEquals("Waiting for Integer Value(s) (no decimal) in column(s) {0} for link(s) {1} in LINK trajectory",
+                () -> assertEquals("Waiting for Positive Value(s) in column(s) {0} for link(s) {1} in LINK trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
-                        Arrays.asList("Summer_HC_Direct_MW, Winter_HC_Direct_MW, Winter_HP_Direct_MW", "ES-FR, ES-IT"),
+                        Arrays.asList("Summer_HC_Direct_MW, Summer_HC_Indirect_MW", "ES-FR, ES-IT"),
                         exception.getErrorMessageArguments()),
 
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())

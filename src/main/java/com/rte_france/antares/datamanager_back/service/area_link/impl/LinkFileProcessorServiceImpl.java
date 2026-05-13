@@ -64,7 +64,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 
         checkIfHorizonExist(path, horizon, TrajectoryType.LINK.name());
-        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon, TrajectoryType.LINK.name());
+        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.LINKS, horizon, TrajectoryType.LINK.name(), List.of("parameters"));
         LinksValidator.linksDuplicateAndCellsValuesChecks(path, ExcelFileType.LINKS, horizon);
 
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
@@ -188,7 +188,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param path the path to the file to process
      * @return a list of area configurations
      */
-    private List<LinkEntity> buildLinkList(Path path, String horizon) throws IOException {
+    private List<LinkEntity> buildLinkList(Path path, String horizon) {
         List<LinkEntity> linkEntities = new ArrayList<>();
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
