@@ -87,10 +87,10 @@ public class MiscGenerationAssemblerServiceImpl  implements MiscGenerationAssemb
         // 2. Specific areas treatment
         for (String area : nonOtherAreas(miscCapacityByArea.keySet())) {
             TrajectoryEntity capacityTraj = miscCapacityByArea.get(area);
-            TrajectoryEntity loadTraj = miscLoadByArea.get(area);
+            TrajectoryEntity loadTraj = resolveLoadTrajectoryForArea(area, miscLoadByArea);
 
             if (loadTraj != null && loadTraj.getFileName() != null) {
-                allGeneratedFiles.addAll(processTrajectoryPair(study, horizon, nasDir, trajPath, miscLoadDir, area, capacityTraj, loadTraj, Set.of()));
+                allGeneratedFiles.addAll(processTrajectoryPair(study, horizon, nasDir, trajPath, miscLoadDir, area, capacityTraj, loadTraj.getFileName(), Set.of()));
                 processedAreas.add(area);
             }
         }
@@ -100,14 +100,31 @@ public class MiscGenerationAssemblerServiceImpl  implements MiscGenerationAssemb
         TrajectoryEntity loadOthers = miscLoadByArea.get(OTHER_AREA.toUpperCase());
 
         if (capacityOthers != null && loadOthers != null && loadOthers.getFileName() != null) {
-            allGeneratedFiles.addAll(processTrajectoryPair(study, horizon, nasDir, trajPath, miscLoadDir, OTHER_AREA, capacityOthers, loadOthers, processedAreas));
+            allGeneratedFiles.addAll(processTrajectoryPair(study, horizon, nasDir, trajPath, miscLoadDir, OTHER_AREA, capacityOthers, loadOthers.getFileName(), processedAreas));
         }
 
         return allGeneratedFiles;
     }
 
-    private List<Path> processTrajectoryPair(StudyEntity study, String horizon, String nasDir, String trajectoryName, String miscLoadDir, String area, TrajectoryEntity capacityTraj, TrajectoryEntity loadTraj, Set<String> processedAreas) {
+    private TrajectoryEntity resolveLoadTrajectoryForArea(String area, Map<String, TrajectoryEntity> miscLoadByArea) {
+        TrajectoryEntity directLoadTrajectory = miscLoadByArea.get(area.toUpperCase());
+        if (directLoadTrajectory != null) {
+            return directLoadTrajectory;
+        }
+
+        if ("FR".equalsIgnoreCase(area)) {
+            return null;
+        }
+
+        return miscLoadByArea.get(OTHER_AREA.toUpperCase());
+    }
+
+    private List<Path> processTrajectoryPair(StudyEntity study, String horizon, String nasDir, String trajectoryName, String miscLoadDir, String area, TrajectoryEntity capacityTraj, String loadFileName, Set<String> processedAreas) {
         Map<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> groupToAreas = resolveGroupToAreas(study, area, capacityTraj);
+
+        if (loadFileName == null) {
+            return Collections.emptyList();
+        }
 
         if (groupToAreas.isEmpty()) {
             return Collections.emptyList();
@@ -116,7 +133,7 @@ public class MiscGenerationAssemblerServiceImpl  implements MiscGenerationAssemb
         List<Path> generatedFiles = new ArrayList<>();
         Map<String, double[]> weightedOtherSeriesByArea = new LinkedHashMap<>();
         Map<String, Double> totalOtherCapacityByArea = new LinkedHashMap<>();
-        Path baseMiscLoadPath = Path.of(nasDir).resolve(trajectoryName).resolve(miscLoadDir).resolve(loadTraj.getFileName());
+        Path baseMiscLoadPath = Path.of(nasDir).resolve(trajectoryName).resolve(miscLoadDir).resolve(loadFileName);
 
         for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> entry : groupToAreas.entrySet()) {
             MiscFileProcessorServiceImpl.GroupClusterKey key = entry.getKey();
@@ -150,7 +167,12 @@ public class MiscGenerationAssemblerServiceImpl  implements MiscGenerationAssemb
                     log.error("Error splitting file {}", tsFilePath, e);
                 }
             } else {
-                log.debug("Load factor file not found for trajectory {}: {}", loadTraj.getFileName(), tsFilePath);
+                log.warn("Load factor file not found for trajectory={} area={} group={} cluster={} expectedPath={}",
+                        loadFileName,
+                        area,
+                        key.groupe(),
+                        key.cluster(),
+                        tsFilePath);
             }
         }
 
