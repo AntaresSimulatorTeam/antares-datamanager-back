@@ -55,7 +55,6 @@ class HydroGenerationAssemblerServiceImplTest {
 
     @Test
     void assembleHydroProperties_returnsGroupedProperties() {
-        // HYDRO_PARAMETERS était incorrect : le service filtre uniquement HYDRO_TECHNICAL_PARAMETERS
         HydroParametersEntity hp1 = HydroParametersEntity.builder()
                 .node("FR")
                 .followLoad(true)
