@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
@@ -55,6 +56,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final DsrGenerationAssemblerService dsrPropertiesAssemblerService;
     private final MiscGenerationAssemblerService miscPropertiesAssemblerService;
     private final ResGenerationAssemblerService resGenerationAssemblerService;
+    private final HydroGenerationAssemblerService hydroGenerationAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String MATRIX_HASH = "matrix hash";
@@ -126,6 +128,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 log.warn("MISC trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                         case RES_CAPACITY, RES_LOAD, RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION ->
                                 log.warn("RES trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
+                        case HYDRO_TECHNICAL_PARAMETERS, HYDRO_SERIES, HYDRO_PARAMETERS, HYDRO_ALLOCATION ->
+                                log.warn("HYDRO trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                         default -> {
                             log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                             throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -180,6 +184,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, Map<String, Object>> areaResGenerationMap = resGenerationAssemblerService.assembleResProperties(studyEntity);
         log.info("RES generation {} entries", areaResGenerationMap != null ? areaResGenerationMap.size() : 0);
+
+        Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
+        log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
