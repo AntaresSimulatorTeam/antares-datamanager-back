@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -34,6 +35,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 @RequiredArgsConstructor
 public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacityModulationFileProcessorService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final PathSecurityUtil pathSecurityUtil;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final DsrRepository dsrRepository;
@@ -44,8 +46,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     @Override
     public TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         // Check trajectory file name prefix
-        boolean prefixMatch = startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION);
-        if (!prefixMatch) {
+        if (!startsWithIgnoreCase(trajectoryToUse, DSR_CAPACITY_MODULATION)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(DSR_CAPACITY_MODULATION))
                     .message("The trajectory file name must start with {0}")
@@ -54,39 +55,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         }
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        // récupération des clusters de l'étude 
-        List<DsrClusterEntity> dsrClusters = dsrRepository.findAllDsrClusterEntitiesByStudyId(studyId);
-        List<String> clusterKeys =
-                dsrClusters.stream()
-                        .collect(Collectors.groupingBy(
-                                c -> c.getArea() + "_" + c.getName()
-                        ))
-                        .values()
-                        .stream()
-                        .map(group -> {
-
-                            // trajectoire spécifique = area != "OTHERS"
-                            Optional<DsrClusterEntity> specific =
-                                    group.stream()
-                                            .filter(c -> !"OTHERS".equals(c.getTrajectory().getArea()))
-                                            .findFirst();
-
-                            if (specific.isPresent()) {
-                                return Boolean.TRUE.equals(specific.get().getModulation())
-                                        ? specific.get().getArea() + "_" + specific.get().getName()
-                                        : null;
-                            }
-
-                            // fallback OTHERS
-                            return group.stream()
-                                    .filter(c -> Boolean.TRUE.equals(c.getModulation()))
-                                    .findFirst()
-                                    .map(c -> c.getArea() + "_" + c.getName())
-                                    .orElse(null);
-                        })
-                        .filter(Objects::nonNull)
-                        .toList();
-
+        List<String> clusterKeys = getClusterKeys(studyId);
 
         var dsrCapacityModulationEntities = buildDsrCapacityModulationEntity(horizon, trajectoryFilePath, clusterKeys);
 
@@ -95,6 +64,18 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         trajectoryEntity.setDsrCapacityModulationEntities(dsrCapacityModulationEntities);
 
         return trajectoryRepository.save(trajectoryEntity);
+    }
+
+    @Override
+    public void validateDsrCapacityModulationCoherence(TrajectoryEntity trajectory, Integer studyId) throws IOException {
+        // reconstruct filename for the nas (prefix)
+        String fileName = trajectory.getFileName();
+        if (!startsWithIgnoreCase(fileName, DSR_CAPACITY_MODULATION)) {
+            fileName = DSR_CAPACITY_MODULATION + fileName;
+        }
+
+        Path trajectoryFilePath = getTrajectoryFilePath(fileName);
+        buildDsrCapacityModulationEntity(trajectory.getHorizon(), trajectoryFilePath, getClusterKeys(studyId));
     }
 
     public List<DsrCapacityModulationEntity> buildDsrCapacityModulationEntity(String horizon, Path trajectoryFilePath, List<String> dsrClusters) throws IOException {
@@ -145,6 +126,14 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     }
 
     public Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
+        pathSecurityUtil.validatePathFromBaseDir(
+                trajectoryToUse + ".xlsx",
+                properties -> Path.of(properties.getNasDirectory())
+                        .resolve(properties.getTrajectoryFilePath())
+                        .resolve(properties.getDsrCapacityDirectory())
+                        .toString()
+        );
+
         //build the file path
         Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
@@ -161,6 +150,39 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
             throw new IOException("Path is outside of the target directory");
         }
         return trajectoryFilePath;
+    }
+
+    private List<String> getClusterKeys(Integer studyId) {
+        List<DsrClusterEntity> dsrClusters = dsrRepository.findAllDsrClusterEntitiesByStudyId(studyId);
+        return dsrClusters.stream()
+                .collect(Collectors.groupingBy(
+                        c -> c.getArea() + "_" + c.getName()
+                ))
+                .values()
+                .stream()
+                .map(group -> {
+
+                    // trajectoire spécifique = area != "OTHERS"
+                    Optional<DsrClusterEntity> specific =
+                            group.stream()
+                                    .filter(c -> !"OTHERS".equals(c.getTrajectory().getArea()))
+                                    .findFirst();
+
+                    if (specific.isPresent()) {
+                        return Boolean.TRUE.equals(specific.get().getModulation())
+                                ? specific.get().getArea() + "_" + specific.get().getName()
+                                : null;
+                    }
+
+                    // fallback OTHERS
+                    return group.stream()
+                            .filter(c -> Boolean.TRUE.equals(c.getModulation()))
+                            .findFirst()
+                            .map(c -> c.getArea() + "_" + c.getName())
+                            .orElse(null);
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     public TrajectoryEntity buildDsrCapacityModulationTrajectory(Path trajectoryFilePath, String horizon) throws IOException {

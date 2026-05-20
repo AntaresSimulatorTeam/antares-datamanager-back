@@ -1451,7 +1451,7 @@ class UtilsTest {
         );
 
         assertThat(ex).isNotNull();
-        assertThat(ex.getMessage()).contains("Res trajectory header is invalid");
+        assertThat(ex.getMessage()).contains("{0} trajectory header is invalid");
         assertThat(ex.getHttpStatus().value()).isEqualTo(400);
     }
 

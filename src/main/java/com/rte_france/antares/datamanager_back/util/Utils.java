@@ -911,7 +911,7 @@ public class Utils {
         }
     }
 
-    private static String getErrorMessageLabelFromType(TrajectoryType type) {
+    public static String getErrorMessageLabelFromType(TrajectoryType type) {
         return switch (type) {
             case DSR -> "DSR cluster";
             case MISC_CAPACITY -> "MISC";
@@ -920,6 +920,8 @@ public class Utils {
             case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
             case STS->"STS";
             case HYDRO_SERIES -> "Hydro Series";
+            case HYDRO_ALLOCATION -> "hydroAllocation TechnicalParameters";
+            case HYDRO_PARAMETERS -> "hydroParameters TechnicalParameters";
             default -> "trajectory";
         };
     }
@@ -1114,7 +1116,8 @@ public class Utils {
         int lastCol = getRealLastColumn(header);
         if (lastCol < requiredColumns.length) {
             throw BusinessException.builder()
-                    .message("Res trajectory header is invalid")
+                    .errorMessageArguments(List.of(trajectoryType.name()))
+                    .message("{0} trajectory header is invalid")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1140,6 +1143,20 @@ public class Utils {
         return Optional.ofNullable(getCellValue(row, index))
                 .map(Object::toString)
                 .orElse(null);
+    }
+
+    public String getStringNumberCell(Row row, int index) {
+        Object value = getCellValue(row, index);
+
+        if (value instanceof Number number) {
+            double d = number.doubleValue();
+            if (d == Math.floor(d)) {
+                return String.valueOf((int) d); // 1.0 → "1"
+            }
+            return String.valueOf(d); // garde les décimales si nécessaires
+        }
+
+        return value != null ? value.toString() : null;
     }
 
     public static String toSnakeCase(String input) {
@@ -1178,7 +1195,7 @@ public class Utils {
         if (allRowsEmpty) {
             String label = getErrorMessageLabelFromType(trajectoryType);
             throw BusinessException.builder()
-                    .message("No area found in "+ label +" trajectory "+ trajectoryName )
+                    .message("No data found in "+ label +" trajectory "+ trajectoryName )
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

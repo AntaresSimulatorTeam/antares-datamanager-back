@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.dsr.impl.DsrCapacityModulationFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -42,22 +43,25 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     @Mock private DsrRepository dsrRepository;
     @Mock private TrajectoryRepository trajectoryRepository;
     @Mock private UserService userService;
+    @Mock private PathSecurityUtil pathSecurityUtil;
 
     @TempDir
     Path tempDir;
 
     @BeforeEach
-    void setup() {
+    void setup() throws IOException {
         AntaresDataManagerProperties properties = mock(AntaresDataManagerProperties.class);
 
         service = spy(new DsrCapacityModulationFileProcessorServiceImpl(
                 properties,
+                pathSecurityUtil,
                 trajectoryRepository,
                 userService,
                 dsrRepository
         ));
 
         lenient().when(trajectoryRepository.save(any())) .thenAnswer(inv -> inv.getArgument(0));
+        lenient().doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
     }
 
     // -------------------------------------------------------------------------
@@ -230,6 +234,32 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         )
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("No data in DSR Capacity Modulation trajectory");
+    }
+
+    @Test
+    void validateDsrCapacityModulationCoherence_shouldReuseImportValidationRules() throws IOException {
+        List<String> clusters = List.of("DSR_industries");
+
+        Path xlsx = tempDir.resolve("cm_validation_test.xlsx");
+        Files.createFile(xlsx);
+        createWorkbookWithHeadersAndData(clusters, xlsx);
+
+        DsrClusterEntity clusterEntity = new DsrClusterEntity();
+        clusterEntity.setArea("FR");
+        clusterEntity.setName("DSR_industries");
+        TrajectoryEntity clusterTrajectory = new TrajectoryEntity();
+        clusterTrajectory.setArea("FR");
+        clusterEntity.setTrajectory(clusterTrajectory);
+        when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1)).thenReturn(List.of(clusterEntity));
+
+        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+
+        TrajectoryEntity trajectoryToValidate = new TrajectoryEntity();
+        trajectoryToValidate.setFileName("cm_validation_test");
+        trajectoryToValidate.setHorizon("2029-2030");
+        service.validateDsrCapacityModulationCoherence(trajectoryToValidate, 1);
+
+        verify(trajectoryRepository, never()).save(any());
     }
 
     // -------------------------------------------------------------------------

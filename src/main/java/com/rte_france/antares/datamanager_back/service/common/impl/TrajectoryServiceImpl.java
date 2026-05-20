@@ -12,11 +12,13 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -81,6 +83,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final StudyTrajectoryRepository studyTrajectoryRepository;
 
+    private final DsrCapacityModulationFileProcessorService dsrCapacityModulationFileProcessorService;
+
     private final AreaConfigRepository areaConfigRepository;
 
     private final AreaRepository areaRepository;
@@ -100,6 +104,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final MiscClusterCapacityRepository miscClusterCapacityRepository;
 
     private final DefaultConfigService defaultConfigService;
+
+    private final ResCoherenceCheckService resCoherenceCheckService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -607,6 +613,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
                 TrajectoryType.MISC_CAPACITY,
                 TrajectoryType.MISC_LOAD,
+                TrajectoryType.DSR_CAPACITY_MODULATION,
                 TrajectoryType.RES_CAPACITY,
                 TrajectoryType.RES_LOAD,
                 TrajectoryType.RES_ZONAL_DISTRIBUTION,
@@ -615,6 +622,32 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
+         
+          // Validation de cohérence entre InstalledPower et Technology Distribution
+          String trajectoryType = trajectory.getType();
+          if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
+              TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+          }
+          
+          // Validation de cohérence entre InstalledPower et Load Factor (Scénario 13)
+          if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
+              TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+          }
+
+          // Validation de cohérence entre Load Factor et Distribution Technology
+          if (TrajectoryType.RES_LOAD.name().equals(trajectoryType) || 
+              TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+          }
+
+          // Validation de cohérence entre Distribution Technology et Distribution Zonal (clé: area/group/zone PECD)
+          if (TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType) || 
+              TrajectoryType.RES_ZONAL_DISTRIBUTION.name().equals(trajectoryType)) {
+              resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+          }
+          
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
@@ -1069,6 +1102,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
             case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
             case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
+            case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
             case "RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION" ->
                     log.info("No additional coherence check for RES trajectory type {} yet", type);
             default -> throw TechnicalException.builder()
@@ -1187,6 +1221,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         thermalControlService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
         thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
 
+    }
+
+    private void verifyDsrCapacityModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {
+        dsrCapacityModulationFileProcessorService.validateDsrCapacityModulationCoherence(
+                trajectory,
+                studyId
+        );
     }
 
     public void verifyParamModulation(Integer studyId, TrajectoryEntity trajectory) throws IOException {

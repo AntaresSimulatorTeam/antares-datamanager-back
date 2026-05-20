@@ -6,4 +6,6 @@ import java.io.IOException;
 
 public interface HydroFileProcessorService {
     TrajectoryEntity processHydroSeriesFile(String trajectoryToUse, String horizon, Integer studyId, String area, boolean isCivilYear) throws IOException;
+    
+    TrajectoryEntity processHydroTechnicalParametersFile(String trajectoryToUse, String horizon, Integer studyId, String area, boolean isCivilYear) throws IOException;
 }
