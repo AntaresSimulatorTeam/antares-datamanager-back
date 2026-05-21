@@ -53,7 +53,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             new SeriesConfig(HydroSeriesType.RESERVOIR_LEVELS, List.of(HYDRO_SERIES_RESERVOIR_LEVELS))
     );
 
-    protected static final TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
+    public static final TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
     protected static final String HYDRO_TECHNICAL_PREFIX_ALLOCATION = "hydroAllocation_";
     protected static final String HYDRO_COLUMN = "hydro";
     protected static final String LOAD_COLUMN = "load";
