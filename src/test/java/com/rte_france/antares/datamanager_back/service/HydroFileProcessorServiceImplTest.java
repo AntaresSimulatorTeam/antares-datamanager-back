@@ -698,7 +698,7 @@ class HydroFileProcessorServiceImplTest {
                 service.validateEmptyRequiredColumns(context, new String[]{"col1", "extra"}, true, "not_a_number"));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Column(s) 2 to 6 an 8", exception.getErrorMessageArguments().getFirst());
+        assertEquals("Column(s) 2 to 6 and 8", exception.getErrorMessageArguments().getFirst());
     }
 
     @Test
