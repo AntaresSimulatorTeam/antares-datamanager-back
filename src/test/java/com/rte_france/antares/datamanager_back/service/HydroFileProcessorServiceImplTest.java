@@ -862,8 +862,6 @@ class HydroFileProcessorServiceImplTest {
 
     @Test
     void validateEmptyRequiredColumns_throwsWhenLastBooleanColumnIsNull() {
-        // Avant le fix : USE_WATER (3e booléen) était le dernier et n'était jamais atteint.
-        // Après le fix : les 3 colonnes booléennes sont toutes validées.
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         // 3 colonnes, 2 valeurs valides + null en position 3 (index 2)
@@ -884,9 +882,6 @@ class HydroFileProcessorServiceImplTest {
 
     @Test
     void shouldRequireMaxPowerWhenFirstAreaHasModFilesAndLastAreaHasOnlyRor() throws Exception {
-        // Avant le fix : hasOnlyRorFile était écrasé à chaque itération → seul le dernier area
-        // (BE, uniquement ROR) déterminait le résultat → maxpower non exigé → pas d'exception.
-        // Après le fix : FR (premier area) ayant des fichiers mod, hasOnlyRorFile reste false
         // → maxpower exigé → exception levée.
         Path base = tempDir.resolve("hydro_multi_area");
         Path traj = base.resolve(TRAJ);
@@ -959,8 +954,6 @@ class HydroFileProcessorServiceImplTest {
 
     @Test
     void processTechnicalParametersFile_doesNotCallCoherenceCheckWhenStudyIdIsNull() throws Exception {
-        // Avant le fix : checkHydroTPTrajectoriesConsistency était appelé sans garde sur studyId.
-        // Après le fix : l'appel est conditionné par if (studyId != null).
         Path dir = tempDir.resolve("coherence_null_study");
         Files.createDirectories(dir);
         Path filePath = CreateExcelTestUtil.createExcelFile(dir, "hydroAllocation_test.xlsx", HORIZON,
