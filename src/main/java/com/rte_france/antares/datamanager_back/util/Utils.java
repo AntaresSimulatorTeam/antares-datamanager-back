@@ -916,6 +916,7 @@ public class Utils {
     public static String getErrorMessageLabelFromType(String type) {
         return switch (type) {
             case "DSR" -> "DSR cluster";
+            case "DSR_CAPACITY_MODULATION" -> "DSR capacity modulation";
             case "MISC_CAPACITY" -> "MISC";
             case "RES_CAPACITY" -> "RES Installed power";
             case "RES_TECHNOLOGY_DISTRIBUTION" -> "Technological repartition";

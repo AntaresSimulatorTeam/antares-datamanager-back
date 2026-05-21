@@ -863,8 +863,7 @@ class UtilsTest {
                 () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "DSR")
         );
 
-        assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
-        assertTrue(ex.getMessage().contains("DSR"));
+        assertEquals( List.of("H1", "DSR cluster", "trajectory.xlsx"), ex.getErrorMessageArguments() );
     }
 
     @Test
@@ -879,8 +878,7 @@ class UtilsTest {
                 () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "DSR")
         );
 
-        assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
-        assertTrue(ex.getMessage().contains("DSR"));
+        assertEquals( List.of("H1", "DSR cluster", "trajectory.xlsx"), ex.getErrorMessageArguments() );
     }
 
     @Test
@@ -896,8 +894,7 @@ class UtilsTest {
                 () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "DSR")
         );
 
-        assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
-        assertTrue(ex.getMessage().contains("DSR"));
+        assertEquals(List.of("H1", "DSR cluster", "trajectory.xlsx"), ex.getErrorMessageArguments());
     }
 
     @Test
@@ -922,11 +919,10 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "Capacity modulation")
+                () -> Utils.getRequiredSheet(workbook, "H1", path.getFileName().toString(), TrajectoryType.DSR_CAPACITY_MODULATION.name())
         );
 
-        assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
-        assertTrue(ex.getMessage().contains("Capacity modulation"));
+        assertEquals(List.of("H1", "DSR capacity modulation", "trajectory.xlsx"), ex.getErrorMessageArguments());
     }
 
     @ParameterizedTest
