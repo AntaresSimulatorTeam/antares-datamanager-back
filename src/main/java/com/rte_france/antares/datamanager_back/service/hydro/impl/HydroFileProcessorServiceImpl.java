@@ -3,8 +3,7 @@ package com.rte_france.antares.datamanager_back.service.hydro.impl;
 import com.rte_france.antares.datamanager_back.dto.HydroSeriesType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.*;
@@ -34,6 +33,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     private final TrajectoryRepository trajectoryRepository;
     private final TrajectoryServiceImpl trajectoryService;
     private final AreaRepository areaRepository;
+    private final HydroCoherenceCheckService hydroCoherenceCheckService;
 
     protected static final String HYDRO_SERIES_PREFIX_MAX_POWER = "maxpower_";
     protected static final String HYDRO_SERIES_INFLOWS = "inflows";
@@ -53,7 +53,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             new SeriesConfig(HydroSeriesType.RESERVOIR_LEVELS, List.of(HYDRO_SERIES_RESERVOIR_LEVELS))
     );
 
-    protected static final TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
+    public static final TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
     protected static final String HYDRO_TECHNICAL_PREFIX_ALLOCATION = "hydroAllocation_";
     protected static final String HYDRO_COLUMN = "hydro";
     protected static final String LOAD_COLUMN = "load";
@@ -75,7 +75,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_COLUMNS = {
             NODE_COLUMN, INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN,PUMPING_EFFICIENCY_COLUMN, RESERVOIR_COLUMN, RESERVOIR_CAPACITY_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS = {
-            NODE_COLUMN, INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN,PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
+            INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN, PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS = {RESERVOIR_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
                     
     @Override
@@ -103,9 +103,41 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         );
         List<String> studyAreas = loadStudyAreas(studyId);
         List<HydroSeriesEntity> entities = new ArrayList<>();
+        List<String> filesNameFinal = new ArrayList<>(List.of());
+        List<String> filesName;
+     
+        var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
+        var hasOnlyRorFile= true;
+        for (var area : areaList) {
+            filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
+            if(!checkHydroFileConsistency(filesName, area)) hasOnlyRorFile = false;
+            filesNameFinal.addAll(filesName);
+        }
+        String maxPowerFileName = null;
+        if (!hasOnlyRorFile) {
+            List<String> areasInHydroSeriesModFiles = filesNameFinal.stream()
+                    .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
+                    .map(s -> s.split("_")[1])
+                    .toList();
+            maxPowerFileName = processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles);
+            if (studyId != null) {
+                hydroCoherenceCheckService.checkHydroSeriesTrajectoriesConsistency(studyId, areasInHydroSeriesModFiles, areaParam, trajectoryToUse);
+            }
+        }
+        if (filesNameFinal.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Missing files in trajectory Hydro Series trajectory")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+        }
+        // create entities
+        filesNameFinal.stream().map(this::buildHydroSeriesEntity)
+                .forEach(entities::add);
+                
+        if (maxPowerFileName != null) {
+            entities.add(buildHydroSeriesEntity(maxPowerFileName));
+        }
         
-        processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, entities);
-        processRequiredSeries(trajectoryFilePath, horizon, areaParam, entities, studyAreas);
         trajectory.setHydroSeriesEntities(entities);
         entities.forEach(entity -> entity.setTrajectory(trajectory));
         return trajectoryRepository.save(trajectory);
@@ -186,22 +218,25 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return realTrajectoryFilePath;
     }
 
-    private void processMaxPowerFile(
+    private String processMaxPowerFile(
             Path trajectoryFilePath,
             String trajectoryToUse,
             String horizon,
             String areaParam,
-            List<String> studyAreas,
-            List<HydroSeriesEntity> entities
+            List<String> areasInHydroSeriesModFiles
     ) throws IOException {
 
         Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath);
 
         if (fileMaxPowerPath != null) {
-            validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, TrajectoryType.HYDRO_SERIES);
-
-            entities.add(buildHydroSeriesEntity(fileMaxPowerPath.getFileName().toString(), null));
+            validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, TrajectoryType.HYDRO_SERIES);
+        } else {
+                throw BusinessException.builder()
+                        .message("Missing maxpower file in trajectory Hydro Series trajectory")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
         }
+        return fileMaxPowerPath.getFileName().toString();
     }
 
     private Path findMaxPowerFile(Path trajectoryFilePath) throws BusinessException {
@@ -236,7 +271,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         if (trajectoryFilePath != null) {
             List<String> studyAreas = loadStudyAreas(studyId);
-            return processTechnicalParametersFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, trajectoryType);
+            return processTechnicalParametersFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, trajectoryType, studyId);
         }
         return null;
     }
@@ -279,16 +314,16 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return result;
     }
 
-    private void processRequiredSeries(
+    private List<String> processRequiredSeries(
             Path trajectoryFilePath,
             String horizon,
             String areaParam,
-            List<HydroSeriesEntity> entities,
             List<String> studyAreas
     ) throws IOException, BusinessException {
 
         Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
-
+        List<String> filesName = new ArrayList<>(List.of());
+        
         for (var entry : REQUIRED_SERIES.entrySet()) {
             String directory = entry.getKey();
             SeriesConfig config = entry.getValue();
@@ -300,15 +335,44 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 continue;
             }
             
-            List<Path> files = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config, studyAreas);
-            if (files.isEmpty()) {
+            List<Path> pathFiles = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config, studyAreas);
+            if (pathFiles.isEmpty()) {
                 continue;
             }
 
-            files.stream()
-                    .map(f -> buildHydroSeriesEntity(f.getFileName().toString(), config.type()))
-                    .forEach(entities::add);
+            List<String> filesNameString = pathFiles.stream()
+                    .map(f -> f.getFileName().toString())
+                    .toList();
+            filesName.addAll(filesNameString);
         }
+        return filesName;
+    }
+
+    private boolean checkHydroFileConsistency(List<String> filesName, String area) throws BusinessException {
+        boolean hasMingen = false;
+        boolean hasReservoirLevels = false;
+        boolean hasMod = false;
+
+        for (String fileName : filesName) {
+            if (fileName.startsWith(HYDRO_SERIES_MINGEN+'_'+area)) {
+                hasMingen = true;
+            }
+            if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS+'_'+area)) {
+                hasReservoirLevels = true;
+            }
+            if (fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD+'_'+area)) {
+                hasMod = true;
+            }
+        }
+
+        if ((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) {
+            throw BusinessException.builder()
+                    .message("Missing MOD file in trajectory Hydro Series trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        return !hasMingen && !hasMod && !hasReservoirLevels;
     }
 
     private boolean isPathWithinDirectory(Path parentDirectoryRealPath, Path childRealPath) {
@@ -352,10 +416,23 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 && areaMatches
                 && horizon.equals(horizonFile);
     }
+    
+    private String getFiletype(String fileName) {
+        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD) || fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR)) {
+            return HydroSeriesType.INFLOWS.name();
+        }
+        if (fileName.startsWith(HYDRO_SERIES_MINGEN)) {
+            return HydroSeriesType.MINGEN.name();
+        }
+        if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
+            return HydroSeriesType.RESERVOIR_LEVELS.name();
+        }
+        return null;
+    }
 
-    private HydroSeriesEntity buildHydroSeriesEntity(String fileName, HydroSeriesType type) {
+    private HydroSeriesEntity buildHydroSeriesEntity(String fileName) {
         HydroSeriesEntity entity = new HydroSeriesEntity();
-        entity.setType(type != null ? type.name() : null);
+        entity.setType(getFiletype(fileName));
         entity.setTsName(fileName);
         return entity;
     }
@@ -383,7 +460,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
             
-            Sheet sheet = getRequiredSheet(workbook, horizon, filePath, TrajectoryType.HYDRO_SERIES.name());
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, TrajectoryType.HYDRO_SERIES.name());
             Row header = getHeaderOrThrow(sheet, filePath, TrajectoryType.HYDRO_SERIES);
             List<String> headerAreas = new ArrayList<>();
 
@@ -405,7 +482,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String horizon,
             String areaParam,
             List<String> studyAreas,
-            TrajectoryType trajectoryType
+            TrajectoryType trajectoryType,
+            Integer studyId
     ) throws IOException {
 
         // Validate that the file path is trusted and points to a regular file
@@ -425,10 +503,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            Sheet sheet = getRequiredSheet(workbook, horizon, filePath, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name());
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name());
             checkMissingColumns(sheet, requiredColumns, trajectoryToUse, trajectoryType);
 
-            HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, trajectoryType);
+            HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, trajectoryType, studyId, areaParam, trajectoryToUse);
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
 
@@ -439,28 +517,43 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     private HydroTechnicalParametersRowProcessingResult processRows(
             Sheet sheet,
             ResRowProcessingContext context,
-            TrajectoryType trajectoryType
+            TrajectoryType trajectoryType,
+            Integer studyId,
+            String areaParam,
+            String trajectoryToUse
     ) {
-        boolean allRowsEmpty = true;
         HydroTechnicalParametersRowProcessingResult result = getHydroRowProcessingResult(trajectoryType);
 
         Iterator<Row> rows = sheet.rowIterator();
         rows.next(); // skip header
 
+        List<Row> nonEmptyRows = new ArrayList<>();
         while (rows.hasNext()) {
             Row row = rows.next();
-
             if (!ExcelCommonValidator.isRowEmpty(row)) {
-                allRowsEmpty = false;
-                if (trajectoryType == TrajectoryType.HYDRO_ALLOCATION) {
-                    processHydroAllocationRow(context, (HydroAllocationRowProcessingResult) result, row);
-                } else {
-                    processHydroParametersRow(context, (HydroParametersRowProcessingResult) result, row);
+                String area = getStringCell(row, 0);
+
+                if (!result.fileAreas().contains(area)) {
+                    result.addArea(area);
                 }
+
+                nonEmptyRows.add(row);
             }
         }
 
-        validateEmptyRows(allRowsEmpty, trajectoryType, context.getTrajectoryToUse());
+        if (studyId != null) {
+            hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(studyId, result.fileAreas(), areaParam, trajectoryToUse, trajectoryType.name());
+        }
+
+        for (Row row : nonEmptyRows) {
+            if (trajectoryType == TrajectoryType.HYDRO_ALLOCATION) {
+                processHydroAllocationRow(context, (HydroAllocationRowProcessingResult) result, row);
+            } else {
+                processHydroParametersRow(context, (HydroParametersRowProcessingResult) result, row);
+            }
+        }
+
+        validateEmptyRows(nonEmptyRows.isEmpty(), trajectoryType, context.getTrajectoryToUse());
 
         return result;
     }
@@ -477,7 +570,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String load = getStringCell(row, 1);
         String allocation = getStringNumberCell(row, 2);
 
-        if (!shouldProcessArea(context, result, area)) return;
+        if (!shouldProcessArea(context, area)) return;
 
         Object[] values = new Object[] { allocation };
 
@@ -516,7 +609,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         Boolean followLoad = ExcelCommonValidator.getBooleanCellValue(row.getCell(8)).orElse(null);
         Boolean useWater = ExcelCommonValidator.getBooleanCellValue(row.getCell(9)).orElse(null);
 
-        if (!shouldProcessArea(context, result, area)) return;
+        if (!shouldProcessArea(context, area)) return;
 
         Object[] numericValues = new Object[] { interDailyBreakdown, interDailyModulation, interMonthlyBreakdown, initializeReservoirDate, pumpingEfficiency, reservoirCapacity };
         Object[] booleanValues = new Object[] { reservoir, followLoad, useWater };
@@ -580,7 +673,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     ) {
         List<String> missing = new ArrayList<>();
 
-        for (int i = 0; i < requiredColumns.length - 1; i++) {
+        for (int i = 0; i < requiredColumns.length; i++) {
             if (i >= values.length || values[i] == null || (isNumeric && values[i] instanceof String s && !isInteger(s)) || (!isNumeric && values[i] instanceof String str && !isBooleanStringValue(str))) {
                 missing.add(requiredColumns[i]);
             }
@@ -591,7 +684,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (context.getTrajectoryType() == TrajectoryType.HYDRO_ALLOCATION) {
                 columnsLabel = "Allocation column";
             } else if (isNumeric) {
-                columnsLabel = "Column(s) 2 to 6 an 8";
+                columnsLabel = "Column(s) 2 to 6 and 8";
             } else {
                 columnsLabel = "Column(s) 7, 9 and 10";
             }
@@ -629,14 +722,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 .toList();
     }
 
-    private boolean shouldProcessArea(ResRowProcessingContext context, HydroTechnicalParametersRowProcessingResult result, String area) {
+    private boolean shouldProcessArea(ResRowProcessingContext context, String area) {
 
         String areaParam = context.getAreaParam();
         String areaStr = Objects.toString(area, "");
 
         // 1. Filtre par area
         if (areaParam != null) {
-            result.addArea(area);
 
             // Cas normal : areaParam != OTHERS
             if (!OTHERS_AREA.equalsIgnoreCase(areaParam)

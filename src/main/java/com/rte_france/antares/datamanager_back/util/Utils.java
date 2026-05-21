@@ -818,12 +818,13 @@ public class Utils {
         return name.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
-    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath, String trajectoryType) {
+    public static Sheet getRequiredSheet(Workbook workbook, String horizon, String trajectoryToUse, String trajectoryType) {
         Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
         if (sheet == null) {
+            String label = getErrorMessageLabelFromType(TrajectoryType.valueOf(trajectoryType));
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the " + trajectoryType + " trajectory {1}")
+                    .errorMessageArguments(List.of(horizon, label, trajectoryToUse))
+                    .message("Horizon {0} does not exist in the {1} trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

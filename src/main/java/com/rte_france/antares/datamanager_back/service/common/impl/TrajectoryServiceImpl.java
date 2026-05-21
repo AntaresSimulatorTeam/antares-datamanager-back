@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcess
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
@@ -45,6 +46,7 @@ import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
+import static com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.HYDRO_TYPES;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
@@ -106,6 +108,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final DefaultConfigService defaultConfigService;
 
     private final ResCoherenceCheckService resCoherenceCheckService;
+
+    private final HydroCoherenceCheckService hydroCoherenceCheckService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -617,7 +621,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.RES_CAPACITY,
                 TrajectoryType.RES_LOAD,
                 TrajectoryType.RES_ZONAL_DISTRIBUTION,
-                TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION
+                TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                TrajectoryType.HYDRO_SERIES,
+                TrajectoryType.HYDRO_TECHNICAL_PARAMETERS
         );
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
@@ -647,6 +653,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
               TrajectoryType.RES_ZONAL_DISTRIBUTION.name().equals(trajectoryType)) {
               resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
           }
+
+        // Validation de cohérence entre Hydro Series et Hydro Parameters déjà sélectionnée
+        if (TrajectoryType.HYDRO_SERIES.name().equals(trajectoryType)) {
+            hydroCoherenceCheckService.validateHydroSeriesCoherence(studyId, trajectory);
+        }
+
+        // Validation de cohérence entre Hydro Parameters et Hydro Series déjà sélectionnée
+        if (TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(trajectoryType)) {
+            for (var hydroType : HYDRO_TYPES) {
+                hydroCoherenceCheckService.validateHydroTechnicalParametersCoherence(studyId, trajectory, hydroType);
+            }
+        }
           
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
@@ -1103,7 +1121,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
             case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
             case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
-            case "RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION" ->
+            case "RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION", "HYDRO_SERIES", "HYDRO_TECHNICAL_PARAMETERS" ->
                     log.info("No additional coherence check for RES trajectory type {} yet", type);
             default -> throw TechnicalException.builder()
                     .message("Trajectory type {0} is not supported")
