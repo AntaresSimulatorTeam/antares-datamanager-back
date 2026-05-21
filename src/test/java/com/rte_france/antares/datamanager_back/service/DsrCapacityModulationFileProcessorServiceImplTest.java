@@ -20,8 +20,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -51,6 +53,10 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     @BeforeEach
     void setup() throws IOException {
         AntaresDataManagerProperties properties = mock(AntaresDataManagerProperties.class);
+
+        lenient().when(properties.getNasDirectory()).thenReturn(tempDir.toString());
+        lenient().when(properties.getTrajectoryFilePath()).thenReturn("INPUT");
+        lenient().when(properties.getDsrCapacityDirectory()).thenReturn("capacity_modulation");
 
         service = spy(new DsrCapacityModulationFileProcessorServiceImpl(
                 properties,
@@ -362,5 +368,36 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
             workbook.write(os);
         }
         workbook.close();
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+            "CM_exact_case,    CM_exact_case.xlsx,    false", // same case
+            "cm_fallback_file, CM_fallback_file.xlsx, false", // uppercase
+            "CM_fallback_file, cm_fallback_file.xlsx, false", // lowercase
+            "CM_non_existent,  ,                      true"   // not found
+    })
+    void testGetTrajectoryFilePathScenarios(String input, String fileToCreate, boolean expect404) throws IOException {
+        Path targetDir = tempDir.resolve("INPUT").resolve("capacity_modulation");
+        Files.createDirectories(targetDir);
+        if (fileToCreate != null) {
+            Files.createFile(targetDir.resolve(fileToCreate));
+        }
+
+        if (expect404) {
+            assertThatThrownBy(() -> service.getTrajectoryFilePath(input))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.NOT_FOUND);
+        } else {
+            Path result = service.getTrajectoryFilePath(input);
+            assertThat(result.getFileName()).hasToString(fileToCreate);
+        }
+    }
+
+    @Test
+    void testGetTrajectoryFilePathPathTraversalSecurity() {
+        assertThatThrownBy(() -> service.getTrajectoryFilePath("../../../etc/passwd"))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Path is outside of the target directory");
     }
 }
