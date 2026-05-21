@@ -435,7 +435,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_throwsWhenHydroSeriesCoherenceCheckFails() throws IOException {
+    void linkTrajectoryToStudy_throwsWhenHydroSeriesCoherenceCheckFails() throws BusinessException {
         Integer trajectoryId = 10;
         Integer studyId = 5;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -484,7 +484,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void linkTrajectoryToStudy_throwsWhenHydroTechnicalParametersCoherenceCheckFails() throws IOException {
+    void linkTrajectoryToStudy_throwsWhenHydroTechnicalParametersCoherenceCheckFails() throws BusinessException {
         Integer trajectoryId = 11;
         Integer studyId = 6;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
