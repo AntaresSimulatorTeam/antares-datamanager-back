@@ -689,7 +689,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 columnsLabel = "Column(s) 7, 9 and 10";
             }
 
-            String typeLabel = getErrorMessageLabelFromType(context.getTrajectoryType());
+            String typeLabel = getErrorMessageLabelFromType(context.getTrajectoryType().name());
             String valuesLabel = isNumeric ? "filled and of numeric type" : "boolean values";
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(columnsLabel, typeLabel, context.getTrajectoryToUse(), valuesLabel))
