@@ -845,7 +845,7 @@ class UtilsTest {
         when(workbook.getNumberOfSheets()).thenReturn(1);
         when(workbook.getSheet("H1")).thenReturn(sheet);
 
-        Sheet result = Utils.getRequiredSheet(workbook, "H1", path, null);
+        Sheet result = Utils.getRequiredSheet(workbook, "H1", path.toString(), null);
 
         assertSame(sheet, result);
     }
@@ -860,7 +860,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
+                () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "DSR")
         );
 
         assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
@@ -876,7 +876,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
+                () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "DSR")
         );
 
         assertEquals( List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments() );
@@ -893,7 +893,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path, "DSR")
+                () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "DSR")
         );
 
         assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());
@@ -909,7 +909,7 @@ class UtilsTest {
         when(workbook.getSheet("")).thenReturn(null);
 
         assertThrows(BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "", path, "DSR"));
+                () -> Utils.getRequiredSheet(workbook, "", path.toString(), "DSR"));
     }
 
     @Test
@@ -922,7 +922,7 @@ class UtilsTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path, "Capacity modulation")
+                () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), "Capacity modulation")
         );
 
         assertEquals(List.of("H1", "trajectory.xlsx"), ex.getErrorMessageArguments());

@@ -97,7 +97,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         // parse installedMisc sheet
         try (InputStream is = Files.newInputStream(filePath); Workbook workbook = WorkbookFactory.create(is)) {
-            Sheet sheet = getRequiredSheet(workbook, "InstalledMisc", filePath, TrajectoryType.MISC_CAPACITY.name());
+            Sheet sheet = getRequiredSheet(workbook, "InstalledMisc", filePath.getFileName().toString(), TrajectoryType.MISC_CAPACITY.name());
 
             Row header = sheet.getRow(0);
             if (header == null) {
