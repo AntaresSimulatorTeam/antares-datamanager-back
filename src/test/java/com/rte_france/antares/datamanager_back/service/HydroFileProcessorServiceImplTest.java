@@ -384,7 +384,7 @@ class HydroFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Max power file path is not valid", exception.getMessage());
+        assertEquals("Missing maxpower file in trajectory Hydro Series trajectory", exception.getMessage());
     }
 
     @Test
@@ -441,6 +441,81 @@ class HydroFileProcessorServiceImplTest {
         assertEquals("No maxpower file found for HYDRO series trajectory.", exception.getMessage());
 
         verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processHydroSeriesFile_throwsWhenAllSeriesDirectoriesAreEmpty() throws Exception {
+        // Ligne 127 : filesNameFinal.isEmpty() → "Missing files in trajectory Hydro Series trajectory"
+        // Aucun fichier dans les répertoires → hasOnlyRorFile reste true (checkHydroFileConsistency
+        // retourne true pour une liste vide), le check maxpower est sauté, filesNameFinal reste vide.
+        Path base = tempDir.resolve("hydro_empty_dirs");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj.resolve("inflows"));
+        Files.createDirectories(traj.resolve("mingen"));
+        Files.createDirectories(traj.resolve("reservoir_levels"));
+
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Missing files in trajectory Hydro Series trajectory"));
+    }
+
+    @Test
+    void processHydroSeriesFile_throwsWhenMingenPresentButNoModFile() throws Exception {
+        // Ligne 368 : hasMingen=true && hasMod=false → "Missing MOD file in trajectory Hydro Series trajectory"
+        Path base = tempDir.resolve("hydro_mingen_no_mod");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj.resolve("inflows"));
+        Path mingenDir = traj.resolve("mingen");
+        Files.createDirectories(mingenDir);
+        Files.createDirectories(traj.resolve("reservoir_levels"));
+        CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
+
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Missing MOD file in trajectory Hydro Series trajectory"));
+    }
+
+    @Test
+    void processHydroSeriesFile_throwsWhenReservoirLevelsPresentButNoModFile() throws Exception {
+        // Ligne 368 : hasReservoirLevels=true && hasMod=false → "Missing MOD file in trajectory Hydro Series trajectory"
+        Path base = tempDir.resolve("hydro_reservoir_no_mod");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj.resolve("inflows"));
+        Files.createDirectories(traj.resolve("mingen"));
+        Path reservoirDir = traj.resolve("reservoir_levels");
+        Files.createDirectories(reservoirDir);
+        CreateExcelTestUtil.createMockCsvFile(reservoirDir, FILE_NAME_RESERVOIR_LEVELS);
+
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Missing MOD file in trajectory Hydro Series trajectory"));
     }
 
     // -------------------------------------------------------------------------
@@ -664,7 +739,7 @@ class HydroFileProcessorServiceImplTest {
                 service.validateMaxPowerFile(dir, TRAJ, HORIZON, AREA_FR, List.of(AREA_FR), TrajectoryType.HYDRO_SERIES));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Max power file path is not valid", exception.getMessage());
+        assertEquals("Missing maxpower file in trajectory Hydro Series trajectory", exception.getMessage());
     }
 
     // -------------------------------------------------------------------------
