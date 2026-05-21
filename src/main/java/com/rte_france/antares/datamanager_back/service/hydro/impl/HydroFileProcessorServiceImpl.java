@@ -227,15 +227,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     ) throws IOException {
 
         Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath);
-
-        if (fileMaxPowerPath != null) {
-            validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, TrajectoryType.HYDRO_SERIES);
-        } else {
-                throw BusinessException.builder()
-                        .message("Missing maxpower file in trajectory Hydro Series trajectory")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-        }
+        
+        validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, TrajectoryType.HYDRO_SERIES);
         return fileMaxPowerPath.getFileName().toString();
     }
 
@@ -449,7 +442,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         // Validate that the file path is trusted and points to a regular file
         if (filePath == null || !Files.isRegularFile(filePath)) {
             throw BusinessException.builder()
-                    .message("Max power file path is not valid")
+                    .message("Missing maxpower file in trajectory Hydro Series trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
