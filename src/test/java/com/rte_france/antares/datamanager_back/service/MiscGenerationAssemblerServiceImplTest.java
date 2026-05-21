@@ -354,13 +354,6 @@ class MiscGenerationAssemblerServiceImplTest {
 
         study.setTrajectories(Set.of(capacityTrajectory, loadTrajectory));
 
-        String trajectoryRoot = "traj";
-        String miscLoadDir = "misc_load";
-
-        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
-        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryRoot);
-        when(antaresDataManagerProperties.getMiscLoadDirectory()).thenReturn(miscLoadDir);
-
         Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
         verify(miscFileProcessorService, never()).getAreasByGroupClusterByTrajectoryId(anyInt());
@@ -484,5 +477,67 @@ class MiscGenerationAssemblerServiceImplTest {
 
         assertTrue(results.isEmpty());
         verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
+    }
+
+    @Test
+    void assembleMiscProperties_shouldNotFallbackToOthersCapacityWhenSpecificAreaCapacityExists() throws IOException {
+        // Given: BE has specific capacity trajectory (but no load trajectory)
+        //        OTHERS has capacity trajectory (with BE entries)
+        // Expected: BE should NOT use OTHERS capacity, should be marked as processed
+        StudyEntity study = new StudyEntity();
+        study.setId(1);
+        study.setHorizon("2030-2031");
+
+        // Specific capacity trajectory for BE with biomass capacity 674
+        TrajectoryEntity beCapacityTrajectory = new TrajectoryEntity();
+        beCapacityTrajectory.setId(200);
+        beCapacityTrajectory.setType("MISC_CAPACITY");
+        beCapacityTrajectory.setArea("BE");
+        beCapacityTrajectory.setHorizon("2030-2031");
+
+        MiscClusterCapacityEntity beBiomass = new MiscClusterCapacityEntity();
+        beBiomass.setArea("BE");
+        beBiomass.setGroupe("biomass");
+        beBiomass.setCluster("Small biomass");
+        beBiomass.setCapacityByYear(BigDecimal.valueOf(674.0));
+        beCapacityTrajectory.setMiscClusterCapacityEntities(List.of(beBiomass));
+
+        // OTHERS capacity trajectory with BE biomass capacity 567 and other areas
+        TrajectoryEntity othersCapacityTrajectory = new TrajectoryEntity();
+        othersCapacityTrajectory.setId(201);
+        othersCapacityTrajectory.setType("MISC_CAPACITY");
+        othersCapacityTrajectory.setArea("OTHERS");
+        othersCapacityTrajectory.setHorizon("2030-2031");
+
+        MiscClusterCapacityEntity othersBEBiomass = new MiscClusterCapacityEntity();
+        othersBEBiomass.setArea("BE"); // Be has entry in OTHERS trajectory
+        othersBEBiomass.setGroupe("biomass");
+        othersBEBiomass.setCluster("Small biomass");
+        othersBEBiomass.setCapacityByYear(BigDecimal.valueOf(567.0)); // Different capacity value
+
+        MiscClusterCapacityEntity othersDEBiomass = new MiscClusterCapacityEntity();
+        othersDEBiomass.setArea("DE");
+        othersDEBiomass.setGroupe("biomass");
+        othersDEBiomass.setCluster("Small biomass");
+        othersDEBiomass.setCapacityByYear(BigDecimal.valueOf(8800.0));
+
+        othersCapacityTrajectory.setMiscClusterCapacityEntities(List.of(othersBEBiomass, othersDEBiomass));
+
+        // No load trajectories (so BE won't process with specific load)
+        study.setTrajectories(Set.of(beCapacityTrajectory, othersCapacityTrajectory));
+
+        // When
+        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result =
+                miscGenerationAssemblerService.assembleMiscProperties(study);
+
+        // Then: Result should contain single BE entry
+        assertTrue(result.containsKey("BE"));
+        assertEquals(1, result.get("BE").size());
+        assertEquals(674.0, result.get("BE").getFirst().getCapacity());
+
+        // And: Result should contain single DE entry (from others)
+        assertTrue(result.containsKey("DE"));
+        assertEquals(1, result.get("DE").size());
+        assertEquals(8800.0, result.get("DE").getFirst().getCapacity());
     }
 }
