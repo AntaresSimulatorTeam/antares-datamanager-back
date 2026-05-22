@@ -822,18 +822,37 @@ public class Utils {
     public static Sheet getRequiredSheet(Workbook workbook, String horizon, String trajectoryToUse, String trajectoryType) {
         Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
         if (sheet == null) {
-            String label = getErrorMessageLabelFromType(trajectoryType);
-            List<String> messageArguments = List.of(horizon, label, trajectoryToUse);
-            if (trajectoryType.equals("HYDRO_SERIES")) {
-                messageArguments.add("for maxpower file");
-            }
-            throw BusinessException.builder()
-                    .errorMessageArguments(messageArguments)
-                    .message("Horizon {0} does not exist in the {1} trajectory {2} {3}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+            throwTrajectoryValidationException(
+                    trajectoryType,
+                    "Horizon {0} does not exist in the {1} trajectory {2}",
+                    3,
+                    horizon,
+                    getErrorMessageLabelFromType(trajectoryType),
+                    trajectoryToUse
+            );
         }
         return sheet;
+    }
+
+    private static void throwTrajectoryValidationException(
+            String trajectoryType,
+            String message,
+            int hydroSeriesArgumentIndex,
+            String... arguments
+    ) {
+        List<String> messageArguments = new ArrayList<>(Arrays.asList(arguments));
+        StringBuilder msg = new StringBuilder(message);
+
+        if ("HYDRO_SERIES".equals(trajectoryType)) {
+            messageArguments.add("for maxpower file");
+            msg.append(" {").append(hydroSeriesArgumentIndex).append("}");
+        }
+
+        throw BusinessException.builder()
+                .errorMessageArguments(messageArguments)
+                .message(msg.toString())
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
     // Méthode utilitaire pour calculer le checksum SHA-256
@@ -963,24 +982,26 @@ public class Utils {
                         .anyMatch(fa -> fa != null && fa.equalsIgnoreCase(sa)));
 
         if (hasNoAreaOfTrajectoryAreaInFile) {
-            String label = getErrorMessageLabelFromType(trajectoryType.name());
-            String additionnalLabel = trajectoryType.name().equals("HYDRO_SERIES") ? "for maxpower file" : "";
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(label, trajectoryToUse, additionnalLabel))
-                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1} {2}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+            throwTrajectoryValidationException(
+                    trajectoryType.name(),
+                    "None of the areas of trajectory AREA are present in {0} trajectory {1}",
+                    2,
+                    getErrorMessageLabelFromType(trajectoryType.name()),
+                    trajectoryToUse
+            );
         }
     }
 
-    public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
+    public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
-            String label = getErrorMessageLabelFromType(trajectoryType.name());
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
-                    .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+            throwTrajectoryValidationException(
+                    trajectoryType.name(),
+                    "Selected area {0} is not present in the 'node' column of {1} trajectory {2}",
+                    3,
+                    areaParam,
+                    getErrorMessageLabelFromType(trajectoryType.name()),
+                    trajectoryToUse
+            );
         }
     }
 
