@@ -119,7 +119,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
                     .map(s -> s.split("_")[1])
                     .toList();
-            maxPowerFileName = processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles);
+            maxPowerFileName = processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas);
             if (studyId != null) {
                 hydroCoherenceCheckService.checkHydroSeriesTrajectoriesConsistency(studyId, areasInHydroSeriesModFiles, areaParam, trajectoryToUse);
             }
@@ -496,7 +496,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name());
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, trajectoryType.name());
             checkMissingColumns(sheet, requiredColumns, trajectoryToUse, trajectoryType);
 
             HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, trajectoryType, studyId, areaParam, trajectoryToUse);
