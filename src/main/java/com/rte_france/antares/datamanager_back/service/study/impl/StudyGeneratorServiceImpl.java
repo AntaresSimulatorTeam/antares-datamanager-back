@@ -45,6 +45,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final MiscToJsonService miscToJsonService;
     private final ResToJsonService resToJsonService;
     private final ThermalToJsonService thermalToJsonService;
+    private final HydroToJsonService hydroToJsonService;
     private final StudyRepository studyRepository;
 
     private final WebClient webClient;
@@ -230,9 +231,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), dsrClusterProps);
         Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), miscProps);
         Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), resProps);
-        Map<String, Object> hydroMap = new HashMap<>();
-        hydroMap.put(PROPERTIES, "HydroProperties as JSON");
-        hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
+        Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), hydroProps);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
