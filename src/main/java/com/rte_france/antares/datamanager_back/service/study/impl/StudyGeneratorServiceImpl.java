@@ -198,8 +198,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 areaStsClusterGenerationDtoMap,
                                 areaDsrClusterGenerationDtoMap,
                                 areaMiscGenerationDtoMap,
-                                areaResGenerationMap
-
+                                areaResGenerationMap,
+                                areaHydroGenerationMap
                         )
                 ));
 
@@ -211,7 +211,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                                   Map<String, StsGenerationDTO> stsClusterProps,
                                                   Map<String, DsrGenerationDTO> dsrClusterProps,
                                                   Map<String, List<MiscGenerationDTO>> miscProps,
-                                                  Map<String, Map<String, Object>> resProps
+                                                  Map<String, Map<String, Object>> resProps,
+                                                  Map<String, List<HydroGenerationDTO>> hydroProps
     ) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
@@ -224,16 +225,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
         areaMap.put(PROPERTIES, areaProperties);
 
-        Map<String, Object> hydroMap = new HashMap<>();
-        hydroMap.put(PROPERTIES, "HydroProperties as JSON");
-        hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
-
         Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(clusterProps);
-
         Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), stsClusterProps);
         Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), dsrClusterProps);
         Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), miscProps);
         Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), resProps);
+        Map<String, Object> hydroMap = new HashMap<>();
+        hydroMap.put(PROPERTIES, "HydroProperties as JSON");
+        hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
 
         areaMap.put("hydro", hydroMap);
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
