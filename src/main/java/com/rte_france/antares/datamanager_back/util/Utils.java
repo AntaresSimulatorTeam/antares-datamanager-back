@@ -823,9 +823,13 @@ public class Utils {
         Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
         if (sheet == null) {
             String label = getErrorMessageLabelFromType(trajectoryType);
+            List<String> messageArguments = List.of(horizon, label, trajectoryToUse);
+            if (trajectoryType.equals("HYDRO_SERIES")) {
+                messageArguments.add("for maxpower file");
+            }
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, label, trajectoryToUse))
-                    .message("Horizon {0} does not exist in the {1} trajectory {2}")
+                    .errorMessageArguments(messageArguments)
+                    .message("Horizon {0} does not exist in the {1} trajectory {2} {3}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -960,9 +964,10 @@ public class Utils {
 
         if (hasNoAreaOfTrajectoryAreaInFile) {
             String label = getErrorMessageLabelFromType(trajectoryType.name());
+            String additionnalLabel = trajectoryType.equals("HYDRO_SERIES") ? "for maxpower file" : "";
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(label, trajectoryToUse))
-                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1}")
+                    .errorMessageArguments(List.of(label, trajectoryToUse, additionnalLabel))
+                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1} {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

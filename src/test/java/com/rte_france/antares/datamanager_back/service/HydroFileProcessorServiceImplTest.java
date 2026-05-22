@@ -255,7 +255,7 @@ class HydroFileProcessorServiceImplTest {
         );
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         // validateTrajectoryAreasPresence est levée : aucune area du fichier (AT/BE/YU) ne correspond à l'area mod (FR).
-        assertTrue(exception.getMessage().contains("None of the areas"));
+        assertTrue(exception.getMessage().contains("Selected area"));
         assertTrue(exception.getErrorMessageArguments().contains(TRAJ));
     }
 
