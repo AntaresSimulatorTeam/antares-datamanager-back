@@ -964,7 +964,7 @@ public class Utils {
 
         if (hasNoAreaOfTrajectoryAreaInFile) {
             String label = getErrorMessageLabelFromType(trajectoryType.name());
-            String additionnalLabel = trajectoryType.equals("HYDRO_SERIES") ? "for maxpower file" : "";
+            String additionnalLabel = trajectoryType.name().equals("HYDRO_SERIES") ? "for maxpower file" : "";
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(label, trajectoryToUse, additionnalLabel))
                     .message("None of the areas of trajectory AREA are present in {0} trajectory {1} {2}")
