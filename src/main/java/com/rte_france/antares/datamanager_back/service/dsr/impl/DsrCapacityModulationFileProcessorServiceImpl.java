@@ -86,7 +86,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
 
         boolean onlyHeader = true;
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath, "DSR Capacity Modulation");
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath.getFileName().toString(), "DSR Capacity Modulation");
 
             List<String> headers = getClusterName(sheet);
             Set<String> headerClusters = new HashSet<>(headers);

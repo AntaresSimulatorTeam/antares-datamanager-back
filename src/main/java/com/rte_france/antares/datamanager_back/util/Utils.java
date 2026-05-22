@@ -42,6 +42,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
 
 
@@ -247,11 +248,11 @@ public class Utils {
             prefix = DSR_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.DSR_CAPACITY_MODULATION.toString())) {
             prefix = DSR_CAPACITY_MODULATION;
-        } else if (Objects.equals(trajectoryType, TrajectoryType.MISC_CAPACITY.toString())) {
+        } else if (Objects.equals(trajectoryType, MISC_CAPACITY.toString())) {
             prefix = MISC_CAPACITY_PREFIX;
-        } else if (Objects.equals(trajectoryType, TrajectoryType.RES_CAPACITY.toString())) {
+        } else if (Objects.equals(trajectoryType, RES_CAPACITY.toString())) {
             prefix = RES_CAPACITY_PREFIX;
-        } else if (Objects.equals(trajectoryType, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.toString())) {
+        } else if (Objects.equals(trajectoryType, RES_TECHNOLOGY_DISTRIBUTION.toString())) {
             prefix = RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.RES_ZONAL_DISTRIBUTION.toString())) {
             prefix = RES_ZONAL_DISTRIBUTION_PREFIX;
@@ -803,7 +804,7 @@ public class Utils {
                         .message("Missing columns {0} in {1} tab in STS {2} Additional Constraint file")
                         .build();
             }
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(missingList, label, trajectoryName))
                     .message("Missing columns {0} in {1} trajectory {2}")
@@ -818,12 +819,17 @@ public class Utils {
         return name.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
-    public Sheet getRequiredSheet(Workbook workbook, String horizon, Path trajectoryFilePath, String trajectoryType) {
+    public static Sheet getRequiredSheet(Workbook workbook, String horizon, String trajectoryToUse, String trajectoryType) {
         Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheet(horizon) : null;
         if (sheet == null) {
+            String label = getErrorMessageLabelFromType(trajectoryType);
+            List<String> messageArguments = List.of(horizon, label, trajectoryToUse);
+            if (trajectoryType.equals("HYDRO_SERIES")) {
+                messageArguments.add("for maxpower file");
+            }
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(horizon, trajectoryFilePath.getFileName().toString()))
-                    .message("Horizon {0} does not exist in the " + trajectoryType + " trajectory {1}")
+                    .errorMessageArguments(messageArguments)
+                    .message("Horizon {0} does not exist in the {1} trajectory {2} {3}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -911,17 +917,18 @@ public class Utils {
         }
     }
 
-    public static String getErrorMessageLabelFromType(TrajectoryType type) {
+    public static String getErrorMessageLabelFromType(String type) {
         return switch (type) {
-            case DSR -> "DSR cluster";
-            case MISC_CAPACITY -> "MISC";
-            case RES_CAPACITY -> "RES Installed power";
-            case RES_TECHNOLOGY_DISTRIBUTION -> "Technological repartition";
-            case RES_ZONAL_DISTRIBUTION -> "RES Zonal repartition";
-            case STS->"STS";
-            case HYDRO_SERIES -> "Hydro Series";
-            case HYDRO_ALLOCATION -> "hydroAllocation TechnicalParameters";
-            case HYDRO_PARAMETERS -> "hydroParameters TechnicalParameters";
+            case "DSR" -> "DSR cluster";
+            case "DSR_CAPACITY_MODULATION" -> "DSR capacity modulation";
+            case "MISC_CAPACITY" -> "MISC";
+            case "RES_CAPACITY" -> "RES Installed power";
+            case "RES_TECHNOLOGY_DISTRIBUTION" -> "Technological repartition";
+            case "RES_ZONAL_DISTRIBUTION" -> "RES Zonal repartition";
+            case "STS"-> "STS";
+            case "HYDRO_SERIES" -> "Hydro Series";
+            case "HYDRO_ALLOCATION" -> "hydroAllocation TechnicalParameters";
+            case "HYDRO_PARAMETERS" -> "hydroParameters TechnicalParameters";
             default -> "trajectory";
         };
     }
@@ -940,7 +947,7 @@ public class Utils {
         }
 
         if (!missing.isEmpty()) {
-            String label = getErrorMessageLabelFromType(context.getTrajectoryType());
+            String label = getErrorMessageLabelFromType(context.getTrajectoryType().name());
             throw BusinessException.builder()
                     .message(String.join(", ", missing)
                             + " values can't be empty in "+ label +" trajectory "
@@ -956,10 +963,11 @@ public class Utils {
                         .anyMatch(fa -> fa != null && fa.equalsIgnoreCase(sa)));
 
         if (hasNoAreaOfTrajectoryAreaInFile) {
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
+            String additionnalLabel = trajectoryType.name().equals("HYDRO_SERIES") ? "for maxpower file" : "";
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(label, trajectoryToUse))
-                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1}")
+                    .errorMessageArguments(List.of(label, trajectoryToUse, additionnalLabel))
+                    .message("None of the areas of trajectory AREA are present in {0} trajectory {1} {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -967,7 +975,7 @@ public class Utils {
 
     public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryFileName) {
         if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(areaParam, label, trajectoryFileName))
                     .message("Selected area {0} is not present in the 'node' column of {1} trajectory {2}")
@@ -978,7 +986,7 @@ public class Utils {
 
     public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName, String areaParam) {
         if (technologyParam != null && !technologyParam.isBlank() && !fileTechnologies.contains(technologyParam.toLowerCase())) {
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(technologyParam, areaParam, label, trajectoryFileName))
                     .message("Selected technology {1}/{0} is not present in the 'node' column of {2} trajectory {3}")
@@ -1071,8 +1079,8 @@ public class Utils {
 
     public void validatePrefixIfNeeded(String areaParam, String trajectoryToUse, TrajectoryType trajectoryType, String prefix) {
         if ((!"FR".equalsIgnoreCase(areaParam) &&
-                !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_CAPACITY) ||
-                (!startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION)
+                !startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == RES_CAPACITY) ||
+                (!startsWithIgnoreCase(trajectoryToUse, prefix) && trajectoryType == RES_TECHNOLOGY_DISTRIBUTION)
                 ) {
 
             throw BusinessException.builder()
@@ -1095,7 +1103,7 @@ public class Utils {
 
     public Row getHeaderOrThrow(Sheet sheet, Path filePath, TrajectoryType trajectoryType) {
         Row header = sheet.getRow(0);
-        String label = getErrorMessageLabelFromType(trajectoryType);
+        String label = getErrorMessageLabelFromType(trajectoryType.name());
         if (header == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(label, filePath.getFileName().toString()))
@@ -1129,7 +1137,7 @@ public class Utils {
         String horizonYear = horizon.split("-")[1];
         int yearColIndex = getYearColIndex(nbRequiredColumns, getRealLastColumn(header), header, horizonYear, -1);
         if (yearColIndex == -1) {
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(horizon, label, trajectoryToUse))
                     .message("Horizon {0} does not exist {1} trajectory {2}")
@@ -1182,7 +1190,7 @@ public class Utils {
     public void validateInvalidCombos(Set<String> invalidCombos, String trajectoryToUse, TrajectoryType trajectoryType) {
         if (!invalidCombos.isEmpty()) {
             String combos = String.join(", ", invalidCombos);
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
                     .message("Values for node/group/cluster %s are not numeric in %s trajectory %s"
                             .formatted(combos, label, trajectoryToUse))
@@ -1193,7 +1201,7 @@ public class Utils {
 
     public void validateEmptyRows(boolean allRowsEmpty, TrajectoryType trajectoryType, String trajectoryName) {
         if (allRowsEmpty) {
-            String label = getErrorMessageLabelFromType(trajectoryType);
+            String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
                     .message("No data found in "+ label +" trajectory "+ trajectoryName )
                     .httpStatus(HttpStatus.BAD_REQUEST)
