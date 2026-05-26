@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulation
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
@@ -514,9 +515,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .sorted(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed())
                     .toList();
 
-        } 
-        catch (IOException e) {
-           throw TechnicalException.builder().message("Could not find directory: " + directory).build();
+        } catch (IOException e) {
+            throw TechnicalException.builder().message("Could not find directory: " + directory).build();
         }
     }
 
@@ -527,16 +527,19 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
-            case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES, HYDRO_TECHNICAL_PARAMETERS -> Files.isDirectory(path);
+            case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
+                 HYDRO_TECHNICAL_PARAMETERS -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
             case MISC_CAPACITY -> fileName.startsWith(MISC_CAPACITY_PREFIX);
-            case RES_CAPACITY -> isDefaultArea(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
+            case RES_CAPACITY ->
+                    isDefaultArea(area) ? Files.isDirectory(path) : fileName.startsWith(RES_CAPACITY_PREFIX);
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
-            case RES_TECHNOLOGY_DISTRIBUTION -> fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
+            case RES_TECHNOLOGY_DISTRIBUTION ->
+                    fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             default -> true;
         };
     }
@@ -628,31 +631,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
-         
-          // Validation de cohérence entre InstalledPower et Technology Distribution
+
           String trajectoryType = trajectory.getType();
-          if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
-              TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
-              resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
-          }
-          
-          // Validation de cohérence entre InstalledPower et Load Factor (Scénario 13)
-          if (TrajectoryType.RES_CAPACITY.name().equals(trajectoryType) || 
-              TrajectoryType.RES_LOAD.name().equals(trajectoryType)) {
-              resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
-          }
-
-          // Validation de cohérence entre Load Factor et Distribution Technology
-          if (TrajectoryType.RES_LOAD.name().equals(trajectoryType) || 
-              TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType)) {
-              resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
-          }
-
-          // Validation de cohérence entre Distribution Technology et Distribution Zonal (clé: area/group/zone PECD)
-          if (TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name().equals(trajectoryType) || 
-              TrajectoryType.RES_ZONAL_DISTRIBUTION.name().equals(trajectoryType)) {
-              resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-          }
 
         // Validation de cohérence entre Hydro Series et Hydro Parameters déjà sélectionnée
         if (TrajectoryType.HYDRO_SERIES.name().equals(trajectoryType)) {
@@ -665,7 +645,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 hydroCoherenceCheckService.validateHydroTechnicalParametersCoherence(studyId, trajectory, hydroType);
             }
         }
-          
+
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
@@ -1106,32 +1086,50 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
-        String type = trajectory.getType();
+         String type = trajectory.getType();
 
-        switch (type) {
-            case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
-            case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
-            case "LOAD" -> warningMessages = verifyLoad(studyId, warningMessages, trajectory, userNni);
-            case "THERMAL_CAPACITY" -> verifyThermalCapacity(studyId, trajectory);
-            case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> verifyThermalCommonParameter(studyId, trajectory);
-            case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> verifyThermalSpecificParameter(studyId, trajectory);
-            case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
-            case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
-            case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
-            case "MISC_CAPACITY"   -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
-            case "MISC_LOAD"   -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
-            case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
-            case "RES_CAPACITY", "RES_LOAD", "RES_ZONAL_DISTRIBUTION", "RES_TECHNOLOGY_DISTRIBUTION", "HYDRO_SERIES", "HYDRO_TECHNICAL_PARAMETERS" ->
-                    log.info("No additional coherence check for RES trajectory type {} yet", type);
-            default -> throw TechnicalException.builder()
-                    .message("Trajectory type {0} is not supported")
-                    .errorMessageArguments(List.of(type))
-                    .build();
-        }
+         switch (type) {
+             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
+             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+             case "LOAD" -> warningMessages = verifyLoad(studyId, warningMessages, trajectory, userNni);
+             case "THERMAL_CAPACITY" -> verifyThermalCapacity(studyId, trajectory);
+             case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> verifyThermalCommonParameter(studyId, trajectory);
+             case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> verifyThermalSpecificParameter(studyId, trajectory);
+             case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
+             case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
+             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
+             case "MISC_CAPACITY" -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
+             case "MISC_LOAD" -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
+             case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
+             case  "RES_TECHNOLOGY_DISTRIBUTION" -> {
+                 resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+                 resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+                 resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+             }
+             case "RES_CAPACITY" -> {
+                 resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+                 resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+             }
+             case "RES_LOAD" -> {
+                 resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+                 resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+             }
+             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+             case "HYDRO_SERIES", "HYDRO_TECHNICAL_PARAMETERS" -> {
+                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
+                 log.info("No additional coherence check for Hydro trajectory type {} yet", type);
 
-        warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
-        warningRepository.saveAll(warningMessages);
-    }
+             }
+
+             default -> throw TechnicalException.builder()
+                     .message("Trajectory type {0} is not supported")
+                     .errorMessageArguments(List.of(type))
+                     .build();
+         }
+
+         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
+         warningRepository.saveAll(warningMessages);
+     }
 
     /**
      * Validates load factor trajectory on selection.
@@ -1141,7 +1139,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private void controlesMiscOnSelectLoadFactorTrajectory(Integer studyId, TrajectoryEntity trajectory) throws IOException {
         // Get all installed power trajectories for this study
         List<TrajectoryEntity> installedPowerTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
-        
+
         if (installedPowerTrajectories.isEmpty()) {
             return;
         }
@@ -1186,7 +1184,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public void controlesMiscOnImportLoadFactor(Integer studyId, String area, String horizon) throws IOException {
         // Get all installed power trajectories for this study
         List<TrajectoryEntity> installedPowerTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
-        
+
         if (installedPowerTrajectories.isEmpty()) {
             return; // No installed power trajectories yet, import is free
         }
@@ -1381,7 +1379,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
         } else {
             // For specific area installed power: check same area + fallback to OTHERS
-            validateSpecificAreaInstalledPowerAgainstLoadFactors(groupCluster,installedPowerArea, loadFactorTrajectories, horizon);
+            validateSpecificAreaInstalledPowerAgainstLoadFactors(groupCluster, installedPowerArea, loadFactorTrajectories, horizon);
         }
     }
 
@@ -1398,25 +1396,25 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             List<TrajectoryEntity> loadFactorTrajectories,
             String horizon) throws IOException {
 
-            // Try to find load factor with the same area
-            TrajectoryEntity loadFactorWithArea = findLoadFactorForAreaAndGroup(
-                    loadFactorTrajectories, installedPowerArea, horizon
+        // Try to find load factor with the same area
+        TrajectoryEntity loadFactorWithArea = findLoadFactorForAreaAndGroup(
+                loadFactorTrajectories, installedPowerArea, horizon
+        );
+
+        if (loadFactorWithArea != null) {
+            // Found load factor with same area - verify it
+            verifyLoadFactorAreaHeaders(loadFactorWithArea, installedPowerArea, groupCluster, horizon);
+        } else {
+            // No load factor with same area, try OTHERS
+            TrajectoryEntity loadFactorOthers = findLoadFactorForAreaAndGroup(
+                    loadFactorTrajectories, OTHER_AREA, horizon
             );
 
-            if (loadFactorWithArea != null) {
-                // Found load factor with same area - verify it
-                verifyLoadFactorAreaHeaders(loadFactorWithArea, installedPowerArea, groupCluster, horizon);
-            } else {
-                // No load factor with same area, try OTHERS
-                TrajectoryEntity loadFactorOthers = findLoadFactorForAreaAndGroup(
-                        loadFactorTrajectories, OTHER_AREA, horizon
-                );
-
-                if (loadFactorOthers != null) {
-                    // Found OTHERS load factor - verify it
-                    verifyLoadFactorAreaHeaders(loadFactorOthers, installedPowerArea, groupCluster, horizon);
-                }
-                // If neither exists, import/selection is free
+            if (loadFactorOthers != null) {
+                // Found OTHERS load factor - verify it
+                verifyLoadFactorAreaHeaders(loadFactorOthers, installedPowerArea, groupCluster, horizon);
+            }
+            // If neither exists, import/selection is free
 
         }
     }
@@ -1459,93 +1457,93 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             String horizon) {
 
         return loadFactorTrajectories.stream()
-                 .filter(t -> t.getArea().equalsIgnoreCase(area))
-                 .filter(t -> t.getHorizon().equals(horizon) || horizon == null)
-                 .findFirst()
-                 .orElse(null);
-     }
+                .filter(t -> t.getArea().equalsIgnoreCase(area))
+                .filter(t -> t.getHorizon().equals(horizon) || horizon == null)
+                .findFirst()
+                .orElse(null);
+    }
 
-     /**
-      * Verifies that a load factor trajectory contains the expected area header.
-      */
-     public void verifyLoadFactorAreaHeaders(TrajectoryEntity loadFactorTrajectory, String expectedArea, MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, String horizon)
-             throws IOException {
+    /**
+     * Verifies that a load factor trajectory contains the expected area header.
+     */
+    public void verifyLoadFactorAreaHeaders(TrajectoryEntity loadFactorTrajectory, String expectedArea, MiscFileProcessorServiceImpl.GroupClusterKey groupCluster, String horizon)
+            throws IOException {
 
-         if (horizon == null) {
-             horizon = loadFactorTrajectory.getHorizon();
-         }
+        if (horizon == null) {
+            horizon = loadFactorTrajectory.getHorizon();
+        }
 
-         Path loadFactorPath = buildTrajectoryPath(loadFactorTrajectory.getFileName(), TrajectoryType.MISC_LOAD);
-         List<String> headers = MiscFileProcessorServiceImpl.readHeaderAreas(horizon, loadFactorPath, groupCluster);
+        Path loadFactorPath = buildTrajectoryPath(loadFactorTrajectory.getFileName(), TrajectoryType.MISC_LOAD);
+        List<String> headers = MiscFileProcessorServiceImpl.readHeaderAreas(horizon, loadFactorPath, groupCluster);
 
-         if (!headers.contains(expectedArea.toLowerCase())) {
-             throw BusinessException.builder()
-                     .message("Load factor trajectory {0} for area {1} does not contain the expected area {2} for group {3}")
-                     .errorMessageArguments(List.of(
-                             loadFactorTrajectory.getFileName(),
-                             loadFactorTrajectory.getArea(),
-                             expectedArea,
-                             groupCluster.groupe()
-                     ))
-                     .httpStatus(HttpStatus.BAD_REQUEST)
-                     .build();
-         }
-     }
+        if (!headers.contains(expectedArea.toLowerCase())) {
+            throw BusinessException.builder()
+                    .message("Load factor trajectory {0} for area {1} does not contain the expected area {2} for group {3}")
+                    .errorMessageArguments(List.of(
+                            loadFactorTrajectory.getFileName(),
+                            loadFactorTrajectory.getArea(),
+                            expectedArea,
+                            groupCluster.groupe()
+                    ))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
 
-     /**
-      * Validates installed power trajectory for the given installed power trajectory.
-      */
-     public void validateInstalledPowerAgainstLoadFactors(
-             Integer studyId,
-             TrajectoryEntity installedPowerTraj,
-             List<TrajectoryEntity> allLoadFactorTrajectories,
-             String horizon) throws IOException {
+    /**
+     * Validates installed power trajectory for the given installed power trajectory.
+     */
+    public void validateInstalledPowerAgainstLoadFactors(
+            Integer studyId,
+            TrajectoryEntity installedPowerTraj,
+            List<TrajectoryEntity> allLoadFactorTrajectories,
+            String horizon) throws IOException {
 
-         List<GroupAreaMiscCapacity> capacities = miscClusterCapacityRepository.findByTrajectoryId(installedPowerTraj.getId());
+        List<GroupAreaMiscCapacity> capacities = miscClusterCapacityRepository.findByTrajectoryId(installedPowerTraj.getId());
 
-         if (capacities.isEmpty()) {
-             return;
-         }
+        if (capacities.isEmpty()) {
+            return;
+        }
 
-         Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
+        Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> installedPowerMap = buildCapacityAreasMap(capacities);
 
-         for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> entry : installedPowerMap.entrySet()) {
-             MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = entry.getKey();
-             Set<String> areasInInstalledPower = entry.getValue();
+        for (Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> entry : installedPowerMap.entrySet()) {
+            MiscFileProcessorServiceImpl.GroupClusterKey groupCluster = entry.getKey();
+            Set<String> areasInInstalledPower = entry.getValue();
 
-             validateGroupClusterAreasAgainstLoadFactors(
-                     groupCluster, areasInInstalledPower, installedPowerTraj.getArea(),
-                     allLoadFactorTrajectories, horizon
-             );
-         }
-     }
+            validateGroupClusterAreasAgainstLoadFactors(
+                    groupCluster, areasInInstalledPower, installedPowerTraj.getArea(),
+                    allLoadFactorTrajectories, horizon
+            );
+        }
+    }
 
-     private static Set<GroupAreaMiscCapacity> mapToGroupAreaMiscCapacity(List<MiscClusterCapacityEntity> miscClusterCapacityEntities) {
-         return miscClusterCapacityEntities.stream().map(capacity ->
+    private static Set<GroupAreaMiscCapacity> mapToGroupAreaMiscCapacity(List<MiscClusterCapacityEntity> miscClusterCapacityEntities) {
+        return miscClusterCapacityEntities.stream().map(capacity ->
 
-                 new GroupAreaMiscCapacity() {
-                     public String getGroupe() {
-                         return capacity.getGroupe();
-                     }
+                new GroupAreaMiscCapacity() {
+                    public String getGroupe() {
+                        return capacity.getGroupe();
+                    }
 
-                     public String getArea() {
-                         return capacity.getArea();
-                     }
+                    public String getArea() {
+                        return capacity.getArea();
+                    }
 
-                     public String getCluster() {
-                         return capacity.getCluster();
-                     }
-                 }).collect(Collectors.toSet());
-     }
+                    public String getCluster() {
+                        return capacity.getCluster();
+                    }
+                }).collect(Collectors.toSet());
+    }
 
-     private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildCapacityAreasMap(List<GroupAreaMiscCapacity> capacities) {
+    private Map<MiscFileProcessorServiceImpl.GroupClusterKey, Set<String>> buildCapacityAreasMap(List<GroupAreaMiscCapacity> capacities) {
 
-         return capacities.stream()
-                 .collect(Collectors.groupingBy(
-                         e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
-                         Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
-                 ));
-     }
+        return capacities.stream()
+                .collect(Collectors.groupingBy(
+                        e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
+                        Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
+                ));
+    }
 
     public TrajectoryEntity buildDirectoryTrajectory(String type, String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException, BusinessException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
