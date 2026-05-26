@@ -102,7 +102,7 @@ class StStorageFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageFile("cluster_battery_test", "2029-2030", 1, false, "FR", "battery")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("does not exist in the STS trajectory");
+                .hasMessageContaining("Horizon {0} does not exist in the {1} trajectory {2}");
     }
 
     @Test

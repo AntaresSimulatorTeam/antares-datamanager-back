@@ -40,7 +40,8 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     private final UserService userService;
     private final DsrRepository dsrRepository;
 
-    private static final String DSR_CAPACITY_MODULATION = "cm_";
+    private static final String DSR_CAPACITY_MODULATION = "CM_";
+    private static final String FILE_EXTENSION = ".xlsx";
 
     @Transactional
     @Override
@@ -85,7 +86,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
 
         boolean onlyHeader = true;
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath, "DSR Capacity Modulation");
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath.getFileName().toString(), "DSR Capacity Modulation");
 
             List<String> headers = getClusterName(sheet);
             Set<String> headerClusters = new HashSet<>(headers);
@@ -126,8 +127,14 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     }
 
     public Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
+        String baseName = trajectoryToUse;
+        if (startsWithIgnoreCase(baseName, DSR_CAPACITY_MODULATION)) {
+            baseName = baseName.substring(3);
+        }
+
+        String targetFileName = trajectoryToUse + FILE_EXTENSION;
         pathSecurityUtil.validatePathFromBaseDir(
-                trajectoryToUse + ".xlsx",
+                targetFileName,
                 properties -> Path.of(properties.getNasDirectory())
                         .resolve(properties.getTrajectoryFilePath())
                         .resolve(properties.getDsrCapacityDirectory())
@@ -144,12 +151,32 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
             baseDirectory = baseDirectory.resolve("");
         }
 
+        Path upperCasePath = baseDirectory.resolve(DSR_CAPACITY_MODULATION + baseName + FILE_EXTENSION).normalize();
+        Path lowerCasePath = baseDirectory.resolve(DSR_CAPACITY_MODULATION.toLowerCase(Locale.ROOT) + baseName + FILE_EXTENSION).normalize();
+
         //download the file
-        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
-        if (!trajectoryFilePath.startsWith(baseDirectory)) {
+        Path trajectoryFilePath = baseDirectory.resolve(targetFileName).normalize();
+        if (!upperCasePath.startsWith(baseDirectory) ||
+                !lowerCasePath.startsWith(baseDirectory) ||
+                !trajectoryFilePath.startsWith(baseDirectory)) {
             throw new IOException("Path is outside of the target directory");
         }
-        return trajectoryFilePath;
+
+        if (Files.exists(trajectoryFilePath) && !Files.isSymbolicLink(trajectoryFilePath)) {
+            return trajectoryFilePath;
+        }
+        if (Files.exists(upperCasePath) && !Files.isSymbolicLink(upperCasePath)) {
+            return upperCasePath;
+        }
+        if (Files.exists(lowerCasePath) && !Files.isSymbolicLink(lowerCasePath)) {
+            return lowerCasePath;
+        }
+
+        throw BusinessException.builder()
+                .errorMessageArguments(List.of(targetFileName))
+                .message("The trajectory file {0} was not found. It may have been moved or deleted.")
+                .httpStatus(HttpStatus.NOT_FOUND)
+                .build();
     }
 
     private List<String> getClusterKeys(Integer studyId) {

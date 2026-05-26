@@ -42,9 +42,12 @@ public class MiscToJsonService {
 
             List<String> dtoSeries = dto.getMiscGenTsList();
             if (dtoSeries != null) {
+                Set<String> matchingSeries = new LinkedHashSet<>();
                 dtoSeries.stream()
                         .filter(fileName -> MiscGroupEnum.matchesSeriesForGroup(fileName, group))
-                        .forEach(seriesByGroup.get(group)::add);
+                        .forEach(matchingSeries::add);
+
+                seriesByGroup.get(group).addAll(matchingSeries);
             }
         }
 
@@ -61,7 +64,6 @@ public class MiscToJsonService {
             groupData.put("series", List.copyOf(seriesByGroup.getOrDefault(group, Collections.emptySet())));
 
             miscDataMap.put(group, groupData);
-            log.info("MISC group added {} for area {}", group, areaName);
         }
 
         log.info("miscMapGenerator: {} MISC added for area {}", miscDataMap.size(), areaName);
