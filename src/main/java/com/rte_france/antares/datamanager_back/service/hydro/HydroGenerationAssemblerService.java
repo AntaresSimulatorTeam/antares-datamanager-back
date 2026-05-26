@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
