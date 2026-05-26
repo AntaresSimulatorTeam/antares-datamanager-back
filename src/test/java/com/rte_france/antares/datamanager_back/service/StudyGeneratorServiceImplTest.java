@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
@@ -100,6 +101,9 @@ class StudyGeneratorServiceImplTest {
     private ResToJsonService resToJsonService;
 
     @Mock
+    private HydroToJsonService hydroToJsonService;
+
+    @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
@@ -114,6 +118,9 @@ class StudyGeneratorServiceImplTest {
     @Mock
     private ResGenerationAssemblerService resGenerationAssemblerService;
 
+    @Mock
+    private HydroGenerationAssemblerService hydroGenerationAssemblerService;
+    
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
     private StudyEntity studyEntity;
@@ -166,6 +173,7 @@ class StudyGeneratorServiceImplTest {
         //Default DSR assembler returns empty map to avoid NPE in tests not focused on DSR
         lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
+        lenient().when(hydroGenerationAssemblerService.assembleHydroProperties(any())).thenReturn(Collections.emptyMap());
 
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
@@ -187,6 +195,9 @@ class StudyGeneratorServiceImplTest {
 
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(resToJsonService).buildResDataMap(anyString(), anyMap());
+
+        lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
+                .when(hydroToJsonService).buildHydroDataMap(anyString(), anyMap());
     }
 
     @Test
@@ -288,17 +299,17 @@ class StudyGeneratorServiceImplTest {
     }
 
     @Test
-    void testBuildJsonForStudyGenerationThrowsExceptionWhenIOExceptionOccurs() throws IOException {
+    void testBuildJsonForStudyGenerationThrowsExceptionWhenIOExceptionOccurs() throws TechnicalException, IOException {
         // Given
         Integer studyId = 1;
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
-        doThrow(IOException.class).when(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), anyString());
+        doThrow(new IOException("IO error")).when(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), anyString());
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> studyGeneratorService.buildJsonForStudyGeneration(studyId));
 
         assertNotNull(exception);
-        assertInstanceOf(IOException.class, exception.getCause());
+        assertInstanceOf(TechnicalException.class, exception);
     }
 
     @Test

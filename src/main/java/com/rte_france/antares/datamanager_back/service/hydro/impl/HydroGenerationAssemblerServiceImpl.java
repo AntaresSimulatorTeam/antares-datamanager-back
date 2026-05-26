@@ -132,7 +132,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             Set<String> remainingOtherAreas = othersTsPath.stream()
                     .filter(Objects::nonNull)
                     .filter(path -> path.getFileName() != null)
-                    .filter(path -> !isMaxpowerFile(path))
+                    .filter(path -> !isMaxpowerFile(path.getFileName().toString()))
                     .map(this::extractAreaFromFileName)
                     .flatMap(Optional::stream)
                     .map(area -> area.toUpperCase(Locale.ROOT))
@@ -160,7 +160,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             return false;
         }
 
-        if (isMaxpowerFile(path)) {
+        if (isMaxpowerFile(path.getFileName().toString())) {
             return true;
         }
 
@@ -169,10 +169,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 .orElse(false);
     }
 
-    private boolean isMaxpowerFile(Path path) {
-        return path != null
-                && path.getFileName() != null
-                && path.getFileName().toString().toLowerCase(Locale.ROOT).startsWith("maxpower_");
+    private boolean isMaxpowerFile(String fileName) {
+        return fileName != null && fileName.toLowerCase(Locale.ROOT).startsWith("maxpower_");
     }
 
     private Optional<String> extractAreaFromFileName(Path path) {
@@ -228,22 +226,6 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         result.remove(OTHER_AREA.toUpperCase());
         return result;
     }
-    
-    private String getHydroSeriesType(String fileName) {
-        if (fileName.startsWith(HYDRO_SERIES_MINGEN)) {
-            return HYDRO_SERIES_MINGEN;
-        }
-        if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
-            return HYDRO_SERIES_RESERVOIR_LEVELS;
-        }
-        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD)) {
-            return HYDRO_SERIES_INFLOWS_MOD;
-        }
-        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR)) {
-            return HYDRO_SERIES_INFLOWS_ROR;
-        }
-        return null;
-    };
 
     private Map<String, List<Path>> mapTsPathByArea(StudyEntity study) {
 
@@ -260,14 +242,100 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                         .stream()
                         .filter(Objects::nonNull)
                         .filter(hydroSeries -> hydroSeries.getTsName() != null)
+                        .filter(hydroSeries -> shouldKeepHydroSeries(study, trajectory, hydroSeries))
                         .map(hydroSeries -> Map.entry(
                                 trajectory.getArea().toUpperCase(Locale.ROOT),
-                                hydroSeriesDir.resolve(trajectory.getFileName()).resolve(trajectory.getType().toUpperCase()).resolve(hydroSeries.getTsName())
+                                resolveHydroSeriesPath(hydroSeriesDir, trajectory, hydroSeries)
                         )))
                 .filter(entry -> Files.exists(entry.getValue()))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
+    }
+
+    private boolean shouldKeepHydroSeries(
+            StudyEntity study,
+            TrajectoryEntity trajectory,
+            HydroSeriesEntity hydroSeries
+    ) {
+        String tsName = hydroSeries.getTsName();
+
+        if (!tsName.toLowerCase(Locale.ROOT).startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
+            return true;
+        }
+
+        String area = OTHER_AREA.equalsIgnoreCase(trajectory.getArea())
+                ? extractAreaFromFileName(Path.of(tsName)).orElse(null)
+                : trajectory.getArea();
+
+        if (area == null) {
+            return false;
+        }
+
+        String normalizedArea = area.toUpperCase(Locale.ROOT);
+
+        return study.getTrajectories().stream()
+                .filter(Objects::nonNull)
+                .filter(studyTrajectory -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(studyTrajectory.getType()))
+                .flatMap(studyTrajectory -> Optional.ofNullable(studyTrajectory.getHydroParametersEntities())
+                        .orElseGet(Collections::emptyList)
+                        .stream())
+                .filter(Objects::nonNull)
+                .filter(hydroParameter -> hydroParameter.getNode() != null)
+                .filter(hydroParameter -> normalizedArea.equals(hydroParameter.getNode().toUpperCase(Locale.ROOT)))
+                .anyMatch(hydroParameter -> Boolean.TRUE.equals(hydroParameter.getReservoir()));
+    }
+
+    private Path resolveHydroSeriesPath(Path hydroSeriesDir, TrajectoryEntity trajectory, HydroSeriesEntity hydroSeries) {
+        String tsName = hydroSeries.getTsName();
+
+        Path trajectoryDir = hydroSeriesDir.resolve(trajectory.getFileName());
+        
+        // hydroParametersEntities
+
+        if (isMaxpowerFile(tsName)) {
+            return trajectoryDir.resolve(tsName);
+        }
+
+        return resolveHydroSeriesSubDirectory(tsName)
+                .map(subDirectory -> trajectoryDir.resolve(subDirectory).resolve(tsName))
+                .orElseGet(() -> trajectoryDir.resolve(tsName));
+    }
+
+    private Optional<String> resolveHydroSeriesSubDirectory(String fileName) {
+        if (fileName == null) {
+            return Optional.empty();
+        }
+
+        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR) || fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD)) {
+            return Optional.of("inflows");
+        }
+
+        if (fileName.startsWith(HYDRO_SERIES_MINGEN)) {
+            return Optional.of("mingen");
+        }
+
+        if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
+            return Optional.of("reservoir_levels");
+        }
+
+        return Optional.empty();
+    }
+
+    private String getHydroSeriesType(String fileName) {
+        if (fileName.startsWith(HYDRO_SERIES_MINGEN)) {
+            return HYDRO_SERIES_MINGEN;
+        }
+        if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
+            return HYDRO_SERIES_RESERVOIR_LEVELS;
+        }
+        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD)) {
+            return HYDRO_SERIES_INFLOWS_MOD;
+        }
+        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR)) {
+            return HYDRO_SERIES_INFLOWS_ROR;
+        }
+        return null;
     }
 }
