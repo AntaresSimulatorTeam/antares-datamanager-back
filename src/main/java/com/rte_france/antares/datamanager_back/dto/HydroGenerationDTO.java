@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -29,7 +30,7 @@ public class HydroGenerationDTO {
     @JsonProperty("reservoir")
     private Boolean reservoirManagement;
 
-    @JsonProperty("reservoirCapacity")
+    @JsonProperty("reservoir_capacity")
     private Integer reservoirCapacity;
 
     @JsonProperty("pumping_efficiency")
@@ -44,6 +45,6 @@ public class HydroGenerationDTO {
     @JsonProperty("allocation")
     private Map<String, Double> allocation;
 
-
-
+    @JsonProperty("series")
+    private String[] series;
 }
