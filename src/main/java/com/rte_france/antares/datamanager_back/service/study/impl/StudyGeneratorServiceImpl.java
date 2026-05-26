@@ -60,7 +60,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final HydroGenerationAssemblerService hydroGenerationAssemblerService;
 
     private static final String PROPERTIES = "properties";
-    private static final String MATRIX_HASH = "matrix hash";
 
 
     @ExecutionTime
@@ -89,7 +88,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
     }
 
-    private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) {
+    private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) throws BusinessException, TechnicalException {
         log.info("Construction des données JSON pour génération - étude id={}", studyId);
         Map<String, Object> jsonForGenerator = new TreeMap<>();
 
@@ -159,7 +158,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
-    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
+    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) throws BusinessException {
         log.info("Construction des areas data pour trajectory={} area={}", trajectory.getFileName(), trajectory.getArea());
 
         List<AreaDTO> areaDTOs = trajectory.getAreaConfigEntities().stream()
@@ -232,14 +231,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), miscProps);
         Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), resProps);
         Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), hydroProps);
-
-        areaMap.put("hydro", hydroMap);
+        
         areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
         areaMap.put("sts", stsMap);
         areaMap.put("dsr", dsrMap);
         areaMap.put("misc", miscMap);
         areaMap.put("res", resMap);
+        areaMap.put("hydro", hydroMap);
 
         return areaMap;
     }
