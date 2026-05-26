@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -103,6 +104,9 @@ class TrajectoryServiceImplTest {
 
     @Mock
     private ResCoherenceCheckService resCoherenceCheckService;
+
+    @Mock
+    private HydroCoherenceCheckService hydroCoherenceCheckService;
 
     @BeforeEach
     void setUp() {
@@ -405,6 +409,103 @@ class TrajectoryServiceImplTest {
 
         assertTrue(foundLink.isPresent());
         assertEquals(existingLink, foundLink.get());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_callsValidateHydroSeriesCoherenceForHydroSeries() throws IOException {
+        Integer trajectoryId = 10;
+        Integer studyId = 5;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .warningMessages(new HashSet<>())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_SERIES);
+
+        assertEquals(trajectoryId, result.getId());
+        verify(hydroCoherenceCheckService, times(1)).validateHydroSeriesCoherence(studyId, trajectory);
+        verify(studyTrajectoryRepository, times(1)).save(any(StudyTrajectoryEntity.class));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_throwsWhenHydroSeriesCoherenceCheckFails() throws BusinessException {
+        Integer trajectoryId = 10;
+        Integer studyId = 5;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .warningMessages(new HashSet<>())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        doThrow(BusinessException.builder()
+                .message("Missing areas hydroAllocation in Hydro TechnicalParameters trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(hydroCoherenceCheckService).validateHydroSeriesCoherence(studyId, trajectory);
+
+        assertThrows(BusinessException.class,
+                () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_SERIES));
+        verify(studyTrajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_callsValidateHydroTechnicalParametersCoherenceForBothHydroTypes() throws IOException {
+        Integer trajectoryId = 11;
+        Integer studyId = 6;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .warningMessages(new HashSet<>())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS);
+
+        assertEquals(trajectoryId, result.getId());
+        verify(hydroCoherenceCheckService, times(1)).validateHydroTechnicalParametersCoherence(studyId, trajectory, TrajectoryType.HYDRO_ALLOCATION);
+        verify(hydroCoherenceCheckService, times(1)).validateHydroTechnicalParametersCoherence(studyId, trajectory, TrajectoryType.HYDRO_PARAMETERS);
+        verify(studyTrajectoryRepository, times(1)).save(any(StudyTrajectoryEntity.class));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_throwsWhenHydroTechnicalParametersCoherenceCheckFails() throws BusinessException {
+        Integer trajectoryId = 11;
+        Integer studyId = 6;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .warningMessages(new HashSet<>())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        doThrow(BusinessException.builder()
+                .message("Missing areas hydroAllocation in Hydro TechnicalParameters trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(hydroCoherenceCheckService).validateHydroTechnicalParametersCoherence(eq(studyId), eq(trajectory), any(TrajectoryType.class));
+
+        assertThrows(BusinessException.class,
+                () -> trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS));
+        verify(studyTrajectoryRepository, never()).save(any());
     }
 
     @Test
