@@ -3,23 +3,30 @@ package com.rte_france.antares.datamanager_back.service;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroGenerationAssemblerServiceImpl;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -434,5 +441,366 @@ class HydroGenerationAssemblerServiceImplTest {
         assertNotNull(allocation);
         assertTrue(allocation.containsKey("DE"));
         assertEquals(10.0, allocation.get("DE"));
+    }
+
+    // --- Tests sur la gestion des séries HYDRO_SERIES ---
+
+    @Test
+    void assembleHydroProperties_setsSeriesOnDtoWhenMingenFileExists(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1").resolve("mingen");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
+        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(matrix);
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_mingen"), eq("hydro_output")))
+                .thenReturn("FR_mingen.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        HydroGenerationDTO dto = result.get("FR").get(0);
+        assertNotNull(dto.getSeries());
+        assertArrayEquals(new String[]{"FR_mingen.arrow"}, dto.getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_seriesNullWhenFileNotOnDisk() {
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertNull(result.get("FR").get(0).getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_throwsBusinessExceptionOnIOErrorSavingHydroSeries(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1").resolve("mingen");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
+
+        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString()))
+                .thenThrow(new IOException("write error"));
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleHydroProperties(studyEntity));
+        assertEquals("Could not generate matrix for hydro series", ex.getMessage());
+    }
+
+    @Test
+    void assembleHydroProperties_setsSeriesForMaxpowerFile(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("maxpower_2030.xlsx"));
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any())).thenReturn(matrix);
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_maxpower"), eq("hydro_output")))
+                .thenReturn("FR_maxpower.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("maxpower_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        HydroGenerationDTO dto = result.get("FR").get(0);
+        assertNotNull(dto.getSeries());
+        assertArrayEquals(new String[]{"FR_maxpower.arrow"}, dto.getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_throwsBusinessExceptionOnIOErrorReadingMaxpower(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("maxpower_2030.xlsx"));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), any(), any()))
+                .thenThrow(new IOException("read error"));
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("maxpower_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleHydroProperties(studyEntity));
+        assertEquals("Could not generate matrix for maxpower", ex.getMessage());
+    }
+
+    @Test
+    void assembleHydroProperties_setsSeriesForRorFileUnderInflowsSubdir(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1").resolve("inflows");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("ror_FR_2030.xlsx"));
+
+        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_ror"), eq("hydro_output")))
+                .thenReturn("FR_ror.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("ror_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        HydroGenerationDTO dto = result.get("FR").get(0);
+        assertNotNull(dto.getSeries());
+        assertArrayEquals(new String[]{"FR_ror.arrow"}, dto.getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_reservoirLevelsKeptWhenReservoirTrue(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1").resolve("reservoir_levels");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("reservoir_levels_FR_2030.xlsx"));
+
+        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString()))
+                .thenReturn("FR_reservoir_levels.arrow");
+
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").reservoir(true).build();
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("reservoir_levels_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        HydroGenerationDTO dto = result.get("FR").get(0);
+        assertNotNull(dto.getSeries());
+        assertEquals(1, dto.getSeries().length);
+    }
+
+    @Test
+    void assembleHydroProperties_reservoirLevelsFilteredWhenReservoirFalse() {
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").reservoir(false).build();
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("reservoir_levels_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertNull(result.get("FR").get(0).getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_reservoirLevelsFilteredWhenReservoirNull() {
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").reservoir(null).build();
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("reservoir_levels_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertNull(result.get("FR").get(0).getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_othersAreaSetsSeriesForExtractedArea(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj_others").resolve("mingen");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("mingen_DE_2030.xlsx"));
+
+        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("DE_mingen"), eq("hydro_output")))
+                .thenReturn("DE_mingen.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_DE_2030.xlsx").build();
+        TrajectoryEntity othersTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("OTHERS")
+                .fileName("traj_others")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("DE").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(othersTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertTrue(result.containsKey("DE"));
+        HydroGenerationDTO dto = result.get("DE").get(0);
+        assertNotNull(dto.getSeries());
+        assertArrayEquals(new String[]{"DE_mingen.arrow"}, dto.getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_filtersHydroSeriesWithNullTsName() {
+        HydroSeriesEntity hydroSeriesNullTs = HydroSeriesEntity.builder().tsName(null).build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeriesNullTs))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertNotNull(result.get("FR"));
+        assertNull(result.get("FR").get(0).getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_filtersHydroSeriesTrajectoryWithNullArea() {
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectoryNullArea = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area(null)
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectoryNullArea))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertTrue(result.isEmpty());
     }
 }
