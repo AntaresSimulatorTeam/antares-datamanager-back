@@ -13,7 +13,6 @@ import java.util.Map;
 @Service
 public class HydroToJsonService {
     private static final String PROPERTIES = "properties";
-    private static final String SERIES = "series";
 
     public Map<String, Object> buildHydroDataMap(String areaName, Map<String, List<HydroGenerationDTO>> hydroPropsByArea) {
         if (hydroPropsByArea == null || hydroPropsByArea.isEmpty()) {
@@ -33,7 +32,6 @@ public class HydroToJsonService {
         }
         Map<String, Object> areaHydroMap = new LinkedHashMap<>();
         areaHydroMap.put(PROPERTIES, areaHydro);
-        //areaHydroMap.put(SERIES, areaHydro.get(SERIES));
 
         return areaHydroMap;
     }
