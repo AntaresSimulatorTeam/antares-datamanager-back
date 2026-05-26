@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
-
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -40,7 +39,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.mapper.StudyMapper.toStudyDTO;
-import static com.rte_france.antares.datamanager_back.util.DuplicationTrajectoryUtils.SUPPORTED_TRAJECTORY_TYPES;
 
 @Slf4j
 @Service
@@ -62,7 +60,6 @@ public class StudyServiceImpl implements StudyService {
 
     private static final String STUDY_NOT_FOUND = "Study with id {0} not found.";
     private static final String HORIZON_FORMAT = "%d-%s";
-    public record TrajectoryKey(String fileName, String type, String area) {};
 
     @Override
     public Page<StudyEntity> findStudiesByCriteria(String search, Integer idProject, Pageable pageable) {
@@ -142,77 +139,150 @@ public class StudyServiceImpl implements StudyService {
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
-        StudyEntity studyToDuplicate = studyRepository.findById(studyDTO.getId()).orElseThrow(() -> BusinessException.builder()
-                .message("Study {0} not found")
-                .errorMessageArguments(List.of(studyDTO.getName()))
-                .httpStatus(HttpStatus.NOT_FOUND)
-                .build());
-
-        Set<TrajectoryEntity> existingStudyTrajectories = studyToDuplicate.getTrajectories();
-
-        // Extraire l'année de l'horizon original (format "prev-current")
-        String originalHorizon = studyToDuplicate.getHorizon();
-
-        String originalHorizonYear = originalHorizon != null && originalHorizon.contains("-")
-                ? originalHorizon.split("-")[1] // yyyy
-                : originalHorizon; // yyyy-yyyy+1
-
-        List<TrajectoryEntity> trajectoriesAvailable;
-        if (Objects.equals(originalHorizonYear, studyDTO.getHorizon())) {
-            // Cas 1 : même horizon -> on réutilise les trajectoires déjà liées
-            trajectoriesAvailable = new ArrayList<>(existingStudyTrajectories);
-        } else {
-            // Cas 2 : horizon changé -> chercher pour le nouveau horizon les trajectoires ayant le même nom
-            String newHorizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(studyDTO.getHorizon()) - 1, studyDTO.getHorizon());
-
-            Set<TrajectoryKey> requestedKeys = existingStudyTrajectories.stream()
-                    .filter(Objects::nonNull)
-                    .map(t -> new TrajectoryKey(t.getFileName(), t.getType(), t.getArea()))
-                    .collect(Collectors.toSet());
+        
+        StudyEntity studyToDuplicate = loadStudyToDuplicateOrThrow(studyDTO);
 
 
-            List<TrajectoryEntity> out = new ArrayList<>();
-            for (TrajectoryKey k : requestedKeys) {
-                List<TrajectoryEntity> one = trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(
-                        newHorizonRange,
-                        k.fileName(),
-                        k.type(),
-                        k.area(),
-                        PageRequest.of(0, 1)
-                );
+        List<TrajectoryEntity> trajectoriesAvailable = getAvailableTrajectoriesForDuplication(
+                studyToDuplicate,
+                studyDTO.getHorizon()
+        );
 
-                one.stream().findFirst().ifPresent(out::add);
-            }
-            trajectoriesAvailable = out;
-        }
-
-      TrajectoryEntity areaTrajectory =  DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(trajectoriesAvailable, existingStudyTrajectories, studyDTO.getHorizon());
+        TrajectoryEntity areaTrajectory = DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(
+                trajectoriesAvailable,
+                studyToDuplicate.getTrajectories(),
+                studyDTO.getHorizon()
+        );
 
         studyDTO.setTrajectoryIds(List.of(areaTrajectory.getId()));
         StudyDTO savedStudyDTO = createStudy(studyDTO);
 
-        DuplicationTrajectoryUtils.TrajectoryProcessingResult result = DuplicationTrajectoryUtils.processAndLinkTrajectories(
+        DuplicationTrajectoryUtils.TrajectoryProcessingResult result = DuplicationTrajectoryUtils.processAndLinkTrajectories(areaTrajectory,
                 trajectoriesAvailable,
-                savedStudyDTO,
-                trajectoryService,
-                loadFileProcessorService,
-                studyDTO.getCreatedBy()
+                studyToDuplicate.getTrajectories()
         );
 
-        if (!result.missingTrajectoryTypes().isEmpty()) {
+        List<String> missingTrajectoryKeys = result.missingTrajectoryKeys();
+
+        handleDuplicationWarnings(result, missingTrajectoryKeys, savedStudyDTO, studyDTO);
+
+        // lancer le control de coherence par type
+        checkTrajectoryCoherenceByType(trajectoriesAvailable, savedStudyDTO.getId(), studyDTO.getCreatedBy());
+
+        return savedStudyDTO;
+    }
+
+    private StudyEntity loadStudyToDuplicateOrThrow(StudyDTO studyDTO) {
+        return studyRepository.findById(studyDTO.getId()).orElseThrow(() -> 
+                BusinessException.builder()
+                        .message("Study {0} not found")
+                        .errorMessageArguments(List.of(studyDTO.getName()))
+                        .httpStatus(HttpStatus.NOT_FOUND)
+                        .build()
+        );
+    }
+
+    private List<TrajectoryEntity> getAvailableTrajectoriesForDuplication(StudyEntity studyToDuplicate, String newHorizonYear) {
+        Set<TrajectoryEntity> existingStudyTrajectories = studyToDuplicate.getTrajectories();
+        String originalHorizonYear = extractHorizonYear(studyToDuplicate.getHorizon());
+
+        if (Objects.equals(originalHorizonYear, newHorizonYear)) {
+            return getTrajectoriesForSameHorizon(existingStudyTrajectories);
+        } else {
+            return getTrajectoriesForChangedHorizon(existingStudyTrajectories, newHorizonYear);
+        }
+    }
+
+    private String extractHorizonYear(String horizon) {
+        if (horizon != null && horizon.contains("-")) {
+            return horizon.split("-")[1];
+        }
+        return horizon;
+    }
+
+    private List<TrajectoryEntity> getTrajectoriesForSameHorizon(Set<TrajectoryEntity> existingStudyTrajectories) {
+        return new ArrayList<>(existingStudyTrajectories);
+    }
+
+    private List<TrajectoryEntity> getTrajectoriesForChangedHorizon(Set<TrajectoryEntity> existingStudyTrajectories, String newHorizonYear) {
+        String newHorizonRange = String.format(HORIZON_FORMAT, Integer.parseInt(newHorizonYear) - 1, newHorizonYear);
+
+        Set<DuplicationTrajectoryUtils.TrajectoryKey> requestedKeys = existingStudyTrajectories.stream()
+                .filter(Objects::nonNull)
+                .map(t -> new DuplicationTrajectoryUtils.TrajectoryKey(t.getFileName(), t.getType(), t.getArea()))
+                .collect(Collectors.toSet());
+
+        List<TrajectoryEntity> trajectories = new ArrayList<>();
+        for (DuplicationTrajectoryUtils.TrajectoryKey key : requestedKeys) {
+            trajectoryRepository.findLatestTrajectoriesByNamesAndHorizon(
+                    newHorizonRange,
+                    key.fileName(),
+                    key.type(),
+                    key.area(),
+                    PageRequest.of(0, 1)
+            ).stream().findFirst().ifPresent(trajectories::add);
+        }
+        return trajectories;
+    }
+
+    private void handleDuplicationWarnings(DuplicationTrajectoryUtils.TrajectoryProcessingResult result,
+                                           List<String> missingTrajectoryKeys,
+                                           StudyDTO savedStudyDTO,
+                                           StudyDTO originalStudyDTO) {
+        Set<String> missingWarnings = new LinkedHashSet<>(missingTrajectoryKeys);
+
+        if (!missingWarnings.isEmpty()) {
             warningService.addWarning(
                     result.warningMessages(),
-                    Arrays.asList(String.join(", ", result.missingTrajectoryTypes()), studyDTO.getHorizon()),
+                    Arrays.asList(String.join(", ", missingWarnings), originalStudyDTO.getHorizon()),
                     WarningCode.DUPLICATION_MISSING_TRAJECTORIES,
                     savedStudyDTO.getId(),
-                    studyDTO.getCreatedBy(),
+                    originalStudyDTO.getCreatedBy(),
                     result.areaTrajectory()
             );
             warningRepository.saveAll(result.warningMessages());
+        }
+    }
 
+
+    /**
+     * Checks trajectory coherence for each trajectory type available.
+     * This method groups trajectories by type and performs type-specific coherence checks
+     * such as validation of areas, links, loads, thermal parameters, etc.
+     *
+     * @param trajectoriesAvailable list of available trajectories to check
+     * @param studyId the ID of the study
+     * @param userNni the NNI of the user performing the operation
+     */
+    private void checkTrajectoryCoherenceByType(List<TrajectoryEntity> trajectoriesAvailable, Integer studyId, String userNni) {
+        if (CollectionUtils.isEmpty(trajectoriesAvailable)) {
+            return;
         }
 
-        return savedStudyDTO;
+        // Group trajectories by type
+        Map<String, List<TrajectoryEntity>> trajectoriesByType = trajectoriesAvailable.stream()
+                .collect(Collectors.groupingBy(TrajectoryEntity::getType));
+
+        // Check coherence for each type
+        for (Map.Entry<String, List<TrajectoryEntity>> entry : trajectoriesByType.entrySet()) {
+            String trajectoryType = entry.getKey();
+            List<TrajectoryEntity> trajectories = entry.getValue();
+
+            try {
+                for (TrajectoryEntity trajectory : trajectories) {
+                    Set<WarningMessageEntity> warningMessages = new HashSet<>();
+                    trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
+                    trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.valueOf(trajectoryType));
+                }
+            } catch (IOException e) {
+                log.error("Error checking trajectory coherence for type {} during duplication: {}", trajectoryType, e.getMessage(), e);
+                throw TechnicalException.builder()
+                        .message("Error checking trajectory coherence for type {0} during duplication")
+                        .errorMessageArguments(List.of(trajectoryType))
+                        .cause(e)
+                        .build();
+            }
+        }
     }
 
 
@@ -336,14 +406,6 @@ public class StudyServiceImpl implements StudyService {
         return studyRepository.existsByNameAndProjectName(studyName, projectName);
     }
 
-    private void validateStudy(String studyName, String projectName) {
-        if (studyExists(studyName, projectName)) {
-            throw BusinessException.builder()
-                    .message("A study with the same name already exists for the given project.")
-                    .httpStatus(HttpStatus.CONFLICT)
-                    .build();
-        }
-    }
 
     private static void validateHorizon(StudyDTO studyDTO) {
         try {

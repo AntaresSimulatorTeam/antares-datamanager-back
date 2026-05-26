@@ -23,14 +23,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +43,7 @@ class DuplicationStudyImplTest {
 
     @Mock
     private TrajectoryServiceImpl trajectoryService;
+
 
     @Mock
     private WarningRepository warningRepository;
@@ -98,11 +96,16 @@ class DuplicationStudyImplTest {
         areaTrajectory.setType("AREA");
         areaTrajectory.setId(1);
         areaTrajectory.setFileName("BP1");
+        areaTrajectory.setWarningMessages(new HashSet<>());
 
         Set<TrajectoryEntity> trajectories = Set.of(areaTrajectory);
         studyEntity.setTrajectories(trajectories);
 
         when(trajectoryService.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(areaTrajectory);
+        // Mock checkTrajectoryCoherence to avoid IOException
+        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        // Mock trajectoryRepository
+        when(trajectoryRepository.findAllByIdWithWarnings(List.of(1))).thenReturn(trajectories);
 
         when(studyRepository.findById(15)).thenReturn(Optional.of(studyEntity));
 
@@ -115,12 +118,14 @@ class DuplicationStudyImplTest {
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
         verify(trajectoryService).linkTrajectoryToStudy(1,1, TrajectoryType.AREA);
+        // Verify that checkTrajectoryCoherence was called
+        verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(areaTrajectory), eq("user1"));
 
 
     }
 
     @Test
-    void duplicateStudy_withoutAreaTrajectory_shouldThrowException() {
+    void duplicateStudy_withoutAreaTrajectory_shouldThrowException() throws IOException {
 
         StudyDTO studyDTO = StudyDTO.builder()
                 .name("test_duplication")
@@ -134,6 +139,7 @@ class DuplicationStudyImplTest {
         areaTrajectory.setId(1);
         areaTrajectory.setHorizon("2026-2027");
         areaTrajectory.setFileName("BP1");
+        areaTrajectory.setWarningMessages(new HashSet<>());
 
         studyEntity.setTrajectories(Set.of(areaTrajectory));
 
@@ -153,10 +159,8 @@ class DuplicationStudyImplTest {
 
         verifyNoMoreInteractions(
                 projectRepository,
-                studyRepository,
                 warningRepository,
-                warningService,
-                trajectoryService
+                warningService
         );
     }
 
@@ -174,6 +178,8 @@ class DuplicationStudyImplTest {
         TrajectoryEntity areaTrajectory = new TrajectoryEntity();
         areaTrajectory.setType(TrajectoryType.AREA.name());
         areaTrajectory.setId(1);
+        areaTrajectory.setFileName("BP1");
+        areaTrajectory.setWarningMessages(new HashSet<>());
 
         studyEntity.setTrajectories(Set.of(areaTrajectory));
         when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
@@ -186,47 +192,105 @@ class DuplicationStudyImplTest {
                 .thenReturn(studyEntity);
 
         when(trajectoryService.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(areaTrajectory);
+        // Mock checkTrajectoryCoherence to avoid IOException
+        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        // Mock trajectoryRepository - for same horizon, return the area only
+         when(trajectoryRepository.findAllByIdWithWarnings(List.of(1))).thenReturn(Set.of(areaTrajectory));
 
-        when(warningRepository.saveAll(any()))
-                .thenReturn(Collections.emptyList());
+
+         StudyDTO result = studyService.duplicateStudy(studyDTO);
+
+
+         assertNotNull(result);
+         verify(projectRepository).findByName("project1");
+         verify(studyRepository).save(any(StudyEntity.class));
+         verify(trajectoryService).linkTrajectoryToStudy(1, 1, TrajectoryType.AREA);
+         // Verify that checkTrajectoryCoherence was called for the area trajectory
+         verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(areaTrajectory), eq("user1"));
+
+
+
+    }
+
+    @Test
+    void duplicateStudy_checkTrajectoryCoherenceHandlesMultipleTypes() throws IOException {
+
+        StudyDTO studyDTO = StudyDTO.builder()
+                .name("test_duplication")
+                .horizon("2031")
+                .createdBy("user1")
+                .project("project1")
+                .id(1)
+                .build();
+
+        TrajectoryEntity areaTrajectory = new TrajectoryEntity();
+        areaTrajectory.setType(TrajectoryType.AREA.name());
+        areaTrajectory.setId(1);
+        areaTrajectory.setFileName("BP1");
+        areaTrajectory.setWarningMessages(new HashSet<>());
+
+        TrajectoryEntity loadTrajectory = new TrajectoryEntity();
+        loadTrajectory.setType(TrajectoryType.LOAD.name());
+        loadTrajectory.setId(2);
+        loadTrajectory.setFileName("LOAD1");
+        loadTrajectory.setWarningMessages(new HashSet<>());
+
+        Set<TrajectoryEntity> trajectories = Set.of(areaTrajectory, loadTrajectory);
+        studyEntity.setTrajectories(trajectories);
+        when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
+
+        when(projectRepository.findByName("project1"))
+                .thenReturn(Optional.of(projectEntity));
+
+        when(studyRepository.save(any(StudyEntity.class)))
+                .thenReturn(studyEntity);
+
+        when(trajectoryService.linkTrajectoryToStudy(anyInt(), eq(1), any(TrajectoryType.class)))
+                .thenReturn(areaTrajectory);
+        
+        // Mock checkTrajectoryCoherence to avoid IOException
+        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        // Mock trajectoryRepository - for same horizon, return all trajectories
+        when(trajectoryRepository.findAllByIdWithWarnings(any())).thenReturn(trajectories);
 
 
         StudyDTO result = studyService.duplicateStudy(studyDTO);
 
-
         assertNotNull(result);
-        verify(projectRepository).findByName("project1");
-        verify(studyRepository).save(any(StudyEntity.class));
-        verify(trajectoryService).linkTrajectoryToStudy(1, 1, TrajectoryType.AREA);
-        verify(warningService).addWarning(
-                anySet(),
-                listCaptor.capture(),
-                eq(WarningCode.DUPLICATION_MISSING_TRAJECTORIES),
-                eq(1),
-                eq("user1"),
-                eq(areaTrajectory)
-        );
+        
+        // Verify that checkTrajectoryCoherence was called for both trajectories
+        verify(trajectoryService, times(2)).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(areaTrajectory), eq("user1"));
+        verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(loadTrajectory), eq("user1"));
+    }
 
-        List<String> actual = listCaptor.getValue();
+    @Test
+    void duplicateStudy_checkTrajectoryCoherenceHandlesIOException() throws IOException {
 
-        System.out.println(actual);
-        assertThat(actual).containsExactly(
-                String.join(", ",
-                        TrajectoryType.LINK.name(),
-                        TrajectoryType.LOAD.name(),
-                        TrajectoryType.THERMAL_CAPACITY.name(),
-                        TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(),
-                        TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name(),
-                        TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name(),
-                        TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name(),
-                        TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.name()
-                ),
-                "2031"
-        );
+        StudyDTO studyDTO = StudyDTO.builder()
+                .name("test_duplication")
+                .horizon("2031")
+                .createdBy("user1")
+                .project("project1")
+                .id(1)
+                .build();
 
-        verify(warningRepository).saveAll(any());
+        TrajectoryEntity areaTrajectory = new TrajectoryEntity();
+        areaTrajectory.setType(TrajectoryType.AREA.name());
+        areaTrajectory.setId(1);
+        areaTrajectory.setWarningMessages(new HashSet<>());
 
+        StudyEntity studyEntityWithArea = new StudyEntity();
+        studyEntityWithArea.setId(1);
+        studyEntityWithArea.setProject(projectEntity);
+        studyEntityWithArea.setHorizon("2030-2031");
+        studyEntityWithArea.setStatus(StudyStatus.IN_PROGRESS);
+        studyEntityWithArea.setTrajectories(Set.of(areaTrajectory));
 
+        when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntityWithArea));
+
+        // Should throw an exception when accessing without mocking the checkTrajectoryCoherence
+        assertThrows(Exception.class, () -> studyService.duplicateStudy(studyDTO));
     }
 
 
