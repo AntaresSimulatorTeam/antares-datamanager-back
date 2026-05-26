@@ -62,7 +62,7 @@ public class NasFileService {
      * @param content  the content to save in the file
      * @throws IOException if an I/O error occurs or if the file name is invalid
      */
-    public void saveFile(String filename, byte[] content, String outputDir) throws IOException {
+    public void saveFile(String filename, byte[] content, String outputDir) throws IOException, TechnicalException {
         Objects.requireNonNull(filename, "filename must not be null");
         Objects.requireNonNull(content, "content must not be null");
 
