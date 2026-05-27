@@ -110,7 +110,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         var hasOnlyRorFile= true;
         for (var area : areaList) {
             filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
-            if(!checkHydroFileConsistency(filesName, area)) hasOnlyRorFile = false;
+            if(!checkHydroFileConsistency(filesName, area, trajectoryToUse)) hasOnlyRorFile = false;
             filesNameFinal.addAll(filesName);
         }
         String maxPowerFileName = null;
@@ -119,7 +119,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
                     .map(s -> s.split("_")[1])
                     .toList();
-            maxPowerFileName = processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas);
+            maxPowerFileName = processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, studyAreas);
             if (studyId != null) {
                 hydroCoherenceCheckService.checkHydroSeriesTrajectoriesConsistency(studyId, areasInHydroSeriesModFiles, areaParam, trajectoryToUse);
             }
@@ -223,12 +223,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String trajectoryToUse,
             String horizon,
             String areaParam,
-            List<String> areasInHydroSeriesModFiles
+            List<String> areasInHydroSeriesModFiles,
+            List<String> studyAreas
     ) throws IOException {
 
         Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath);
         
-        validateMaxPowerFile(fileMaxPowerPath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, TrajectoryType.HYDRO_SERIES);
+        validateMaxPowerFile(TrajectoryType.HYDRO_SERIES, fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, areasInHydroSeriesModFiles);
         return fileMaxPowerPath.getFileName().toString();
     }
 
@@ -236,12 +237,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String trajectoryToUse = trajectoryFilePath.getFileName().toString();
         try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
             List<Path> files = stream
-                    .filter(p -> p.getFileName().toString().startsWith(HYDRO_SERIES_PREFIX_MAX_POWER+trajectoryToUse))
-                    .toList();
+                .filter(p -> p.getFileName().toString().startsWith(HYDRO_SERIES_PREFIX_MAX_POWER+trajectoryToUse))
+                .toList();
 
             if (files.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("No maxpower file found for HYDRO series trajectory.")
+                        .errorMessageArguments(List.of(trajectoryToUse))
+                        .message("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -353,10 +355,11 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return filesName;
     }
 
-    private boolean checkHydroFileConsistency(List<String> filesName, String area) throws BusinessException {
+    private boolean checkHydroFileConsistency(List<String> filesName, String area, String trajectoryToUse) throws BusinessException {
         boolean hasMingen = false;
         boolean hasReservoirLevels = false;
         boolean hasMod = false;
+        List<String> missingModFiles = new ArrayList<>(List.of());
 
         for (String fileName : filesName) {
             if (fileName.startsWith(HYDRO_SERIES_MINGEN+'_'+area)) {
@@ -365,14 +368,18 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS+'_'+area)) {
                 hasReservoirLevels = true;
             }
-            if (fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD+'_'+area)) {
+            if (filesName.stream().anyMatch(name -> name.startsWith(HYDRO_SERIES_INFLOWS_MOD+'_'+area))) {
                 hasMod = true;
+            }
+            if ((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) {
+                missingModFiles.add(fileName);
             }
         }
 
-        if ((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) {
+        if (!missingModFiles.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Missing MOD file in trajectory Hydro Series trajectory")
+                    .errorMessageArguments(List.of(String.join(", ", missingModFiles), trajectoryToUse))
+                    .message("Missing MOD file ({0}) in trajectory Hydro Series trajectory {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -443,12 +450,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     }
 
     public void validateMaxPowerFile(
+            TrajectoryType trajectoryType,
             Path filePath,
             String trajectoryToUse,
             String horizon,
             String areaParam,
             List<String> studyAreas,
-            TrajectoryType trajectoryType
+            List<String> areasInHydroSeriesModFiles
     ) throws IOException {
 
         // Validate that the file path is trusted and points to a regular file
@@ -476,8 +484,15 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 String value = formatter.formatCellValue(cell);
                 headerAreas.add(value);
             }
-            
-            validateAreas(studyAreas, areaParam, headerAreas, trajectoryToUse, trajectoryType);
+
+            validateTrajectoryAreasPresence(studyAreas, headerAreas, trajectoryType, trajectoryToUse);
+            if (areaParam != null) {
+                if (areaParam.equals(OTHERS_AREA)) {
+                    validateSelectedOthersAreaPresence(areasInHydroSeriesModFiles, headerAreas, trajectoryType, trajectoryToUse);
+                } else {
+                    validateSelectedAreaPresence(areaParam, headerAreas, trajectoryType, trajectoryToUse);
+                }
+            }
         }
     }
 
