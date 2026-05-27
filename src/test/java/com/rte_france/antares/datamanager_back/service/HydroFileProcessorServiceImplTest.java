@@ -42,7 +42,7 @@ class HydroFileProcessorServiceImplTest {
     private static final String AREA_FR = "FR";
     private static final String HORIZON = "2029-2030";
     private static final String TRAJ = "BP_23";
-    private static final String FILE_NAME_MAX_POWER = "maxpower_FR_2029-2030.xlsx";
+    private static final String FILE_NAME_MAX_POWER = "maxpower_BP_23.xlsx";
     private static final String FILE_NAME_MOD = "mod_FR_2029-2030.csv";
     private static final String FILE_NAME_ROR = "ror_FR_2029-2030.csv";
     private static final String FILE_NAME_MINGEN = "mingen_FR_2029-2030.csv";

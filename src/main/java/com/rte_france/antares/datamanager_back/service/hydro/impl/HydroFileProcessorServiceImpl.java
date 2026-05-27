@@ -233,9 +233,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     }
 
     private Path findMaxPowerFile(Path trajectoryFilePath) throws BusinessException {
+        String trajectoryToUse = trajectoryFilePath.getFileName().toString();
         try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
             List<Path> files = stream
-                    .filter(p -> p.getFileName().toString().startsWith(HYDRO_SERIES_PREFIX_MAX_POWER))
+                    .filter(p -> p.getFileName().toString().startsWith(HYDRO_SERIES_PREFIX_MAX_POWER+trajectoryToUse))
                     .toList();
 
             if (files.isEmpty()) {
