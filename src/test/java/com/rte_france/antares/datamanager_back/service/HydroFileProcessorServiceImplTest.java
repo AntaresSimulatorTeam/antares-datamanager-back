@@ -301,6 +301,44 @@ class HydroFileProcessorServiceImplTest {
     }
 
     @Test
+    void processHydroSeriesFile_throwsBusinessException_whenReservoirLevelsFolderIsMissing() throws IOException {
+        Path baseDirectory = tempDir.resolve("hydro").resolve("series");
+        Path trajectoryPath = baseDirectory.resolve(TRAJ);
+        Files.createDirectories(trajectoryPath);
+
+        Path inflowDir = trajectoryPath.resolve("inflows");
+        Files.createDirectories(inflowDir);
+        Path mingenDir = trajectoryPath.resolve("mingen");
+        Files.createDirectories(mingenDir);
+
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(
+                eq(TrajectoryType.HYDRO_SERIES),
+                eq("FR"),
+                isNull()
+        )).thenReturn(baseDirectory);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroSeriesFile(
+                        TRAJ,
+                        "2030-2031",
+                        1,
+                        "FR",
+                        true
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("Missing folder {0} in hydro series trajectory {1}", exception.getMessage());
+
+        verify(trajectoryService).normalizeAndValidateDirectory(
+                TrajectoryType.HYDRO_SERIES,
+                "FR",
+                null
+        );
+        verifyNoInteractions(trajectoryRepository);
+    }
+
+    @Test
     void processHydroSeriesFile_throwsBusinessException_whenSeriesFileNameDoesNotMatchExpectedPattern(@TempDir Path tempDir) throws IOException {
         String trajectoryToUse = "BP_23";
         String horizon = "2029-2030";
