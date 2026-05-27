@@ -57,10 +57,6 @@ public class DsrGenerationDTO {
     private List<Double> foMonthlyRate;
 
     @JsonView(DsrClustersViews.Data.class)
-    @JsonProperty("reliability")
-    private Double reliability;
-
-    @JsonView(DsrClustersViews.Data.class)
     @JsonProperty("nb_hour_per_day")
     private Double nbHourPerDay;
 

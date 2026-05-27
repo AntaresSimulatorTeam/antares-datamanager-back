@@ -32,9 +32,6 @@ public class DsrClusterEntity {
     @Column(name = "capacity")
     private BigDecimal capacity;
 
-    @Column(name = "reliability")
-    private BigDecimal reliability;
-
     @Column(name = "nb_hour_per_day")
     private Integer nbHourPerDay;
 

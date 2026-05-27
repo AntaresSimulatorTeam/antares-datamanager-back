@@ -34,7 +34,6 @@ class DsrToJsonServiceTest {
                 .dsrTsList(List.of("ts1.txt", "ts2.txt"))
                 .foDuration(2.5)
                 .foMonthlyRate(Collections.nCopies(12, 0.1))
-                .reliability(0.95)
                 .build();
 
         Map<String, DsrGenerationDTO> dsrClusterProps = Map.of("FR_Cluster1", dto);
@@ -68,7 +67,6 @@ class DsrToJsonServiceTest {
         assertNotNull(monthly);
         assertEquals(12, monthly.size());
         monthly.forEach(v -> assertEquals(0.1, v));
-        assertEquals(0.95, data.get("reliability"));
 
         // Modulation
         assertEquals(List.of("ts1.txt", "ts2.txt"), clusterData.get("modulation"));
