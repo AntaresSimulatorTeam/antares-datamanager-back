@@ -13,6 +13,8 @@ import java.util.Map;
 @Service
 public class HydroToJsonService {
     private static final String PROPERTIES = "properties";
+    private static final String SERIES = "series";
+    private static final String ALLOCATION = "allocation";
 
     public Map<String, Object> buildHydroDataMap(String areaName, Map<String, List<HydroGenerationDTO>> hydroPropsByArea) {
         if (hydroPropsByArea == null || hydroPropsByArea.isEmpty()) {
@@ -30,8 +32,30 @@ public class HydroToJsonService {
             log.info("hydroMapGenerator: no Hydro found for area={}", areaName);
             return Collections.emptyMap();
         }
+
+        String[] series = areaHydro.stream()
+                .map(HydroGenerationDTO::getSeries)
+                .filter(s -> s != null && s.length > 0)
+                .findFirst()
+                .orElse(new String[0]);
+
+        Map<String, Double> allocation = areaHydro.stream()
+                .map(HydroGenerationDTO::getAllocation)
+                .filter(a -> a != null && !a.isEmpty())
+                .findFirst()
+                .orElse(Collections.emptyMap());
+
+        List<HydroGenerationDTO> areaHydroWithoutMetadata = areaHydro.stream()
+                .map(dto -> dto.toBuilder()
+                        .series(null)
+                        .allocation(null)
+                        .build())
+                .toList();
+
         Map<String, Object> areaHydroMap = new LinkedHashMap<>();
-        areaHydroMap.put(PROPERTIES, areaHydro);
+        areaHydroMap.put(PROPERTIES, areaHydroWithoutMetadata);
+        areaHydroMap.put(SERIES, series);
+        areaHydroMap.put(ALLOCATION, allocation);
 
         return areaHydroMap;
     }
