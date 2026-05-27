@@ -100,7 +100,7 @@ class HydroFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false)
         );
-        assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}"));
+        assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{0}) in Hydro Series trajectory {0}"));
     }
 
     @Test
@@ -477,7 +477,7 @@ class HydroFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}", exception.getMessage());
+        assertEquals("Missing maxpower file (maxpower_{0}) in Hydro Series trajectory {0}", exception.getMessage());
 
         verify(trajectoryRepository, never()).save(any());
     }
@@ -781,6 +781,53 @@ class HydroFileProcessorServiceImplTest {
         assertEquals("Missing maxpower file in trajectory Hydro Series trajectory", exception.getMessage());
     }
 
+    @Test
+    void validateMaxPowerFile_throwsWhenOthersAreaHasModAreaMissingFromFile() throws Exception {
+        Path dir = tempDir.resolve("maxpower_others_missing");
+        Files.createDirectories(dir);
+        Path filePath = CreateExcelTestUtil.createExcelFile(dir, FILE_NAME_MAX_POWER, HORIZON,
+                List.of("areas", "FR", "AT"),
+                List.of(List.of(100, 200, 300)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.validateMaxPowerFile(
+                        TrajectoryType.HYDRO_SERIES,
+                        filePath,
+                        TRAJ,
+                        HORIZON,
+                        OTHERS_AREA,
+                        List.of("FR", "AT"),
+                        List.of("BE")
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Area {0} is not present in the 'node' column"));
+        assertTrue(exception.getErrorMessageArguments().contains("BE"));
+        assertTrue(exception.getErrorMessageArguments().contains(TRAJ));
+    }
+
+    @Test
+    void validateMaxPowerFile_doesNotThrowWhenAllOthersAreasAreInFile() throws Exception {
+        Path dir = tempDir.resolve("maxpower_others_ok");
+        Files.createDirectories(dir);
+        Path filePath = CreateExcelTestUtil.createExcelFile(dir, FILE_NAME_MAX_POWER, HORIZON,
+                List.of("areas", "FR", "AT", "BE"),
+                List.of(List.of(100, 200, 300, 400)));
+
+        assertDoesNotThrow(() ->
+                service.validateMaxPowerFile(
+                        TrajectoryType.HYDRO_SERIES,
+                        filePath,
+                        TRAJ,
+                        HORIZON,
+                        OTHERS_AREA,
+                        List.of("FR", "AT", "BE"),
+                        List.of("FR", "BE")
+                )
+        );
+    }
+
     // -------------------------------------------------------------------------
     // validateEmptyRequiredColumns
     // -------------------------------------------------------------------------
@@ -954,7 +1001,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TRAJ, HORIZON, 1, OTHERS_AREA, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}"));
+        assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{0}) in Hydro Series trajectory {0}"));
     }
 
     @Test
