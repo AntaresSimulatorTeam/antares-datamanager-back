@@ -322,10 +322,21 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             SeriesConfig config = entry.getValue();
 
             Path seriesDirectoryPath = trajectoryFilePath.resolve(directory).normalize();
+            if (!Files.isDirectory(seriesDirectoryPath)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
+                        .message("Missing folder {0} in hydro series trajectory {1}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
             Path realSeriesDirectoryPath = seriesDirectoryPath.toRealPath();
 
-            if (!Files.isDirectory(seriesDirectoryPath) || !isPathWithinDirectory(realTrajectoryFilePath, realSeriesDirectoryPath)) {
-                continue;
+            if (!isPathWithinDirectory(realTrajectoryFilePath, realSeriesDirectoryPath)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
+                        .message("Path for folder {0} is out of trajectory directory in hydro series trajectory {1}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
             
             List<Path> pathFiles = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config, studyAreas);
