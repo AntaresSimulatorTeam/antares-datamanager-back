@@ -243,7 +243,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (files.isEmpty()) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryToUse))
-                        .message("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}")
+                        .message("Missing maxpower file (maxpower_{0}) in Hydro Series trajectory {0}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
