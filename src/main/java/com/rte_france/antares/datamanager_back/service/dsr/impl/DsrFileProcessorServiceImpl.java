@@ -23,7 +23,6 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castInt;
@@ -42,7 +41,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
     private static final String DSR_PREFIX = "cluster_DSR_";
     protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "toUse", "Area", "Name", "Capacity", "Reliability", "nb_hour_per_day", "max_hour_per_day",
+            "toUse", "Area", "Name", "Capacity", "nb_hour_per_day", "max_hour_per_day",
             "price", "nb_units", "FO_rate", "FO_duration", "Modulation"};
 
 
@@ -285,13 +284,13 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 // Cluster name should not exceed 40 characters
                 validateClusterNameLength(clusterName, trajectoryFileName, rowArea, horizon);
 
-                int[] numericColumnIndexes = {3, 4, 7, 9};
+                int[] numericColumnIndexes = {3, 6, 8};
                 validateNumericRange(header, row, numericColumnIndexes, rowArea, clusterName, trajectoryFileName);
 
-                int[] integerColumnIndexes = {5, 6, 8, 10};
+                int[] integerColumnIndexes = {4, 5, 7, 9};
                 validateIntegerRange(header, row, integerColumnIndexes, rowArea, clusterName, trajectoryFileName);
 
-                validateBooleanValue(row, 11, rowArea, clusterName, trajectoryFileName);
+                validateBooleanValue(row, 10, rowArea, clusterName, trajectoryFileName);
 
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
@@ -328,14 +327,13 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         dsrClusterEntity.setName(clusterName);
         dsrClusterEntity.setToUse(getBooleanCell(row, 0));
         dsrClusterEntity.setCapacity(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
-        dsrClusterEntity.setReliability(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
-        dsrClusterEntity.setNbHourPerDay((int) row.getCell(5).getNumericCellValue());
-        dsrClusterEntity.setMaxHourPerDay((int) row.getCell(6).getNumericCellValue());
-        dsrClusterEntity.setPrice(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
-        dsrClusterEntity.setNbUnits((int) row.getCell(8).getNumericCellValue());
-        dsrClusterEntity.setFoRate(BigDecimal.valueOf(row.getCell(9).getNumericCellValue()));
-        dsrClusterEntity.setFoDuration((int) row.getCell(10).getNumericCellValue());
-        dsrClusterEntity.setModulation(getBooleanCell(row, 11));
+        dsrClusterEntity.setNbHourPerDay((int) row.getCell(4).getNumericCellValue());
+        dsrClusterEntity.setMaxHourPerDay((int) row.getCell(5).getNumericCellValue());
+        dsrClusterEntity.setPrice(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
+        dsrClusterEntity.setNbUnits((int) row.getCell(7).getNumericCellValue());
+        dsrClusterEntity.setFoRate(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
+        dsrClusterEntity.setFoDuration((int) row.getCell(9).getNumericCellValue());
+        dsrClusterEntity.setModulation(getBooleanCell(row, 10));
         return dsrClusterEntity;
     }
 }

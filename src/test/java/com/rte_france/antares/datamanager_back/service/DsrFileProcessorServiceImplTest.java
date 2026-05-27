@@ -42,7 +42,7 @@ class DsrFileProcessorServiceImplTest {
 
     private static final String FILE_NAME_DSR_CLUSTER = "cluster_DSR_test.xlsx";
     private static final String[] headers = {
-            "toUse", "Area", "Name", "Capacity", "Reliability", "nb_hour_per_day", "max_hour_per_day",
+            "toUse", "Area", "Name", "Capacity", "nb_hour_per_day", "max_hour_per_day",
             "price", "nb_units", "FO_rate", "FO_duration", "Modulation"};
 
     @TempDir
@@ -176,7 +176,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Values Capacity, Reliability, price, FO_rate for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}");
+                .hasMessageContaining("Values Capacity, price, FO_rate for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}");
     }
 
     @Test
@@ -613,14 +613,13 @@ class DsrFileProcessorServiceImplTest {
             row.createCell(1).setCellValue("FR");
             row.createCell(2).setCellValue("DSR_industries");
             row.createCell(3).setCellValue(2000);
-            row.createCell(4).setCellValue(0.5);
-            row.createCell(5).setCellValue(12);
-            row.createCell(6).setCellValue(8);
-            row.createCell(7).setCellValue(200);
-            row.createCell(8).setCellValue(80);
-            row.createCell(9).setCellValue(0.8);
-            row.createCell(10).setCellValue(1);
-            row.createCell(11).setCellValue(series ? "TRUE" : "FALSE");
+            row.createCell(4).setCellValue(12);
+            row.createCell(5).setCellValue(8);
+            row.createCell(6).setCellValue(200);
+            row.createCell(7).setCellValue(80);
+            row.createCell(8).setCellValue(0.8);
+            row.createCell(9).setCellValue(1);
+            row.createCell(10).setCellValue(series ? "TRUE" : "FALSE");
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -641,14 +640,13 @@ class DsrFileProcessorServiceImplTest {
             row.createCell(1).setCellValue("FR");
             row.createCell(2).setCellValue("DSR_industries");
             row.createCell(3).setCellValue("pas_numeric");
-            row.createCell(4).setCellValue("pas_numeric");
-            row.createCell(5).setCellValue(12);
-            row.createCell(6).setCellValue(8);
-            row.createCell(7).setCellValue("pas_numeric");
-            row.createCell(8).setCellValue(80);
-            row.createCell(9).setCellValue("pas_numeric");
-            row.createCell(10).setCellValue(1);
-            row.createCell(11).setCellValue("FALSE");
+            row.createCell(4).setCellValue(12);
+            row.createCell(5).setCellValue(8);
+            row.createCell(6).setCellValue("pas_numeric");
+            row.createCell(7).setCellValue(80);
+            row.createCell(8).setCellValue("pas_numeric");
+            row.createCell(9).setCellValue(1);
+            row.createCell(10).setCellValue("FALSE");
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -669,14 +667,13 @@ class DsrFileProcessorServiceImplTest {
             row.createCell(1).setCellValue("FR");
             row.createCell(2).setCellValue("DSR_industries");
             row.createCell(3).setCellValue(2000);
-            row.createCell(4).setCellValue(0.5);
+            row.createCell(4).setCellValue("pas_integer");
             row.createCell(5).setCellValue("pas_integer");
-            row.createCell(6).setCellValue("pas_integer");
-            row.createCell(7).setCellValue(200);
-            row.createCell(8).setCellValue("pas_integer");
-            row.createCell(9).setCellValue(0.8);
-            row.createCell(10).setCellValue("pas_integer");
-            row.createCell(11).setCellValue("FALSE");
+            row.createCell(6).setCellValue(200);
+            row.createCell(7).setCellValue("pas_integer");
+            row.createCell(8).setCellValue(0.8);
+            row.createCell(9).setCellValue("pas_integer");
+            row.createCell(10).setCellValue("FALSE");
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -697,14 +694,13 @@ class DsrFileProcessorServiceImplTest {
             row.createCell(1).setCellValue("FR");
             row.createCell(2).setCellValue("DSR_industries");
             row.createCell(3).setCellValue(2000);
-            row.createCell(4).setCellValue(0.5);
-            row.createCell(5).setCellValue(12);
-            row.createCell(6).setCellValue(8);
-            row.createCell(7).setCellValue(200);
-            row.createCell(8).setCellValue(80);
-            row.createCell(9).setCellValue(0.8);
-            row.createCell(10).setCellValue(1);
-            row.createCell(11).setCellValue("pas_boolean");
+            row.createCell(4).setCellValue(12);
+            row.createCell(5).setCellValue(8);
+            row.createCell(6).setCellValue(200);
+            row.createCell(7).setCellValue(80);
+            row.createCell(8).setCellValue(0.8);
+            row.createCell(9).setCellValue(1);
+            row.createCell(10).setCellValue("pas_boolean");
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
