@@ -89,18 +89,18 @@ class HydroFileProcessorServiceImplTest {
         // Un fichier mod pour que hasOnlyRorFile = false et que le check maxpower soit déclenché.
         CreateExcelTestUtil.createMockCsvFile(inflowDir, FILE_NAME_MOD);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false)
         );
-        assertTrue(exception.getMessage().contains("No maxpower file found"));
+        assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}"));
     }
 
     @Test
@@ -235,12 +235,12 @@ class HydroFileProcessorServiceImplTest {
         CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
         CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}, new AreaEntity() {{
             setName("AT");
@@ -412,12 +412,13 @@ class HydroFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(
                 BusinessException.class,
                 () -> service.validateMaxPowerFile(
+                        TrajectoryType.HYDRO_SERIES,
                         null,
                         TRAJ,
                         HORIZON,
                         AREA_FR,
                         List.of(AREA_FR),
-                        TrajectoryType.HYDRO_SERIES
+                        List.of()
                 )
         );
 
@@ -476,7 +477,7 @@ class HydroFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("No maxpower file found for HYDRO series trajectory.", exception.getMessage());
+        assertEquals("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}", exception.getMessage());
 
         verify(trajectoryRepository, never()).save(any());
     }
@@ -528,7 +529,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing MOD file in trajectory Hydro Series trajectory"));
+        assertTrue(exception.getMessage().contains("Missing MOD file ({0}) in trajectory Hydro Series trajectory {1}"));
     }
 
     @Test
@@ -553,7 +554,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing MOD file in trajectory Hydro Series trajectory"));
+        assertTrue(exception.getMessage().contains("Missing MOD file ({0}) in trajectory Hydro Series trajectory {1}"));
     }
 
     // -------------------------------------------------------------------------
@@ -774,7 +775,7 @@ class HydroFileProcessorServiceImplTest {
         Files.createDirectories(dir);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateMaxPowerFile(dir, TRAJ, HORIZON, AREA_FR, List.of(AREA_FR), TrajectoryType.HYDRO_SERIES));
+                service.validateMaxPowerFile(TrajectoryType.HYDRO_SERIES, dir, TRAJ, HORIZON, AREA_FR, List.of(AREA_FR), List.of()));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Missing maxpower file in trajectory Hydro Series trajectory", exception.getMessage());
@@ -953,7 +954,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TRAJ, HORIZON, 1, OTHERS_AREA, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("No maxpower file found"));
+        assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{0}) found in Hydro Series trajectory {0}"));
     }
 
     @Test
