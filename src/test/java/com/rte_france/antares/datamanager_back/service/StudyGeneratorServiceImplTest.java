@@ -120,7 +120,7 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private HydroGenerationAssemblerService hydroGenerationAssemblerService;
-    
+
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
     private StudyEntity studyEntity;
