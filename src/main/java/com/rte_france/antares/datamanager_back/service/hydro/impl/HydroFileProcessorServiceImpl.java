@@ -373,7 +373,11 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 hasMod = true;
             }
             if (((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) && !fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR+'_'+area)) {
-                missingModFiles.add(HYDRO_SERIES_INFLOWS_MOD+"_"+area+"_"+horizon+".csv");
+                String modFileName = HYDRO_SERIES_INFLOWS_MOD + "_" + area + "_" + horizon + ".csv";
+
+                if (!missingModFiles.contains(modFileName)) {
+                    missingModFiles.add(modFileName);
+                }
             }
         }
 
