@@ -166,7 +166,7 @@ class NasFileServiceTest {
   void readMatrix_txtFile_returnsMatrix() throws Exception {
     Path txtFile = tempDir.resolve("series.txt");
     Files.writeString(txtFile, "col\n1.0\n2.0\n");
-    when(timeSeriesReader.readFromTxt(txtFile, anyBoolean())).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromTxt(eq(txtFile), anyBoolean())).thenReturn(timeSeriesMatrix);
 
     TimeSeriesMatrix result = nasFileService.readMatrix(txtFile, null);
 
@@ -218,7 +218,7 @@ class NasFileServiceTest {
   void saveMatrixToNas_fromPathTxt_savesSerializedMatrix() throws Exception {
     Path input = tempDir.resolve("input.txt");
     Files.writeString(input, "x");
-    when(timeSeriesReader.readFromTxt(input, anyBoolean())).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromTxt(eq(input), anyBoolean())).thenReturn(timeSeriesMatrix);
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
@@ -227,7 +227,6 @@ class NasFileServiceTest {
     assertNotNull(savedName);
     assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
     verify(timeSeriesReader).readFromTxt(input, true);
-
   }
 
   @Test
@@ -312,7 +311,7 @@ class NasFileServiceTest {
   void readMatrix_whenReaderThrowsRuntime_wrapsTechnicalException() throws Exception {
     Path txtFile = tempDir.resolve("series.csv");
     Files.writeString(txtFile, "col\n1\n");
-    when(timeSeriesReader.readFromTxt(txtFile, anyBoolean())).thenThrow(new IllegalStateException("reader failed"));
+    when(timeSeriesReader.readFromTxt(eq(txtFile), anyBoolean())).thenThrow(new IllegalStateException("reader failed"));
 
     TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null));
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
@@ -349,7 +348,7 @@ class NasFileServiceTest {
   void saveMatrixToNas_fromPathCsv_savesSerializedMatrix() throws Exception {
     Path input = tempDir.resolve("input.csv");
     Files.writeString(input, "x");
-    when(timeSeriesReader.readFromTxt(input, anyBoolean())).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromTxt(eq(input), anyBoolean())).thenReturn(timeSeriesMatrix);
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
@@ -364,7 +363,7 @@ class NasFileServiceTest {
   void saveMatrixToNas_2argVariant_delegates() throws Exception {
     Path input = tempDir.resolve("input.txt");
     Files.writeString(input, "x");
-    when(timeSeriesReader.readFromTxt(input, anyBoolean())).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromTxt(eq(input), anyBoolean())).thenReturn(timeSeriesMatrix);
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
@@ -394,7 +393,7 @@ class NasFileServiceTest {
   void readMatrix_csvFile_returnsMatrix() throws Exception {
     Path csvFile = tempDir.resolve("series.csv");
     Files.writeString(csvFile, "col\n1.0\n");
-    when(timeSeriesReader.readFromTxt(csvFile, anyBoolean())).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromTxt(eq(csvFile), anyBoolean())).thenReturn(timeSeriesMatrix);
 
     TimeSeriesMatrix result = nasFileService.readMatrix(csvFile, null);
 

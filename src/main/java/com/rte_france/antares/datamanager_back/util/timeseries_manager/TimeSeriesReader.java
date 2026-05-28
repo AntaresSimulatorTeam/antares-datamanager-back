@@ -140,7 +140,7 @@ public final class TimeSeriesReader {
 
       // Load data into a matrix
       int actualRowCount = Math.clamp(
-              sheet.getLastRowNum() - firstRow.getRowNum(),
+              (long) sheet.getLastRowNum() - firstRow.getRowNum(),
               0,
               ROW_COUNT
       );

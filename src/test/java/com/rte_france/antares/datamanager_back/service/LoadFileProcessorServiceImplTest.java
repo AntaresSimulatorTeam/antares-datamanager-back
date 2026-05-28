@@ -71,7 +71,7 @@ class LoadFileProcessorServiceImplTest {
                 .toList();
 
         when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
-        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+        when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
         Path trajectoryPath = tempDir.resolve("testTrajectory");
@@ -100,7 +100,7 @@ class LoadFileProcessorServiceImplTest {
 
 
         when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
-        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+        when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
         Path trajectoryPath = tempDir.resolve("testTrajectory");
@@ -140,7 +140,7 @@ class LoadFileProcessorServiceImplTest {
                 .toList();
 
         when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
-        when(trajectoryRepository.findByTypeAndStudyId(eq("LOAD"), eq(studyId)))
+        when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
         Path trajectoryPath = tempDir.resolve("testTrajectory");

@@ -283,8 +283,8 @@ class DuplicationTrajectoryUtilsTest {
                 .isEqualTo(1);
 
         // Et surtout: comme ça "return" avant linkTrajectoryToStudy pour LOAD, donc aucun link LOAD ne doit arriver
-        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(10), eq(100), eq(TrajectoryType.LOAD));
-        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(11), eq(100), eq(TrajectoryType.LOAD));
+        verify(trajectoryService, never()).linkTrajectoryToStudy(10, 100, TrajectoryType.LOAD);
+        verify(trajectoryService, never()).linkTrajectoryToStudy(11, 100, TrajectoryType.LOAD);
     }
 
     private static TrajectoryEntity trajectory(TrajectoryType type, int id, String area) {

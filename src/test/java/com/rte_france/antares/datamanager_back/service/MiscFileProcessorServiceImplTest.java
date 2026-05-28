@@ -952,8 +952,8 @@ class MiscFileProcessorServiceImplTest {
         Files.createDirectories(existingBase.resolve("group1").resolve("cluster1"));
         Files.writeString(existingBase.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA1\n1\n");
 
-        when(trajectoryService.buildTrajectoryPath(eq("existA"), eq(TrajectoryType.MISC_LOAD))).thenReturn(existingBase);
-        when(trajectoryService.buildTrajectoryPath(eq("existB"), eq(TrajectoryType.MISC_LOAD))).thenReturn(existingBase);
+        when(trajectoryService.buildTrajectoryPath("existA", TrajectoryType.MISC_LOAD)).thenReturn(existingBase);
+        when(trajectoryService.buildTrajectoryPath("existB", TrajectoryType.MISC_LOAD)).thenReturn(existingBase);
 
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -990,8 +990,8 @@ class MiscFileProcessorServiceImplTest {
         Files.createDirectories(baseB.resolve("group1").resolve("cluster1"));
         Files.writeString(baseB.resolve("group1").resolve("cluster1").resolve("load_factor_cluster1_" + horizon + ".csv"), "AREA2;AREA3\n3;4\n");
 
-        when(trajectoryService.buildTrajectoryPath(eq("tA"), eq(TrajectoryType.MISC_LOAD))).thenReturn(baseA);
-        when(trajectoryService.buildTrajectoryPath(eq("tB"), eq(TrajectoryType.MISC_LOAD))).thenReturn(baseB);
+        when(trajectoryService.buildTrajectoryPath("tA", TrajectoryType.MISC_LOAD)).thenReturn(baseA);
+        when(trajectoryService.buildTrajectoryPath("tB", TrajectoryType.MISC_LOAD)).thenReturn(baseB);
 
         when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
