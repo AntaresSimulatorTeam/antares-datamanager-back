@@ -454,7 +454,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
 
         TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
-        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(matrix);
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean())).thenReturn(matrix);
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_mingen"), eq("hydro_output")))
                 .thenReturn("FR_mingen.arrow");
 
@@ -513,7 +513,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createDirectories(fileDir);
         Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
 
-        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of()));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString()))
                 .thenThrow(new IOException("write error"));
 
@@ -615,7 +615,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createDirectories(fileDir);
         Files.createFile(fileDir.resolve("ror_FR_2030.xlsx"));
 
-        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of()));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_ror"), eq("hydro_output")))
                 .thenReturn("FR_ror.arrow");
 
@@ -651,7 +651,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createDirectories(fileDir);
         Files.createFile(fileDir.resolve("reservoir_levels_FR_2030.xlsx"));
 
-        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of()));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString()))
                 .thenReturn("FR_reservoir_levels.arrow");
 
@@ -733,7 +733,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createDirectories(fileDir);
         Files.createFile(fileDir.resolve("mingen_DE_2030.xlsx"));
 
-        when(nasFileService.readMatrix(any(Path.class), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of()));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("DE_mingen"), eq("hydro_output")))
                 .thenReturn("DE_mingen.arrow");
 
