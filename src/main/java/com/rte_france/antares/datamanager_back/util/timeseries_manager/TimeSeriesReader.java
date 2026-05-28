@@ -54,20 +54,41 @@ public final class TimeSeriesReader {
   private static final int ROW_COUNT = 8760;
 
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
+    return readFromTxt(filePath, true);
+  }
+
+  public TimeSeriesMatrix readFromTxt(Path filePath, boolean hasHeader) throws IOException {
     Objects.requireNonNull(filePath);
 
     try (var lines = Files.lines(filePath)) {
-      var iterator = lines.iterator();
-      if (!iterator.hasNext()) {
+      var allLines = lines.toList();
+      if (allLines.isEmpty()) {
         throw TechnicalException.builder().message("File is empty").build();
       }
 
-      var firstLine = iterator.next();
-      String separator = firstLine.contains(";") ? ";" : "\\s+";
+      var iterator = allLines.iterator();
+      String separator;
+      String[] headerValues;
 
-      var headerValues = firstLine.split(separator);
+      if (hasHeader) {
+        var firstLine = iterator.next();
+        separator = firstLine.contains(";") ? ";" : "\\s+";
+        headerValues = firstLine.trim().split(separator);
+      } else {
+        // Peek at the first line to determine a separator without consuming it if possible,
+        // clean the first line to remove BOM if present "\uFEFF"
+        var firstLine = allLines.get(0).replace("\uFEFF", "").trim();
+        separator = firstLine.contains(";") ? ";" : "\\s+";
+        var firstLineValues = firstLine.split(separator);
+        headerValues = new String[firstLineValues.length];
+        for (int i = 0; i < firstLineValues.length; i++) {
+          headerValues[i] = "Column" + i;
+        }
+      }
+
       var columnCount = headerValues.length;
-      var data = new double[columnCount][ROW_COUNT];
+      var actualRows = Math.min(ROW_COUNT, hasHeader ? allLines.size() - 1 : allLines.size());
+      var data = new double[columnCount][actualRows];
 
       fillDataList(iterator, data, separator);
 
@@ -117,7 +138,8 @@ public final class TimeSeriesReader {
       }
 
       // Load data into a matrix
-      double[][] data = loadData(sheet, columnCount);
+      int actualRowCount = Math.min(ROW_COUNT, Math.max(0, sheet.getLastRowNum() - firstRow.getRowNum()));
+      double[][] data = loadData(sheet, columnCount, actualRowCount);
 
       // Create TimeSeriesMatrix
       var columns = new ArrayList<TimeSeriesMatrixColumn>(columnCount);
@@ -244,13 +266,14 @@ public final class TimeSeriesReader {
    *
    * @param sheet the sheet to read
    * @param columnCount number of columns to load
-   * @return a matrix where each column contains up to {@link #ROW_COUNT} values
+   * @param rowLimit total rows to load
+   * @return a matrix where each column contains up to the rowLimit values
    */
-  private double[][] loadData(Sheet sheet, int columnCount) {
-    double[][] data = new double[columnCount][ROW_COUNT];
+  private double[][] loadData(Sheet sheet, int columnCount, int rowLimit) {
+    double[][] data = new double[columnCount][rowLimit];
     int rowIndex = 0;
     boolean firstRowSkipped = false;
-    for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum() && rowIndex < ROW_COUNT; r++) {
+    for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum() && rowIndex < rowLimit; r++) {
       Row row = sheet.getRow(r);
       if (row == null || row.getLastCellNum() <= 0) {
         continue;
@@ -312,8 +335,10 @@ public final class TimeSeriesReader {
 
   private static void fillDataList(Iterator<String> iterator, double[][] data, String separator) {
     var rowIndex = 0;
-    while (iterator.hasNext() && rowIndex < ROW_COUNT) {
-      String[] values = iterator.next().split(separator);
+    var rowLimit = data.length > 0 ? data[0].length : 0;
+    while (iterator.hasNext() && rowIndex < rowLimit) {
+      String line = iterator.next().replace("\uFEFF", "").trim();
+      String[] values = line.split(separator);
       for (var j = 0; j < values.length && j < data.length; j++) {
         data[j][rowIndex] = parseStringNumber(values[j]);
       }
@@ -324,7 +349,7 @@ public final class TimeSeriesReader {
   private static final class SelectedColumnsSheetHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
     private final Set<String> requiredLower;
     private final Map<Integer, String> selectedHeaders = new LinkedHashMap<>();
-    private final Map<Integer, double[]> dataByColumnIndex = new HashMap<>();
+    private final Map<Integer, List<Double>> dataByColumnIndex = new HashMap<>();
     private final Map<Integer, String> currentRowValues = new HashMap<>();
     private boolean currentRowHasCells;
     private boolean headerInitialized;
@@ -358,7 +383,7 @@ public final class TimeSeriesReader {
 
       for (Map.Entry<Integer, String> entry : selectedHeaders.entrySet()) {
         String value = currentRowValues.get(entry.getKey());
-        dataByColumnIndex.get(entry.getKey())[dataRowIndex] = parseStringNumber(value);
+        dataByColumnIndex.get(entry.getKey()).add(parseStringNumber(value));
       }
       dataRowIndex++;
     }
@@ -387,7 +412,7 @@ public final class TimeSeriesReader {
         }
         if (requiredLower.contains(header.toLowerCase(Locale.ROOT))) {
           selectedHeaders.put(entry.getKey(), header);
-          dataByColumnIndex.put(entry.getKey(), new double[ROW_COUNT]);
+          dataByColumnIndex.put(entry.getKey(), new ArrayList<>(ROW_COUNT));
         }
       }
     }
@@ -399,7 +424,12 @@ public final class TimeSeriesReader {
 
       var columns = new ArrayList<TimeSeriesMatrixColumn>(selectedHeaders.size());
       for (Map.Entry<Integer, String> entry : selectedHeaders.entrySet()) {
-        columns.add(new TimeSeriesMatrixColumn(entry.getValue(), dataByColumnIndex.get(entry.getKey())));
+        List<Double> values = dataByColumnIndex.get(entry.getKey());
+        double[] doubleValues = new double[values.size()];
+        for (int i = 0; i < values.size(); i++) {
+          doubleValues[i] = values.get(i);
+        }
+        columns.add(new TimeSeriesMatrixColumn(entry.getValue(), doubleValues));
       }
       return new TimeSeriesMatrix(columns);
     }

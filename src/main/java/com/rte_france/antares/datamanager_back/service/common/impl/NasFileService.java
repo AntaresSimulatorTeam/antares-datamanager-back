@@ -110,12 +110,26 @@ public class NasFileService {
      * @throws IOException on read/write failure
      */
     public String saveMatrixToNas(Path inputPath, String outputDir, String sheetName) throws IOException {
+        return saveMatrixToNas(inputPath, outputDir, sheetName, true);
+    }
+
+    /**
+     * Saves a time series matrix read from the given path to NAS with a unique filename.
+     *
+     * @param inputPath Path to input .txt or .xlsx file
+     * @param outputDir Output directory relative to NAS root
+     * @param sheetName Optional sheet name (for Excel files)
+     * @param hasHeader True if the file has a header row (for text/csv files)
+     * @return Saved filename
+     * @throws IOException on read/write failure
+     */
+    public String saveMatrixToNas(Path inputPath, String outputDir, String sheetName, boolean hasHeader) throws IOException {
         Objects.requireNonNull(inputPath, "inputPath must not be null");
         var name = inputPath.getFileName().toString().toLowerCase();
         TimeSeriesMatrix matrix;
         try {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
-                matrix = reader.readFromTxt(inputPath);
+                matrix = reader.readFromTxt(inputPath, hasHeader);
             } else if (name.endsWith(EXCEL_EXTENSION)) {
                 matrix = reader.readFromXlsx(inputPath, sheetName);
             } else {
@@ -133,7 +147,7 @@ public class NasFileService {
         }
         var outputFileName = generateUniqueFileName(inputPath.getFileName().toString());
         saveMatrix(outputFileName, matrix, outputDir);
-        setFilePermissions(inputPath);
+        setFilePermissions(resolveNasPath(outputFileName, outputDir));
         return outputFileName;
     }
 
@@ -149,11 +163,23 @@ public class NasFileService {
      * @return The parsed TimeSeriesMatrix
      */
     public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName) {
+        return readMatrix(inputPath, sheetName, true);
+    }
+
+    /**
+     * Reads a time series matrix from the given path without saving it.
+     *
+     * @param inputPath Path to input .txt, .csv, or .xlsx file
+     * @param sheetName Optional sheet name / horizon (for Excel files)
+     * @param hasHeader True if the file has a header row (for text/csv files)
+     * @return The parsed TimeSeriesMatrix
+     */
+    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, boolean hasHeader) {
         Objects.requireNonNull(inputPath, "inputPath must not be null");
         var name = inputPath.getFileName().toString().toLowerCase();
         try {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
-                return reader.readFromTxt(inputPath);
+                return reader.readFromTxt(inputPath, hasHeader);
             } else if (name.endsWith(EXCEL_EXTENSION)) {
                 return reader.readFromXlsx(inputPath, sheetName);
             } else {
@@ -201,6 +227,13 @@ public class NasFileService {
             baseName = baseName.substring(0, baseName.length() - (writer.getDefaultFileExtension().length() + 1));
         }
         return baseName + "." + UUID.randomUUID() + "." + writer.getDefaultFileExtension();
+    }
+
+    private Path resolveNasPath(String filename, String outputDir) {
+        String nasDir = antaresDataManagerProperties.getNasDirectory();
+        Path nasPath = Path.of(nasDir).toAbsolutePath().normalize();
+        Path relativeOutputDir = Path.of(outputDir);
+        return nasPath.resolve(relativeOutputDir).resolve(filename).normalize();
     }
 
     private void saveMatrix(String fileName, TimeSeriesMatrix matrix, String outputDir) throws IOException {

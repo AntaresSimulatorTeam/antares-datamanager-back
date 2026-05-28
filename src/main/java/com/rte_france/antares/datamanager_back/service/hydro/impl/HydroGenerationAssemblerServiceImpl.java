@@ -204,7 +204,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 }
             } else {
                 try {
-                    matrix = nasFileService.readMatrix(path, studyEntity.getHorizon());
+                    matrix = nasFileService.readMatrix(path, studyEntity.getHorizon(), false);
                     outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + "_" + getHydroSeriesType(fileName), outputDir);
                 } catch (IOException e) {
                     throw BusinessException.builder()

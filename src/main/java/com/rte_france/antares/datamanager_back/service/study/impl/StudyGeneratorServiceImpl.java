@@ -188,32 +188,36 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
         log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
 
+        AreasGenerationContextDTO context = AreasGenerationContextDTO.builder()
+                .arrowLoadFilesByArea(listArrowLoadFilesByArea)
+                .clusterPropsByArea(areaClusterRefThermalClusterGenerationDtoMap.entrySet().stream()
+                        .collect(Collectors.groupingBy(
+                                e -> e.getKey().area(),
+                                Collectors.toMap(
+                                        e -> e.getKey().area().toUpperCase(Locale.ROOT) + "_" + e.getKey().thermalClusterRef().getName(),
+                                        Map.Entry::getValue,
+                                        (a, b) -> a,
+                                        LinkedHashMap::new
+                                )
+                        )))
+                .stsClusterProps(areaStsClusterGenerationDtoMap)
+                .dsrClusterProps(areaDsrClusterGenerationDtoMap)
+                .miscProps(areaMiscGenerationDtoMap)
+                .resProps(areaResGenerationMap)
+                .hydroProps(areaHydroGenerationMap)
+                .build();
+
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
-                        areaDTO -> areasMapGenerator(
-                                areaDTO,
-                                listArrowLoadFilesByArea.get(areaDTO.getName()),
-                                thermalToJsonService.getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
-                                areaStsClusterGenerationDtoMap,
-                                areaDsrClusterGenerationDtoMap,
-                                areaMiscGenerationDtoMap,
-                                areaResGenerationMap,
-                                areaHydroGenerationMap
-                        )
+                        areaDTO -> areasMapGenerator(areaDTO, context)
                 ));
 
         areasMap.putAll(areasDataMap);
         log.info("Areas data with {} entries", areasDataMap.size());
     }
 
-    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps,
-                                                  Map<String, StsGenerationDTO> stsClusterProps,
-                                                  Map<String, DsrGenerationDTO> dsrClusterProps,
-                                                  Map<String, List<MiscGenerationDTO>> miscProps,
-                                                  Map<String, Map<String, Object>> resProps,
-                                                  Map<String, List<HydroGenerationDTO>> hydroProps
-    ) {
+    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, AreasGenerationContextDTO context) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
@@ -225,14 +229,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
         areaMap.put(PROPERTIES, areaProperties);
 
-        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(clusterProps);
-        Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), stsClusterProps);
-        Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), dsrClusterProps);
-        Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), miscProps);
-        Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), resProps);
-        Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), hydroProps);
-        
-        areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
+        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(context.getClusterPropsByArea().get(areaDTO.getName()));
+        Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), context.getStsClusterProps());
+        Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), context.getDsrClusterProps());
+        Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), context.getMiscProps());
+        Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), context.getResProps());
+        Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), context.getHydroProps());
+
+        List<String> arrowLoadFiles = context.getArrowLoadFilesByArea().get(areaDTO.getName());
+        areaMap.put("loads", arrowLoadFiles != null && !arrowLoadFiles.isEmpty() ? arrowLoadFiles : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
         areaMap.put("sts", stsMap);
         areaMap.put("dsr", dsrMap);
