@@ -108,13 +108,15 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
      
         var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
         var hasOnlyRorFile= true;
+        List<String> missingModFiles = new ArrayList<>(List.of());
         for (var area : areaList) {
             filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
-            if(!checkHydroFileConsistency(filesName, area, trajectoryToUse)) hasOnlyRorFile = false;
+            if(!checkHydroFileConsistency(filesName, area, horizon, missingModFiles)) hasOnlyRorFile = false;
             filesNameFinal.addAll(filesName);
         }
         String maxPowerFileName = null;
         if (!hasOnlyRorFile) {
+            validateModFiles(missingModFiles, trajectoryToUse);
             List<String> areasInHydroSeriesModFiles = filesNameFinal.stream()
                     .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
                     .map(s -> s.split("_")[1])
@@ -355,11 +357,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return filesName;
     }
 
-    private boolean checkHydroFileConsistency(List<String> filesName, String area, String trajectoryToUse) throws BusinessException {
+    private boolean checkHydroFileConsistency(List<String> filesName, String area, String horizon, List<String> missingModFiles) throws BusinessException {
         boolean hasMingen = false;
         boolean hasReservoirLevels = false;
         boolean hasMod = false;
-        List<String> missingModFiles = new ArrayList<>(List.of());
 
         for (String fileName : filesName) {
             if (fileName.startsWith(HYDRO_SERIES_MINGEN+'_'+area)) {
@@ -371,17 +372,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (filesName.stream().anyMatch(name -> name.startsWith(HYDRO_SERIES_INFLOWS_MOD+'_'+area))) {
                 hasMod = true;
             }
-            if ((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) {
-                missingModFiles.add(fileName);
+            if (((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) && !fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR+'_'+area)) {
+                missingModFiles.add(HYDRO_SERIES_INFLOWS_MOD+"_"+area+"_"+horizon+".csv");
             }
-        }
-
-        if (!missingModFiles.isEmpty()) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(String.join(", ", missingModFiles), trajectoryToUse))
-                    .message("Missing MOD file ({0}) in trajectory Hydro Series trajectory {1}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
         }
 
         return !hasMingen && !hasMod && !hasReservoirLevels;
@@ -764,5 +757,15 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         }
         
         return true;
+    }
+    
+    public void validateModFiles(List<String> missingModFiles, String trajectoryToUse) {
+        if (!missingModFiles.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(String.join(", ", missingModFiles), trajectoryToUse))
+                    .message("Missing MOD file ({0}) in trajectory Hydro Series trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 }
