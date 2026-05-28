@@ -52,6 +52,7 @@ import javax.xml.parsers.ParserConfigurationException;
  */
 public final class TimeSeriesReader {
   private static final int ROW_COUNT = 8760;
+  private static final String COLUMN_PREFIX = "Column";
 
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
     return readFromTxt(filePath, true);
@@ -82,7 +83,7 @@ public final class TimeSeriesReader {
         var firstLineValues = firstLine.split(separator);
         headerValues = new String[firstLineValues.length];
         for (int i = 0; i < firstLineValues.length; i++) {
-          headerValues[i] = "Column" + i;
+          headerValues[i] = COLUMN_PREFIX + i;
         }
       }
 
@@ -95,7 +96,7 @@ public final class TimeSeriesReader {
       var columns = new ArrayList<TimeSeriesMatrixColumn>(data.length);
       for (int j = 0; j < data.length; j++) {
         String colName = headerValues[j].trim();
-        columns.add(new TimeSeriesMatrixColumn(colName.isEmpty() ? "Column" + j : colName, data[j]));
+        columns.add(new TimeSeriesMatrixColumn(colName.isEmpty() ? COLUMN_PREFIX + j : colName, data[j]));
       }
 
       return new TimeSeriesMatrix(columns);
@@ -145,7 +146,7 @@ public final class TimeSeriesReader {
       var columns = new ArrayList<TimeSeriesMatrixColumn>(columnCount);
       for (int c = 0; c < columnCount; c++) {
         String columnName = getHeaderValue(firstRow.getCell(c));
-        columns.add(new TimeSeriesMatrixColumn(columnName != null ? columnName : "Column" + c, data[c]));
+        columns.add(new TimeSeriesMatrixColumn(columnName != null ? columnName : COLUMN_PREFIX + c, data[c]));
       }
 
       return new TimeSeriesMatrix(columns);
@@ -271,21 +272,13 @@ public final class TimeSeriesReader {
    */
   private double[][] loadData(Sheet sheet, int columnCount, int rowLimit) {
     double[][] data = new double[columnCount][rowLimit];
-    int rowIndex = 0;
-    boolean firstRowSkipped = false;
-    for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum() && rowIndex < rowLimit; r++) {
+    Row headerRow = findFirstNonEmptyRow(sheet);
+    int startRow = headerRow != null ? headerRow.getRowNum() + 1 : sheet.getFirstRowNum();
+    for (int r = startRow, rowIndex = 0; r <= sheet.getLastRowNum() && rowIndex < rowLimit; r++, rowIndex++) {
       Row row = sheet.getRow(r);
-      if (row == null || row.getLastCellNum() <= 0) {
-        continue;
-      }
-      if (!firstRowSkipped) {
-        firstRowSkipped = true;
-        continue;
-      }
       for (int c = 0; c < columnCount; c++) {
         data[c][rowIndex] = readNumericCell(row, c);
       }
-      rowIndex++;
     }
     return data;
   }
@@ -334,15 +327,13 @@ public final class TimeSeriesReader {
   }
 
   private static void fillDataList(Iterator<String> iterator, double[][] data, String separator) {
-    var rowIndex = 0;
     var rowLimit = data.length > 0 ? data[0].length : 0;
-    while (iterator.hasNext() && rowIndex < rowLimit) {
+    for (var rowIndex = 0; iterator.hasNext() && rowIndex < rowLimit; rowIndex++) {
       String line = iterator.next().replace("\uFEFF", "").trim();
       String[] values = line.split(separator);
       for (var j = 0; j < values.length && j < data.length; j++) {
         data[j][rowIndex] = parseStringNumber(values[j]);
       }
-      rowIndex++;
     }
   }
 
