@@ -361,7 +361,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         boolean hasMingen = false;
         boolean hasReservoirLevels = false;
         boolean hasMod = false;
-        List<String> missingModFiles = new ArrayList<>(List.of());
 
         for (String fileName : filesName) {
             if (fileName.startsWith(HYDRO_SERIES_MINGEN+'_'+area)) {
