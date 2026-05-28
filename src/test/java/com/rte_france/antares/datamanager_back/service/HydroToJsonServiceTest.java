@@ -4,6 +4,9 @@ import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.service.study.impl.HydroToJsonService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,45 +39,14 @@ class HydroToJsonServiceTest {
         assertTrue(result.isEmpty());
     }
 
-    @Test
-    void buildHydroDataMap_returnsEmptyMapWhenAreaNameIsNull() {
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "NON_EXISTENT"})
+    void buildHydroDataMap_returnsEmptyMapForInvalidArea(String areaName) {
         HydroGenerationDTO dto = HydroGenerationDTO.builder().build();
         Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("FR", List.of(dto));
 
-        Map<String, Object> result = service.buildHydroDataMap(null, hydroProps);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void buildHydroDataMap_returnsEmptyMapWhenAreaNameIsBlank() {
-        HydroGenerationDTO dto = HydroGenerationDTO.builder().build();
-        Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("FR", List.of(dto));
-
-        Map<String, Object> result = service.buildHydroDataMap("   ", hydroProps);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void buildHydroDataMap_returnsEmptyMapWhenAreaNameIsEmpty() {
-        HydroGenerationDTO dto = HydroGenerationDTO.builder().build();
-        Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("FR", List.of(dto));
-
-        Map<String, Object> result = service.buildHydroDataMap("", hydroProps);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void buildHydroDataMap_returnsEmptyMapWhenAreaNotFoundInProps() {
-        HydroGenerationDTO dto = HydroGenerationDTO.builder().build();
-        Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("BE", List.of(dto));
-
-        Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
+        Map<String, Object> result = service.buildHydroDataMap(areaName, hydroProps);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());

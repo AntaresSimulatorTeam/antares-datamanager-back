@@ -188,9 +188,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
         log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
 
+
         AreasGenerationContextDTO context = AreasGenerationContextDTO.builder()
                 .arrowLoadFilesByArea(listArrowLoadFilesByArea)
-                .clusterPropsByArea(areaClusterRefThermalClusterGenerationDtoMap.entrySet().stream()
+                .clusterPropsByArea(Optional.ofNullable(areaClusterRefThermalClusterGenerationDtoMap)
+                        .orElse(Collections.emptyMap())
+                        .entrySet()
+                        .stream()
                         .collect(Collectors.groupingBy(
                                 e -> e.getKey().area(),
                                 Collectors.toMap(

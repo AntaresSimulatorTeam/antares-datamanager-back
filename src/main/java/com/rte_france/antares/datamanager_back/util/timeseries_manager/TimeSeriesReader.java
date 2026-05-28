@@ -139,7 +139,11 @@ public final class TimeSeriesReader {
       }
 
       // Load data into a matrix
-      int actualRowCount = Math.min(ROW_COUNT, Math.max(0, sheet.getLastRowNum() - firstRow.getRowNum()));
+      int actualRowCount = Math.clamp(
+              sheet.getLastRowNum() - firstRow.getRowNum(),
+              0,
+              ROW_COUNT
+      );
       double[][] data = loadData(sheet, columnCount, actualRowCount);
 
       // Create TimeSeriesMatrix
