@@ -47,7 +47,7 @@ class TimeSeriesReaderTest {
         }
 
         var matrix = timeSeriesReader.readFromXlsx(file, "2030");
-        assertEquals(8760, matrix.getRowCount());
+        assertEquals(1, matrix.getRowCount());
         assertEquals(2, matrix.columns().size());
         // If first row is ignored, the first data row should be "10.0 20.0"
         assertEquals(10.0, matrix.columns().get(0).values()[0]);
@@ -61,7 +61,7 @@ class TimeSeriesReaderTest {
         Files.writeString(filePath, "Col1 Col2 Col3\n1.0 2.0 3.0\n4.0 5.0 6.0\n7.0 8.0 9.0");
         var matrix = timeSeriesReader.readFromTxt(filePath);
 
-        assertEquals(8760, matrix.getRowCount());
+        assertEquals(3, matrix.getRowCount());
         assertEquals(3, matrix.columns().size());
         assertEquals("Col1", matrix.columns().get(0).name());
         assertArrayEquals(new double[]{1.0, 4.0, 7.0}, Arrays.copyOf(matrix.columns().get(0).values(), 3));
@@ -75,7 +75,7 @@ class TimeSeriesReaderTest {
         Files.writeString(filePath, "date;AT;BE;CH\n2023-01-01;1.0;2.0;3.0\n2023-01-02;4.0;5.0;6.0");
         var matrix = timeSeriesReader.readFromTxt(filePath);
 
-        assertEquals(8760, matrix.getRowCount());
+        assertEquals(2, matrix.getRowCount());
         assertEquals(4, matrix.columns().size());
         assertEquals("date", matrix.columns().get(0).name());
         assertEquals("AT", matrix.columns().get(1).name());
@@ -126,9 +126,8 @@ class TimeSeriesReaderTest {
                 wb.write(os);
             }
         }
-
         var matrix = timeSeriesReader.readFromXlsx(file, "2030");
-        assertEquals(8760, matrix.getRowCount());
+        assertEquals(1, matrix.getRowCount());
         assertEquals(4, matrix.columns().size());
         assertEquals(10.0, matrix.columns().get(0).values()[0]);
         assertEquals(20.5, matrix.columns().get(1).values()[0]);
@@ -154,6 +153,22 @@ class TimeSeriesReaderTest {
         }
         var matrix = timeSeriesReader.readFromXlsx(file, null);
         assertEquals(7.0, matrix.columns().getFirst().values()[0]);
+    }
+
+    @Test
+    void readFromTxt_noHeader_shouldReadCorrectly(@TempDir Path tempDir) throws IOException {
+        var filePath = tempDir.resolve("timeseries_noheader.txt");
+        Files.createFile(filePath);
+        Files.writeString(filePath, "1.0 2.0 3.0\n4.0 5.0 6.0\n7.0 8.0 9.0");
+        var matrix = timeSeriesReader.readFromTxt(filePath, false);
+
+        assertEquals(3, matrix.getRowCount());
+        assertEquals(3, matrix.columns().size());
+        assertEquals("Column0", matrix.columns().get(0).name());
+        assertEquals("Column1", matrix.columns().get(1).name());
+        assertEquals("Column2", matrix.columns().get(2).name());
+        assertArrayEquals(new double[]{1.0, 4.0, 7.0}, Arrays.copyOf(matrix.columns().get(0).values(), 3));
+        assertArrayEquals(new double[]{3.0, 6.0, 9.0}, Arrays.copyOf(matrix.columns().get(2).values(), 3));
     }
 
     @Test
@@ -236,6 +251,37 @@ class TimeSeriesReaderTest {
         assertEquals(1, matrix.columns().size());
         assertEquals("night_min_fr", matrix.columns().getFirst().name());
         assertEquals(2.0, matrix.columns().getFirst().values()[0]);
+    }
+
+    @Test
+    void readSelectedColumnsFromXlsx_shouldReturnCorrectNumberOfRowsWhenFewerThan8760(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("fewerRows.xlsx");
+        int rowCount = 366;
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("2030");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("FR");
+
+            for (int i = 1; i <= rowCount; i++) {
+                Row row = sheet.createRow(i);
+                row.createCell(0).setCellValue((double) i);
+            }
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromXlsx(
+                file,
+                "2030",
+                Set.of("FR")
+        );
+
+        assertEquals(1, matrix.columns().size());
+        assertEquals(rowCount, matrix.columns().getFirst().values().length);
+        assertEquals(1.0, matrix.columns().getFirst().values()[0]);
+        assertEquals((double) rowCount, matrix.columns().getFirst().values()[rowCount - 1]);
     }
 
     @Test

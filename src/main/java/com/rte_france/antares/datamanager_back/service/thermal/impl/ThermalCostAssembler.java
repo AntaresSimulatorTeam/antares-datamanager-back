@@ -302,8 +302,9 @@ public class ThermalCostAssembler {
 
         dto.setStartupCost(startupCost);
 
-        log.info("Calculating startup cost for thermal cluster with nominal capacity: {} MWh, startup fuel: {} GJ, efficiency: {}, marginal cost: {}, startup fix cost: {}", dto.getNominalCapacity(), startupFuel, efficiency, marginalCostValue, startupFixCost);
+
         long startupCostInt = Math.round(startupCost);
+        log.info("Calculating startup cost for thermal cluster with nominal capacity: {} MWh, startup fuel: {} GJ, efficiency: {}, marginal cost: {}, startup fix cost: {}, startupCostInt: {}", dto.getNominalCapacity(), startupFuel, efficiency, marginalCostValue, startupFixCost, startupCostInt);
         dto.setStartupCost(startupCostInt * dto.getNominalCapacity());
     }
 

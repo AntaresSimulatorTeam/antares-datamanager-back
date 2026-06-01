@@ -452,9 +452,7 @@ public class ExcelCommonValidator {
             int lastColumn = headers.length;
 
             String line;
-            int rowIndex = 1;
-
-            while ((line = reader.readLine()) != null && rowIndex <= 8760) {
+            for (int rowIndex = 1; (line = reader.readLine()) != null && rowIndex <= 8760; rowIndex++) {
                 String[] values = line.split(delimiter, -1);
 
                 for (int colIndex = 2; colIndex < lastColumn && colIndex < values.length; colIndex++) {
@@ -472,8 +470,6 @@ public class ExcelCommonValidator {
                                 .build();
                     }
                 }
-
-                rowIndex++;
             }
 
         } catch (IOException e) {

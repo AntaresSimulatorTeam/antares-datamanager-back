@@ -25,7 +25,6 @@ public class DsrMapper {
                 .marketBidCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
                 .foDuration(Optional.ofNullable(dsrEntity.getFoDuration()).map(Number::doubleValue).orElse(0.0))
                 .foMonthlyRate(Collections.nCopies(12, Optional.ofNullable(dsrEntity.getFoRate()).map(Number::doubleValue).orElse(0.0)))
-                .reliability(Optional.ofNullable(dsrEntity.getReliability()).map(Number::doubleValue).orElse(0.0))
                 .nbHourPerDay(Optional.ofNullable(dsrEntity.getNbHourPerDay()).map(Number::doubleValue).orElse(0.0))
                 .maxHourPerDay(Optional.ofNullable(dsrEntity.getMaxHourPerDay()).map(Number::doubleValue).orElse(0.0))
                 .build();

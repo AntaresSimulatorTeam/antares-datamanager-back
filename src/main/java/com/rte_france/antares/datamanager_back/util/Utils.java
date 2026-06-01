@@ -1005,6 +1005,22 @@ public class Utils {
         }
     }
 
+    public static void validateSelectedOthersAreaPresence(List<String> areasToCompare, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
+        List<String> missingAreas = new ArrayList<>(areasToCompare);
+        missingAreas.removeAll(fileAreas);
+
+        if (!missingAreas.isEmpty()) {
+            throwTrajectoryValidationException(
+                    trajectoryType.name(),
+                    "Area {0} is not present in the 'node' column of {1} trajectory {2}",
+                    3,
+                    String.join(", ", missingAreas),
+                    getErrorMessageLabelFromType(trajectoryType.name()),
+                    trajectoryToUse
+            );
+        }
+    }
+
     public static void validateTechnologyPresence(String technologyParam, List<String> fileTechnologies, TrajectoryType trajectoryType, String trajectoryFileName, String areaParam) {
         if (technologyParam != null && !technologyParam.isBlank() && !fileTechnologies.contains(technologyParam.toLowerCase())) {
             String label = getErrorMessageLabelFromType(trajectoryType.name());

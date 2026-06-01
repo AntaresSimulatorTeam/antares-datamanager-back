@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
@@ -44,6 +45,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final MiscToJsonService miscToJsonService;
     private final ResToJsonService resToJsonService;
     private final ThermalToJsonService thermalToJsonService;
+    private final HydroToJsonService hydroToJsonService;
     private final StudyRepository studyRepository;
 
     private final WebClient webClient;
@@ -55,9 +57,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final DsrGenerationAssemblerService dsrPropertiesAssemblerService;
     private final MiscGenerationAssemblerService miscPropertiesAssemblerService;
     private final ResGenerationAssemblerService resGenerationAssemblerService;
+    private final HydroGenerationAssemblerService hydroGenerationAssemblerService;
 
     private static final String PROPERTIES = "properties";
-    private static final String MATRIX_HASH = "matrix hash";
 
 
     @ExecutionTime
@@ -86,7 +88,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
     }
 
-    private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) {
+    private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) throws BusinessException, TechnicalException {
         log.info("Construction des données JSON pour génération - étude id={}", studyId);
         Map<String, Object> jsonForGenerator = new TreeMap<>();
 
@@ -126,6 +128,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 log.warn("MISC trajectories are managed in AREA  trajectory: {}", trajectory.getFileName());
                         case RES_CAPACITY, RES_LOAD, RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION ->
                                 log.warn("RES trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
+                        case HYDRO_TECHNICAL_PARAMETERS, HYDRO_SERIES, HYDRO_PARAMETERS, HYDRO_ALLOCATION ->
+                                log.warn("HYDRO trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                         default -> {
                             log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                             throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -154,7 +158,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
-    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) {
+    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) throws BusinessException {
         log.info("Construction des areas data pour trajectory={} area={}", trajectory.getFileName(), trajectory.getArea());
 
         List<AreaDTO> areaDTOs = trajectory.getAreaConfigEntities().stream()
@@ -181,31 +185,43 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Map<String, Object>> areaResGenerationMap = resGenerationAssemblerService.assembleResProperties(studyEntity);
         log.info("RES generation {} entries", areaResGenerationMap != null ? areaResGenerationMap.size() : 0);
 
+        Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
+        log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
+
+
+        AreasGenerationContextDTO context = AreasGenerationContextDTO.builder()
+                .arrowLoadFilesByArea(listArrowLoadFilesByArea)
+                .clusterPropsByArea(Optional.ofNullable(areaClusterRefThermalClusterGenerationDtoMap)
+                        .orElse(Collections.emptyMap())
+                        .entrySet()
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                e -> e.getKey().area(),
+                                Collectors.toMap(
+                                        e -> e.getKey().area().toUpperCase(Locale.ROOT) + "_" + e.getKey().thermalClusterRef().getName(),
+                                        Map.Entry::getValue,
+                                        (a, b) -> a,
+                                        LinkedHashMap::new
+                                )
+                        )))
+                .stsClusterProps(areaStsClusterGenerationDtoMap)
+                .dsrClusterProps(areaDsrClusterGenerationDtoMap)
+                .miscProps(areaMiscGenerationDtoMap)
+                .resProps(areaResGenerationMap)
+                .hydroProps(areaHydroGenerationMap)
+                .build();
+
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
                 .collect(Collectors.toMap(
                         AreaDTO::getName,
-                        areaDTO -> areasMapGenerator(
-                                areaDTO,
-                                listArrowLoadFilesByArea.get(areaDTO.getName()),
-                                thermalToJsonService.getClusterPropsForArea(areaClusterRefThermalClusterGenerationDtoMap, areaDTO.getName()),
-                                areaStsClusterGenerationDtoMap,
-                                areaDsrClusterGenerationDtoMap,
-                                areaMiscGenerationDtoMap,
-                                areaResGenerationMap
-
-                        )
+                        areaDTO -> areasMapGenerator(areaDTO, context)
                 ));
 
         areasMap.putAll(areasDataMap);
         log.info("Areas data with {} entries", areasDataMap.size());
     }
 
-    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, List<String> arrowLoadFilesByArea, Map<String, ThermalClusterGenerationDto> clusterProps,
-                                                  Map<String, StsGenerationDTO> stsClusterProps,
-                                                  Map<String, DsrGenerationDTO> dsrClusterProps,
-                                                  Map<String, List<MiscGenerationDTO>> miscProps,
-                                                  Map<String, Map<String, Object>> resProps
-    ) {
+    private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, AreasGenerationContextDTO context) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
         // Replace with actual implementations or JSON representations
@@ -217,24 +233,21 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
         areaMap.put(PROPERTIES, areaProperties);
 
-        Map<String, Object> hydroMap = new HashMap<>();
-        hydroMap.put(PROPERTIES, "HydroProperties as JSON");
-        hydroMap.put("every matrices name inside HydroMatrixName enum", MATRIX_HASH);
+        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(context.getClusterPropsByArea().get(areaDTO.getName()));
+        Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), context.getStsClusterProps());
+        Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), context.getDsrClusterProps());
+        Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), context.getMiscProps());
+        Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), context.getResProps());
+        Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), context.getHydroProps());
 
-        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(clusterProps);
-
-        Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), stsClusterProps);
-        Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), dsrClusterProps);
-        Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), miscProps);
-        Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), resProps);
-
-        areaMap.put("hydro", hydroMap);
-        areaMap.put("loads", arrowLoadFilesByArea != null && !arrowLoadFilesByArea.isEmpty() ? arrowLoadFilesByArea : "No LOAD files for this area");
+        List<String> arrowLoadFiles = context.getArrowLoadFilesByArea().get(areaDTO.getName());
+        areaMap.put("loads", arrowLoadFiles != null && !arrowLoadFiles.isEmpty() ? arrowLoadFiles : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
         areaMap.put("sts", stsMap);
         areaMap.put("dsr", dsrMap);
         areaMap.put("misc", miscMap);
         areaMap.put("res", resMap);
+        areaMap.put("hydro", hydroMap);
 
         return areaMap;
     }
