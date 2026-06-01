@@ -114,8 +114,9 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         Set<String> processedAreas = new HashSet<>();
 
         // 2. Specific areas treatment
-        for (String area : nonOtherAreas(miscCapacityByArea.keySet())) {
-            TrajectoryEntity capacityTraj = miscCapacityByArea.get(area);
+        var areas = nonOtherAreas(miscCapacityByArea.keySet(), miscLoadByArea.keySet());
+        for (String area : areas) {
+            TrajectoryEntity capacityTraj = containsOnlyOtherCapacity(miscCapacityByArea.keySet()) ? miscCapacityByArea.get(OTHER_AREA) : miscCapacityByArea.get(area);
             TrajectoryEntity loadTraj = resolveLoadTrajectoryForArea(area, miscLoadByArea);
             if (capacityTraj != null) {
                 processedAreas.add(area);
@@ -128,6 +129,14 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         // 3.OTHERS case
         processOthers(study, miscCapacityByArea, miscLoadByArea, processedAreas, allGeneratedFiles);
         return allGeneratedFiles;
+    }
+
+    public static boolean containsOnlyOtherCapacity(Set<String> capacityKeys) {
+        if (capacityKeys == null || capacityKeys.isEmpty()) {
+            return false;
+        }
+        return capacityKeys.size() == 1 &&
+                capacityKeys.iterator().next().trim().equalsIgnoreCase(OTHER_AREA);
     }
 
     private void processOthers(StudyEntity study, Map<String, TrajectoryEntity> capMap, Map<String, TrajectoryEntity> loadMap, Set<String> processed, List<Path> files) {
@@ -334,8 +343,11 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
                 ));
     }
 
-    private Set<String> nonOtherAreas(Set<String> areas) {
-        Set<String> result = new HashSet<>(areas);
+    private Set<String> nonOtherAreas(Set<String> capacityAreas, Set<String> loadAreas) {
+        Set<String> result = new HashSet<>(capacityAreas);
+        if (containsOnlyOtherCapacity(result) && !loadAreas.isEmpty()) {
+            return loadAreas;
+        }
         result.remove(OTHER_AREA.toUpperCase());
         return result;
     }
