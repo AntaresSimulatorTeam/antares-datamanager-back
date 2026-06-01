@@ -344,12 +344,13 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
     }
 
     private Set<String> nonOtherAreas(Set<String> capacityAreas, Set<String> loadAreas) {
-        Set<String> result = new HashSet<>(capacityAreas);
-        if (containsOnlyOtherCapacity(result) && !loadAreas.isEmpty()) {
+        Set<String> resultCapacity = new HashSet<>(capacityAreas);
+        Set<String> resultLoad = new HashSet<>(loadAreas);
+        if (containsOnlyOtherCapacity(resultCapacity) && !resultLoad.contains(OTHER_AREA) && !loadAreas.isEmpty()) {
             return loadAreas;
         }
-        result.remove(OTHER_AREA.toUpperCase());
-        return result;
+        resultCapacity.remove(OTHER_AREA.toUpperCase());
+        return resultCapacity;
     }
 
     private Map<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> resolveGroupToAreas(StudyEntity study, String area, TrajectoryEntity capacityTrajectory) {
