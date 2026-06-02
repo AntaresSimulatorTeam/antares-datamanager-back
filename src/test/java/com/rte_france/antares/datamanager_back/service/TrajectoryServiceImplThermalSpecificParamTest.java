@@ -67,7 +67,6 @@ class TrajectoryServiceImplThermalSpecificParamTest {
     private ThermalSpecificParametersEntity param(String node) {
         return ThermalSpecificParametersEntity.builder()
                 .node(node)
-                .comment("c")
                 .build();
     }
 

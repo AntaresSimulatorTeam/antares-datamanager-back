@@ -102,3 +102,5 @@ databaseChangeLog:
         file: classpath*:db/changelog/1.1.0/V47-create-cluster-designation-table.sql
   - include:
         file: classpath*:db/changelog/1.1.0/V48-create-nuclear-modulation-parameter-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V49-drop-columns-thermal-specific-parameters.sql
