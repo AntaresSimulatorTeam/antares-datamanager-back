@@ -131,6 +131,10 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<HydroParametersEntity> hydroParametersEntities;
 
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<NuclearModulationParameterEntity> nuclearModulationParameterEntities;
+
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",
             joinColumns = @JoinColumn(name = "trajectory_id"),
