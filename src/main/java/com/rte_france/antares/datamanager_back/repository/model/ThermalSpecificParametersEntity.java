@@ -23,12 +23,6 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Column(name = "node", length = 20)
     private String node;
 
-    @Column(name = "node_entsoe", length = 20)
-    private String nodeEntsoe;
-
-    @Column(name = "comments", length = 255)
-    private String comment;
-
     @Column(name = "min_stable_generation")
     private Double minStableGeneration;
 

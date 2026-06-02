@@ -97,6 +97,10 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V45-update-link-table-hvdc-columns.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V46-remove-dsr-cluster-table-reliability-columns.sql
+       file: classpath*:db/changelog/1.1.0/V46-remove-dsr-cluster-table-reliability-columns.sql
   - include:
-       file: classpath*:db/changelog/1.1.0/V47-create-cluster-designation-table.sql
+        file: classpath*:db/changelog/1.1.0/V47-create-cluster-designation-table.sql
+  - include:
+        file: classpath*:db/changelog/1.1.0/V48-create-nuclear-modulation-parameter-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V49-drop-columns-thermal-specific-parameters.sql
