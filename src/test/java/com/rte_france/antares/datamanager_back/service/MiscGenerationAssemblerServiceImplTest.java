@@ -244,13 +244,11 @@ class MiscGenerationAssemblerServiceImplTest {
         other.setGroupe("other");
         other.setCluster("cluster_other");
         other.setCapacityByYear(BigDecimal.valueOf(5.0));
-
         MiscClusterCapacityEntity wave = new MiscClusterCapacityEntity();
         wave.setArea("FR");
         wave.setGroupe("wave");
         wave.setCluster("cluster_wave");
         wave.setCapacityByYear(BigDecimal.valueOf(7.0));
-
         MiscClusterCapacityEntity hydro = new MiscClusterCapacityEntity();
         hydro.setArea("FR");
         hydro.setGroupe("hydrokinetic");
