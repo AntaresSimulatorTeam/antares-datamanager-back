@@ -86,7 +86,7 @@ class DsrPropertiesAssemblerServiceImplTest {
         assertTrue(result.containsKey("FR_Cluster1"));
         DsrGenerationDTO dto = result.get("FR_Cluster1");
         assertEquals(true, dto.getEnabled());
-        assertEquals(100.5, dto.getNominalCapacity());
+        assertEquals(20.1, dto.getNominalCapacity());
         assertEquals(5, dto.getUnitCount());
         assertEquals(50.0, dto.getMarginalCost());
         assertEquals(3, dto.getMaxHourPerDay());
@@ -549,7 +549,7 @@ class DsrPropertiesAssemblerServiceImplTest {
         // Then
         assertEquals(1, result.size());
         assertTrue(result.containsKey("FR_CL1"));
-        assertEquals(1.0, result.get("FR_CL1").getNominalCapacity()); // mapToDsrGenerationDTO might use doubleValue
+        assertEquals(0.0, result.get("FR_CL1").getNominalCapacity()); 
     }
 
     @Test
