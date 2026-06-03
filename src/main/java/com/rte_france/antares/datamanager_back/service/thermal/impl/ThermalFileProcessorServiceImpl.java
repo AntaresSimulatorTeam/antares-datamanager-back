@@ -450,7 +450,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private void processThermalRow(Row row, Row header, String horizon, boolean isCivilYear, String technology, String rowArea, List<ThermalClusterCapacityEntity> result, StringBuilder checksum, String trajectoryName) {
         String fuel = row.getCell(2).getStringCellValue();
-        String techName = row.getCell(3).getStringCellValue();
+        String techName = getStringCell(row, 3);
         String clusterName = row.getCell(4).getStringCellValue();
         String categoryStr = row.getCell(5).getStringCellValue().toLowerCase();
 
