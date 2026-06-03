@@ -454,6 +454,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         String clusterName = row.getCell(4).getStringCellValue();
         String categoryStr = row.getCell(5).getStringCellValue().toLowerCase();
 
+        if (techName == null || techName.isBlank()) {
+            throw BusinessException.builder()
+                    .message("Node {0} must have a technology value in THERMAL Installed Power {1}")
+                    .errorMessageArguments(List.of(rowArea, trajectoryName))
+                    .build();
+        }
+
         if (technology != null && !technology.isEmpty() && !techName.equalsIgnoreCase(technology)) return;
 
         for (int i = 6; i < header.getLastCellNum(); i++) {
