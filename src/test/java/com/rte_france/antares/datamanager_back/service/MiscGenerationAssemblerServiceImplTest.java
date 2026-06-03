@@ -459,14 +459,14 @@ class MiscGenerationAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("BE", new double[]{0.3, 0.4})
         ));
 
-        when(timeSeriesReader.readFromXlsx(xlsxFile, "2030-2031")).thenReturn(matrix);
+        when(timeSeriesReader.readFromXlsx(xlsxFile, "2030-2031", true)).thenReturn(matrix);
         when(antaresDataManagerProperties.getMiscGenTsOutputDirectory()).thenReturn(outputDir);
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("AT_wave"), eq(outputDir))).thenReturn("AT_wave.UUID.arrow");
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("BE_wave"), eq(outputDir))).thenReturn("BE_wave.UUID.arrow");
 
         List<Path> results = miscGenerationAssemblerService.splitMiscGenLoadFiles(xlsxFile, Set.of("AT", "BE"), "2030-2031", "wave");
 
-        verify(timeSeriesReader, times(1)).readFromXlsx(xlsxFile, "2030-2031");
+        verify(timeSeriesReader, times(1)).readFromXlsx(xlsxFile, "2030-2031", true);
         assertEquals(2, results.size());
     }
 
@@ -479,7 +479,7 @@ class MiscGenerationAssemblerServiceImplTest {
 
         assertTrue(results.isEmpty());
         verify(timeSeriesReader, never()).readFromTxt(any(Path.class));
-        verify(timeSeriesReader, never()).readFromXlsx(any(Path.class), anyString());
+        verify(timeSeriesReader, never()).readFromXlsx(any(Path.class), anyString(), anyBoolean());
         verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
     }
 

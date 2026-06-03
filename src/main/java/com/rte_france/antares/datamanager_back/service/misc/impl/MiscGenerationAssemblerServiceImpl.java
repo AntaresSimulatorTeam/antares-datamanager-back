@@ -371,7 +371,7 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         String fileName = file.getFileName().toString().toLowerCase();
         TimeSeriesReader localReader = (this.timeSeriesReader != null) ? this.timeSeriesReader : new TimeSeriesReader();
         try {
-            if (fileName.endsWith(".xlsx")) return localReader.readFromXlsx(file, horizon);
+            if (fileName.endsWith(".xlsx")) return localReader.readFromXlsx(file, horizon, true);
             if (fileName.endsWith(".txt") || fileName.endsWith(".csv")) return localReader.readFromTxt(file);
             return null;
         } catch (RuntimeException ex) {

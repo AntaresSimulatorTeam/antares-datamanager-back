@@ -78,7 +78,7 @@ class ResGenerationAssemblerServiceImplTest {
         })
         void shouldResolveVariousFormats(String fileName, String area, String group, String expectedKey) throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
-            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn(fileName + ".arrow");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn(fileName + ".arrow");
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
@@ -94,7 +94,7 @@ class ResGenerationAssemblerServiceImplTest {
             // Style B with single year (should NOT be stripped)
             String fileName = "solar_pv_DE_utility_2030.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
-            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("styleB.arrow");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("styleB.arrow");
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
@@ -128,7 +128,7 @@ class ResGenerationAssemblerServiceImplTest {
             // will throw a BusinessException because it findsnone
             String validFile = "wind_DE_onshore_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, validFile);
-            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("valid_de.arrow");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("valid_de.arrow");
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
@@ -137,7 +137,7 @@ class ResGenerationAssemblerServiceImplTest {
 
             // assembleResProperties should succeed by ignoring the malformed file and using the valid one.
             assertDoesNotThrow(() -> service.assembleResProperties(study));
-            verify(nasFileService, times(1)).saveMatrixToNas(any(), eq(OUTPUT_DIR));
+            verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean());
         }
     }
 
@@ -180,7 +180,7 @@ class ResGenerationAssemblerServiceImplTest {
         void shouldCoverFrTechLoopAndCandidateKeys() throws IOException {
             String fileName = "solar_FR01_pv_utility_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
-            when(nasFileService.saveMatrixToNas(any(), eq(OUTPUT_DIR))).thenReturn("fr_solar.arrow");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("fr_solar.arrow");
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
@@ -220,7 +220,7 @@ class ResGenerationAssemblerServiceImplTest {
             preparePhysicalFile(DEFAULT_TRAJECTORY, ".~lock.wind_DE_onshore.csv");
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_valid_2030_2031.csv");
 
-            when(nasFileService.saveMatrixToNas(any(), any())).thenReturn("valid.arrow");
+            when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenReturn("valid.arrow");
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
@@ -228,13 +228,13 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             service.assembleResProperties(study);
-            verify(nasFileService, times(1)).saveMatrixToNas(any(), any());
+            verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
         }
 
         @Test
         void shouldHandleTechnicalFailures() throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
-            when(nasFileService.saveMatrixToNas(any(), any())).thenThrow(new IOException("NAS Down"));
+            when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenThrow(new IOException("NAS Down"));
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
