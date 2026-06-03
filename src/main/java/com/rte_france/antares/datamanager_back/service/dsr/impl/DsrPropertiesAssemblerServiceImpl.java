@@ -105,7 +105,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                     .map(path -> {
                         try {
                             String outputDir = antaresDataManagerProperties.getDsrModulationTsOutputDirectory();
-                            return nasFileService.saveMatrixToNas(path, outputDir);
+                            return nasFileService.readAndSaveMatrixToNas(path, outputDir, null, true);
                         } catch (IOException e) {
                             throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
                         }
@@ -196,7 +196,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                 : new TimeSeriesReader();
         if (fileName.endsWith(".xlsx")) {
             try {
-                matrix = localReader.readFromXlsx(file, horizon);
+                matrix = localReader.readFromXlsx(file, horizon, true);
             } catch (Exception ex) {
                 throw new IOException(ex);
             }

@@ -156,7 +156,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenAnswer(invocation -> {
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenAnswer(invocation -> {
             Path p = invocation.getArgument(0);
             return p.getFileName().toString() + ".uuid123.arrow";
         });
@@ -235,14 +235,14 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenReturn("saved.txt");
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenReturn("saved.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
 
         // Then
         assertEquals(1, result.size());
-        verify(nasFileService).saveMatrixToNas(argThat(p -> p.getFileName().toString().contains("Cluster_Accént")), anyString());
+        verify(nasFileService).readAndSaveMatrixToNas(argThat(p -> p.getFileName().toString().contains("Cluster_Accént")), anyString(), any(), anyBoolean());
     }
 
     @Test
@@ -319,7 +319,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
-        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenReturn("saved_ts_1.txt");
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenReturn("saved_ts_1.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
@@ -388,7 +388,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
-        when(nasFileService.saveMatrixToNas(any(Path.class), anyString())).thenThrow(new IOException("NAS error"));
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenThrow(new IOException("NAS error"));
 
         // When & Then
         TechnicalException ex = assertThrows(TechnicalException.class, () -> dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study));
@@ -520,14 +520,14 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         StudyEntity study = StudyEntity.builder().horizon("2030").trajectories(Set.of(modulationTrajectory, dsrTrajectory)).build();
-        when(nasFileService.saveMatrixToNas(any(), any())).thenReturn("saved.txt");
+        when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenReturn("saved.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
 
         // Then
         assertEquals(1, result.size());
-        verify(nasFileService, times(1)).saveMatrixToNas(any(), any());
+        verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -601,7 +601,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         StudyEntity study = StudyEntity.builder().horizon("2030").trajectories(Set.of(modulationTrajectory, dsrTrajectory)).build();
-        when(nasFileService.saveMatrixToNas(any(), any())).thenReturn("saved.txt");
+        when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenReturn("saved.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
@@ -639,7 +639,7 @@ class DsrPropertiesAssemblerServiceImplTest {
             StudyEntity study = StudyEntity.builder().horizon("2030").trajectories(Set.of(dsrTrajectory, modulationTrajectory)).build();
 
             when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-            when(nasFileService.saveMatrixToNas(any(), any())).thenReturn("saved.txt");
+            when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenReturn("saved.txt");
 
             // When
             Map<String, DsrGenerationDTO> result = dsrPropertiesAssemblerService.assembleDsrProperties(study);
