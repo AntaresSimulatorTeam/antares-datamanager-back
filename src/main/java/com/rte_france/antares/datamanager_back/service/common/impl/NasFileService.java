@@ -245,4 +245,44 @@ public class NasFileService {
         Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
     }
 
+    /**
+     * Removes specific file; logs success or failure
+     */
+    public void deleteFile(String outputDir, String filename) {
+        Path filePath = resolveNasPath(filename, outputDir);
+        try {
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                log.info("Deleted file: {}", filePath);
+            }
+        } catch (IOException e) {
+            log.error("Failed to delete file: {}", filePath, e);
+        }
+    }
+
+    public byte[] readFile(String outputDir, String filename) throws IOException {
+        Path filePath = resolveNasPath(filename, outputDir);
+        return Files.readAllBytes(filePath);
+    }
+
+    public void deleteFilesByPrefix(String outputDir, String prefix) {
+        Path dirPath = resolveNasPath("", outputDir);
+        if (!Files.exists(dirPath)) {
+            return;
+        }
+        try (var stream = Files.list(dirPath)) {
+            stream.filter(path -> path.getFileName().toString().startsWith(prefix))
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                            log.info("Deleted file: {}", path);
+                        } catch (IOException e) {
+                            log.error("Failed to delete file: {}", path, e);
+                        }
+                    });
+        } catch (IOException e) {
+            log.error("Failed to list files in directory: {}", dirPath, e);
+        }
+    }
+
 }

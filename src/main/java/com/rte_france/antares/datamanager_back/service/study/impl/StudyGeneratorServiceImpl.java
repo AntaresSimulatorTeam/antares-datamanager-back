@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
@@ -7,6 +8,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
@@ -282,13 +284,74 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     })
                     .block();
         } catch (TechnicalException te) {
+            cleanupStudyFiles(studyId);
             throw te;
         } catch (RuntimeException ex) {
             log.error("Erreur lors de l'appel au générateur pour l'étude {} : {}", studyId, ex.getMessage());
+            cleanupStudyFiles(studyId);
             throw TechnicalException.builder()
                     .message("Error while call Generate study from generator " + studyId + ": " + ex.getMessage())
                     .cause(ex)
                     .build();
+        }
+    }
+
+    private void cleanupStudyFiles(Integer studyId) {
+        log.info("Cleaning up files for studyId={}", studyId);
+        String studyJsonDir = antaresDataManagerProperties.getStudyJsonOutputDirectory();
+        String jsonFileName = studyId + ".json";
+        try {
+            byte[] jsonBytes = nasFileService.readFile(studyJsonDir, jsonFileName);
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode root = objectMapper.readTree(jsonBytes);
+
+            // The JSON structure is: { "studyName": { "areas": { "areaName": { "loads": [...], "thermals": { "clusterName": { "series": [...] } }, ... } } } }
+            // Find all strings ending in .arrow
+            Set<String> arrowFiles = new HashSet<>();
+            findArrowFiles(root, arrowFiles);
+
+            log.info("Found {} arrow files to delete for studyId={}", arrowFiles.size(), studyId);
+
+            List<String> outputDirectories = Arrays.asList(
+                    antaresDataManagerProperties.getOutputLoadDirectory(),
+                    antaresDataManagerProperties.getParamModulationOutputDirectory(),
+                    antaresDataManagerProperties.getDsrModulationTsOutputDirectory(),
+                    antaresDataManagerProperties.getMiscGenTsOutputDirectory(),
+                    antaresDataManagerProperties.getStsTsOutputDirectory(),
+                    antaresDataManagerProperties.getResTsOutputDirectory(),
+                    antaresDataManagerProperties.getHydroTsOutputDirectory()
+            );
+
+            for (String arrowFile : arrowFiles) {
+                for (String dir : outputDirectories) {
+                    nasFileService.deleteFile(dir, arrowFile);
+                }
+            }
+
+        } catch (IOException e) {
+            log.warn("Could not read or parse study JSON for cleanup (studyId={}): {}", studyId, e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to cleanup arrow files for studyId={}", studyId, e);
+        } finally {
+            nasFileService.deleteFile(studyJsonDir, jsonFileName);
+        }
+    }
+
+    private void findArrowFiles(JsonNode node, Set<String> arrowFiles) {
+        if (node.isTextual()) {
+            String text = node.asText();
+            if (text.endsWith(".arrow")) {
+                arrowFiles.add(text);
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                findArrowFiles(child, arrowFiles);
+            }
+        } else if (node.isObject()) {
+            Iterator<JsonNode> elements = node.elements();
+            while (elements.hasNext()) {
+                findArrowFiles(elements.next(), arrowFiles);
+            }
         }
     }
 

@@ -749,4 +749,34 @@ class StudyGeneratorServiceImplTest {
 
         assertEquals("generator down", exception.getMessage());
     }
+    @Test
+    void callGenerateStudyService_shouldCleanupFilesOnFailure() throws IOException {
+        int studyId = 130;
+        String url = "http://localhost/generate_study/?study_id=130";
+
+        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
+
+        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
+        when(webClient.post()).thenReturn(bodyUriSpec);
+        when(bodyUriSpec.uri(url)).thenReturn(bodySpec);
+        when(bodySpec.exchangeToMono(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Function<ClientResponse, Mono<String>> handler = invocation.getArgument(0);
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.INTERNAL_SERVER_ERROR);
+            when(response.bodyToMono(String.class)).thenReturn(Mono.just("error msg"));
+            return handler.apply(response);
+        });
+
+        String studyJson = "{\"study130\": {\"areas\": {\"FR02\": {\"loads\": [\"FR02_UUID1.arrow\"]}}}}";
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("json_dir");
+        when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("load_dir");
+        when(nasFileService.readFile(eq("json_dir"), eq("130.json"))).thenReturn(studyJson.getBytes());
+
+        assertThrows(TechnicalException.class, () -> studyGeneratorService.callGenerateStudyService(studyId));
+
+        verify(nasFileService).deleteFile(eq("load_dir"), eq("FR02_UUID1.arrow"));
+        verify(nasFileService).deleteFile(eq("json_dir"), eq("130.json"));
+    }
 }
