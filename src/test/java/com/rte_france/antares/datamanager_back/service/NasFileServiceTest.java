@@ -154,7 +154,7 @@ class NasFileServiceTest {
 
   @Test
   void saveMatrixToNas_fromMatrix_nullMatrix() {
-    assertThrows(NullPointerException.class, () -> nasFileService.saveMatrixToNas((TimeSeriesMatrix) null, "baseName", OUTPUT_DIRECTORY));
+    assertThrows(NullPointerException.class, () -> nasFileService.saveMatrixToNas(null, "baseName", OUTPUT_DIRECTORY));
   }
 
   @Test
@@ -422,12 +422,12 @@ class NasFileServiceTest {
     when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn("data".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
-    String savedName = nasFileService.saveMatrixToNas(timeSeriesMatrix, "myfile.arrow", OUTPUT_DIRECTORY);
+    String savedName = nasFileService.saveMatrixToNas(timeSeriesMatrix, "fileTStest.arrow", OUTPUT_DIRECTORY);
 
-    // Extension should not be doubled: "myfile.<uuid>.arrow", not "myfile.arrow.<uuid>.arrow"
-    assertTrue(savedName.startsWith("myfile."));
+    // Extension should not be doubled: "fileTStest.<uuid>.arrow", not "fileTStest.arrow.<uuid>.arrow"
+    assertTrue(savedName.startsWith("fileTStest."));
     assertTrue(savedName.endsWith(".arrow"));
-    assertFalse(savedName.startsWith("myfile.arrow."));
+    assertFalse(savedName.startsWith("fileTStest.arrow."));
   }
 
   @Test
@@ -516,7 +516,7 @@ class NasFileServiceTest {
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
-    nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null, false);
+    nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, null, false);
 
     verify(timeSeriesReader).readFromTxt(input, false);
   }
