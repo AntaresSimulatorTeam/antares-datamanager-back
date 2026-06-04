@@ -108,7 +108,7 @@ public final class TimeSeriesReader {
    * Each column in the sheet is interpreted as a series, and up to 8760 rows are read.
    * Non-numeric and blank cells are treated as 0.0; string numbers with comma are supported.
    */
-  public TimeSeriesMatrix readFromXlsx(Path xlsxPath, String horizon) throws IOException {
+  public TimeSeriesMatrix readFromXlsx(Path xlsxPath, String horizon, boolean hasHeader) throws IOException {
     Objects.requireNonNull(xlsxPath);
 
     if (!Files.exists(xlsxPath)) {
@@ -138,16 +138,19 @@ public final class TimeSeriesReader {
         throw TechnicalException.builder().message("Excel sheet has no columns").build();
       }
 
-      // Load data into a matrix
+      var columns = new ArrayList<TimeSeriesMatrixColumn>(columnCount);
+      
+      if (!hasHeader) {
+        sheet.removeRow(firstRow);
+        sheet.shiftRows(firstRow.getRowNum(), sheet.getLastRowNum(), -1);
+      }
       int actualRowCount = Math.clamp(
               (long) sheet.getLastRowNum() - firstRow.getRowNum(),
               0,
               ROW_COUNT
       );
       double[][] data = loadData(sheet, columnCount, actualRowCount);
-
       // Create TimeSeriesMatrix
-      var columns = new ArrayList<TimeSeriesMatrixColumn>(columnCount);
       for (int c = 0; c < columnCount; c++) {
         String columnName = getHeaderValue(firstRow.getCell(c));
         columns.add(new TimeSeriesMatrixColumn(columnName != null ? columnName : COLUMN_PREFIX + c, data[c]));
