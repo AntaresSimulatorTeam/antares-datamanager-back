@@ -210,7 +210,7 @@ public class NasFileService {
         if (baseName.startsWith("'") && baseName.endsWith("'")) {
             baseName = baseName.substring(1, baseName.length() - 1);
         }
-        baseName = baseName.replace(" ", "_");
+        baseName = baseName.replaceAll("\\s+", "");
         if (baseName.toLowerCase().endsWith("." + writer.getDefaultFileExtension())) {
             baseName = baseName.substring(0, baseName.length() - (writer.getDefaultFileExtension().length() + 1));
         }
@@ -236,35 +236,48 @@ public class NasFileService {
     /**
      * Removes specific file; logs success or failure
      */
-public void deleteFile(String outputDir, String filename) {
-    if (outputDir == null || outputDir.isBlank() || filename == null || filename.isBlank() || filename.contains("..")) {
-        log.warn("Refusing to delete file with invalid outputDir/filename: outputDir='{}', filename='{}'", outputDir, filename);
-        return;
-    }
-
-    Path relativeOutputDir = Path.of(outputDir);
-    if (relativeOutputDir.isAbsolute()) {
-        log.warn("Refusing to delete file from absolute outputDir: {}", outputDir);
-        return;
-    }
-
-    Path nasPath = Path.of(antaresDataManagerProperties.getNasDirectory()).toAbsolutePath().normalize();
-    Path filePath = nasPath.resolve(relativeOutputDir).resolve(filename).normalize();
-    if (!filePath.startsWith(nasPath)) {
-        log.warn("Refusing to delete file outside NAS directory: {}", filePath);
-        return;
-    }
-
-    try {
-        if (Files.deleteIfExists(filePath)) {
-            log.info("Deleted file: {}", filePath);
-        } else {
-            log.debug("File to delete does not exist: {}", filePath);
+    public void deleteFile(String outputDir, String filename) {
+        if (outputDir == null || outputDir.isBlank() || filename == null || filename.isBlank() || filename.contains("..")) {
+            log.warn("Refusing to delete file with invalid outputDir/filename: outputDir='{}', filename='{}'", outputDir, filename);
+            return;
         }
-    } catch (IOException e) {
-        log.error("Failed to delete file: {}", filePath, e);
+
+        Path relativeOutputDir = Path.of(outputDir);
+        if (relativeOutputDir.isAbsolute()) {
+            log.warn("Refusing to delete file from absolute outputDir: {}", outputDir);
+            return;
+        }
+
+        Path nasPath = Path.of(antaresDataManagerProperties.getNasDirectory()).toAbsolutePath().normalize();
+        Path filePath = nasPath.resolve(relativeOutputDir).resolve(filename).normalize();
+        if (!filePath.startsWith(nasPath)) {
+            log.warn("Refusing to delete file outside NAS directory: {}", filePath);
+            return;
+        }
+
+        try {
+            if (Files.deleteIfExists(filePath)) {
+                log.info("Deleted file: {}", filePath);
+            } else {
+                // Fallback for names that might have been transformed (spaces to underscores or removed spaces)
+                if (filename.contains(" ")) {
+                    Path withUnderscores = nasPath.resolve(relativeOutputDir).resolve(filename.replace(" ", "_")).normalize();
+                    if (Files.deleteIfExists(withUnderscores)) {
+                        log.info("Deleted file (fallback underscore): {}", withUnderscores);
+                        return;
+                    }
+                    Path withRemovedSpaces = nasPath.resolve(relativeOutputDir).resolve(filename.replace(" ", "")).normalize();
+                    if (Files.deleteIfExists(withRemovedSpaces)) {
+                        log.info("Deleted file (fallback removed spaces): {}", withRemovedSpaces);
+                        return;
+                    }
+                }
+                log.debug("File to delete does not exist: {}", filePath);
+            }
+        } catch (IOException e) {
+            log.error("Failed to delete file: {}", filePath, e);
+        }
     }
-}
 
 public byte[] readFile(String outputDir, String filename) throws IOException {
     if (outputDir == null || outputDir.isBlank() || filename == null || filename.isBlank() || filename.contains("..")) {
