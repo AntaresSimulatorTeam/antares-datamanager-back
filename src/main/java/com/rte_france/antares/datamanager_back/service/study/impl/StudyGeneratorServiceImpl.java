@@ -31,6 +31,7 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 @Slf4j
@@ -312,7 +313,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             log.info("Found {} arrow files to delete for studyId={}", arrowFiles.size(), studyId);
 
-List<String> outputDirectories = Arrays.asList(
+List<String> outputDirectories = Stream.of(
         antaresDataManagerProperties.getOutputLoadDirectory(),
         antaresDataManagerProperties.getParamModulationOutputDirectory(),
         antaresDataManagerProperties.getDsrModulationTsOutputDirectory(),
@@ -320,10 +321,10 @@ List<String> outputDirectories = Arrays.asList(
         antaresDataManagerProperties.getStsTsOutputDirectory(),
         antaresDataManagerProperties.getResTsOutputDirectory(),
         antaresDataManagerProperties.getHydroTsOutputDirectory()
-).stream()
+)
         .filter(Objects::nonNull)
         .filter(s -> !s.isBlank())
-        .collect(Collectors.toList());
+        .toList();
 
             for (String arrowFile : arrowFiles) {
                 for (String dir : outputDirectories) {

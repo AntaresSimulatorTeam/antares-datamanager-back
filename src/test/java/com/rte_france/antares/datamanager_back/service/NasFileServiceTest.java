@@ -445,5 +445,117 @@ class NasFileServiceTest {
     assertThrows(NullPointerException.class,
             () -> nasFileService.saveMatrixBytesToNas("data".getBytes(), null, OUTPUT_DIRECTORY));
   }
+
+  @Test
+  void deleteFile_validInput_fileDeleted() throws IOException {
+    String filename = "toDelete.txt";
+    Path targetDir = tempDir.resolve(OUTPUT_DIRECTORY);
+    Files.createDirectories(targetDir);
+    Path file = targetDir.resolve(filename);
+    Files.writeString(file, "content");
+
+    nasFileService.deleteFile(OUTPUT_DIRECTORY, filename);
+
+    assertFalse(Files.exists(file));
+  }
+
+  @Test
+  void deleteFile_invalidInput_doesNothing() {
+    // Should not throw and should log warning (verified manually or via log capturing if configured)
+    nasFileService.deleteFile(null, "file.txt");
+    nasFileService.deleteFile("", "file.txt");
+    nasFileService.deleteFile(OUTPUT_DIRECTORY, null);
+    nasFileService.deleteFile(OUTPUT_DIRECTORY, "");
+    nasFileService.deleteFile(OUTPUT_DIRECTORY, "../outside.txt");
+    nasFileService.deleteFile("/absolute", "file.txt");
+  }
+
+  @Test
+  void readFile_validInput_returnsBytes() throws IOException {
+    String filename = "toRead.txt";
+    byte[] content = "some content".getBytes();
+    Path targetDir = tempDir.resolve(OUTPUT_DIRECTORY);
+    Files.createDirectories(targetDir);
+    Path file = targetDir.resolve(filename);
+    Files.write(file, content);
+
+    byte[] result = nasFileService.readFile(OUTPUT_DIRECTORY, filename);
+
+    assertArrayEquals(content, result);
+  }
+
+  @Test
+  void readFile_fileDoesNotExist_throwsIOException() {
+    assertThrows(IOException.class, () -> nasFileService.readFile(OUTPUT_DIRECTORY, "nonExistent.txt"));
+  }
+
+  @Test
+  void deleteFile_fileDoesNotExist_doesNotThrow() {
+    nasFileService.deleteFile(OUTPUT_DIRECTORY, "nonExistent.txt");
+    // Should not throw
+  }
+
+  @Test
+  void saveMatrixToNas_withHeaderFalse_callsReaderWithFalse() throws IOException {
+    Path input = tempDir.resolve("input.txt");
+    Files.writeString(input, "1.0");
+    when(timeSeriesReader.readFromTxt(eq(input), eq(false))).thenReturn(timeSeriesMatrix);
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null, false);
+
+    verify(timeSeriesReader).readFromTxt(input, false);
+  }
+
+  @Test
+  void readMatrix_withHeaderFalse_callsReaderWithFalse() throws IOException {
+    Path input = tempDir.resolve("input.csv");
+    when(timeSeriesReader.readFromTxt(eq(input), eq(false))).thenReturn(timeSeriesMatrix);
+
+    TimeSeriesMatrix result = nasFileService.readMatrix(input, null, false);
+
+    assertEquals(timeSeriesMatrix, result);
+    verify(timeSeriesReader).readFromTxt(input, false);
+  }
+
+  @Test
+  void loadFile_notReadable_throwsTechnicalException() throws IOException {
+    var filename = "unreadable.txt";
+    var filePath = Path.of("/nas").resolve(filename);
+    when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
+
+    var resource = mock(UrlResource.class);
+    when(resource.exists()).thenReturn(true);
+    when(resource.isReadable()).thenReturn(false);
+    when(resource.getURI()).thenReturn(filePath.toUri());
+
+    try (var mockedUrlResource = mockStatic(UrlResource.class)) {
+      mockedUrlResource.when(() -> UrlResource.from(filePath.toUri())).thenReturn(resource);
+
+      assertThrows(TechnicalException.class, () -> nasFileService.loadFile(filename));
+    }
+  }
+
+  @Test
+  void saveFile_nasDirectoryNotExists_createsDirectories() throws IOException {
+    String filename = "file.txt";
+    byte[] content = "content".getBytes();
+    String subDir = "new/sub/dir";
+    Path fullTargetDir = tempDir.resolve(subDir);
+    // Ensure it doesn't exist
+    assertFalse(Files.exists(fullTargetDir));
+
+    nasFileService.saveFile(filename, content, subDir);
+
+    assertTrue(Files.exists(fullTargetDir.resolve(filename)));
+  }
+
+  @Test
+  void readFile_invalidInput_throwsException() {
+    assertThrows(IOException.class, () -> nasFileService.readFile(null, "f.txt"));
+    assertThrows(IOException.class, () -> nasFileService.readFile(OUTPUT_DIRECTORY, "../f.txt"));
+    assertThrows(IOException.class, () -> nasFileService.readFile("/absolute", "f.txt"));
+  }
 }
 

@@ -48,7 +48,7 @@ public class NasFileService {
         Path filePath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(filename);
         Resource resource = UrlResource.from(filePath.toUri());
 
-        if (resource.exists() || resource.isReadable()) {
+        if (resource.exists() && resource.isReadable()) {
             return resource;
         } else {
             throw TechnicalException.builder().message("Fichier non trouvé ou illisible : " + filename).build();
@@ -276,29 +276,23 @@ public void deleteFile(String outputDir, String filename) {
     }
 }
 
-    public byte[] readFile(String outputDir, String filename) throws IOException {
-        Path filePath = resolveNasPath(filename, outputDir);
-        return Files.readAllBytes(filePath);
+public byte[] readFile(String outputDir, String filename) throws IOException {
+    if (outputDir == null || outputDir.isBlank() || filename == null || filename.isBlank() || filename.contains("..")) {
+        throw new IOException("Invalid outputDir/filename");
     }
 
-    public void deleteFilesByPrefix(String outputDir, String prefix) {
-        Path dirPath = resolveNasPath("", outputDir);
-        if (!Files.exists(dirPath)) {
-            return;
-        }
-        try (var stream = Files.list(dirPath)) {
-            stream.filter(path -> path.getFileName().toString().startsWith(prefix))
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                            log.info("Deleted file: {}", path);
-                        } catch (IOException e) {
-                            log.error("Failed to delete file: {}", path, e);
-                        }
-                    });
-        } catch (IOException e) {
-            log.error("Failed to list files in directory: {}", dirPath, e);
-        }
+    Path relativeOutputDir = Path.of(outputDir);
+    if (relativeOutputDir.isAbsolute()) {
+        throw new IOException("Output directory must be a relative path: " + outputDir);
     }
+
+    Path nasPath = Path.of(antaresDataManagerProperties.getNasDirectory()).toAbsolutePath().normalize();
+    Path filePath = nasPath.resolve(relativeOutputDir).resolve(filename).normalize();
+    if (!filePath.startsWith(nasPath)) {
+        throw new IOException("Path outside of the NAS directory: " + filePath);
+    }
+
+    return Files.readAllBytes(filePath);
+}
 
 }
