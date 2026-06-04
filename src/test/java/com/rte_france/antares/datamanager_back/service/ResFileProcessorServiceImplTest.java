@@ -70,6 +70,7 @@ public class ResFileProcessorServiceImplTest {
     private static final int STUDY_ID = 1;
     protected static final String FILE_NOT_FOUND = "File not found: ";
     private static final String ZONAL_REPARTITION_FILE_NAME = "repartition_zonal_BP23_Aref";
+    private static final String[] RES_TYPES = new String[]{"solar_pv", "solar_thermo", "wind_offshore", "wind_onshore"};
 
     @InjectMocks
     private ResFileProcessorServiceImpl resFileProcessorServiceImpl;
@@ -1577,6 +1578,21 @@ public class ResFileProcessorServiceImplTest {
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
+            when(resTypeService.getAllResTypes()).thenReturn(List.of(
+                new com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity() {{
+                    setCode("wind_offshore");
+                }},
+                new com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity() {{
+                    setCode("wind_onshore");
+                }},
+                new com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity() {{
+                    setCode("solar_pv");
+                }},
+                new com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity() {{
+                    setCode("solar_thermo");
+                }}
+            ));
+
             // Autres mocks
             when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
@@ -1992,6 +2008,32 @@ public class ResFileProcessorServiceImplTest {
 
             assertEquals("Could not import RES technology distribution trajectory", ex.getMessage());
             assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        }
+
+        @Test
+        void shouldThrowWrongGroupWhenGroupNotInResTypesAndTechnologyIsNull(@TempDir Path tempRoot) throws Exception {
+            // GIVEN : fichier Excel avec un groupe inconnu dans la colonne Group (col 0)
+            createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_FR), "unknown_group", true);
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(areaRepository.findAllByStudyId(STUDY_ID)).thenReturn(List.of(
+                    new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{ setName(AREA_FR); }}
+            ));
+            // ResTypes connus : ne contiennent pas "unknown_group"
+            when(resTypeService.getAllResTypes()).thenReturn(List.of(
+                    createMockResType("solar_pv"),
+                    createMockResType("wind_onshore")
+            ));
+
+            // WHEN & THEN : technology=null → hasTechnology=false → check ligne 725 → BusinessException "Wrong group"
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processTechnologyDistributionResFile(
+                            "repartition_techno_BP23_Aref", HORIZON_2029_2030, STUDY_ID, AREA_FR, null, false
+                    )
+            );
+            assertTrue(exception.getMessage().contains("Wrong group"));
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertTrue(exception.getErrorMessageArguments().contains("unknown_group"));
         }
     }
 
