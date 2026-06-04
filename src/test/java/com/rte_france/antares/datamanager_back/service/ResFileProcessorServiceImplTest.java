@@ -875,7 +875,7 @@ public class ResFileProcessorServiceImplTest {
                             TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
                     ))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("No csv file found in technology folder");
+                    .hasMessageContaining("No subdirectory with CSV files found for technology");
         }
 
         @Test
@@ -897,6 +897,29 @@ public class ResFileProcessorServiceImplTest {
                     ))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("No technology folder found");
+        }
+
+        @Test
+        void processLoadFactorResFileThrowsExceptionWhenSpecificTechnologyHasNoValidSubdirectories(@TempDir Path tempRoot) throws Exception {
+            // GIVEN - Create technology folder but without subdirectories containing CSV
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+            Files.createDirectories(trajectoryDir);
+            // Create folder but no subdirectories or CSV files inside
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+
+            // WHEN & THEN
+            assertThatThrownBy(() ->
+                    resFileProcessorServiceImpl.processLoadFactorResFile(
+                            TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+                    ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("No subdirectory with CSV files found for technology");
         }
 
         @Test
