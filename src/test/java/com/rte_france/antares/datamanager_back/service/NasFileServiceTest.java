@@ -179,13 +179,13 @@ class NasFileServiceTest {
   void readMatrix_xlsxFile_returnsMatrix() throws Exception {
     Path xlsxFile = tempDir.resolve("series.xlsx");
     Files.writeString(xlsxFile, "dummy");
-    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030")).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenReturn(timeSeriesMatrix);
 
     TimeSeriesMatrix result = nasFileService.readMatrix(xlsxFile, "2030");
 
     assertNotNull(result);
     assertEquals(timeSeriesMatrix, result);
-    verify(timeSeriesReader).readFromXlsx(xlsxFile, "2030");
+    verify(timeSeriesReader).readFromXlsx(xlsxFile, "2030", true);
   }
 
   @Test
@@ -222,7 +222,7 @@ class NasFileServiceTest {
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
-    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null);
+    String savedName = nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, null, true);
 
     assertNotNull(savedName);
     assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
@@ -236,7 +236,7 @@ class NasFileServiceTest {
 
     TechnicalException ex = assertThrows(
             TechnicalException.class,
-            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null)
+            () -> nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, null, true)
     );
 
     assertTrue(ex.getMessage().contains("Unsupported input format"));
@@ -246,11 +246,11 @@ class NasFileServiceTest {
   void saveMatrixToNas_whenReaderFails_wrapsTechnicalException() throws Exception {
     Path input = tempDir.resolve("input.xlsx");
     Files.writeString(input, "dummy");
-    when(timeSeriesReader.readFromXlsx(input, "2030")).thenThrow(new IOException("broken xlsx"));
+    when(timeSeriesReader.readFromXlsx(input, "2030", true)).thenThrow(new IOException("broken xlsx"));
 
     TechnicalException ex = assertThrows(
             TechnicalException.class,
-            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, "2030")
+            () -> nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, "2030", true)
     );
 
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
@@ -267,11 +267,11 @@ class NasFileServiceTest {
             .errorMessageArguments(List.of("2030", "trajectoire.xlsx"))
             .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
             .build();
-    when(timeSeriesReader.readFromXlsx(input, "2030")).thenThrow(businessEx);
+    when(timeSeriesReader.readFromXlsx(input, "2030", true)).thenThrow(businessEx);
 
     BusinessException ex = assertThrows(
             BusinessException.class,
-            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, "2030")
+            () -> nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, "2030", true)
     );
 
     assertSame(businessEx, ex);
@@ -286,7 +286,7 @@ class NasFileServiceTest {
             .errorMessageArguments(List.of("2030", "trajectoire.xlsx"))
             .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
             .build();
-    when(timeSeriesReader.readFromXlsx(input, "2030")).thenThrow(businessEx);
+    when(timeSeriesReader.readFromXlsx(input, "2030", true)).thenThrow(businessEx);
 
     BusinessException ex = assertThrows(
             BusinessException.class,
@@ -331,17 +331,17 @@ class NasFileServiceTest {
   void saveMatrixToNas_fromPathXlsx_validInput() throws Exception {
     Path input = tempDir.resolve("data.xlsx");
     Files.writeString(input, "dummy");
-    when(timeSeriesReader.readFromXlsx(input, "2030")).thenReturn(timeSeriesMatrix);
+    when(timeSeriesReader.readFromXlsx(input, "2030", true)).thenReturn(timeSeriesMatrix);
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
-    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, "2030");
+    String savedName = nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, "2030", true);
 
     assertNotNull(savedName);
     assertTrue(savedName.startsWith("data."));
     assertTrue(savedName.endsWith(".arrow"));
     assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
-    verify(timeSeriesReader).readFromXlsx(input, "2030");
+    verify(timeSeriesReader).readFromXlsx(input, "2030", true);
   }
 
   @Test
@@ -352,7 +352,7 @@ class NasFileServiceTest {
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
-    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null);
+    String savedName = nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, null, true);
 
     assertNotNull(savedName);
     assertTrue(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY).resolve(savedName)));
@@ -367,7 +367,7 @@ class NasFileServiceTest {
     when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn("bytes".getBytes());
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
 
-    String savedName = nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY);
+    String savedName = nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, null, true);
 
     assertNotNull(savedName);
     verify(timeSeriesReader).readFromTxt(input, true);
@@ -377,10 +377,10 @@ class NasFileServiceTest {
   void saveMatrixToNas_whenReaderFailsWithNoSheetName_noHorizonInfoInMessage() throws Exception {
     Path input = tempDir.resolve("input.xlsx");
     Files.writeString(input, "dummy");
-    when(timeSeriesReader.readFromXlsx(input, null)).thenThrow(new IOException("broken xlsx"));
+    when(timeSeriesReader.readFromXlsx(input, null, true)).thenThrow(new IOException("broken xlsx"));
 
     TechnicalException ex = assertThrows(TechnicalException.class,
-            () -> nasFileService.saveMatrixToNas(input, OUTPUT_DIRECTORY, null));
+            () -> nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, null, true));
 
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
     assertTrue(ex.getMessage().contains("input.xlsx"));
@@ -405,7 +405,7 @@ class NasFileServiceTest {
   void readMatrix_xlsxFailure_includesHorizonInfoInMessage() throws Exception {
     Path xlsxFile = tempDir.resolve("data.xlsx");
     Files.writeString(xlsxFile, "dummy");
-    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030")).thenThrow(new IOException("corrupt"));
+    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
 
     TechnicalException ex = assertThrows(TechnicalException.class,
             () -> nasFileService.readMatrix(xlsxFile, "2030"));

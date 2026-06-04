@@ -416,7 +416,7 @@ class StudyGeneratorServiceImplTest {
         when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("load");
         when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("outload");
         when(loadRepository.save(any())).thenReturn(load);
-        doReturn("generated.arrow").when(nasFileService).saveMatrixToNas(any(), any());
+        doReturn("generated.arrow").when(nasFileService).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
         // Delegate the mocked service call to real logic to trigger arrow generation
         doAnswer(inv -> new LoadToJsonService(loadRepository, nasFileService, antaresDataManagerProperties)
                 .getListArrowLoadFilesByAreaFromStudy(inv.getArgument(0)))
@@ -426,7 +426,7 @@ class StudyGeneratorServiceImplTest {
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
         // Then
-        verify(nasFileService, times(1)).saveMatrixToNas(any(), any());
+        verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
     }
 
 
