@@ -312,15 +312,18 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             log.info("Found {} arrow files to delete for studyId={}", arrowFiles.size(), studyId);
 
-            List<String> outputDirectories = Arrays.asList(
-                    antaresDataManagerProperties.getOutputLoadDirectory(),
-                    antaresDataManagerProperties.getParamModulationOutputDirectory(),
-                    antaresDataManagerProperties.getDsrModulationTsOutputDirectory(),
-                    antaresDataManagerProperties.getMiscGenTsOutputDirectory(),
-                    antaresDataManagerProperties.getStsTsOutputDirectory(),
-                    antaresDataManagerProperties.getResTsOutputDirectory(),
-                    antaresDataManagerProperties.getHydroTsOutputDirectory()
-            );
+List<String> outputDirectories = Arrays.asList(
+        antaresDataManagerProperties.getOutputLoadDirectory(),
+        antaresDataManagerProperties.getParamModulationOutputDirectory(),
+        antaresDataManagerProperties.getDsrModulationTsOutputDirectory(),
+        antaresDataManagerProperties.getMiscGenTsOutputDirectory(),
+        antaresDataManagerProperties.getStsTsOutputDirectory(),
+        antaresDataManagerProperties.getResTsOutputDirectory(),
+        antaresDataManagerProperties.getHydroTsOutputDirectory()
+).stream()
+        .filter(Objects::nonNull)
+        .filter(s -> !s.isBlank())
+        .collect(Collectors.toList());
 
             for (String arrowFile : arrowFiles) {
                 for (String dir : outputDirectories) {
