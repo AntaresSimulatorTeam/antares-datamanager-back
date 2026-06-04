@@ -108,7 +108,7 @@ public class NasFileService {
         saveMatrix(outputFileName, matrix, outputDir);
         return outputFileName;
     }
-    
+
     /**
      * Saves a time series matrix read from the given path to NAS with a unique filename.
      *
@@ -210,6 +210,7 @@ public class NasFileService {
         if (baseName.startsWith("'") && baseName.endsWith("'")) {
             baseName = baseName.substring(1, baseName.length() - 1);
         }
+        baseName = baseName.replace(" ", "_");
         if (baseName.toLowerCase().endsWith("." + writer.getDefaultFileExtension())) {
             baseName = baseName.substring(0, baseName.length() - (writer.getDefaultFileExtension().length() + 1));
         }

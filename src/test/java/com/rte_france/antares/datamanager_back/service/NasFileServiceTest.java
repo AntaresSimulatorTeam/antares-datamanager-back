@@ -438,9 +438,21 @@ class NasFileServiceTest {
     String savedName = nasFileService.saveMatrixToNas(timeSeriesMatrix, "'quoted file.csv'", OUTPUT_DIRECTORY);
 
     // Should be "quoted file.csv.<uuid>.arrow"
-    assertTrue(savedName.startsWith("quoted file.csv."));
+    assertTrue(savedName.startsWith("quoted_file.csv."));
     assertTrue(savedName.endsWith(".arrow"));
     assertFalse(savedName.startsWith("'"));
+  }
+
+  @Test
+  void saveMatrixToNas_fromMatrix_baseNameHasSpaces_replacesWithUnderscore() throws IOException {
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn("data".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(timeSeriesMatrix, "solar_pv_FR01_Solar PV utility tracking_2026-2027.csv", OUTPUT_DIRECTORY);
+
+    assertTrue(savedName.startsWith("solar_pv_FR01_Solar_PV_utility_tracking_2026-2027.csv."));
+    assertTrue(savedName.endsWith(".arrow"));
+    assertFalse(savedName.contains(" "));
   }
 
   // ── saveMatrixBytesToNas ──────────────────────────────────────────────────
