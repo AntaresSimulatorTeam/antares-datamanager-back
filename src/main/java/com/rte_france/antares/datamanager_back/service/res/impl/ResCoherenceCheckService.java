@@ -699,10 +699,20 @@ public class ResCoherenceCheckService {
         }
 
         // Extraire les technologies disponibles dans les trajectoires DT avec technologie
-        Set<String> availableDTTechnologies = allDtTrajectories.stream()
-                .map(TrajectoryEntity::getTechnology)
-                .filter(trajectoryTechnology -> !isBlankOrEmpty(trajectoryTechnology))
-                .collect(Collectors.toSet());
+        Set<String> availableDTTechnologies = new HashSet<>();
+
+        // Filtrer les technologies disponibles en fonction de la technologie de trajectoryBeingImported
+        assert trajectoryBeingImported != null;
+        String trajectoryTechnology = trajectoryBeingImported.getTechnology();
+        if (!isBlankOrEmpty(trajectoryTechnology)) {
+            // Si trajectoryBeingImported a une technologie, ne comparer que avec les clés DT ayant cette même technologie
+            availableDTTechnologies.add(trajectoryTechnology);
+        } else {
+            availableDTTechnologies=  allDtTrajectories.stream()
+                    .map(TrajectoryEntity::getTechnology)
+                    .filter(techno -> !isBlankOrEmpty(techno))
+                    .collect(Collectors.toSet());
+        }
 
         // Extraire les clés DT complètes (area/groupe/cluster/pecdZone/pecdTechnology) filtrées par area et technologies disponibles
         Set<String> dtKeysWithPecd = extractDTKeysWithPecd(allDtTrajectories, area, availableDTTechnologies);
