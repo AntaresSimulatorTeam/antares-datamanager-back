@@ -70,7 +70,6 @@ public class ResFileProcessorServiceImplTest {
     private static final int STUDY_ID = 1;
     protected static final String FILE_NOT_FOUND = "File not found: ";
     private static final String ZONAL_REPARTITION_FILE_NAME = "repartition_zonal_BP23_Aref";
-    private static final String[] RES_TYPES = new String[]{"solar_pv", "solar_thermo", "wind_offshore", "wind_onshore"};
 
     @InjectMocks
     private ResFileProcessorServiceImpl resFileProcessorServiceImpl;
