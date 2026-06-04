@@ -282,6 +282,46 @@ class ThermalFileProcessorServiceImplTest {
         );
     }
 
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowBusinessExceptionWhenTechnologyIsMissing(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("thermal_capacity_missing_technology.xlsx");
+        try (var wb = new XSSFWorkbook()) {
+            var sheet = wb.createSheet("ThermalClusterCapacity");
+            var header = sheet.createRow(0);
+
+            String[] baseHeaders = {"ToUse", "Area", "Fuel", "Technology", "Cluster", "Category"};
+            for (int i = 0; i < baseHeaders.length; i++) {
+                header.createCell(i).setCellValue(baseHeaders[i]);
+            }
+            int col = baseHeaders.length;
+            for (int m = 1; m <= 12; m++) {
+                header.createCell(col++).setCellValue(String.format("%04d_%02d", 2025, m));
+            }
+
+            var row = sheet.createRow(1);
+            row.createCell(0).setCellValue(1.0);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("fuel");
+            row.createCell(3).setBlank();
+            row.createCell(4).setCellValue("Cluster1");
+            row.createCell(5).setCellValue("power");
+            for (int i = 6; i < 18; i++) {
+                row.createCell(i).setCellValue(100.0 + i);
+            }
+
+            try (var fos = new FileOutputStream(file.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1)
+        );
+
+        assertEquals("Node {0} must have a technology value in THERMAL Installed Power {1}", exception.getMessage());
+        assertEquals(List.of("FR", "thermal_capacity_missing_technology.xlsx"), exception.getErrorMessageArguments());
+    }
+
 
     @Test
     void isCellInHorizon_shouldReturnTrueWhenMonthIsInSecondHalfOfHorizonYear() {
