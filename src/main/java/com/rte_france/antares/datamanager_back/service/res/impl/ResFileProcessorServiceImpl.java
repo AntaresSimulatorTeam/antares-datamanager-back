@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.ResTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
@@ -561,9 +560,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
-           if (technology != null && trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
-            validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
-        }
+            if (trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
+                validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
+            }
             validateInvalidCombos(result.invalidCombos(), trajectoryToUse, trajectoryType);
 
             return result;
@@ -589,8 +588,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (!ExcelCommonValidator.isRowEmpty(row)) {
                 allRowsEmpty = false;
                 switch (trajectoryType) {
-                    case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
-                            processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
+                    case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION -> {
+                            List<String> technologies = List.of();
+                            if (context.getTechnology() == null || context.getTechnology().isBlank()) {
+                                var resTypeEntities = resTypeService.getAllResTypes();
+                                technologies = resTypeEntities.stream().map(ResTypeEntity::getCode).toList();
+                            }
+                            processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns, technologies);
+                    }
                     case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
                             processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
                     default ->
@@ -697,7 +702,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             ResRowProcessingContext context,
             ResRowProcessingTechnologyDistributionResult result,
             Row row,
-            String[] requiredColumns
+            String[] requiredColumns,
+            List<String> technologies
     ) {
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
@@ -714,8 +720,19 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             result.addArea(area);
             if ( area == null || !area.equalsIgnoreCase(context.getAreaParam())) return;
         }
-
-        if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
+        
+        boolean hasTechnology = context.getTechnology() != null && !context.getTechnology().isBlank();
+        if (!hasTechnology) {
+            if (!technologies.contains(group)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(group, context.getAreaParam(), context.getTrajectoryToUse()))
+                        .message("Wrong group {0} in the 'node' column of {1} trajectory {2}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        } else if (!context.getTechnology().equalsIgnoreCase(group)) {
+            return;
+        }
         result.addTechnologies(context.getTechnology());
 
         validateEmptyRequiredColumns(context, requiredColumns, group, cluster, area, pecdZone, pecdTechno);
