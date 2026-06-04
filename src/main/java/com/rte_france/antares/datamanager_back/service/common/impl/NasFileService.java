@@ -248,17 +248,33 @@ public class NasFileService {
     /**
      * Removes specific file; logs success or failure
      */
-    public void deleteFile(String outputDir, String filename) {
-        Path filePath = resolveNasPath(filename, outputDir);
-        try {
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("Deleted file: {}", filePath);
-            }
-        } catch (IOException e) {
-            log.error("Failed to delete file: {}", filePath, e);
-        }
+public void deleteFile(String outputDir, String filename) {
+    if (outputDir == null || outputDir.isBlank() || filename == null || filename.isBlank() || filename.contains("..")) {
+        log.warn("Refusing to delete file with invalid outputDir/filename: outputDir='{}', filename='{}'", outputDir, filename);
+        return;
     }
+
+    Path relativeOutputDir = Path.of(outputDir);
+    if (relativeOutputDir.isAbsolute()) {
+        log.warn("Refusing to delete file from absolute outputDir: {}", outputDir);
+        return;
+    }
+
+    Path nasPath = Path.of(antaresDataManagerProperties.getNasDirectory()).toAbsolutePath().normalize();
+    Path filePath = nasPath.resolve(relativeOutputDir).resolve(filename).normalize();
+    if (!filePath.startsWith(nasPath)) {
+        log.warn("Refusing to delete file outside NAS directory: {}", filePath);
+        return;
+    }
+
+    try {
+        if (Files.deleteIfExists(filePath)) {
+            log.info("Deleted file: {}", filePath);
+        }
+    } catch (IOException e) {
+        log.error("Failed to delete file: {}", filePath, e);
+    }
+}
 
     public byte[] readFile(String outputDir, String filename) throws IOException {
         Path filePath = resolveNasPath(filename, outputDir);
