@@ -98,7 +98,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
                 .map(path -> {
                     try {
                         String outputDir = antaresDataManagerProperties.getParamModulationOutputDirectory();
-                        return nasFileService.saveMatrixToNas(path, outputDir);
+                        return nasFileService.readAndSaveMatrixToNas(path, outputDir, null, false);
                     } catch (IOException e) {
                         throw TechnicalException.builder().message(e.getMessage()).cause(e).build();
                     }

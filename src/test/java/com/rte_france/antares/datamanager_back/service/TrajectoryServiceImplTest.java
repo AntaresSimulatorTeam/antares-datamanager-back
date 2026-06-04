@@ -1324,7 +1324,7 @@ class TrajectoryServiceImplTest {
         assertNull(result.getLoadEntities().iterator().next().getOutPutFileName(),
                 "Should be null because .arrow is generated later"
         );
-        verify(nasFileService, never()).saveMatrixToNas(any(), any());
+        verify(nasFileService, never()).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -1401,7 +1401,7 @@ class TrajectoryServiceImplTest {
 
         Path mockPath = mock(Path.class);
         when(mockPath.resolve(anyString())).thenReturn(mockPath);
-        when(nasFileService.saveMatrixToNas(mockPath, "outputDir")).thenThrow(IOException.class);
+        when(nasFileService.readAndSaveMatrixToNas(mockPath, "outputDir", null, true)).thenThrow(IOException.class);
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
 

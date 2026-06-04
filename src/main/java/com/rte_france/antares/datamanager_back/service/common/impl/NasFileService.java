@@ -100,19 +100,15 @@ public class NasFileService {
         Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    /**
-     * Saves a time series matrix read from the given path to NAS with a unique filename.
-     *
-     * @param inputPath Path to input .txt or .xlsx file
-     * @param outputDir Output directory relative to NAS root
-     * @param sheetName Optional sheet name (for Excel files)
-     * @return Saved filename
-     * @throws IOException on read/write failure
-     */
-    public String saveMatrixToNas(Path inputPath, String outputDir, String sheetName) throws IOException {
-        return saveMatrixToNas(inputPath, outputDir, sheetName, true);
-    }
 
+    public String saveMatrixToNas(TimeSeriesMatrix matrix, String baseName, String outputDir) throws IOException {
+        Objects.requireNonNull(matrix, "matrix must not be null");
+        Objects.requireNonNull(baseName, "baseName must not be null");
+        var outputFileName = generateUniqueFileName(baseName);
+        saveMatrix(outputFileName, matrix, outputDir);
+        return outputFileName;
+    }
+    
     /**
      * Saves a time series matrix read from the given path to NAS with a unique filename.
      *
@@ -123,7 +119,7 @@ public class NasFileService {
      * @return Saved filename
      * @throws IOException on read/write failure
      */
-    public String saveMatrixToNas(Path inputPath, String outputDir, String sheetName, boolean hasHeader) throws IOException {
+    public String readAndSaveMatrixToNas(Path inputPath, String outputDir, String sheetName, boolean hasHeader) throws IOException {
         Objects.requireNonNull(inputPath, "inputPath must not be null");
         var name = inputPath.getFileName().toString().toLowerCase();
         TimeSeriesMatrix matrix;
@@ -131,7 +127,7 @@ public class NasFileService {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 matrix = reader.readFromTxt(inputPath, hasHeader);
             } else if (name.endsWith(EXCEL_EXTENSION)) {
-                matrix = reader.readFromXlsx(inputPath, sheetName);
+                matrix = reader.readFromXlsx(inputPath, sheetName, hasHeader);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
@@ -149,10 +145,6 @@ public class NasFileService {
         saveMatrix(outputFileName, matrix, outputDir);
         setFilePermissions(resolveNasPath(outputFileName, outputDir));
         return outputFileName;
-    }
-
-    public String saveMatrixToNas(Path inputPath, String outputDir) throws IOException {
-        return saveMatrixToNas(inputPath, outputDir, null);
     }
 
     /**
@@ -181,7 +173,7 @@ public class NasFileService {
             if (name.endsWith(".txt") || name.endsWith(".csv")) {
                 return reader.readFromTxt(inputPath, hasHeader);
             } else if (name.endsWith(EXCEL_EXTENSION)) {
-                return reader.readFromXlsx(inputPath, sheetName);
+                return reader.readFromXlsx(inputPath, sheetName, hasHeader);
             } else {
                 throw TechnicalException.builder().message("Unsupported input format: " + name).build();
             }
@@ -195,14 +187,6 @@ public class NasFileService {
                     .cause(e)
                     .build();
         }
-    }
-
-    public String saveMatrixToNas(TimeSeriesMatrix matrix, String baseName, String outputDir) throws IOException {
-        Objects.requireNonNull(matrix, "matrix must not be null");
-        Objects.requireNonNull(baseName, "baseName must not be null");
-        var outputFileName = generateUniqueFileName(baseName);
-        saveMatrix(outputFileName, matrix, outputDir);
-        return outputFileName;
     }
 
     /**
