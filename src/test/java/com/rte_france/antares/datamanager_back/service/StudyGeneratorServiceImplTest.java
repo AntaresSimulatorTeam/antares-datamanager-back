@@ -769,14 +769,16 @@ class StudyGeneratorServiceImplTest {
             return handler.apply(response);
         });
 
-        String studyJson = "{\"study130\": {\"areas\": {\"FR02\": {\"loads\": [\"FR02_UUID1.arrow\"]}}}}";
+        String studyJson = "{\"study130\": {\"areas\": {\"FR02\": {\"loads\": [\"FR02_UUID1.arrow\"], \"res\": {\"solar\": {\"series\": [\"solar_pv_FR01_Solar PV utility tracking_2026-2027.csv.uuid.arrow\"]}}}}}}";
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("json_dir");
         when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("load_dir");
+        when(antaresDataManagerProperties.getResTsOutputDirectory()).thenReturn("res_dir");
         when(nasFileService.readFile(eq("json_dir"), eq("130.json"))).thenReturn(studyJson.getBytes());
 
         assertThrows(TechnicalException.class, () -> studyGeneratorService.callGenerateStudyService(studyId));
 
         verify(nasFileService).deleteFile(eq("load_dir"), eq("FR02_UUID1.arrow"));
+        verify(nasFileService).deleteFile(eq("res_dir"), eq("solar_pv_FR01_Solar PV utility tracking_2026-2027.csv.uuid.arrow"));
         verify(nasFileService).deleteFile(eq("json_dir"), eq("130.json"));
     }
 }

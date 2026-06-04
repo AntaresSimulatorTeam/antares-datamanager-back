@@ -311,20 +311,22 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Set<String> arrowFiles = new HashSet<>();
             findArrowFiles(root, arrowFiles);
 
-            log.info("Found {} arrow files to delete for studyId={}", arrowFiles.size(), studyId);
+            log.info("Found {} arrow files to delete for studyId={}. Files: {}", arrowFiles.size(), studyId, arrowFiles);
 
-List<String> outputDirectories = Stream.of(
-        antaresDataManagerProperties.getOutputLoadDirectory(),
-        antaresDataManagerProperties.getParamModulationOutputDirectory(),
-        antaresDataManagerProperties.getDsrModulationTsOutputDirectory(),
-        antaresDataManagerProperties.getMiscGenTsOutputDirectory(),
-        antaresDataManagerProperties.getStsTsOutputDirectory(),
-        antaresDataManagerProperties.getResTsOutputDirectory(),
-        antaresDataManagerProperties.getHydroTsOutputDirectory()
-)
-        .filter(Objects::nonNull)
-        .filter(s -> !s.isBlank())
-        .toList();
+            List<String> outputDirectories = Stream.of(
+                    antaresDataManagerProperties.getOutputLoadDirectory(),
+                    antaresDataManagerProperties.getParamModulationOutputDirectory(),
+                    antaresDataManagerProperties.getDsrModulationTsOutputDirectory(),
+                    antaresDataManagerProperties.getMiscGenTsOutputDirectory(),
+                    antaresDataManagerProperties.getStsTsOutputDirectory(),
+                    antaresDataManagerProperties.getResTsOutputDirectory(),
+                    antaresDataManagerProperties.getHydroTsOutputDirectory()
+            )
+                    .filter(Objects::nonNull)
+                    .filter(s -> !s.isBlank())
+                    .toList();
+
+            log.info("Checking in directories: {}", outputDirectories);
 
             for (String arrowFile : arrowFiles) {
                 for (String dir : outputDirectories) {

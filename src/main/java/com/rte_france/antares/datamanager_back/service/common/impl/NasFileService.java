@@ -223,6 +223,9 @@ public class NasFileService {
     }
 
     private String generateUniqueFileName(String baseName) {
+        if (baseName.startsWith("'") && baseName.endsWith("'")) {
+            baseName = baseName.substring(1, baseName.length() - 1);
+        }
         if (baseName.toLowerCase().endsWith("." + writer.getDefaultFileExtension())) {
             baseName = baseName.substring(0, baseName.length() - (writer.getDefaultFileExtension().length() + 1));
         }
@@ -270,6 +273,8 @@ public void deleteFile(String outputDir, String filename) {
     try {
         if (Files.deleteIfExists(filePath)) {
             log.info("Deleted file: {}", filePath);
+        } else {
+            log.debug("File to delete does not exist: {}", filePath);
         }
     } catch (IOException e) {
         log.error("Failed to delete file: {}", filePath, e);

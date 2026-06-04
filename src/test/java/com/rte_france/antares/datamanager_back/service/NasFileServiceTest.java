@@ -430,6 +430,19 @@ class NasFileServiceTest {
     assertFalse(savedName.startsWith("myfile.arrow."));
   }
 
+  @Test
+  void saveMatrixToNas_fromMatrix_baseNameHasSingleQuotes_stripsQuotes() throws IOException {
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn("data".getBytes());
+    when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
+
+    String savedName = nasFileService.saveMatrixToNas(timeSeriesMatrix, "'quoted file.csv'", OUTPUT_DIRECTORY);
+
+    // Should be "quoted file.csv.<uuid>.arrow"
+    assertTrue(savedName.startsWith("quoted file.csv."));
+    assertTrue(savedName.endsWith(".arrow"));
+    assertFalse(savedName.startsWith("'"));
+  }
+
   // ── saveMatrixBytesToNas ──────────────────────────────────────────────────
 
   @Test
