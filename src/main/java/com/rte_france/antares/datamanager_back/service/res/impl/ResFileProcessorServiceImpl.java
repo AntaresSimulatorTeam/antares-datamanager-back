@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
-import com.rte_france.antares.datamanager_back.repository.ResTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
@@ -128,37 +127,65 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse);
 
+        Path trajectoryFolder = basePath
+                .resolve(loadDirectory)
+                .resolve(trajectoryToUse)
+                .normalize();
+
+        // Validate and get the trajectory file path
+        Path trajectoryFilePath = validateAndGetTrajectoryFilePath(trajectoryFolder, trajectoryToUse, technology, loadDirectory);
+
+        // Build the trajectory entity
+        TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFilePath, horizon, area, technology);
+
+        // Validate coherence
+        resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+        resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+
+        return trajectoryRepository.save(trajectory);
+    }
+
+    /**
+     * Validates trajectory path and returns the file path to use.
+     * If technology is specified, returns the technology folder.
+     * If technology is not specified, validates all 4 required technologies exist.
+     */
+    private Path validateAndGetTrajectoryFilePath(Path trajectoryFolder, String trajectoryToUse, String technology, String loadDirectory) throws IOException {
         if (technology != null && !technology.isBlank()) {
             validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology);
-            Path trajectoryFolder = basePath
-                    .resolve(loadDirectory)
-                    .resolve(trajectoryToUse)
-                    .normalize();
-
             Path technologyFolder = resolveTechnologyFolder(trajectoryFolder, technology);
-
-            checkExistingTs(technologyFolder, trajectoryToUse);
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, technologyFolder, horizon, area, technology);
-
-            // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
-            resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
-            resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
-
-            return trajectoryRepository.save(trajectory);
+            
+            // Validate that at least one subdirectory contains CSV files
+            validateSubdirectoryHasCsvFiles(technologyFolder, technology);
+            
+            return technologyFolder;
         } else {
-            Path trajectoryFolder = basePath
-                    .resolve(loadDirectory)
-                    .resolve(trajectoryToUse);
-
+            // Validate all 4 required technologies exist
             checkAllRequiredTechnologiesExist(trajectoryFolder, trajectoryToUse);
+            return trajectoryFolder;
+        }
+    }
 
-            TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFolder, horizon, area, null);
-
-            // Valider la cohérence IP/LF (Scénario 13) AVANT le save (contrôle des fichiers dans le NAS)
-            resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
-            resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
-
-            return trajectoryRepository.save(trajectory);
+    /**
+     * Validates that at least one subdirectory under the given path contains CSV files.
+     */
+    private void validateSubdirectoryHasCsvFiles(Path technologyFolder, String technology) throws IOException {
+        List<Path> subFolders = getAllSubdirectories(technologyFolder);
+        
+        boolean hasValidSubFolder = subFolders.stream()
+                .anyMatch(subFolder -> {
+                    try {
+                        return containsCsvFile(subFolder);
+                    } catch (IOException e) {
+                        return false;
+                    }
+                });
+        
+        if (!hasValidSubFolder) {
+            throw BusinessException.builder()
+                    .message("No subdirectory with CSV files found for technology: " + technology)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
@@ -300,26 +327,18 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
      }
 
 
-    private static void checkExistingTs(Path trajectoryFilePath, String trajectoryToUse) throws IOException {
-        if (!Files.exists(trajectoryFilePath)) {
-            throw BusinessException.builder()
-                    .message("No technology folder found for load factor misc trajectory: " + trajectoryToUse)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+    /**
+     * Vérifie si trajectoryFolder contient les 4 répertoires technologies requises.
+     * Pour chaque technologie, récupère tous les sous-répertoires et vérifie 
+     * qu'au moins un contient des fichiers CSV.
+     */
+    public void checkAllRequiredTechnologiesExist(Path trajectoryFolder, String trajectoryToUse) throws IOException {
+        // Get the list of 4 required technologies
+        List<String> requiredTechnologies = resTypeService.getAllResTypes()
+                .stream()
+                .map(ResTypeEntity::getCode)
+                .toList();
 
-        Path realPath = trajectoryFilePath.toRealPath();
-        if (!containsCsvFile(realPath)) {
-            throw BusinessException.builder()
-                    .message("No csv file found in technology folder for load factor misc trajectory: " + trajectoryToUse)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    public  void checkAllRequiredTechnologiesExist(Path trajectoryFolder, String trajectoryToUse) throws IOException {
-        // List of 4 required technologies
-        List<String> requiredTechnologies = resTypeService.getAllResTypes().stream().map(ResTypeEntity::getCode).toList();
         List<String> missingTechnologies = new ArrayList<>();
 
         if (!Files.exists(trajectoryFolder)) {
@@ -329,16 +348,30 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     .build();
         }
 
+        // Check each required technology folder exists
         for (String technology : requiredTechnologies) {
-            Optional<Path> technologyPath = findTechnologyFolder(trajectoryFolder, technology);
-
-            if (technologyPath.isEmpty()) {
-                missingTechnologies.add(technology);
-                continue;
-            }
-
-            Path realPath = technologyPath.get().toRealPath();
-            if (!containsCsvFile(realPath)) {
+            try {
+                // Get the actual technology folder path (this validates that it exists)
+                Path techFolder = resolveTechnologyFolder(trajectoryFolder, technology);
+                
+                // Get all subdirectories under the technology folder
+                List<Path> subFolders = getAllSubdirectories(techFolder);
+                
+                // Check if at least one subdirectory contains CSV files
+                boolean hasValidSubFolder = subFolders.stream()
+                        .anyMatch(subFolder -> {
+                            try {
+                                return containsCsvFile(subFolder);
+                            } catch (IOException e) {
+                                return false;
+                            }
+                        });
+                
+                if (!hasValidSubFolder) {
+                    missingTechnologies.add(technology);
+                }
+            } catch (BusinessException e) {
+                // Technology folder not found
                 missingTechnologies.add(technology);
             }
         }
@@ -346,10 +379,22 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         if (!missingTechnologies.isEmpty()) {
             throw BusinessException.builder()
                     .message("Missing required technologies for load factor misc trajectory '" + trajectoryToUse
-                            + "'. The following technologies are required with at least one .csv file: "
+                            + "'. The following technologies are required with at least one subdirectory containing CSV files: "
                             + String.join(", ", missingTechnologies))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
+        }
+    }
+
+    /**
+     * Returns all subdirectories under the given path (depth 1).
+     */
+    private static List<Path> getAllSubdirectories(Path parentPath) throws IOException {
+        try (var walk = Files.walk(parentPath, 1)) {
+            return walk
+                    .filter(Files::isDirectory)
+                    .filter(p -> !p.equals(parentPath))
+                    .toList();
         }
     }
 
@@ -393,67 +438,26 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         return trajectory;
     }
 
-    private static Path resolveTechnologyFolder(Path trajectoryFolder, String technology) throws IOException {
-        return findTechnologyFolder(trajectoryFolder, technology)
-                .orElseThrow(() -> BusinessException.builder()
-                        .message("No technology folder found for load factor misc trajectory: " + technology)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build());
-    }
-
-    private static Optional<Path> findTechnologyFolder(Path trajectoryFolder, String technology) throws IOException {
+    /**
+     * Resolves the technology folder path under trajectoryFolder.
+     * Returns trajectoryFolder/technology
+     */
+    private static Path resolveTechnologyFolder(Path trajectoryFolder, String technology) {
         Objects.requireNonNull(trajectoryFolder, "trajectoryFolder must not be null");
         Objects.requireNonNull(technology, "technology must not be null");
-
-        String displayTechnology = technology.trim();
-        String normalizedTechnology = toSnakeCase(displayTechnology);
-
-        if (!Files.exists(trajectoryFolder)) {
-            return Optional.empty();
+        
+        Path techFolder = trajectoryFolder.resolve(technology).normalize();
+        
+        if (!Files.exists(techFolder)) {
+            throw BusinessException.builder()
+                    .message("No technology folder found for: " + technology)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
-
-        Path normalizedBase = trajectoryFolder.toRealPath();
-        try (var walk = Files.walk(normalizedBase, 2)) {
-            List<Path> matches = walk
-                    .filter(Files::isDirectory)
-                    .filter(path -> normalizedBase.relativize(path).getNameCount() == 2)
-                    .filter(path -> matchesTechnologyFolder(normalizedBase, path, displayTechnology, normalizedTechnology))
-                    .toList();
-
-            if (matches.isEmpty()) {
-                return Optional.empty();
-            }
-
-            if (matches.size() > 1) {
-                throw BusinessException.builder()
-                        .message("Multiple technology folders found for load factor misc trajectory: " + displayTechnology)
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            return Optional.of(matches.getFirst());
-        }
+        
+        return techFolder;
     }
-
-    private static boolean matchesTechnologyFolder(Path baseDir, Path candidate, String displayTechnology, String normalizedTechnology) {
-        Path relative = baseDir.relativize(candidate);
-        if (relative.getNameCount() != 2) {
-            return false;
-        }
-
-        String firstLevel = relative.getName(0).toString();
-        String secondLevel = relative.getName(1).toString();
-
-        return matchesTechnologyToken(firstLevel, displayTechnology, normalizedTechnology)
-                && matchesTechnologyToken(secondLevel, displayTechnology, normalizedTechnology);
-    }
-
-    private static boolean matchesTechnologyToken(String actual, String displayTechnology, String normalizedTechnology) {
-        String spacedTechnology = normalizedTechnology.replace('_', ' ');
-        return actual.equalsIgnoreCase(displayTechnology)
-                || actual.equalsIgnoreCase(normalizedTechnology)
-                || actual.equalsIgnoreCase(spacedTechnology);
-    }
+    // ...existing code...
 
     private static boolean containsCsvFile(Path directory) throws IOException {
         try (var filesStream = Files.walk(directory)) {
@@ -561,9 +565,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             ResRowProcessingResult result = processRows(sheet, context, isOffshoreTechnology, requiredColumns, trajectoryType);
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
-           if (technology != null && trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
-            validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
-        }
+            if (trajectoryType != TrajectoryType.RES_ZONAL_DISTRIBUTION) {
+                validateTechnologyPresence(technology, result.fileTechnologies(), trajectoryType, trajectoryToUse, areaParam);
+            }
             validateInvalidCombos(result.invalidCombos(), trajectoryToUse, trajectoryType);
 
             return result;
@@ -589,8 +593,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (!ExcelCommonValidator.isRowEmpty(row)) {
                 allRowsEmpty = false;
                 switch (trajectoryType) {
-                    case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION ->
-                            processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns);
+                    case TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION -> {
+                            List<String> technologies = List.of();
+                            if (context.getTechnology() == null || context.getTechnology().isBlank()) {
+                                var resTypeEntities = resTypeService.getAllResTypes();
+                                technologies = resTypeEntities.stream().map(ResTypeEntity::getCode).toList();
+                            }
+                            processResTechnoDistributionCapacityRow(context, (ResRowProcessingTechnologyDistributionResult) result, row, requiredColumns, technologies);
+                    }
                     case TrajectoryType.RES_ZONAL_DISTRIBUTION ->
                             processResZonalDistributionRow(context, (ResRowProcessingZonalDistributionResult) result, row, requiredColumns);
                     default ->
@@ -697,7 +707,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             ResRowProcessingContext context,
             ResRowProcessingTechnologyDistributionResult result,
             Row row,
-            String[] requiredColumns
+            String[] requiredColumns,
+            List<String> technologies
     ) {
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
@@ -714,8 +725,19 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             result.addArea(area);
             if ( area == null || !area.equalsIgnoreCase(context.getAreaParam())) return;
         }
-
-        if (context.getTechnology() != null && !context.getTechnology().isBlank() && !context.getTechnology().equalsIgnoreCase(group)) return;
+        
+        boolean hasTechnology = context.getTechnology() != null && !context.getTechnology().isBlank();
+        if (!hasTechnology) {
+            if (!technologies.contains(group)) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(group, context.getAreaParam(), context.getTrajectoryToUse()))
+                        .message("Wrong group {0} in the 'node' column of {1} trajectory {2}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        } else if (!context.getTechnology().equalsIgnoreCase(group)) {
+            return;
+        }
         result.addTechnologies(context.getTechnology());
 
         validateEmptyRequiredColumns(context, requiredColumns, group, cluster, area, pecdZone, pecdTechno);
