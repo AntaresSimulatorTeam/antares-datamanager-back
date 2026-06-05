@@ -112,7 +112,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
         assertEquals("FR", result.get(0).getNode());
         assertEquals("Cluster1", result.get(0).getThermalClusterRef().getName());
         assertEquals(1.0, result.get(0).getMinStableGeneration());
-        assertEquals(39.0, result.get(0).getP12());
+        assertEquals(38.0, result.get(0).getP12());
     }
 
 
@@ -267,9 +267,9 @@ class ThermalSpecificFileProcessorServiceImplTest {
                 row.createCell(2).setCellValue("Cluster1");
             }
 
-            // numeric columns 3..41
+            // numeric columns 3..40
             int v = 1;
-            for (int c = 3; c <= 41; c++) {
+            for (int c = 3; c <= 40; c++) {
                 row.createCell(c).setCellValue(v++);
             }
         }
@@ -294,10 +294,9 @@ class ThermalSpecificFileProcessorServiceImplTest {
                 "CM_specific",
                 "NPO_max_winter",
                 "NPO_max_summer",
-                "nb_unit",
-                "PO_winter_rate"
+                "nb_unit"
         };
-        String[] headers = new String[42];
+        String[] headers = new String[41];
         System.arraycopy(base, 0, headers, 0, base.length);
         int idx = base.length;
         for (int i = 1; i <= 12; i++) headers[idx++] = "F" + i;
@@ -321,7 +320,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
             // Header row at index 0 with labels for columns used by castDouble error messages
             var header = sheet.createRow(0);
-            String[] headerLabels = new String[42];
+            String[] headerLabels = new String[41];
             headerLabels[0] = "Node";
             headerLabels[1] = "Cluster PEMMDB";
             headerLabels[2] = "Cluster Name";
@@ -339,12 +338,11 @@ class ThermalSpecificFileProcessorServiceImplTest {
             headerLabels[14] = "NPO Max Winter";
             headerLabels[15] = "NPO Max Summer";
             headerLabels[16] = "Nb Unit";
-            headerLabels[17] = "PO Winter Rate";
-            for (int i = 18; i <= 29; i++) {
-                headerLabels[i] = "F" + (i - 17);
+            for (int i = 17; i <= 28; i++) {
+                headerLabels[i] = "F" + (i - 16);
             }
-            for (int i = 30; i <= 41; i++) {
-                headerLabels[i] = "P" + (i - 29);
+            for (int i = 29; i <= 40; i++) {
+                headerLabels[i] = "P" + (i - 28);
             }
             for (int i = 0; i < headerLabels.length; i++) {
                 if (headerLabels[i] == null) headerLabels[i] = "Col" + i;
@@ -356,7 +354,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
             Object[] values = new Object[]{
                     "NODE-A", "PEM-001", "ClusterA",
                     10.0, 1.5, 0.42, 0.05, 2.0, 3.0, 4.0, 50.0, 60.0,
-                    1.0, 0.0, 7.0, 8.0, 2.0, 0.1,
+                    1.0, 0.0, 7.0, 8.0, 2.0,
                     0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22,
                     100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 210.0
             };

@@ -104,3 +104,5 @@ databaseChangeLog:
         file: classpath*:db/changelog/1.1.0/V48-create-nuclear-modulation-parameter-table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V49-drop-columns-thermal-specific-parameters.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V50-drop-po-winter-rate-from-thermal-specific-parameters.sql

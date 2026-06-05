@@ -184,31 +184,30 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                 .npoMaxWinter(castInt(getCellValue(row, 14)))
                 .npoMaxSummer(castInt(getCellValue(row, 15)))
                 .nbUnit(castInt(getCellValue(row, 16)))
-                .poWinterRate(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 17), getHeaderText(header, 17), row.getRowNum())))
-                .f1(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 18), getHeaderText(header, 18), row.getRowNum())))
-                .f2(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 19), getHeaderText(header, 19), row.getRowNum())))
-                .f3(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 20), getHeaderText(header, 20), row.getRowNum())))
-                .f4(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 21), getHeaderText(header, 21), row.getRowNum())))
-                .f5(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 22), getHeaderText(header, 22), row.getRowNum())))
-                .f6(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 23), getHeaderText(header, 23), row.getRowNum())))
-                .f7(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 24), getHeaderText(header, 24), row.getRowNum())))
-                .f8(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 25), getHeaderText(header, 25), row.getRowNum())))
-                .f9(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 26), getHeaderText(header, 26), row.getRowNum())))
-                .f10(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 27), getHeaderText(header, 27), row.getRowNum())))
-                .f11(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 28), getHeaderText(header, 28), row.getRowNum())))
-                .f12(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 29), getHeaderText(header, 29), row.getRowNum())))
-                .p1(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 30), getHeaderText(header, 30), row.getRowNum())))
-                .p2(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 31), getHeaderText(header, 31), row.getRowNum())))
-                .p3(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 32), getHeaderText(header, 32), row.getRowNum())))
-                .p4(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 33), getHeaderText(header, 33), row.getRowNum())))
-                .p5(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 34), getHeaderText(header, 34), row.getRowNum())))
-                .p6(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 35), getHeaderText(header, 35), row.getRowNum())))
-                .p7(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 36), getHeaderText(header, 36), row.getRowNum())))
-                .p8(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 37), getHeaderText(header, 37), row.getRowNum())))
-                .p9(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 38), getHeaderText(header, 38), row.getRowNum())))
-                .p10(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 39), getHeaderText(header, 39), row.getRowNum())))
-                .p11(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 40), getHeaderText(header, 40), row.getRowNum())))
-                .p12(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 41), getHeaderText(header, 41), row.getRowNum())))
+                .f1(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 17), getHeaderText(header, 17), row.getRowNum())))
+                .f2(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 18), getHeaderText(header, 18), row.getRowNum())))
+                .f3(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 19), getHeaderText(header, 19), row.getRowNum())))
+                .f4(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 20), getHeaderText(header, 20), row.getRowNum())))
+                .f5(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 21), getHeaderText(header, 21), row.getRowNum())))
+                .f6(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 22), getHeaderText(header, 22), row.getRowNum())))
+                .f7(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 23), getHeaderText(header, 23), row.getRowNum())))
+                .f8(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 24), getHeaderText(header, 24), row.getRowNum())))
+                .f9(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 25), getHeaderText(header, 25), row.getRowNum())))
+                .f10(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 26), getHeaderText(header, 26), row.getRowNum())))
+                .f11(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 27), getHeaderText(header, 27), row.getRowNum())))
+                .f12(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 28), getHeaderText(header, 28), row.getRowNum())))
+                .p1(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 29), getHeaderText(header, 29), row.getRowNum())))
+                .p2(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 30), getHeaderText(header, 30), row.getRowNum())))
+                .p3(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 31), getHeaderText(header, 31), row.getRowNum())))
+                .p4(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 32), getHeaderText(header, 32), row.getRowNum())))
+                .p5(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 33), getHeaderText(header, 33), row.getRowNum())))
+                .p6(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 34), getHeaderText(header, 34), row.getRowNum())))
+                .p7(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 35), getHeaderText(header, 35), row.getRowNum())))
+                .p8(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 36), getHeaderText(header, 36), row.getRowNum())))
+                .p9(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 37), getHeaderText(header, 37), row.getRowNum())))
+                .p10(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 38), getHeaderText(header, 38), row.getRowNum())))
+                .p11(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 39), getHeaderText(header, 39), row.getRowNum())))
+                .p12(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 40), getHeaderText(header, 40), row.getRowNum())))
                 .area(areaName)
                 .build();
         result.add(entity);
@@ -232,7 +231,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     }
 
     private List<String> buildExpectedHeaderNames() {
-        List<String> expected = new ArrayList<>(List.of("node", "cluster_PEMMDB", "cluster", "min_stable_generation", "spinning", "efficiency", "FO_rate", "FO_duration", "PO_duration", "PO_winter", "marginal_cost", "market_bid", "MR_specific", "CM_specific", "NPO_max_winter", "NPO_max_summer", "nb_unit", "PO_winter_rate"));
+        List<String> expected = new ArrayList<>(List.of("node", "cluster_PEMMDB", "cluster", "min_stable_generation", "spinning", "efficiency", "FO_rate", "FO_duration", "PO_duration", "PO_winter", "marginal_cost", "market_bid", "MR_specific", "CM_specific", "NPO_max_winter", "NPO_max_summer", "nb_unit"));
         for (int i = 1; i <= 12; i++) {
             expected.add("F" + i);
         }
@@ -308,7 +307,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     }
 
     private void checkNumericColumns(Row row, String areaName, String clusterName, String trajectoryName) {
-        for (int i = 3; i <= 41; i++) {
+        for (int i = 3; i <= 40; i++) {
             Object v = getCellValue(row, i);
             if (v == null) continue; // allow blanks
             if (!(v instanceof Number)) {
