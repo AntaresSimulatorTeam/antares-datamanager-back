@@ -46,7 +46,7 @@ class TimeSeriesReaderTest {
             }
         }
 
-        var matrix = timeSeriesReader.readFromXlsx(file, "2030");
+        var matrix = timeSeriesReader.readFromXlsx(file, "2030", true);
         assertEquals(1, matrix.getRowCount());
         assertEquals(2, matrix.columns().size());
         // If first row is ignored, the first data row should be "10.0 20.0"
@@ -126,7 +126,7 @@ class TimeSeriesReaderTest {
                 wb.write(os);
             }
         }
-        var matrix = timeSeriesReader.readFromXlsx(file, "2030");
+        var matrix = timeSeriesReader.readFromXlsx(file, "2030", true);
         assertEquals(1, matrix.getRowCount());
         assertEquals(4, matrix.columns().size());
         assertEquals(10.0, matrix.columns().get(0).values()[0]);
@@ -151,7 +151,7 @@ class TimeSeriesReaderTest {
                 wb.write(os);
             }
         }
-        var matrix = timeSeriesReader.readFromXlsx(file, null);
+        var matrix = timeSeriesReader.readFromXlsx(file, null, true);
         assertEquals(7.0, matrix.columns().getFirst().values()[0]);
     }
 
@@ -182,7 +182,7 @@ class TimeSeriesReaderTest {
         }
 
         var ex = assertThrows(BusinessException.class,
-                () -> timeSeriesReader.readFromXlsx(file, "2031"));
+                () -> timeSeriesReader.readFromXlsx(file, "2031", true));
         assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
         assertEquals(2, ex.getErrorMessageArguments().size());
         assertEquals("2031", ex.getErrorMessageArguments().getFirst());
@@ -198,7 +198,7 @@ class TimeSeriesReaderTest {
                 wb.write(os);
             }
         }
-        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, null));
+        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, null, true));
         assertEquals("Excel file has no sheets", ex.getMessage());
     }
 
@@ -211,14 +211,14 @@ class TimeSeriesReaderTest {
                 wb.write(os);
             }
         }
-        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, "2030"));
+        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, "2030", true));
         assertEquals("Excel sheet is empty", ex.getMessage());
     }
 
     @Test
     void readFromXlsx_shouldThrowTechnicalExceptionWhenFileNotFound(@TempDir Path tempDir) {
         Path file = tempDir.resolve("notfound.xlsx");
-        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, "2030"));
+        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.readFromXlsx(file, "2030", true));
         assertTrue(ex.getMessage().startsWith("File not found:"));
     }
 

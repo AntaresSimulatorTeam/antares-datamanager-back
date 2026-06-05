@@ -365,7 +365,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
             String outputDir = antaresDataManagerProperties.getResTsOutputDirectory();
             try {
-                String arrowName = nasFileService.saveMatrixToNas(file, outputDir);
+                String arrowName = nasFileService.readAndSaveMatrixToNas(file, outputDir, null, true);
                 result.add(new ResSeriesRef(
                         toKey(rel.replace('\\', '/')),
                         arrowName,

@@ -114,8 +114,9 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         Set<String> processedAreas = new HashSet<>();
 
         // 2. Specific areas treatment
-        for (String area : nonOtherAreas(miscCapacityByArea.keySet())) {
-            TrajectoryEntity capacityTraj = miscCapacityByArea.get(area);
+        var areas = nonOtherAreas(miscCapacityByArea.keySet(), miscLoadByArea.keySet());
+        for (String area : areas) {
+            TrajectoryEntity capacityTraj = containsOnlyOtherCapacity(miscCapacityByArea.keySet()) ? miscCapacityByArea.get(OTHER_AREA) : miscCapacityByArea.get(area);
             TrajectoryEntity loadTraj = resolveLoadTrajectoryForArea(area, miscLoadByArea);
             if (capacityTraj != null) {
                 processedAreas.add(area);
@@ -128,6 +129,14 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         // 3.OTHERS case
         processOthers(study, miscCapacityByArea, miscLoadByArea, processedAreas, allGeneratedFiles);
         return allGeneratedFiles;
+    }
+
+    public static boolean containsOnlyOtherCapacity(Set<String> capacityKeys) {
+        if (capacityKeys == null || capacityKeys.isEmpty()) {
+            return false;
+        }
+        return capacityKeys.size() == 1 &&
+                capacityKeys.iterator().next().trim().equalsIgnoreCase(OTHER_AREA);
     }
 
     private void processOthers(StudyEntity study, Map<String, TrajectoryEntity> capMap, Map<String, TrajectoryEntity> loadMap, Set<String> processed, List<Path> files) {
@@ -334,10 +343,14 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
                 ));
     }
 
-    private Set<String> nonOtherAreas(Set<String> areas) {
-        Set<String> result = new HashSet<>(areas);
-        result.remove(OTHER_AREA.toUpperCase());
-        return result;
+    private Set<String> nonOtherAreas(Set<String> capacityAreas, Set<String> loadAreas) {
+        Set<String> resultCapacity = new HashSet<>(capacityAreas);
+        Set<String> resultLoad = new HashSet<>(loadAreas);
+        if (containsOnlyOtherCapacity(resultCapacity) && !resultLoad.contains(OTHER_AREA) && !loadAreas.isEmpty()) {
+            return loadAreas;
+        }
+        resultCapacity.remove(OTHER_AREA.toUpperCase());
+        return resultCapacity;
     }
 
     private Map<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> resolveGroupToAreas(StudyEntity study, String area, TrajectoryEntity capacityTrajectory) {
@@ -358,7 +371,7 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         String fileName = file.getFileName().toString().toLowerCase();
         TimeSeriesReader localReader = (this.timeSeriesReader != null) ? this.timeSeriesReader : new TimeSeriesReader();
         try {
-            if (fileName.endsWith(".xlsx")) return localReader.readFromXlsx(file, horizon);
+            if (fileName.endsWith(".xlsx")) return localReader.readFromXlsx(file, horizon, true);
             if (fileName.endsWith(".txt") || fileName.endsWith(".csv")) return localReader.readFromTxt(file);
             return null;
         } catch (RuntimeException ex) {
