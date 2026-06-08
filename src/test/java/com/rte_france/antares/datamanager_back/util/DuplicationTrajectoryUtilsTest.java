@@ -49,9 +49,7 @@ class DuplicationTrajectoryUtilsTest {
                 Integer.class,
                 TrajectoryServiceImpl.class,
                 LoadFileProcessorServiceImpl.class,
-                Set.class,
-                List.class,
-                String.class
+                List.class
         );
         trajectoryToBeAttachedMethod.setAccessible(true);
 
@@ -66,14 +64,12 @@ class DuplicationTrajectoryUtilsTest {
     void trajectoryToBeAttached_LinkType_Success() throws Exception {
         // Given
         when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any(TrajectoryType.class))).thenReturn(trajectory);
-        doNothing().when(trajectoryService).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), anyString());
 
         // When
         invokeTrajectoryToBeAttached(trajectory, TrajectoryType.LINK);
 
         // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LINK);
-        verify(trajectoryService).checkLinkCoherence(studyId, warningMessages, trajectory, createdBy);
         assertTrue(missingTrajectoryTypes.isEmpty());
     }
 
@@ -206,24 +202,41 @@ class DuplicationTrajectoryUtilsTest {
                 studyId,
                 trajectoryService,
                 loadFileProcessorService,
-                warningMessages,
-                missingTrajectoryTypes,
-                createdBy
+                missingTrajectoryTypes
         );
     }
 
+    /**
+     * Helper method to invoke the private processRemainingTrajectoryTypes method via reflection
+     */
+    private void invokeProcessRemainingTrajectoryTypes(
+            List<TrajectoryEntity> trajectories,
+            Integer studyId,
+            TrajectoryServiceImpl trajectoryService,
+            LoadFileProcessorServiceImpl loadFileProcessorService,
+            List<String> missingTrajectoryTypes) throws Exception {
+
+        Method method = DuplicationTrajectoryUtils.class.getDeclaredMethod(
+                "processRemainingTrajectoryTypes",
+                List.class,
+                Integer.class,
+                TrajectoryServiceImpl.class,
+                LoadFileProcessorServiceImpl.class,
+                List.class
+        );
+        method.setAccessible(true);
+        method.invoke(null, trajectories, studyId, trajectoryService, loadFileProcessorService, missingTrajectoryTypes);
+    }
+
     @Test
-    void processAndLinkTrajectories_whenAllLoadTrajectoriesFail_shouldAddLOADToMissingTypes_once() throws Exception {
+    void processRemainingTrajectoryTypes_whenAllLoadTrajectoriesFail_shouldAddLOADToMissingTypes_once() throws Exception {
         // Given
         TrajectoryServiceImpl trajectoryService = mock(TrajectoryServiceImpl.class);
         LoadFileProcessorServiceImpl loadFileProcessorService = mock(LoadFileProcessorServiceImpl.class);
 
-        StudyDTO studyDTO = StudyDTO.builder()
-                .id(100)
-                .createdBy("user1")
-                .build();
+        Integer studyId = 100;
 
-        // AREA obligatoire (sinon orElseThrow dans findAndLinkAreaTrajectory)
+        // AREA obligatoire (mais pas testé ici - on test juste les autres types)
         TrajectoryEntity area = trajectory(TrajectoryType.AREA, 1, null);
 
         // 2 LOAD avec area non null => on va déclencher le "return" (donc échec) si la liste ne contient pas les areas
@@ -251,8 +264,10 @@ class DuplicationTrajectoryUtilsTest {
                 thermalMod
         ));
 
+        List<String> missingTrajectoryTypes = new ArrayList<>();
+
         // La liste des zones "sans trajectoire sélectionnée" ne contient ni FR ni DE => les 2 LOAD échouent
-        when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(100))
+        when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId))
                 .thenReturn(List.of("ES", "IT"));
 
         // On laisse les liens OK (pas d'exception) pour les autres types
@@ -263,28 +278,21 @@ class DuplicationTrajectoryUtilsTest {
                     t.setType(inv.getArgument(2, TrajectoryType.class).name());
                     return t;
                 });
-        doNothing().when(trajectoryService).checkLinkCoherence(anyInt(), anySet(), any(), anyString());
 
         // When
-        var result = DuplicationTrajectoryUtils.processAndLinkTrajectories(
-                available,
-                studyDTO,
-                trajectoryService,
-                loadFileProcessorService,
-                "user1"
-        );
+        invokeProcessRemainingTrajectoryTypes(available, studyId, trajectoryService, loadFileProcessorService, missingTrajectoryTypes);
 
         // Then
-        assertThat(result.missingTrajectoryTypes())
+        assertThat(missingTrajectoryTypes)
                 .contains(TrajectoryType.LOAD.name());
 
         // important: LOAD ne doit être ajouté qu'une seule fois dans missingTrajectoryTypes (c'est la branche que tu vises)
-        assertThat(result.missingTrajectoryTypes().stream().filter(TrajectoryType.LOAD.name()::equals).count())
+        assertThat(missingTrajectoryTypes.stream().filter(TrajectoryType.LOAD.name()::equals).count())
                 .isEqualTo(1);
 
         // Et surtout: comme ça "return" avant linkTrajectoryToStudy pour LOAD, donc aucun link LOAD ne doit arriver
-        verify(trajectoryService, never()).linkTrajectoryToStudy(10, 100, TrajectoryType.LOAD);
-        verify(trajectoryService, never()).linkTrajectoryToStudy(11, 100, TrajectoryType.LOAD);
+        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(10), eq(studyId), eq(TrajectoryType.LOAD));
+        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(11), eq(studyId), eq(TrajectoryType.LOAD));
     }
 
     private static TrajectoryEntity trajectory(TrajectoryType type, int id, String area) {

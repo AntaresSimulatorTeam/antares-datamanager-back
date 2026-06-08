@@ -65,8 +65,6 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Column(name = "nb_unit")
     private Integer nbUnit;
 
-    @Column(name = "po_winter_rate")
-    private Double poWinterRate;
 
     @Column(name = "f1") private Double f1;
     @Column(name = "f2") private Double f2;
