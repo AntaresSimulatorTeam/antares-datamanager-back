@@ -325,8 +325,16 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .normalize();
 
         List<ResSeriesRef> result = new ArrayList<>();
+
+        // track already processed trajectories
+        Set<String> processedTrajectories = new HashSet<>();
+
         for (TrajectoryEntity trajectory : resLoadTrajectories) {
-            resolveSeriesInTrajectory(trajectory, base, result);
+            String trajectoryFileName = trajectory.getFileName();
+
+            if (trajectoryFileName != null && !trajectoryFileName.isBlank() && processedTrajectories.add(trajectoryFileName)) {
+                resolveSeriesInTrajectory(trajectory, base, result);
+            }
         }
 
         return result;
