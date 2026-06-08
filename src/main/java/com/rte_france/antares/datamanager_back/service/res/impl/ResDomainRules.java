@@ -24,7 +24,13 @@ final class ResDomainRules {
     private ResDomainRules() {}
 
     static String extractBaseArea(String token) {
-        return token.replaceAll("\\d+$", "").toUpperCase(Locale.ROOT);
+        int i = token.length() - 1;
+
+        while (i >= 0 && Character.isDigit(token.charAt(i))) {
+            i--;
+        }
+
+        return token.substring(0, i + 1).toUpperCase(Locale.ROOT);
     }
 
     static boolean containsMalformedZonalToken(String fileName) {
