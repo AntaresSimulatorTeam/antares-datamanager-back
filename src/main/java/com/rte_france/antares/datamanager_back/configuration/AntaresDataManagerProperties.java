@@ -96,4 +96,19 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.hydro.ts.output.directory}")
     public String hydroTsOutputDirectory;
+
+    @Value("${antares.datamanager.nuclear.modulation.directory}")
+    public String nuclearModulationDirectory;
+
+    @Value("${antares.datamanager.nuclear.talon.directory}")
+    public String nuclearTalonDirectory;
+
+    @Value("${antares.datamanager.nuclear.epr.directory}")
+    public String nuclearEprDirectory;
+
+    @Value("${antares.datamanager.nuclear.lt.directory}")
+    public String nuclearLtDirectory;
+
+    @Value("${antares.datamanager.nuclear.smr.directory}")
+    public String nuclearSmrDirectory;
 }
