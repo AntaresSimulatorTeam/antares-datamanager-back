@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomainRules.ZONAL_AREAS;
+import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomainRules.extractBaseArea;
 
 @Slf4j
 @Service
@@ -481,10 +482,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private boolean isYearToken(String token) {
         return token != null && token.matches("\\d{4}");
-    }
-
-    private String extractBaseArea(String areaOrZoneToken) {
-        return ResDomainRules.extractBaseArea(areaOrZoneToken);
     }
 
     private Optional<String> tryNormalizeGroup(String first, String second) {
