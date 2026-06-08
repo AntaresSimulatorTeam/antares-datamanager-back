@@ -353,6 +353,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                             try {
                                 return ResDomainRules.isBaselineTrajectoryFile(file, Files.readAttributes(file, BasicFileAttributes.class));
                             } catch (IOException e) {
+                                log.warn("Could not read attributes for RES load file {}, skipping", file, e);
                                 return false;
                             }
                         })
@@ -483,7 +484,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String extractBaseArea(String areaOrZoneToken) {
-        return areaOrZoneToken.replaceAll("\\d+$", "").toUpperCase(Locale.ROOT);
+        return ResDomainRules.extractBaseArea(areaOrZoneToken);
     }
 
     private Optional<String> tryNormalizeGroup(String first, String second) {
