@@ -160,10 +160,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             if (invalidFile.isPresent()) {
                 String badFileName = invalidFile.get().getFileName().toString();
                 String zonalAreasStr = String.join(", ", ResDomainRules.ZONAL_AREAS);
-                String exampleZone = ResDomainRules.ZONAL_AREAS.iterator().next() + "1";
+                String exampleZone = ResDomainRules.ZONAL_AREAS.iterator().next() + "01";
 
                 throw BusinessException.builder()
-                        .message("Invalid file detected in trajectory {0}. Zonal areas (like : {1}) must include PECD zone. File found: {3}")
+                        .message("Invalid file detected in trajectory {0}. Zonal areas ({1}) must include a PECD zone (e.g. {2}). File found: {3}")
                         .errorMessageArguments(List.of(
                                 trajectoryToUse,
                                 zonalAreasStr,
