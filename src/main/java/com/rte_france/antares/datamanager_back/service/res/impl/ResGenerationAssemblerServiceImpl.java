@@ -23,15 +23,17 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomainRules.ZONAL_AREAS;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ResGenerationAssemblerServiceImpl implements ResGenerationAssemblerService {
 
-    private static final String FR_AREA = "FR";
     private static final String PROPERTIES = "properties";
     private static final String GROUP = "group";
     private static final String CAPACITY = "capacity";
@@ -135,7 +137,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         var clusterMap = new LinkedHashMap<String, Object>();
         clusterMap.put(PROPERTIES, clusterPropertiesMap);
 
-        if (FR_AREA.equalsIgnoreCase(context.area())) {
+        if (ResDomainRules.FR_AREA.equalsIgnoreCase(context.area())) {
             clusterMap.put(SERIES, Collections.emptyList());
             clusterMap.put(FR_AGGREGATION, buildFrAggregation(
                     groupKey, installedPower, context.techDistributions(), context.zonalDistributions(), context.frSeriesIndex()
@@ -347,9 +349,13 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             }
 
             try (var walk = Files.walk(trajectoryRoot)) {
-                walk.filter(Files::isRegularFile)
-                        .filter(file -> !isInOldSubdirectory(trajectoryRoot, file))
-                        .filter(this::isSupportedSeriesFormat)
+                walk.filter(file -> {
+                            try {
+                                return ResDomainRules.isBaselineTrajectoryFile(file, Files.readAttributes(file, BasicFileAttributes.class));
+                            } catch (IOException e) {
+                                return false;
+                            }
+                        })
                         .forEach(file -> createSeriesFromFile(file, trajectoryRoot, result));
             }
         } catch (IOException e) {
@@ -381,22 +387,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         .build();
             }
         });
-    }
-
-    private boolean isInOldSubdirectory(Path trajectoryRoot, Path file) {
-        Path relative = trajectoryRoot.relativize(file);
-        for (Path part : relative) {
-            if ("old".equalsIgnoreCase(part.toString())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isSupportedSeriesFormat(Path file) {
-        String lowerName = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        boolean hasSupportedExtension = lowerName.endsWith(".csv") || lowerName.endsWith(".txt") || lowerName.endsWith(".xlsx");
-        return hasSupportedExtension && !lowerName.startsWith(".~lock.");
     }
 
     private Optional<ParsedSeriesKey> parseSeriesKeyFromRelativePath(String relativePath) {
@@ -446,18 +436,28 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private Optional<ParsedSeriesKey> buildParsedSeriesKey(String areaOrZone, String normalizedGroup, List<String> tokens, int technologyStartIndex) {
-        if (isFrZone(areaOrZone)) {
-            String zone = areaOrZone.toUpperCase(Locale.ROOT);
+        if (areaOrZone == null || areaOrZone.isBlank()) {
+            return Optional.empty();
+        }
+
+        String normalizedToken = areaOrZone.toUpperCase(Locale.ROOT);
+        String baseArea = extractBaseArea(normalizedToken);
+
+        if (ZONAL_AREAS.contains(baseArea)) {
+            if (normalizedToken.equals(baseArea)) {
+                log.warn("Malformed zonal series skipped. Expected zone (like: {}01), but found global zone: {}", baseArea, String.join("_", tokens));
+                return Optional.empty();
+            }
+
             List<String> technologyTokens = trimTrailingYearTokens(tokens.subList(technologyStartIndex, tokens.size()));
             if (technologyTokens.isEmpty()) {
                 return Optional.empty();
             }
-            String technology = String.join("_", technologyTokens);
-            return Optional.of(new ParsedSeriesKey(FR_AREA, normalizedGroup, zone, technology));
+            return Optional.of(new ParsedSeriesKey(baseArea, normalizedGroup, normalizedToken, String.join("_", technologyTokens)));
         }
 
-        String area = areaOrZone.toUpperCase(Locale.ROOT);
-        return Optional.of(new ParsedSeriesKey(area, normalizedGroup, null, null));
+        // default behavior for other areas (AT, BE, DE, ..)
+        return Optional.of(new ParsedSeriesKey(normalizedToken, normalizedGroup, null, null));
     }
 
     private List<String> trimTrailingYearTokens(List<String> tokens) {
@@ -482,8 +482,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return token != null && token.matches("\\d{4}");
     }
 
-    private boolean isFrZone(String token) {
-        return token != null && token.matches("(?i)fr\\d+");
+    private String extractBaseArea(String areaOrZoneToken) {
+        return areaOrZoneToken.replaceAll("\\d+$", "").toUpperCase(Locale.ROOT);
     }
 
     private Optional<String> tryNormalizeGroup(String first, String second) {
@@ -544,29 +544,14 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology) {
-        boolean matchesNonFr(String expectedArea, String expectedGroup) {
-            return !FR_AREA.equalsIgnoreCase(area)
-                    && area.equalsIgnoreCase(expectedArea)
-                    && group.equalsIgnoreCase(expectedGroup);
-        }
-
-        boolean matchesFr(String expectedZone, String expectedGroup, String expectedTechnology) {
-            return FR_AREA.equalsIgnoreCase(area)
-                    && zone != null
-                    && zone.equalsIgnoreCase(expectedZone)
-                    && group.equalsIgnoreCase(expectedGroup)
-                    && technology != null
-                    && technology.equalsIgnoreCase(expectedTechnology);
-        }
-    }
+    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology) { }
 
     private record ParsedSeriesKey(String area, String group, String zone, String technology) {
     }
 
     private Map<String, ResSeriesRef> indexNonFrSeries(List<ResSeriesRef> series) {
         return series.stream()
-                .filter(ref -> !FR_AREA.equalsIgnoreCase(ref.area()))
+                .filter(ref -> !ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
                         ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT),
                         ref -> ref,
@@ -581,7 +566,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private Map<String, ResSeriesRef> indexFrSeries(List<ResSeriesRef> series) {
         return series.stream()
-                .filter(ref -> FR_AREA.equalsIgnoreCase(ref.area()))
+                .filter(ref -> ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
                         ref -> ref.zone().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.technology().toUpperCase(Locale.ROOT),
                         ref -> ref,
