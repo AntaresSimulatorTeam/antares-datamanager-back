@@ -135,6 +135,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         // Validate and get the trajectory file path
         Path trajectoryFilePath = validateAndGetTrajectoryFilePath(trajectoryFolder, trajectoryToUse, technology, loadDirectory);
 
+        validateNoMalformedZonalFiles(trajectoryFilePath, trajectoryToUse);
+
         // Build the trajectory entity
         TrajectoryEntity trajectory = buildLoadFactorMiscTrajectory(trajectoryToUse, trajectoryFilePath, horizon, area, technology);
 
@@ -143,6 +145,35 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
 
         return trajectoryRepository.save(trajectory);
+    }
+
+    private void validateNoMalformedZonalFiles(Path trajectoryFolder, String trajectoryToUse) throws IOException {
+        int maxDepth = 3;
+
+        try (var pathStream = Files.find(trajectoryFolder, maxDepth,
+                ResDomainRules::isBaselineTrajectoryFile)) {
+
+            Optional<Path> invalidFile = pathStream
+                    .filter(p -> ResDomainRules.containsMalformedZonalToken(p.getFileName().toString()))
+                    .findFirst();
+
+            if (invalidFile.isPresent()) {
+                String badFileName = invalidFile.get().getFileName().toString();
+                String zonalAreasStr = String.join(", ", ResDomainRules.ZONAL_AREAS);
+                String exampleZone = ResDomainRules.ZONAL_AREAS.iterator().next() + "1";
+
+                throw BusinessException.builder()
+                        .message("Invalid file detected in trajectory {0}. Zonal areas (like : {1}) must include PECD zone. File found: {3}")
+                        .errorMessageArguments(List.of(
+                                trajectoryToUse,
+                                zonalAreasStr,
+                                exampleZone,
+                                badFileName
+                        ))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        }
     }
 
     /**
