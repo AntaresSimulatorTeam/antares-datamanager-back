@@ -31,6 +31,7 @@ import org.mockito.*;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1377,6 +1378,244 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_returnsNuclearTalonTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear");
+        Files.createDirectories(nuclearDir);
+
+        Files.createFile(nuclearDir.resolve("talon_nuc_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("talon_nuc_2030.xlsx"));
+        Files.createFile(nuclearDir.resolve("talon_nuc_test.txt"));
+
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TALON, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains("talon_nuc_2025.xlsx"));
+        assertTrue(fileNames.contains("talon_nuc_2030.xlsx"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsNuclearEprTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/epr");
+        Files.createDirectories(nuclearDir);
+
+        Files.createFile(nuclearDir.resolve("ts_epr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("ts_epr_2030.xlsx"));
+
+        when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TS_ERP, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains("ts_epr_2025.xlsx"));
+        assertTrue(fileNames.contains("ts_epr_2030.xlsx"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsNuclearSmrTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/smr");
+        Files.createDirectories(nuclearDir);
+
+        Files.createFile(nuclearDir.resolve("ts_smr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("ts_smr_projection.xlsx"));
+
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TS_SMR, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains("ts_smr_2025.xlsx"));
+        assertTrue(fileNames.contains("ts_smr_projection.xlsx"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsNuclearModulationTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/modulation");
+        Files.createDirectories(nuclearDir);
+
+        Files.createDirectory(nuclearDir.resolve("modulation_2025"));
+        Files.createDirectory(nuclearDir.resolve("modulation_2030"));
+
+        when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_MODULATION, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains("modulation_2025"));
+        assertTrue(fileNames.contains("modulation_2030"));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsNuclearLongTermTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/long_term");
+        Files.createDirectories(nuclearDir);
+
+        Files.createDirectory(nuclearDir.resolve("lt_2025"));
+        Files.createDirectory(nuclearDir.resolve("lt_2030"));
+
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TS_LONG_TERM, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void findTrajectoriesByType_shouldIgnoreInvalidNuclearTalonFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear");
+        Files.createDirectories(nuclearDir);
+
+        // Valid files
+        Files.createFile(nuclearDir.resolve("talon_nuc_2025.xlsx"));
+        
+        // Invalid files - wrong prefix
+        Files.createFile(nuclearDir.resolve("talon_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("nuc_talon_2025.xlsx"));
+        
+        // Invalid files - wrong extension
+        Files.createFile(nuclearDir.resolve("talon_nuc_2030.txt"));
+        Files.createFile(nuclearDir.resolve("talon_nuc_2035.csv"));
+
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TALON, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("talon_nuc_2025.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_shouldIgnoreInvalidNuclearEprFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/epr");
+        Files.createDirectories(nuclearDir);
+
+        // Valid files
+        Files.createFile(nuclearDir.resolve("ts_epr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("ts_epr_projection.xlsx"));
+        
+        // Invalid files - wrong prefix
+        Files.createFile(nuclearDir.resolve("epr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("ts_smr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("te_epr_2025.xlsx"));
+        
+        // Invalid files - wrong extension
+        Files.createFile(nuclearDir.resolve("ts_epr_2030.txt"));
+        Files.createFile(nuclearDir.resolve("ts_epr_2035.docx"));
+
+        when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TS_ERP, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains("ts_epr_2025.xlsx"));
+        assertTrue(fileNames.contains("ts_epr_projection.xlsx"));
+        assertFalse(fileNames.contains("ts_smr_2025.xlsx"));
+    }
+
+    @Test
+    void findTrajectoriesByType_shouldIgnoreInvalidNuclearSmrFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/smr");
+        Files.createDirectories(nuclearDir);
+
+        // Valid files
+        Files.createFile(nuclearDir.resolve("ts_smr_2025.xlsx"));
+        
+        // Invalid files - wrong prefix
+        Files.createFile(nuclearDir.resolve("smr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("ts_epr_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("t_smr_2025.xlsx"));
+        
+        // Invalid files - wrong extension
+        Files.createFile(nuclearDir.resolve("ts_smr_2030.txt"));
+        Files.createFile(nuclearDir.resolve("ts_smr_2035.json"));
+
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TS_SMR, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("ts_smr_2025.xlsx", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_shouldIgnoreAllNonXlsxFilesForNuclearTypes(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/test");
+        Files.createDirectories(nuclearDir);
+
+        // Valid file
+        Files.createFile(nuclearDir.resolve("talon_nuc_valid.xlsx"));
+        
+        // Invalid extensions - none should be accepted for nuclear types
+        Files.createFile(nuclearDir.resolve("talon_nuc_invalid.xls"));
+        Files.createFile(nuclearDir.resolve("talon_nuc_invalid.pdf"));
+        Files.createFile(nuclearDir.resolve("talon_nuc_invalid"));
+
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TALON, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertTrue(result.getFirst().getFileName().endsWith(".xlsx"));
+    }
+
+    @Test
+    void findTrajectoriesByType_shouldHandleNuclearFilesWithMixedCase(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/mixed");
+        Files.createDirectories(nuclearDir);
+
+        // Files with different cases - filenames are made lowercase in validation
+        Files.createFile(nuclearDir.resolve("TALON_NUC_2025.xlsx"));
+        Files.createFile(nuclearDir.resolve("Talon_Nuc_2030.xlsx"));
+        Files.createFile(nuclearDir.resolve("talon_nuc_2035.xlsx"));
+
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn(nuclearDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TALON, null, null, null);
+
+        // Then
+        assertEquals(3, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains("TALON_NUC_2025.xlsx"));
+        assertTrue(fileNames.contains("Talon_Nuc_2030.xlsx"));
+        assertTrue(fileNames.contains("talon_nuc_2035.xlsx"));
+    }
+
+    @Test
     void processLoadTrajectory_throwsExceptionWhenAreaNotFound() {
         String area = "invalidArea";
         String trajectoryToUse = "testTrajectory";
@@ -1766,6 +2005,42 @@ class TrajectoryServiceImplTest {
         String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.MISC_CAPACITY, null, null);
         assertEquals("MISC/installed power", result);
 
+    }
+
+    // Tests for Nuclear Trajectories
+    @Test
+    void getDirectoryByTrajectoryType_returnsNuclearModulationDirectory_whenTypeIsNuclearFrModulation() throws IOException {
+        when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn("/nuclear/modulation");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.NUCLEAR_FR_MODULATION, null, null);
+        assertEquals("/nuclear/modulation", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsNuclearTalonDirectory_whenTypeIsNuclearFrTalon() throws IOException {
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn("/nuclear/talon");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.NUCLEAR_FR_TALON, null, null);
+        assertEquals("/nuclear/talon", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsNuclearEprDirectory_whenTypeIsNuclearFrTsErp() throws IOException {
+        when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn("/nuclear/epr");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.NUCLEAR_FR_TS_ERP, null, null);
+        assertEquals("/nuclear/epr", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsNuclearLtDirectory_whenTypeIsNuclearFrTsLongTerm() throws IOException {
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("/nuclear/long_term");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.NUCLEAR_FR_TS_LONG_TERM, null, null);
+        assertEquals("/nuclear/long_term", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsNuclearSmrDirectory_whenTypeIsNuclearFrTsSmr() throws IOException {
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("/nuclear/smr");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.NUCLEAR_FR_TS_SMR, null, null);
+        assertEquals("/nuclear/smr", result);
     }
 
     @Test

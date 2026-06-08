@@ -126,6 +126,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public static final String RES_CAPACITY_PREFIX = "installedres_";
     public static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
     public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
+    private static final String NUCLEAR_TALON_PREFIX = "talon_nuc";
+    private static final String NUCLEAR_EPR_PREFIX = "ts_epr";
+    private static final String NUCLEAR_SMR_PREFIX = "ts_smr";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -528,7 +531,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
             case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
-                 HYDRO_TECHNICAL_PARAMETERS -> Files.isDirectory(path);
+                 HYDRO_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
@@ -540,6 +543,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
             case RES_TECHNOLOGY_DISTRIBUTION ->
                     fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
+            case NUCLEAR_FR_TALON -> fileName.startsWith(NUCLEAR_TALON_PREFIX);
+            case NUCLEAR_FR_TS_ERP -> fileName.startsWith(NUCLEAR_EPR_PREFIX);
+            case NUCLEAR_FR_TS_SMR -> fileName.startsWith(NUCLEAR_SMR_PREFIX);
             default -> true;
         };
     }
@@ -1000,7 +1006,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.MISC_LOAD
                         || trajectoryType == TrajectoryType.RES_LOAD
                         || trajectoryType == TrajectoryType.HYDRO_SERIES
-                        || trajectoryType == TrajectoryType.HYDRO_TECHNICAL_PARAMETERS);
+                        || trajectoryType == TrajectoryType.HYDRO_TECHNICAL_PARAMETERS
+                        || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
+                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM);
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
@@ -1032,6 +1040,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return switch (trajectoryType) {
             case AREA -> isXlsx && fileName.startsWith(AREAS_PREFIX);
             case LINK -> isXlsx && fileName.startsWith(LINKS_PREFIX);
+            case NUCLEAR_FR_TALON -> isXlsx && fileName.startsWith(NUCLEAR_TALON_PREFIX);
+            case NUCLEAR_FR_TS_ERP -> isXlsx && fileName.startsWith(NUCLEAR_EPR_PREFIX);
+            case NUCLEAR_FR_TS_SMR -> isXlsx && fileName.startsWith(NUCLEAR_SMR_PREFIX);
             default -> isXlsx; // for all other types, only accept .xlsx files
         };
 
@@ -1062,6 +1073,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION -> antaresDataManagerProperties.getResDistributionDirectory();
             case HYDRO_SERIES -> antaresDataManagerProperties.getHydroSeriesDirectory();
             case HYDRO_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getHydroParametersDirectory();
+            case NUCLEAR_FR_MODULATION -> antaresDataManagerProperties.getNuclearModulationDirectory();
+            case NUCLEAR_FR_TALON -> antaresDataManagerProperties.getNuclearTalonDirectory();
+            case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();
+            case NUCLEAR_FR_TS_LONG_TERM -> antaresDataManagerProperties.getNuclearLtDirectory();
+            case NUCLEAR_FR_TS_SMR -> antaresDataManagerProperties.getNuclearSmrDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
@@ -1114,14 +1130,18 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                  resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
                  resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
              }
-             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-             case "HYDRO_SERIES", "HYDRO_TECHNICAL_PARAMETERS" -> {
-                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
-                 log.info("No additional coherence check for Hydro trajectory type {} yet", type);
+              case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+              case "HYDRO_SERIES", "HYDRO_TECHNICAL_PARAMETERS" -> {
+                  // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
+                  log.info("No additional coherence check for Hydro trajectory type {} yet", type);
 
-             }
+              }
+              case "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM", "NUCLEAR_FR_TS_SMR" -> {
+                  // No additional coherence checks needed for nuclear trajectories
+                  log.info("No additional coherence check for Nuclear trajectory type {} yet", type);
+              }
 
-             default -> throw TechnicalException.builder()
+              default -> throw TechnicalException.builder()
                      .message("Trajectory type {0} is not supported")
                      .errorMessageArguments(List.of(type))
                      .build();
