@@ -1450,6 +1450,34 @@ public class ResFileProcessorServiceImplTest {
             Files.createDirectories(technologyDir);
             createMockCsvFile(technologyDir, leafFolder + "_data.csv");
         }
+
+        @Test
+        void processLoadFactorResFileThrowsExceptionWhenMalformedZonalFileExists(@TempDir Path tempRoot) throws Exception {
+            // GIVEN
+            Path nasDir = tempRoot.resolve(NAS_DIR);
+            Path trajectoryDir = nasDir.resolve(TRAJECTORY_PATH).resolve(DIRECTORY_RES_LOAD)
+                    .resolve(TRAJECTORY_NAME).resolve(TECHNOLOGY_SOLAR_PV).resolve(TECHNOLOGY_SOLAR_PV);
+            Files.createDirectories(trajectoryDir);
+
+            // Create a malformed global file (e.g., "FR" instead of "FR01")
+            String malformedFileName = "solar_pv_FR_utility_2030_2031.csv";
+            createMockCsvFile(trajectoryDir, malformedFileName);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
+            when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
+                    .thenReturn(DIRECTORY_RES_LOAD);
+
+            // WHEN & THEN
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    resFileProcessorServiceImpl.processLoadFactorResFile(
+                            TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, TECHNOLOGY_SOLAR_PV
+                    )
+            );
+
+            assertTrue(exception.getMessage().contains("Invalid file detected"));
+            assertTrue(exception.getErrorMessageArguments().contains(malformedFileName));
+        }
     }
 
     @Nested

@@ -139,6 +139,25 @@ class ResGenerationAssemblerServiceImplTest {
             assertDoesNotThrow(() -> service.assembleResProperties(study));
             verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean());
         }
+
+        @Test
+        void shouldSkipMalformedGlobalFrSeriesAndProcessValidOnes() throws IOException {
+            // It has "FR" instead of "FR01".
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_offshore_FR_OFF_SP370_HH155_2026-2027.csv");
+
+            // File 2: A valid series
+            String validFile = "wind_DE_onshore_2030_2031.csv";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, validFile);
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("valid_de.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            assertDoesNotThrow(() -> service.assembleResProperties(study));
+            verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean());
+        }
     }
 
     @Nested
