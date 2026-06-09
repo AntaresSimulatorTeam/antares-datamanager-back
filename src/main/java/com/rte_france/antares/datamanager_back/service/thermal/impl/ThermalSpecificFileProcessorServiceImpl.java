@@ -9,10 +9,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlSer
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -306,19 +303,46 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         return s.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
-    private void checkNumericColumns(Row row, String areaName, String clusterName, String trajectoryName) {
-        for (int i = 3; i <= 40; i++) {
-            Object v = getCellValue(row, i);
-            if (v == null) continue; // allow blanks
-            if (!(v instanceof Number)) {
-                throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " are not numeric in THERMAL Specific Param trajectory " + trajectoryName).build();
-            }
-            double d = ((Number) v).doubleValue();
-            if (d < 0) {
-                throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
-            }
+private void checkNumericColumns(
+        Row row,
+        String areaName,
+        String clusterName,
+        String trajectoryName) {
+
+    for (int i = 3; i <= 39; i++) {
+        Double value;
+
+        try {
+            value = getNumericCellValue(row, i);
+        } catch (IllegalArgumentException e) {
+            throw BusinessException.builder()
+                    .message(
+                            VALUES_FOR_NODE_MESSAGE_PREFIX
+                                    + areaName
+                                    + CLUSTER_MESSAGE_SEPARATOR
+                                    + clusterName
+                                    + " are not numeric in THERMAL Specific Param trajectory "
+                                    + trajectoryName)
+                    .build();
+        }
+
+        if (value == null) {
+            continue;
+        }
+
+        if (value < 0) {
+            throw BusinessException.builder()
+                    .message(
+                            VALUES_FOR_NODE_MESSAGE_PREFIX
+                                    + areaName
+                                    + CLUSTER_MESSAGE_SEPARATOR
+                                    + clusterName
+                                    + " must be positive in THERMAL Specific Param trajectory "
+                                    + trajectoryName)
+                    .build();
         }
     }
+}
 
     private static String toExcelColumn(int index0Based) {
         int n = index0Based + 1; // convert to 1-based
@@ -329,5 +353,76 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             n = (n - 1) / 26;
         }
         return sb.toString();
+    }
+
+    public static Double getNumericCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
+        if (cell == null) {
+            return null;
+        }
+
+        return switch (cell.getCellType()) {
+            case NUMERIC -> cell.getNumericCellValue();
+
+            case STRING -> {
+                String value = cell.getStringCellValue().trim();
+
+                if (value.isEmpty()) {
+                    yield null;
+                }
+
+                try {
+                    yield Double.valueOf(value);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                            "Cell [" + cell.getAddress() + "] contains a non-numeric value: " + value
+                    );
+                }
+            }
+
+            case FORMULA -> {
+                FormulaEvaluator evaluator = row.getSheet()
+                        .getWorkbook()
+                        .getCreationHelper()
+                        .createFormulaEvaluator();
+
+                CellValue evaluated = evaluator.evaluate(cell);
+
+                if (evaluated == null) {
+                    yield null;
+                }
+
+                yield switch (evaluated.getCellType()) {
+                    case NUMERIC -> evaluated.getNumberValue();
+
+                    case STRING -> {
+                        String value = evaluated.getStringValue().trim();
+
+                        if (value.isEmpty()) {
+                            yield null;
+                        }
+
+                        try {
+                            yield Double.valueOf(value);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException(
+                                    "Formula cell [" + cell.getAddress()
+                                            + "] evaluates to a non-numeric value: " + value
+                            );
+                        }
+                    }
+
+                    default -> throw new IllegalArgumentException(
+                            "Formula cell [" + cell.getAddress()
+                                    + "] does not evaluate to a numeric value"
+                    );
+                };
+            }
+
+            default -> throw new IllegalArgumentException(
+                    "Cell [" + cell.getAddress() + "] is not numeric"
+            );
+        };
     }
 }
