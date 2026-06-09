@@ -478,4 +478,77 @@ class TrajectoryServiceImplAdditionalTest {
         assertTrue(result.stream().allMatch(dto -> dto.getLastModifiedDate() != null));
         assertTrue(result.stream().allMatch(dto -> dto.getType().equals("THERMAL_TECHNICAL_MODULATION_PARAMETER")));
     }
+
+    // ==================== NUCLEAR TRAJECTORIES TESTS ====================
+
+    @Test
+    void findTrajectoriesByType_returnsNuclearModulationDirectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/modulation");
+        Files.createDirectories(nuclearDir);
+        
+        // Create subdirectories as modulation trajectories are directories
+        Path mod2023 = nuclearDir.resolve("modulation_2023-2024");
+        Path mod2024 = nuclearDir.resolve("modulation_2024-2025");
+        Files.createDirectory(mod2023);
+        Files.createDirectory(mod2024);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn("nuclear/modulation");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_MODULATION, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(dto -> dto.getFileName().equals("modulation_2023-2024")));
+        assertTrue(result.stream().anyMatch(dto -> dto.getFileName().equals("modulation_2024-2025")));
+        assertTrue(result.stream().allMatch(dto -> dto.getType().equals("NUCLEAR_FR_MODULATION")));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsNuclearLtDirectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/lt");
+        Files.createDirectories(nuclearDir);
+        
+        // Create subdirectories as lt trajectories are directories
+        Path lt2023 = nuclearDir.resolve("lt_2023-2024");
+        Path lt2024 = nuclearDir.resolve("lt_2024-2025");
+        Files.createDirectory(lt2023);
+        Files.createDirectory(lt2024);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear/lt");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_TS_LONG_TERM, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(dto -> dto.getFileName().equals("lt_2023-2024")));
+        assertTrue(result.stream().anyMatch(dto -> dto.getFileName().equals("lt_2024-2025")));
+        assertTrue(result.stream().allMatch(dto -> dto.getType().equals("NUCLEAR_FR_TS_LONG_TERM")));
+    }
+
+
+    @Test
+    void findTrajectoriesByType_emptyNuclearModulationDirectory(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path nuclearDir = tempDir.resolve("nuclear/modulation");
+        Files.createDirectories(nuclearDir);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn("nuclear/modulation");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.NUCLEAR_FR_MODULATION, null, null, null);
+
+        // Then
+        assertTrue(result.isEmpty(), "Should return empty list for empty directory");
+    }
+
 }
