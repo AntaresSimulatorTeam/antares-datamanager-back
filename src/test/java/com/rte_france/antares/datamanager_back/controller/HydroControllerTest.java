@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +53,7 @@ class HydroControllerTest {
         entity.setHasTimeSeries(false);
 
         when(hydroFileProcessorService.processHydroSeriesFile(
+                TrajectoryType.HYDRO_SERIES,
                 TRAJ,
                 HORIZON,
                 1,
@@ -74,7 +76,7 @@ class HydroControllerTest {
                 .andExpect(jsonPath("$.area").value(AREA_FR));
 
         verify(hydroFileProcessorService, times(1))
-                .processHydroSeriesFile(TRAJ, HORIZON, 1, AREA_FR, false);
+                .processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, AREA_FR, false);
         verifyNoMoreInteractions(hydroFileProcessorService);
     }
 
@@ -119,6 +121,7 @@ class HydroControllerTest {
         entity.setHasTimeSeries(false);
 
         when(hydroFileProcessorService.processHydroTechnicalParametersFile(
+                TrajectoryType.HYDRO_TECHNICAL_PARAMETERS,
                 TRAJ,
                 HORIZON,
                 1,
@@ -141,7 +144,7 @@ class HydroControllerTest {
                 .andExpect(jsonPath("$.area").value(AREA_FR));
 
         verify(hydroFileProcessorService, times(1))
-                .processHydroTechnicalParametersFile(TRAJ, HORIZON, 1, AREA_FR, false);
+                .processHydroTechnicalParametersFile(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false);
         verifyNoMoreInteractions(hydroFileProcessorService);
     }
 
@@ -173,5 +176,83 @@ class HydroControllerTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(hydroFileProcessorService);
+    }
+
+    @Test
+    void uploadSeriesPspVirtualTrajectory_returns201_andCallsService() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(456);
+        entity.setFileName(TRAJ);
+        entity.setType("HYDRO_PSP_SERIES");
+        entity.setVersion(1);
+        entity.setArea(AREA_FR);
+        entity.setHasTimeSeries(false);
+
+        when(hydroFileProcessorService.processHydroSeriesFile(
+                TrajectoryType.HYDRO_PSP_SERIES,
+                TRAJ,
+                HORIZON,
+                1,
+                AREA_FR,
+                false
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-series")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("area", AREA_FR)
+                        .param("trajectoryToUse", TRAJ)
+                        .param("horizon", HORIZON)
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false")
+                        .param("isPsp", "true"))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(456))
+                .andExpect(jsonPath("$.trajectoryName").value(TRAJ))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.area").value(AREA_FR));
+
+        verify(hydroFileProcessorService, times(1))
+                .processHydroSeriesFile(TrajectoryType.HYDRO_PSP_SERIES, TRAJ, HORIZON, 1, AREA_FR, false);
+        verifyNoMoreInteractions(hydroFileProcessorService);
+    }
+
+    @Test
+    void uploadTechnicalParametersPspVirtualTrajectory_returns201_andCallsService() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(457);
+        entity.setFileName(TRAJ);
+        entity.setType("HYDRO_PSP_TECHNICAL_PARAMETERS");
+        entity.setVersion(1);
+        entity.setArea(AREA_FR);
+        entity.setHasTimeSeries(false);
+
+        when(hydroFileProcessorService.processHydroTechnicalParametersFile(
+                TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS,
+                TRAJ,
+                HORIZON,
+                1,
+                AREA_FR,
+                false
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-technical-parameters")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("area", AREA_FR)
+                        .param("trajectoryToUse", TRAJ)
+                        .param("horizon", HORIZON)
+                        .param("studyId", "1")
+                        .param("isCivilYear", "false")
+                        .param("isPsp", "true"))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(457))
+                .andExpect(jsonPath("$.trajectoryName").value(TRAJ))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.area").value(AREA_FR));
+
+        verify(hydroFileProcessorService, times(1))
+                .processHydroTechnicalParametersFile(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false);
+        verifyNoMoreInteractions(hydroFileProcessorService);
     }
 }

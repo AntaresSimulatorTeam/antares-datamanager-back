@@ -77,9 +77,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS = {
             INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN, PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS = {RESERVOIR_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
-                    
+
     @Override
     public TrajectoryEntity processHydroSeriesFile(
+            TrajectoryType trajectoryType,
             String trajectoryToUse,
             String horizon,
             Integer studyId,
@@ -87,33 +88,32 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             boolean isCivilYear
     ) throws IOException {
 
-        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
-                TrajectoryType.HYDRO_SERIES, areaParam, null
-        );
-
+        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(trajectoryType, areaParam, null);
         Path trajectoryFilePath = validateAndResolveTrajectoryPath(directoryPath, trajectoryToUse);
 
         TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(
-                TrajectoryType.HYDRO_SERIES.name(),
+                trajectoryType.name(),
                 trajectoryToUse,
                 trajectoryFilePath,
                 horizon,
                 areaParam,
                 null
         );
+
         List<String> studyAreas = loadStudyAreas(studyId);
         List<HydroSeriesEntity> entities = new ArrayList<>();
-        List<String> filesNameFinal = new ArrayList<>(List.of());
-        List<String> filesName;
-     
+        List<String> filesNameFinal = new ArrayList<>();
+
         var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
-        var hasOnlyRorFile= true;
-        List<String> missingModFiles = new ArrayList<>(List.of());
+        var hasOnlyRorFile = true;
+        List<String> missingModFiles = new ArrayList<>();
+
         for (var area : areaList) {
-            filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
-            if(!checkHydroFileConsistency(filesName, area, horizon, missingModFiles)) hasOnlyRorFile = false;
+            var filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
+            if (!checkHydroFileConsistency(filesName, area, horizon, missingModFiles)) hasOnlyRorFile = false;
             filesNameFinal.addAll(filesName);
         }
+
         String maxPowerFileName = null;
         if (!hasOnlyRorFile) {
             validateModFiles(missingModFiles, trajectoryToUse);
@@ -121,25 +121,24 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
                     .map(s -> s.split("_")[1])
                     .toList();
-            maxPowerFileName = processMaxPowerFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, studyAreas);
+            maxPowerFileName = processMaxPowerFile(trajectoryType, trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, studyAreas);
             if (studyId != null) {
-                hydroCoherenceCheckService.checkHydroSeriesTrajectoriesConsistency(studyId, areasInHydroSeriesModFiles, areaParam, trajectoryToUse);
+                hydroCoherenceCheckService.checkHydroSeriesTrajectoriesConsistency(studyId, areasInHydroSeriesModFiles, areaParam, trajectoryToUse, trajectoryType.name());
             }
         }
+
         if (filesNameFinal.isEmpty()) {
-                throw BusinessException.builder()
-                        .message("Missing files in trajectory Hydro Series trajectory")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+            throw BusinessException.builder()
+                    .message("Missing files in trajectory " + trajectoryType.name())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
-        // create entities
-        filesNameFinal.stream().map(this::buildHydroSeriesEntity)
-                .forEach(entities::add);
-                
+
+        filesNameFinal.stream().map(this::buildHydroSeriesEntity).forEach(entities::add);
         if (maxPowerFileName != null) {
             entities.add(buildHydroSeriesEntity(maxPowerFileName));
         }
-        
+
         trajectory.setHydroSeriesEntities(entities);
         entities.forEach(entity -> entity.setTrajectory(trajectory));
         return trajectoryRepository.save(trajectory);
@@ -147,6 +146,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
     @Override
     public TrajectoryEntity processHydroTechnicalParametersFile(
+            TrajectoryType trajectoryType,
             String trajectoryToUse,
             String horizon,
             Integer studyId,
@@ -154,14 +154,11 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             boolean isCivilYear
     ) throws IOException {
 
-        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(
-                TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, areaParam, null
-        );
-
+        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(trajectoryType, areaParam, null);
         Path trajectoryFilePath = validateAndResolveTrajectoryPath(directoryPath, trajectoryToUse);
 
         TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(
-                TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name(),
+                trajectoryType.name(),
                 trajectoryToUse,
                 trajectoryFilePath,
                 horizon,
@@ -173,30 +170,27 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         List<HydroAllocationEntity> allocationEntities;
         List<HydroParametersEntity> parametersEntities;
-        
+
         for (var type : HYDRO_TYPES) {
-            var result = processFile(pathFiles.get(type), trajectoryToUse, horizon, areaParam, studyId, type);
+            var result = processFile(pathFiles.get(type), trajectoryToUse, horizon, areaParam, studyId, type, trajectoryType);
             switch (result) {
                 case HydroAllocationRowProcessingResult allocation -> {
                     allocationEntities = allocation.entities();
                     allocationEntities.forEach(entity -> entity.setTrajectory(trajectory));
                     trajectory.setHydroAllocationEntities(allocationEntities);
                 }
-
                 case HydroParametersRowProcessingResult parameters -> {
                     parametersEntities = parameters.entities();
                     parametersEntities.forEach(entity -> entity.setTrajectory(trajectory));
                     trajectory.setHydroParametersEntities(parametersEntities);
                 }
-                
                 case null ->
-                    throw BusinessException.builder()
-                            .message("Could not process Hydro Technical parameters trajectory")
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
+                        throw BusinessException.builder()
+                                .message("Could not process " + trajectoryType.name() + " trajectory")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
             }
         }
-        
         return trajectoryRepository.save(trajectory);
     }
 
@@ -221,6 +215,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     }
 
     private String processMaxPowerFile(
+            TrajectoryType trajectoryType,
             Path trajectoryFilePath,
             String trajectoryToUse,
             String horizon,
@@ -231,7 +226,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath);
         
-        validateMaxPowerFile(TrajectoryType.HYDRO_SERIES, fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, areasInHydroSeriesModFiles);
+        validateMaxPowerFile(trajectoryType, fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, areasInHydroSeriesModFiles);
         return fileMaxPowerPath.getFileName().toString();
     }
 
@@ -264,12 +259,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String horizon,
             String areaParam,
             Integer studyId,
-            TrajectoryType trajectoryType
+            TrajectoryType trajectoryType,
+            TrajectoryType parentTrajectoryType
     ) throws IOException {
 
         if (trajectoryFilePath != null) {
             List<String> studyAreas = loadStudyAreas(studyId);
-            return processTechnicalParametersFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, trajectoryType, studyId);
+            return processTechnicalParametersFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, trajectoryType, parentTrajectoryType, studyId);
         }
         return null;
     }
@@ -459,7 +455,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         // Validate that the file path is trusted and points to a regular file
         if (filePath == null || !Files.isRegularFile(filePath)) {
             throw BusinessException.builder()
-                    .message("Missing maxpower file in trajectory Hydro Series trajectory")
+                    .message("Missing maxpower file in trajectory " + trajectoryType.name())
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -469,17 +465,22 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
-            
+
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, TrajectoryType.HYDRO_SERIES.name());
             Row header = getHeaderOrThrow(sheet, filePath, TrajectoryType.HYDRO_SERIES);
             List<String> headerAreas = new ArrayList<>();
 
-            DataFormatter formatter = new DataFormatter(); 
+            DataFormatter formatter = new DataFormatter();
 
-            for (int i = 1; i < header.getLastCellNum(); i++) { 
+            for (int i = 1; i < header.getLastCellNum(); i++) {
                 Cell cell = header.getCell(i);
                 String value = formatter.formatCellValue(cell);
-                headerAreas.add(value);
+
+                // delete PSP suffix
+                String normalizedArea = value.replace("_generating", "").replace("_pumping", "").trim();
+                if (!normalizedArea.isEmpty()) {
+                    headerAreas.add(normalizedArea);
+                }
             }
 
             validateTrajectoryAreasPresence(studyAreas, headerAreas, trajectoryType, trajectoryToUse);
@@ -500,6 +501,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String areaParam,
             List<String> studyAreas,
             TrajectoryType trajectoryType,
+            TrajectoryType parentTrajectoryType,
             Integer studyId
     ) throws IOException {
 
@@ -523,7 +525,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, trajectoryType.name());
             checkMissingColumns(sheet, requiredColumns, trajectoryToUse, trajectoryType);
 
-            HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, trajectoryType, studyId, areaParam, trajectoryToUse);
+            HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, trajectoryType, parentTrajectoryType, studyId, areaParam, trajectoryToUse);
 
             validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
 
@@ -535,6 +537,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Sheet sheet,
             ResRowProcessingContext context,
             TrajectoryType trajectoryType,
+            TrajectoryType parentTrajectoryType,
             Integer studyId,
             String areaParam,
             String trajectoryToUse
@@ -559,7 +562,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         }
 
         if (studyId != null) {
-            hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(studyId, result.fileAreas(), areaParam, trajectoryToUse, trajectoryType.name());
+            hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(studyId, result.fileAreas(), areaParam, trajectoryToUse, trajectoryType.name(), parentTrajectoryType.name());
         }
 
         for (Row row : nonEmptyRows) {

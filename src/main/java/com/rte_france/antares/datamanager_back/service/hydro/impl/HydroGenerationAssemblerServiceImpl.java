@@ -47,7 +47,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
         List<TrajectoryEntity> hydroTechnicalTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(t.getType()))
+                .filter(t -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(t.getType()) ||
+                        TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name().equals(t.getType()))
                 .toList();
 
         hydroTechnicalTrajectories.forEach(trajectory ->
@@ -233,7 +234,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(trajectory -> TrajectoryType.HYDRO_SERIES.name().equals(trajectory.getType()))
+                .filter(trajectory -> TrajectoryType.HYDRO_SERIES.name().equals(trajectory.getType()) ||
+                        TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType()))
                 .filter(trajectory -> trajectory.getArea() != null)
                 .flatMap(trajectory -> Optional.ofNullable(trajectory.getHydroSeriesEntities())
                         .orElseGet(Collections::emptyList)
@@ -252,11 +254,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 ));
     }
 
-    private boolean shouldKeepHydroSeries(
-            StudyEntity study,
-            TrajectoryEntity trajectory,
-            HydroSeriesEntity hydroSeries
-    ) {
+    private boolean shouldKeepHydroSeries(StudyEntity study, TrajectoryEntity trajectory, HydroSeriesEntity hydroSeries) {
         String tsName = hydroSeries.getTsName();
 
         if (!tsName.toLowerCase(Locale.ROOT).startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
@@ -273,9 +271,13 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
         String normalizedArea = area.toUpperCase(Locale.ROOT);
 
+        String targetTechType = TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType())
+                ? TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name()
+                : TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name();
+
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(studyTrajectory -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(studyTrajectory.getType()))
+                .filter(studyTrajectory -> targetTechType.equals(studyTrajectory.getType()))
                 .flatMap(studyTrajectory -> Optional.ofNullable(studyTrajectory.getHydroParametersEntities())
                         .orElseGet(Collections::emptyList)
                         .stream())

@@ -27,8 +27,9 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
     protected static final String HYDRO_SERIES_INFLOWS_MOD = "mod";
     
     @Override
-    public void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> areasInHydroSeriesFiles, String areaParam, String trajectoryToUse) {
-            TrajectoryEntity tpTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name());
+    public void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> areasInHydroSeriesFiles, String areaParam, String trajectoryToUse, String seriesTrajectoryType) {
+        String targetTpType = getAssociatedTechnicalType(seriesTrajectoryType);
+        TrajectoryEntity tpTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, targetTpType);
             if (tpTrajectory != null) {
                 List<String> areasInHydroAllocationEntities = getAreasInHydroAllocationAreas(tpTrajectory.getId());
                 boolean isHydroAllocationTrajectoryHasAreas = areasInHydroAllocationEntities.containsAll(areasInHydroSeriesFiles);
@@ -51,16 +52,17 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
     }
 
     @Override
-    public void checkHydroTPTrajectoriesConsistency(Integer studyId, List<String> areasTPFiles, String areaParam, String trajectoryToUse, String trajectoryType) {
-        TrajectoryEntity seriesTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, TrajectoryType.HYDRO_SERIES.name());
+    public void checkHydroTPTrajectoriesConsistency(Integer studyId, List<String> areasTPFiles, String areaParam, String trajectoryToUse, String childTrajectoryType, String parentTrajectoryType) {
+        String targetSeriesType = getAssociatedSeriesType(parentTrajectoryType);
+        TrajectoryEntity seriesTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, targetSeriesType);
         if (seriesTrajectory != null) {
             List<String> areasModInHydroSeriesTrajectory = getAreasInHydroSeriesModFiles(seriesTrajectory.getId());
             boolean isHydroSeriesTrajectoryHasTPAreas = areasTPFiles.containsAll(areasModInHydroSeriesTrajectory);
-            
+
             if (!isHydroSeriesTrajectoryHasTPAreas) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(Objects.equals(trajectoryType, TrajectoryType.HYDRO_ALLOCATION.name()) ?  "hydroAllocation" : "hydroParameters"))
-                        .message("Missing areas {0} in Hydro TechnicalParameters trajectory "+trajectoryToUse)
+                        .errorMessageArguments(List.of(Objects.equals(childTrajectoryType, TrajectoryType.HYDRO_ALLOCATION.name()) ? "hydroAllocation" : "hydroParameters"))
+                        .message("Missing areas {0} in Hydro TechnicalParameters trajectory " + trajectoryToUse)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -92,25 +94,12 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
 
     public void validateHydroSeriesCoherence(Integer studyId, TrajectoryEntity trajectory) {
         List<String> areasInSeriesMod = getAreasInHydroSeriesModFiles(trajectory.getId());
-
-        checkHydroSeriesTrajectoriesConsistency(
-                studyId,
-                areasInSeriesMod,
-                trajectory.getArea(),
-                trajectory.getFileName()
-        );
+        checkHydroSeriesTrajectoriesConsistency(studyId, areasInSeriesMod, trajectory.getArea(), trajectory.getFileName(), trajectory.getType());
     }
 
     public void validateHydroTechnicalParametersCoherence(Integer studyId, TrajectoryEntity trajectory, TrajectoryType hydroType) {
-            List<String> areasTPFiles = getHydroTechnicalParameterAreas(trajectory.getId(), hydroType);
-
-            checkHydroTPTrajectoriesConsistency(
-                    studyId,
-                    areasTPFiles,
-                    trajectory.getArea(),
-                    trajectory.getFileName(),
-                    hydroType.name()
-            );
+        List<String> areasTPFiles = getHydroTechnicalParameterAreas(trajectory.getId(), hydroType);
+        checkHydroTPTrajectoriesConsistency(studyId, areasTPFiles, trajectory.getArea(), trajectory.getFileName(), hydroType.name(), trajectory.getType());
     }
 
     public List<String> getHydroTechnicalParameterAreas(Integer trajectoryId, TrajectoryType hydroType) {
@@ -119,5 +108,16 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
         }
 
         return getAreasInHydroParametersAreas(trajectoryId);
+    }
+    private String getAssociatedTechnicalType(String seriesType) {
+        return TrajectoryType.HYDRO_PSP_SERIES.name().equals(seriesType)
+                ? TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name()
+                : TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name();
+    }
+
+    private String getAssociatedSeriesType(String techType) {
+        return TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name().equals(techType)
+                ? TrajectoryType.HYDRO_PSP_SERIES.name()
+                : TrajectoryType.HYDRO_SERIES.name();
     }
 }

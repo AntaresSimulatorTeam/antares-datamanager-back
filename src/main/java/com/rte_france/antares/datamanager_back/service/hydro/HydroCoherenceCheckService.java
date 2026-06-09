@@ -7,10 +7,9 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import java.util.List;
 
 public interface HydroCoherenceCheckService {
-    void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> filesName, String areaParam, String trajectoryToUse) throws BusinessException;
+    void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> filesName, String areaParam, String trajectoryToUse, String seriesTrajectoryType) throws BusinessException;
 
-    void checkHydroTPTrajectoriesConsistency(Integer studyId, List<String> areasTPFiles, String areaParam, String trajectoryToUse, String trajectoryType) throws BusinessException;
-
+    void checkHydroTPTrajectoriesConsistency(Integer studyId, List<String> areasTPFiles, String areaParam, String trajectoryToUse, String childTrajectoryType, String parentTrajectoryType) throws BusinessException;
     List<String> getAreasInHydroSeriesModFiles(Integer trajectoryId);
 
     List<String> getAreasInHydroAllocationAreas(Integer trajectoryId);

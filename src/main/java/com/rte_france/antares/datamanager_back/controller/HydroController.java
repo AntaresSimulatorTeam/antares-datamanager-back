@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -35,9 +36,12 @@ public class HydroController {
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("area") String area,
-            @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+            @RequestParam("isCivilYear") boolean isCivilYear,
+            @RequestParam(value = "isPsp", required = false, defaultValue = "false") boolean isPsp) throws IOException {
 
-        return new ResponseEntity<>(toTrajectoryDTO(hydroFileProcessorService.processHydroSeriesFile(trajectoryToUse, horizon, studyId, area, isCivilYear)), HttpStatus.CREATED);
+        TrajectoryType type = isPsp ? TrajectoryType.HYDRO_PSP_SERIES : TrajectoryType.HYDRO_SERIES;
+
+        return new ResponseEntity<>(toTrajectoryDTO(hydroFileProcessorService.processHydroSeriesFile(type, trajectoryToUse, horizon, studyId, area, isCivilYear)), HttpStatus.CREATED);
     }
 
     @Operation(summary = "import HYDRO technical parameters trajectory to database ")
@@ -47,8 +51,11 @@ public class HydroController {
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("area") String area,
-            @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+            @RequestParam("isCivilYear") boolean isCivilYear,
+            @RequestParam(value = "isPsp", required = false, defaultValue = "false") boolean isPsp) throws IOException {
 
-        return new ResponseEntity<>(toTrajectoryDTO(hydroFileProcessorService.processHydroTechnicalParametersFile(trajectoryToUse, horizon, studyId, area, isCivilYear)), HttpStatus.CREATED);
+        TrajectoryType type = isPsp ? TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS : TrajectoryType.HYDRO_TECHNICAL_PARAMETERS;
+
+        return new ResponseEntity<>(toTrajectoryDTO(hydroFileProcessorService.processHydroTechnicalParametersFile(type, trajectoryToUse, horizon, studyId, area, isCivilYear)), HttpStatus.CREATED);
     }
 }

@@ -148,7 +148,7 @@ class HydroCoherenceCheckServiceImplTest {
                 .thenReturn(null);
 
         assertDoesNotThrow(() ->
-                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME));
+                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
     }
 
     @Test
@@ -163,7 +163,7 @@ class HydroCoherenceCheckServiceImplTest {
                 .thenReturn(List.of(HydroParametersEntity.builder().node("FR").build()));
 
         assertDoesNotThrow(() ->
-                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME));
+                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
     }
 
     @Test
@@ -176,7 +176,7 @@ class HydroCoherenceCheckServiceImplTest {
                 .thenReturn(List.of(HydroAllocationEntity.builder().hydro("BE").build()));
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME));
+                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         assertTrue(ex.getMessage().contains("hydroAllocation"));
@@ -195,7 +195,7 @@ class HydroCoherenceCheckServiceImplTest {
                 .thenReturn(List.of(HydroParametersEntity.builder().node("BE").build()));
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME));
+                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         assertTrue(ex.getMessage().contains("hydroParameters"));
@@ -212,7 +212,7 @@ class HydroCoherenceCheckServiceImplTest {
                 .thenReturn(List.of());
 
         assertThrows(BusinessException.class, () ->
-                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME));
+                service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
 
         verify(hydroParametersRepository, never()).findHydroParametersEntitiesByTrajectoryId(any());
     }
@@ -227,7 +227,7 @@ class HydroCoherenceCheckServiceImplTest {
 
         assertDoesNotThrow(() ->
                 service.checkHydroTPTrajectoriesConsistency(
-                        STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name()));
+                        STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name(), TrajectoryType.HYDRO_SERIES.name()));
     }
 
     @Test
@@ -241,7 +241,7 @@ class HydroCoherenceCheckServiceImplTest {
 
         assertDoesNotThrow(() ->
                 service.checkHydroTPTrajectoriesConsistency(
-                        STUDY_ID, List.of("FR", "BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name()));
+                        STUDY_ID, List.of("FR", "BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name(), TrajectoryType.HYDRO_SERIES.name()));
     }
 
     @Test
@@ -255,7 +255,7 @@ class HydroCoherenceCheckServiceImplTest {
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
                 service.checkHydroTPTrajectoriesConsistency(
-                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name()));
+                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name(), TrajectoryType.HYDRO_SERIES.name()));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         assertTrue(ex.getMessage().contains(TRAJ_NAME));
@@ -272,7 +272,7 @@ class HydroCoherenceCheckServiceImplTest {
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
                 service.checkHydroTPTrajectoriesConsistency(
-                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name()));
+                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name(), TrajectoryType.HYDRO_SERIES.name()));
 
         assertTrue(ex.getErrorMessageArguments().contains("hydroAllocation"));
     }
@@ -288,7 +288,7 @@ class HydroCoherenceCheckServiceImplTest {
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
                 service.checkHydroTPTrajectoriesConsistency(
-                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_PARAMETERS.name()));
+                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_PARAMETERS.name(), TrajectoryType.HYDRO_SERIES.name()));
 
         assertTrue(ex.getErrorMessageArguments().contains("hydroParameters"));
     }
@@ -304,7 +304,7 @@ class HydroCoherenceCheckServiceImplTest {
 
         assertDoesNotThrow(() ->
                 service.checkHydroTPTrajectoriesConsistency(
-                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name()));
+                        STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name(), TrajectoryType.HYDRO_SERIES.name()));
     }
 
     // ── validateHydroSeriesCoherence ─────────────────────────────────────────
