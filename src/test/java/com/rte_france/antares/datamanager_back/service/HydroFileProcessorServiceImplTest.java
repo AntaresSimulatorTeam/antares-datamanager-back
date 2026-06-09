@@ -417,16 +417,16 @@ class HydroFileProcessorServiceImplTest {
                 () -> service.validateMaxPowerFile(
                         TrajectoryType.HYDRO_SERIES,
                         null,
-                        TRAJ,
-                        HORIZON,
-                        AREA_FR,
-                        List.of(AREA_FR),
+                        "TRAJ",
+                        "HORIZON",
+                        "AREA_FR",
+                        List.of("AREA_FR"),
                         List.of()
                 )
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Missing maxpower file in trajectory Hydro Series trajectory", exception.getMessage());
+        assertEquals("Missing maxpower file in trajectory HYDRO_SERIES", exception.getMessage());
     }
 
     @Test
