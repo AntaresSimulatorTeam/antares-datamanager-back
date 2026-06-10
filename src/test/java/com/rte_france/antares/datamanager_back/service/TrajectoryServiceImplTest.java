@@ -779,10 +779,10 @@ class TrajectoryServiceImplTest {
                 .horizon(horizon)
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .cluster("ClusterA")
                                 .build(),
                         ThermalSpecificParametersEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .cluster("ClusterB")
                                 .build()
                 ))
                 .build();
@@ -1585,11 +1585,11 @@ class TrajectoryServiceImplTest {
 
         // Valid files
         Files.createFile(nuclearDir.resolve("talon_nuc_2025.xlsx"));
-        
+
         // Invalid files - wrong prefix
         Files.createFile(nuclearDir.resolve("talon_2025.xlsx"));
         Files.createFile(nuclearDir.resolve("nuc_talon_2025.xlsx"));
-        
+
         // Invalid files - wrong extension
         Files.createFile(nuclearDir.resolve("talon_nuc_2030.txt"));
         Files.createFile(nuclearDir.resolve("talon_nuc_2035.csv"));
@@ -1613,12 +1613,12 @@ class TrajectoryServiceImplTest {
         // Valid files
         Files.createFile(nuclearDir.resolve("ts_epr_2025.xlsx"));
         Files.createFile(nuclearDir.resolve("ts_epr_projection.xlsx"));
-        
+
         // Invalid files - wrong prefix
         Files.createFile(nuclearDir.resolve("epr_2025.xlsx"));
         Files.createFile(nuclearDir.resolve("ts_smr_2025.xlsx"));
         Files.createFile(nuclearDir.resolve("te_epr_2025.xlsx"));
-        
+
         // Invalid files - wrong extension
         Files.createFile(nuclearDir.resolve("ts_epr_2030.txt"));
         Files.createFile(nuclearDir.resolve("ts_epr_2035.docx"));
@@ -1644,12 +1644,12 @@ class TrajectoryServiceImplTest {
 
         // Valid files
         Files.createFile(nuclearDir.resolve("ts_smr_2025.xlsx"));
-        
+
         // Invalid files - wrong prefix
         Files.createFile(nuclearDir.resolve("smr_2025.xlsx"));
         Files.createFile(nuclearDir.resolve("ts_epr_2025.xlsx"));
         Files.createFile(nuclearDir.resolve("t_smr_2025.xlsx"));
-        
+
         // Invalid files - wrong extension
         Files.createFile(nuclearDir.resolve("ts_smr_2030.txt"));
         Files.createFile(nuclearDir.resolve("ts_smr_2035.json"));
@@ -1672,7 +1672,7 @@ class TrajectoryServiceImplTest {
 
         // Valid file
         Files.createFile(nuclearDir.resolve("talon_nuc_valid.xlsx"));
-        
+
         // Invalid extensions - none should be accepted for nuclear types
         Files.createFile(nuclearDir.resolve("talon_nuc_invalid.xls"));
         Files.createFile(nuclearDir.resolve("talon_nuc_invalid.pdf"));

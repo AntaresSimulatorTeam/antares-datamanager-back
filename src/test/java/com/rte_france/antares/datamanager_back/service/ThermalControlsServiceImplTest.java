@@ -336,7 +336,7 @@ class ThermalControlsServiceImplTest {
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                              //  .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
                                 .build()
                 ))
                 .fileName("SpecificParamFile")
@@ -365,7 +365,8 @@ class ThermalControlsServiceImplTest {
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .cluster("ClusterA")
+                              //  .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
                                 .build()
                 ))
                 .build();

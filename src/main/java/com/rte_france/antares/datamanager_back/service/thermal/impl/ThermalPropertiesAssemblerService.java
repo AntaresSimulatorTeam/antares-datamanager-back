@@ -121,14 +121,14 @@ public class ThermalPropertiesAssemblerService {
 
                 List<ThermalCommonParameterEntity> commonsForRef = capacityClusterName == null ? List.of() : commonsParamByClusterName.getOrDefault(capacityClusterName, List.of());
                 //get list of specific param for the cluster ref : by matching name and technology is null
+               //TODO FIX IT
                 List<ThermalSpecificParametersEntity> specificForRef = specificTrajectories.stream()
                         .flatMap(t -> Optional.ofNullable(t.getThermalSpecificParameters()).orElseGet(List::of).stream())
-                        .filter(specific -> specific.getThermalClusterRef() != null
-                                && Objects.equals(specific.getThermalClusterRef().getName(), capacityClusterName)
-                                && specific.getThermalClusterRef().getThermalTechnology() == null
-                                && (specific.getArea() == null || specific.getArea().isBlank() || specific.getArea().equalsIgnoreCase(areaClusterRefKey.area()))
+                        .filter(specific -> specific.getCluster() != null
+                               && Objects.equals(specific.getCluster(), capacityClusterName)
+                               && (specific.getArea() == null || specific.getArea().isBlank() || specific.getArea().equalsIgnoreCase(areaClusterRefKey.area()))
                         )
-                        .toList();
+                .toList();
 
                 List<ThermalClusterCapacityEntity> thermalCapacities = entry.getValue();
 
@@ -162,16 +162,6 @@ public class ThermalPropertiesAssemblerService {
                 .toList();
 
 
-    }
-
-    private static LinkedHashMap<ThermalClusterRef, List<ThermalSpecificParametersEntity>> extractSpecificParamsByClusterRef(List<TrajectoryEntity> specificTrajectories) {
-        return specificTrajectories.stream()
-                .flatMap(t -> Optional.ofNullable(t.getThermalSpecificParameters()).orElseGet(List::of).stream())
-                .collect(Collectors.groupingBy(
-                        ThermalSpecificParametersEntity::getThermalClusterRef,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
     }
 
     private static LinkedHashMap<String, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajectories) {

@@ -129,21 +129,21 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                 .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId);
 
         if (!specificParamTrajectories.isEmpty()) {
-            // Récupère tous les clusters/areas présents dans les trajectoires spécifiques
+
             Set<String> specificParamAreaClusters = specificParamTrajectories.stream()
                     .map(TrajectoryEntity::getThermalSpecificParameters)
                     .filter(Objects::nonNull)
                     .flatMap(List::stream)
-                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .map(e -> e.getCluster()+ "/" + (e.getArea() != null ? e.getArea() : ""))
                     .collect(Collectors.toSet());
 
-            // Récupère tous les clusters/areas de Installed Power existants + en cours d'import
+            //Retrieve all clusters/areas from installed power that already exists and the ones being imported
             Set<String> installedPowerAreaClusters = getInstalledPowerClusterAreaByStudyId(studyId, horizon, OTHERS_AREA);
             capacities.forEach(e -> installedPowerAreaClusters.add(
                     e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : "")));
 
             List<String> missingAreaClusters = installedPowerAreaClusters.stream()
-                    .filter(ac -> !specificParamAreaClusters.contains(ac))
+                   .filter(ac -> !specificParamAreaClusters.contains(ac))
                     .toList();
 
             if (!missingAreaClusters.isEmpty()) {
@@ -241,23 +241,23 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             Set<String> existingSpecificsClustersAreaInBd;
             if (area.equals(OTHERS_AREA)) {
                 existingSpecificsClustersAreaInBd = trajectoryRepository
-                        .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId)
+                       .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId)
                         .stream()
                         .map(TrajectoryEntity::getThermalSpecificParameters)
                         .filter(Objects::nonNull)
                         .flatMap(List::stream)
-                        .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
-                        .collect(Collectors.toSet());
+                        .map(e -> e.getCluster() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                       .collect(Collectors.toSet());
             } else {
-                existingSpecificsClustersAreaInBd = trajectoryRepository
+              existingSpecificsClustersAreaInBd = trajectoryRepository
                         .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId)
                         .stream()
                         .filter(e -> e.getArea().equals(OTHERS_AREA))
                         .map(TrajectoryEntity::getThermalSpecificParameters)
-                        .filter(Objects::nonNull)
-                        .flatMap(List::stream)
+                       .filter(Objects::nonNull)
+                       .flatMap(List::stream)
                         .filter(e -> e.getArea().equals(area))
-                        .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                        .map(e -> e.getCluster() + "/" + (e.getArea() != null ? e.getArea() : ""))
                         .collect(Collectors.toSet());
             }
 
@@ -412,11 +412,13 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
 
     // Utility to check if a value is numeric (Number or numeric string)
     private boolean isNumeric(Object value) {
-        if (value instanceof Number) return true;
+        if (value instanceof Number) {
+            return !Double.isNaN(((Number) value).doubleValue());
+        }
         if (value instanceof String) {
             try {
-                Double.parseDouble(((String) value).trim());
-                return true;
+                double val = Double.parseDouble(((String) value).trim());
+                return !Double.isNaN(val);
             } catch (NumberFormatException e) {
                 return false;
             }
