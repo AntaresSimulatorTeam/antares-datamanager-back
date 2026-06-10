@@ -466,8 +466,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, TrajectoryType.HYDRO_SERIES.name());
-            Row header = getHeaderOrThrow(sheet, filePath, TrajectoryType.HYDRO_SERIES);
+            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, trajectoryType.name());
+            Row header = getHeaderOrThrow(sheet, filePath, trajectoryType);
             List<String> headerAreas = new ArrayList<>();
 
             DataFormatter formatter = new DataFormatter();
