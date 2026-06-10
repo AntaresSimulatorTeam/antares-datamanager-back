@@ -60,7 +60,7 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class TrajectoryServiceImpl implements TrajectoryService {
 
     public static final String OTHER_AREA = "OTHERS";
-    
+
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
@@ -1248,9 +1248,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private void verifyThermalSpecificParameter(Integer studyId, TrajectoryEntity trajectory) {
         Set<String> specificClusters = trajectory.getThermalSpecificParameters().stream()
-                .map(param -> param.getThermalClusterRef().getName() + "/" +
-                        Optional.ofNullable(param.getArea()).orElse(""))
-                .collect(Collectors.toSet());
+                .map(param -> param.getCluster() + "/" +
+                       Optional.ofNullable(param.getArea()).orElse(""))
+               .collect(Collectors.toSet());
         thermalControlService.checkMissingClusters(
                 studyId, trajectory.getHorizon(), specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectory.getArea());
     }
