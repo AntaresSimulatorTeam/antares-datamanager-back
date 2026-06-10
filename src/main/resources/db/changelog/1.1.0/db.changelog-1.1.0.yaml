@@ -108,3 +108,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V50-drop-po-winter-rate-from-thermal-specific-parameters.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V51-drop-others_ligne-from-default_load.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V52-change_warning_message_table.sql
