@@ -78,6 +78,17 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN, PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS = {RESERVOIR_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
 
+    public record TechnicalParametersProcessingContext(
+            Path filePath,
+            String trajectoryToUse,
+            String horizon,
+            String areaParam,
+            List<String> studyAreas,
+            TrajectoryType trajectoryType,
+            TrajectoryType parentTrajectoryType,
+            Integer studyId
+    ) {}
+
     @Override
     public TrajectoryEntity processHydroSeriesFile(
             TrajectoryType trajectoryType,
@@ -171,8 +182,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<HydroAllocationEntity> allocationEntities;
         List<HydroParametersEntity> parametersEntities;
 
+        List<String> studyAreas = loadStudyAreas(studyId);
         for (var type : HYDRO_TYPES) {
-            var result = processFile(pathFiles.get(type), trajectoryToUse, horizon, areaParam, studyId, type, trajectoryType);
+            var ctx = new TechnicalParametersProcessingContext(
+                    pathFiles.get(type), trajectoryToUse, horizon, areaParam,
+                    studyAreas, type, trajectoryType, studyId
+            );
+            var result = processTechnicalParametersFile(ctx);
             switch (result) {
                 case HydroAllocationRowProcessingResult allocation -> {
                     allocationEntities = allocation.entities();
@@ -251,23 +267,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-    }
-
-    private HydroTechnicalParametersRowProcessingResult processFile(
-            Path trajectoryFilePath,
-            String trajectoryToUse,
-            String horizon,
-            String areaParam,
-            Integer studyId,
-            TrajectoryType trajectoryType,
-            TrajectoryType parentTrajectoryType
-    ) throws IOException {
-
-        if (trajectoryFilePath != null) {
-            List<String> studyAreas = loadStudyAreas(studyId);
-            return processTechnicalParametersFile(trajectoryFilePath, trajectoryToUse, horizon, areaParam, studyAreas, trajectoryType, parentTrajectoryType, studyId);
-        }
-        return null;
     }
 
     private Map<TrajectoryType, Path> findHydroFiles(Path trajectoryFilePath) throws BusinessException {
@@ -495,54 +494,42 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     }
 
     public HydroTechnicalParametersRowProcessingResult processTechnicalParametersFile(
-            Path filePath,
-            String trajectoryToUse,
-            String horizon,
-            String areaParam,
-            List<String> studyAreas,
-            TrajectoryType trajectoryType,
-            TrajectoryType parentTrajectoryType,
-            Integer studyId
+            TechnicalParametersProcessingContext ctx
     ) throws IOException {
 
         // Validate that the file path is trusted and points to a regular file
-        if (filePath == null || !Files.isRegularFile(filePath)) {
+        if (ctx.filePath() == null || !Files.isRegularFile(ctx.filePath())) {
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryType.name()))
+                    .errorMessageArguments(List.of(ctx.trajectoryType().name()))
                     .message("{0} file path is not valid")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
         // Normalize the path to avoid traversal or symlink tricks
-        Path normalizedFile = filePath.toRealPath();
-        var context = ResRowProcessingContext.builder().studyAreas(studyAreas).areaParam(areaParam).trajectoryToUse(trajectoryToUse).trajectoryType(trajectoryType).build();
-        String[] requiredColumns = trajectoryType == TrajectoryType.HYDRO_ALLOCATION ? REQUIRED_HYDRO_ALLOCATION_COLUMNS : REQUIRED_HYDRO_PARAMETERS_COLUMNS;
+        Path normalizedFile = ctx.filePath().toRealPath();
+        var context = ResRowProcessingContext.builder().studyAreas(ctx.studyAreas()).areaParam(ctx.areaParam()).trajectoryToUse(ctx.trajectoryToUse()).trajectoryType(ctx.trajectoryType()).build();
+        String[] requiredColumns = ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION ? REQUIRED_HYDRO_ALLOCATION_COLUMNS : REQUIRED_HYDRO_PARAMETERS_COLUMNS;
 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryToUse, trajectoryType.name());
-            checkMissingColumns(sheet, requiredColumns, trajectoryToUse, trajectoryType);
+            Sheet sheet = getRequiredSheet(workbook, ctx.horizon(), ctx.trajectoryToUse(), ctx.trajectoryType().name());
+            checkMissingColumns(sheet, requiredColumns, ctx.trajectoryToUse(), ctx.trajectoryType());
 
-            HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, trajectoryType, parentTrajectoryType, studyId, areaParam, trajectoryToUse);
+            HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, ctx);
 
-            validateAreas(studyAreas, areaParam, result.fileAreas(), trajectoryToUse, trajectoryType);
+            validateAreas(ctx.studyAreas(), ctx.areaParam(), result.fileAreas(), ctx.trajectoryToUse(), ctx.trajectoryType());
 
             return result;
         }
     }
 
     private HydroTechnicalParametersRowProcessingResult processRows(
-            Sheet sheet,
-            ResRowProcessingContext context,
-            TrajectoryType trajectoryType,
-            TrajectoryType parentTrajectoryType,
-            Integer studyId,
-            String areaParam,
-            String trajectoryToUse
+            Sheet sheet, ResRowProcessingContext context,
+            TechnicalParametersProcessingContext ctx
     ) {
-        HydroTechnicalParametersRowProcessingResult result = getHydroRowProcessingResult(trajectoryType);
+        HydroTechnicalParametersRowProcessingResult result = getHydroRowProcessingResult(ctx.trajectoryType());
 
         Iterator<Row> rows = sheet.rowIterator();
         rows.next(); // skip header
@@ -561,19 +548,19 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             }
         }
 
-        if (studyId != null) {
-            hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(studyId, result.fileAreas(), areaParam, trajectoryToUse, trajectoryType.name(), parentTrajectoryType.name());
+        if (ctx.studyId() != null) {
+            hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(ctx.studyId(), result.fileAreas(), ctx.areaParam(), ctx.trajectoryToUse(), ctx.trajectoryType().name(), ctx.parentTrajectoryType().name());
         }
 
         for (Row row : nonEmptyRows) {
-            if (trajectoryType == TrajectoryType.HYDRO_ALLOCATION) {
+            if (ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION) {
                 processHydroAllocationRow(context, (HydroAllocationRowProcessingResult) result, row);
             } else {
                 processHydroParametersRow(context, (HydroParametersRowProcessingResult) result, row);
             }
         }
 
-        validateEmptyRows(nonEmptyRows.isEmpty(), trajectoryType, context.getTrajectoryToUse());
+        validateEmptyRows(nonEmptyRows.isEmpty(), ctx.trajectoryType(), context.getTrajectoryToUse());
 
         return result;
     }

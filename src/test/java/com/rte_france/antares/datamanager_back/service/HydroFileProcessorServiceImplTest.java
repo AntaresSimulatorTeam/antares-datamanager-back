@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersRowP
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroTechnicalParametersRowProcessingResult;
 import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.TechnicalParametersProcessingContext;
 import com.rte_france.antares.datamanager_back.service.res.ResRowProcessingContext;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -665,7 +666,7 @@ class HydroFileProcessorServiceImplTest {
                 List.of(List.of("FR", "FR_LOAD", 100)));
 
         HydroTechnicalParametersRowProcessingResult result = service.processTechnicalParametersFile(
-                filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null);
+                new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null));
 
         assertNotNull(result);
         assertInstanceOf(HydroAllocationRowProcessingResult.class, result);
@@ -688,7 +689,7 @@ class HydroFileProcessorServiceImplTest {
                 List.of(List.of("FR", 2, 3, 4, 5, 6, true, 1000, false, true)));
 
         HydroTechnicalParametersRowProcessingResult result = service.processTechnicalParametersFile(
-                filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_PARAMETERS, null, null);
+                new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_PARAMETERS, null, null));
 
         assertNotNull(result);
         assertInstanceOf(HydroParametersRowProcessingResult.class, result);
@@ -706,7 +707,7 @@ class HydroFileProcessorServiceImplTest {
     void processTechnicalParametersFile_throwsWhenFilePathIsNull() {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processTechnicalParametersFile(
-                        null, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null));
+                        new TechnicalParametersProcessingContext(null, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null)));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
@@ -718,7 +719,7 @@ class HydroFileProcessorServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processTechnicalParametersFile(
-                        dir, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null));
+                        new TechnicalParametersProcessingContext(dir, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null)));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
@@ -733,7 +734,7 @@ class HydroFileProcessorServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processTechnicalParametersFile(
-                        filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null));
+                        new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null)));
 
         assertTrue(exception.getMessage().contains("Missing columns"));
         assertTrue(exception.getErrorMessageArguments().getFirst().contains("allocation"));
@@ -749,7 +750,7 @@ class HydroFileProcessorServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processTechnicalParametersFile(
-                        filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_PARAMETERS, null, null));
+                        new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_PARAMETERS, null, null)));
 
         assertTrue(exception.getMessage().contains("Missing columns"));
     }
@@ -764,7 +765,7 @@ class HydroFileProcessorServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processTechnicalParametersFile(
-                        filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null));
+                        new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null)));
 
         assertTrue(exception.getMessage().contains("No data found"));
     }
@@ -1051,7 +1052,7 @@ class HydroFileProcessorServiceImplTest {
                 List.of(List.of("FR", "FR_LOAD", 100)));
 
         service.processTechnicalParametersFile(
-                filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null);
+                new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, null, null));
 
         verify(hydroCoherenceCheckService, never())
                 .checkHydroTPTrajectoriesConsistency(any(), any(), any(), any(), any(), any());
@@ -1066,7 +1067,7 @@ class HydroFileProcessorServiceImplTest {
                 List.of(List.of("FR", "FR_LOAD", 100)));
 
         service.processTechnicalParametersFile(
-                filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_SERIES, 1);
+                new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_SERIES, 1));
 
         verify(hydroCoherenceCheckService, times(1))
                 .checkHydroTPTrajectoriesConsistency(eq(1), any(), eq(AREA_FR), eq(TRAJ), any(), any());
