@@ -13,9 +13,11 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroCoherenceCheckServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
@@ -23,6 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class HydroCoherenceCheckServiceImplTest {
 
     @Mock
@@ -40,11 +43,6 @@ class HydroCoherenceCheckServiceImplTest {
     private static final Integer STUDY_ID = 1;
     private static final String AREA = "FR";
     private static final String TRAJ_NAME = "hydro_FR_2029-2030";
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
 
     // ── getAreasInHydroSeriesModFiles ─────────────────────────────────────────
 
@@ -345,6 +343,29 @@ class HydroCoherenceCheckServiceImplTest {
         assertThrows(BusinessException.class, () -> service.validateHydroSeriesCoherence(STUDY_ID, trajectory));
     }
 
+    @Test
+    void validateHydroSeriesCoherence_supportsPspSeriesType() {
+        Integer trajectoryId = 7;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .area(AREA)
+                .fileName("psp_series")
+                .type(TrajectoryType.HYDRO_PSP_SERIES.name())
+                .build();
+
+        when(hydroSeriesRepository.findHydroSeriesEntitiesByTrajectoryId(trajectoryId))
+                .thenReturn(List.of(HydroSeriesEntity.builder().tsName("mod_FR_2029-2030").build()));
+        when(trajectoryRepository.findLatestByStudyIdAndAreaAndType(
+                STUDY_ID, AREA, TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name()))
+                .thenReturn(null);
+
+        assertDoesNotThrow(() -> service.validateHydroSeriesCoherence(STUDY_ID, trajectory));
+
+        verify(hydroSeriesRepository).findHydroSeriesEntitiesByTrajectoryId(trajectoryId);
+        verify(trajectoryRepository).findLatestByStudyIdAndAreaAndType(
+                STUDY_ID, AREA, TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name());
+    }
+
     // ── validateHydroTechnicalParametersCoherence ────────────────────────────
 
     @Test
@@ -400,5 +421,29 @@ class HydroCoherenceCheckServiceImplTest {
 
         assertThrows(BusinessException.class, () -> service.validateHydroTechnicalParametersCoherence(
                 STUDY_ID, trajectory, TrajectoryType.HYDRO_ALLOCATION));
+    }
+
+    @Test
+    void validateHydroTechnicalParametersCoherence_supportsPspTechnicalParametersType() {
+        Integer trajectoryId = 8;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .area(AREA)
+                .fileName("psp_tech")
+                .type(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name())
+                .build();
+
+        when(hydroAllocationRepository.findHydroAllocationEntitiesByTrajectoryId(trajectoryId))
+                .thenReturn(List.of(HydroAllocationEntity.builder().hydro("FR").build()));
+        when(trajectoryRepository.findLatestByStudyIdAndAreaAndType(
+                STUDY_ID, AREA, TrajectoryType.HYDRO_PSP_SERIES.name()))
+                .thenReturn(null);
+
+        assertDoesNotThrow(() -> service.validateHydroTechnicalParametersCoherence(
+                STUDY_ID, trajectory, TrajectoryType.HYDRO_ALLOCATION));
+
+        verify(hydroAllocationRepository).findHydroAllocationEntitiesByTrajectoryId(trajectoryId);
+        verify(trajectoryRepository).findLatestByStudyIdAndAreaAndType(
+                STUDY_ID, AREA, TrajectoryType.HYDRO_PSP_SERIES.name());
     }
 }

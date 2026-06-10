@@ -436,6 +436,29 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void linkTrajectoryToStudy_callsValidateHydroSeriesCoherenceForHydroPspSeries() throws IOException {
+        Integer trajectoryId = 12;
+        Integer studyId = 8;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.HYDRO_PSP_SERIES.name())
+                .warningMessages(new HashSet<>())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_PSP_SERIES);
+
+        assertEquals(trajectoryId, result.getId());
+        verify(hydroCoherenceCheckService, times(1)).validateHydroSeriesCoherence(studyId, trajectory);
+        verify(studyTrajectoryRepository, times(1)).save(any(StudyTrajectoryEntity.class));
+    }
+
+    @Test
     void linkTrajectoryToStudy_throwsWhenHydroSeriesCoherenceCheckFails() throws BusinessException {
         Integer trajectoryId = 10;
         Integer studyId = 5;
@@ -477,6 +500,30 @@ class TrajectoryServiceImplTest {
         when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS);
+
+        assertEquals(trajectoryId, result.getId());
+        verify(hydroCoherenceCheckService, times(1)).validateHydroTechnicalParametersCoherence(studyId, trajectory, TrajectoryType.HYDRO_ALLOCATION);
+        verify(hydroCoherenceCheckService, times(1)).validateHydroTechnicalParametersCoherence(studyId, trajectory, TrajectoryType.HYDRO_PARAMETERS);
+        verify(studyTrajectoryRepository, times(1)).save(any(StudyTrajectoryEntity.class));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_callsValidateHydroTechnicalParametersCoherenceForPspType() throws IOException {
+        Integer trajectoryId = 13;
+        Integer studyId = 9;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name())
+                .warningMessages(new HashSet<>())
+                .build();
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS);
 
         assertEquals(trajectoryId, result.getId());
         verify(hydroCoherenceCheckService, times(1)).validateHydroTechnicalParametersCoherence(studyId, trajectory, TrajectoryType.HYDRO_ALLOCATION);
@@ -1370,6 +1417,55 @@ class TrajectoryServiceImplTest {
 
         // Then
         List<String> expected = List.of("BP_23_ref", "BP_50_ref");
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+        assertEquals(2, result.size());
+        assertTrue(actual.containsAll(expected));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsHydroPspSeriesTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path hydroDir = tempDir.resolve("PSP_virtual/series/");
+        Files.createDirectories(hydroDir);
+
+        Files.createDirectory(hydroDir.resolve("BP_23_ref_psp"));
+        Files.createDirectory(hydroDir.resolve("BP_50_ref_psp"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getPspSeriesDirectory()).thenReturn(hydroDir.toString());
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_PSP_SERIES, "FR", null, null);
+
+        // Then
+        List<String> expected = List.of("BP_23_ref_psp", "BP_50_ref_psp");
+        List<String> actual = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .toList();
+        assertEquals(2, result.size());
+        assertTrue(actual.containsAll(expected));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsHydroPspTechnicalParametersTrajectories(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path hydroTechnicalParametersDir = tempDir.resolve("PSP_virtual/technical_parameters");
+        Files.createDirectories(hydroTechnicalParametersDir);
+
+        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_23_ref_psp"));
+        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_50_ref_psp"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getPspParametersDirectory()).thenReturn(hydroTechnicalParametersDir.toString());
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS, "FR", null, null);
+
+        // Then
+        List<String> expected = List.of("BP_23_ref_psp", "BP_50_ref_psp");
         List<String> actual = result.stream()
                 .map(FsTrajectoryDTO::getFileName)
                 .toList();

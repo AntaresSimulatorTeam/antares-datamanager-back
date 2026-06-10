@@ -531,7 +531,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
             case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
-                 HYDRO_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
+                 HYDRO_TECHNICAL_PARAMETERS, HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
@@ -632,21 +632,23 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.RES_ZONAL_DISTRIBUTION,
                 TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
                 TrajectoryType.HYDRO_SERIES,
-                TrajectoryType.HYDRO_TECHNICAL_PARAMETERS
+                TrajectoryType.HYDRO_TECHNICAL_PARAMETERS,
+                TrajectoryType.HYDRO_PSP_SERIES,
+                TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
         );
         if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
 
-          String trajectoryType = trajectory.getType();
+        String trajectoryType = trajectory.getType();
 
         // Validation de cohérence entre Hydro Series et Hydro Parameters déjà sélectionnée
-        if (TrajectoryType.HYDRO_SERIES.name().equals(trajectoryType)) {
+        if (TrajectoryType.HYDRO_SERIES.name().equals(trajectoryType) || TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectoryType)) {
             hydroCoherenceCheckService.validateHydroSeriesCoherence(studyId, trajectory);
         }
 
         // Validation de cohérence entre Hydro Parameters et Hydro Series déjà sélectionnée
-        if (TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(trajectoryType)) {
+        if (TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(trajectoryType) || TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name().equals(trajectoryType)) {
             for (var hydroType : HYDRO_TYPES) {
                 hydroCoherenceCheckService.validateHydroTechnicalParametersCoherence(studyId, trajectory, hydroType);
             }
@@ -1007,6 +1009,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.RES_LOAD
                         || trajectoryType == TrajectoryType.HYDRO_SERIES
                         || trajectoryType == TrajectoryType.HYDRO_TECHNICAL_PARAMETERS
+                        || trajectoryType == TrajectoryType.HYDRO_PSP_SERIES
+                        || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM);
     }
@@ -1073,6 +1077,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION -> antaresDataManagerProperties.getResDistributionDirectory();
             case HYDRO_SERIES -> antaresDataManagerProperties.getHydroSeriesDirectory();
             case HYDRO_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getHydroParametersDirectory();
+            case HYDRO_PSP_SERIES -> antaresDataManagerProperties.getPspSeriesDirectory();
+            case HYDRO_PSP_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getPspParametersDirectory();
             case NUCLEAR_FR_MODULATION -> antaresDataManagerProperties.getNuclearModulationDirectory();
             case NUCLEAR_FR_TALON -> antaresDataManagerProperties.getNuclearTalonDirectory();
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();
@@ -1131,7 +1137,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                  resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
              }
               case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-              case "HYDRO_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
+               case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS", "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
                    "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM", "NUCLEAR_FR_TS_SMR" ,
                    "DSR", "STS" ->
                   // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy

@@ -97,6 +97,15 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.hydro.ts.output.directory}")
     public String hydroTsOutputDirectory;
 
+    @Value("${antares.datamanager.psp.series.directory}")
+    public String pspSeriesDirectory;
+
+    @Value("${antares.datamanager.psp.parameters.directory}")
+    public String pspParametersDirectory;
+
+    @Value("${antares.datamanager.psp.ts.output.directory}")
+    public String pspTsOutputDirectory;
+
     @Value("${antares.datamanager.nuclear.modulation.directory}")
     public String nuclearModulationDirectory;
 
