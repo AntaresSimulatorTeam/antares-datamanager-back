@@ -128,7 +128,7 @@ public class ResCoherenceCheckService {
         }  else {
             // Area non reconnu, pas de validation
             log.debug("Area {} non reconnu pour IP, validation skippée", areaParam);
-            return true; // On laisse passer
+            return false; // On laisse passer
         }
     }
 
@@ -148,7 +148,7 @@ public class ResCoherenceCheckService {
         // TD ne concerne que FR ou autres areas spécifiques
         if (!defaultAreas.contains(area.toUpperCase())) {
             log.debug("TD avec area {} non reconnu, validation skippée", area);
-            return true; // On laisse passer
+            return false; // On laisse passer
         }
 
         // On importe TD, construire la liste avec cette nouvelle TD
@@ -434,7 +434,7 @@ public class ResCoherenceCheckService {
         } else {
             // Area non reconnu, pas de validation
             log.debug("Area {} non reconnu pour LF, validation skippée", areaParam);
-            return true; // On laisse passer
+            return false; // On laisse passer
         }
     }
 
