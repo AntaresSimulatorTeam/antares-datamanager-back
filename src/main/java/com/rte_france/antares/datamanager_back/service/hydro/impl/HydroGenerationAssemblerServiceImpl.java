@@ -106,7 +106,6 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     private Map<String, List<String>> createArrowSeriesForHydroSeries(StudyEntity studyEntity) throws BusinessException {
         Map<String, List<TrajectoryFileContext>> hydroSeriesPathByArea = mapTsPathByArea(studyEntity);
         Map<String, List<String>> generatedFilesByArea = new HashMap<>();
-        String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
 
         Set<String> processedAreas = new HashSet<>();
         String otherArea = OTHER_AREA.toUpperCase(Locale.ROOT);
@@ -117,7 +116,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
             if (hydroSeriesContexts != null && !hydroSeriesContexts.isEmpty()) {
                 List<String> generatedFilesArrow = new ArrayList<>();
-                processSeriesByArea(studyEntity, area, hydroSeriesContexts, outputDir, generatedFilesArrow);
+                processSeriesByArea(studyEntity, area, hydroSeriesContexts, generatedFilesArrow);
                 generatedFilesByArea.put(area, generatedFilesArrow);
             }
         }
@@ -147,7 +146,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
                 if (!pathsForArea.isEmpty()) {
                     List<String> generatedFilesArrow = new ArrayList<>();
-                    processSeriesByArea(studyEntity, area, pathsForArea, outputDir, generatedFilesArrow);
+                    processSeriesByArea(studyEntity, area, pathsForArea, generatedFilesArrow);
                     generatedFilesByArea.put(area, generatedFilesArrow);
                 }
             }
@@ -190,14 +189,15 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return Optional.of(parts[parts.length - 2].toUpperCase(Locale.ROOT));
     }
 
-    private List<String> processSeriesByArea(StudyEntity studyEntity, String area, List<TrajectoryFileContext> hydroSeriesContexts, String outputDir, List<String> generatedFilesArrow) throws BusinessException {
+    private void processSeriesByArea(StudyEntity studyEntity, String area, List<TrajectoryFileContext> hydroSeriesContexts, List<String> generatedFilesArrow) throws BusinessException {
         hydroSeriesContexts.forEach(context -> {
-            String outputFileName = null;
+            String outputFileName;
             TimeSeriesMatrix matrix;
             Path path = context.path();
             TrajectoryType type = context.type();
             String fileName = path.getFileName().toString();
             String pspMarker = type == TrajectoryType.HYDRO_PSP_SERIES ? "_psp" : "";
+            String outputDir = getHydroOutputDirectory(type);
 
             if (fileName.startsWith("maxpower")) {
                 try {
@@ -226,7 +226,12 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             }
             generatedFilesArrow.add(outputFileName);
         });
-        return generatedFilesArrow;
+    }
+
+    private String getHydroOutputDirectory(TrajectoryType type) {
+        return type == TrajectoryType.HYDRO_PSP_SERIES
+                ? antaresDataManagerProperties.getPspTsOutputDirectory()
+                : antaresDataManagerProperties.getHydroTsOutputDirectory();
     }
 
     private Set<String> nonOtherAreas(Set<String> areas, Set<String> listAreas) {

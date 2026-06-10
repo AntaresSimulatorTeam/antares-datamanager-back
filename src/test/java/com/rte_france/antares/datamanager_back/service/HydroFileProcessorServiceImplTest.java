@@ -508,7 +508,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing files in trajectory Hydro Series trajectory"));
+        assertEquals("Missing files in trajectory " + TrajectoryType.HYDRO_SERIES.name(), exception.getMessage());
     }
 
     @Test
@@ -782,7 +782,7 @@ class HydroFileProcessorServiceImplTest {
                 service.validateMaxPowerFile(TrajectoryType.HYDRO_SERIES, dir, TRAJ, HORIZON, AREA_FR, List.of(AREA_FR), List.of()));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Missing maxpower file in trajectory Hydro Series trajectory", exception.getMessage());
+        assertEquals("Missing maxpower file in trajectory " + TrajectoryType.HYDRO_SERIES.name(), exception.getMessage());
     }
 
     @Test
