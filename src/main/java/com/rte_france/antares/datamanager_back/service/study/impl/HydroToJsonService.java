@@ -4,10 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -15,6 +12,7 @@ public class HydroToJsonService {
     private static final String PROPERTIES = "properties";
     private static final String SERIES = "series";
     private static final String ALLOCATION = "allocation";
+    private static final String PSP = "psp";
 
     public Map<String, Object> buildHydroDataMap(String areaName, Map<String, List<HydroGenerationDTO>> hydroPropsByArea) {
         if (hydroPropsByArea == null || hydroPropsByArea.isEmpty()) {
@@ -39,6 +37,8 @@ public class HydroToJsonService {
                 .findFirst()
                 .orElse(new String[0]);
 
+        boolean isPsp = Arrays.stream(series).anyMatch(s -> s.contains("_psp"));
+
         Map<String, Double> allocation = areaHydro.stream()
                 .map(HydroGenerationDTO::getAllocation)
                 .filter(a -> a != null && !a.isEmpty())
@@ -56,6 +56,7 @@ public class HydroToJsonService {
         areaHydroMap.put(PROPERTIES, areaHydroWithoutMetadata);
         areaHydroMap.put(SERIES, series);
         areaHydroMap.put(ALLOCATION, allocation);
+        areaHydroMap.put(PSP, isPsp);
 
         return areaHydroMap;
     }
