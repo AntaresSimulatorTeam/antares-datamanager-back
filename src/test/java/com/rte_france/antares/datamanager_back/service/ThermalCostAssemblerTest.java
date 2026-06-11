@@ -177,7 +177,6 @@ class ThermalCostAssemblerTest {
         commonParam2.setThermalClusterRef(clusterRef);
 
         ThermalSpecificParametersEntity specificParam = new ThermalSpecificParametersEntity();
-     //   specificParam.setThermalClusterRef(clusterRef);
 
         thermalCostAssembler.computeStartupAndMarginalCost(dto, List.of(commonParam2),
                 List.of(specificParam), List.of(), costTrajectory);
@@ -451,7 +450,6 @@ class ThermalCostAssemblerTest {
         commonParam.setStartUpFuel(100.0);
 
         ThermalSpecificParametersEntity specificParam = new ThermalSpecificParametersEntity();
-      //  specificParam.setThermalClusterRef(clusterRef);
 
         // Fuel and CO2 costs used to compute marginal cost
         ThermalCostEntity fuelCost = new ThermalCostEntity();

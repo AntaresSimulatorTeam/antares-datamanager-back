@@ -169,7 +169,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
                 .thermalSpecificParameters(List.of(
                         specificParams(
-                                "Gas1",
+
                                 0.50, // minStableGeneration (ratio of nominal)
                                 0.23, // spinning
                                 0.37, // efficiency (ratio)
@@ -696,7 +696,6 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     private static ThermalSpecificParametersEntity specificParams(
-            String cluster,
             double minStableGeneration,
             double spinning,
             double efficiency,
