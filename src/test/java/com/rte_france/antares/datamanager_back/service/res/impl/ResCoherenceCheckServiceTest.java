@@ -111,32 +111,35 @@ public class ResCoherenceCheckServiceTest {
         assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId));
     }
 
-    @Disabled
-    @Test
-    void testValidationFailsWhenIPKeyMissingInTD() {
-        // Arrange - Create IP trajectories with all required combinations
-        // Note: groupe must match available technologies for keys to be extracted
-        List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-        ipTrajectories.add(createIPTrajectoryWithData("FR", null, "wind_offshore", "C1"));
-        ipTrajectories.add(createIPTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
-        ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
+     @Test
+     void testValidationFailsWhenIPKeyMissingInTD() {
+         // Arrange - Create IP trajectories with all required combinations
+         // Note: groupe must match available technologies for keys to be extracted
+         List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+         ipTrajectories.add(createIPTrajectoryWithData("FR", null, "wind_offshore", "C1"));
+         ipTrajectories.add(createIPTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+         ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
 
-        // Create TD trajectories - TD has the technology so groupe must match it
-        List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
-        tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C1"));
-        tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+         // Create TD trajectories - TD has the technology so groupe must match it
+         // Need TD with OTHERS area for intersection to work
+         List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+         tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C1"));
+         tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+         tdTrajectories.add(createTDTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
+         tdTrajectories.add(createTDTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C2"));
 
-        TrajectoryEntity othersWithTechTrajectory = createIPTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C1");
+         // IP being imported has a cluster C3 that doesn't exist in TD, so it should throw exception
+         TrajectoryEntity othersWithTechTrajectory = createIPTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C3");
 
-        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                .thenReturn(ipTrajectories);
-        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                .thenReturn(tdTrajectories);
+         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                 .thenReturn(ipTrajectories);
+         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                 .thenReturn(tdTrajectories);
 
-        // Act & Assert - Should throw exception for missing keys
-        assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPTDCoherence(studyId, othersWithTechTrajectory),
-                "Should throw BusinessException when IP keys are missing in TD");
-    }
+         // Act & Assert - Should throw exception for missing keys
+         assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPTDCoherence(studyId, othersWithTechTrajectory),
+                 "Should throw BusinessException when IP keys are missing in TD");
+     }
 
     @Test
     void testValidationSucceedsWhenAllIPKeysExistInTD() {
@@ -241,32 +244,33 @@ public class ResCoherenceCheckServiceTest {
         assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, tdBeingImported));
     }
 
-    @Disabled
-    @Test
-    void testValidationFailsWhenIPHas4CombinationsButTDMissingOne() {
-        // Arrange - IP has all 4 combinations, but TD is missing keys when we import an IP OTHERS
-        List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-        ipTrajectories.add(createIPTrajectoryWithData("FR", null, "wind_offshore", "C1"));
-        ipTrajectories.add(createIPTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
-        ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
+     @Test
+     void testValidationFailsWhenIPHas4CombinationsButTDMissingOne() {
+         // Arrange - IP has all 4 combinations, but TD is missing keys when we import an IP OTHERS
+         List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+         ipTrajectories.add(createIPTrajectoryWithData("FR", null, "wind_offshore", "C1"));
+         ipTrajectories.add(createIPTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+         ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
 
-        // TD missing cluster C1 for OTHERS
-        List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
-        tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C1"));
-        tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+         // TD has both FR combinations and OTHERS/null but missing OTHERS/wind_offshore cluster C1
+         List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+         tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C1"));
+         tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+         tdTrajectories.add(createTDTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
+         tdTrajectories.add(createTDTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C2"));
 
-        // Import IP OTHERS with technology
-        TrajectoryEntity othersWithTechTrajectory = createIPTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C1");
+         // Import IP OTHERS with technology and cluster C3 which doesn't exist in TD
+         TrajectoryEntity othersWithTechTrajectory = createIPTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C3");
 
-        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                .thenReturn(ipTrajectories);
-        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                .thenReturn(tdTrajectories);
+         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                 .thenReturn(ipTrajectories);
+         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                 .thenReturn(tdTrajectories);
 
-        // Act & Assert - Should throw exception for missing keys in TD
-        assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPTDCoherence(studyId, othersWithTechTrajectory),
-                "Should throw BusinessException when TD keys are missing");
-    }
+         // Act & Assert - Should throw exception for missing keys in TD
+         assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPTDCoherence(studyId, othersWithTechTrajectory),
+                 "Should throw BusinessException when TD keys are missing");
+     }
 
     @Test
     void testValidationIgnoresIPWithIncompleteOthersCombinations() {
@@ -362,6 +366,8 @@ public class ResCoherenceCheckServiceTest {
         // TD with different clusters than IP
         tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C2"));
         tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C2"));
+        tdTrajectories.add(createTDTrajectoryWithData("OTHERS", null, "wind_offshore", "C2"));
+        tdTrajectories.add(createTDTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C2"));
 
         // Create a TD trajectory being imported
         TrajectoryEntity tdBeingImported = createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C2");
@@ -448,31 +454,34 @@ public class ResCoherenceCheckServiceTest {
     // ========== validateDTCoherence Tests ==========
 
     @Test
-    @DisplayName("validateDTCoherence: should return true for OTHERS area")
-    void validateDTCoherence_shouldReturnTrueForOthersArea() {
+    @DisplayName("validateTDCoherence: should return true for OTHERS area")
+    void validateTDCoherence_shouldReturnTrueForOthersArea() {
         TrajectoryEntity dtBeingImported = createTDTrajectory("OTHERS", null);
-        boolean result = resCoherenceCheckService.validateDTCoherence(new ArrayList<>(), dtBeingImported);
+        // Need at least one TD with technology for OTHERS area
+        List<TrajectoryEntity> existingDTTrajectories = new ArrayList<>();
+        existingDTTrajectories.add(createTDTrajectory("OTHERS", "wind"));
+        boolean result = resCoherenceCheckService.validateTDCoherence(existingDTTrajectories, dtBeingImported);
         assertTrue(result);
     }
 
     @Test
-    @DisplayName("validateDTCoherence: should return true when both combinations exist")
-    void validateDTCoherence_shouldReturnTrueWhenBothCombinationsExist() {
+    @DisplayName("validateTDCoherence: should return true when both combinations exist")
+    void validateTDCoherence_shouldReturnTrueWhenBothCombinationsExist() {
         TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
         List<TrajectoryEntity> existingDTTrajectories = new ArrayList<>();
         existingDTTrajectories.add(createTDTrajectory("FR", "wind"));
 
-        boolean result = resCoherenceCheckService.validateDTCoherence(existingDTTrajectories, dtBeingImported);
+        boolean result = resCoherenceCheckService.validateTDCoherence(existingDTTrajectories, dtBeingImported);
         assertTrue(result);
     }
 
     @Test
-    @DisplayName("validateDTCoherence: should return false when missing with-technology combination")
-    void validateDTCoherence_shouldReturnFalseWhenMissingWithTechCombination() {
+    @DisplayName("validateTDCoherence: should return false when missing with-technology combination")
+    void validateTDCoherence_shouldReturnFalseWhenMissingWithTechCombination() {
         TrajectoryEntity dtBeingImported = createTDTrajectory("FR", null);
         List<TrajectoryEntity> existingDTTrajectories = new ArrayList<>();
 
-        boolean result = resCoherenceCheckService.validateDTCoherence(existingDTTrajectories, dtBeingImported);
+        boolean result = resCoherenceCheckService.validateTDCoherence(existingDTTrajectories, dtBeingImported);
         assertFalse(result);
     }
 
@@ -1005,7 +1014,6 @@ public class ResCoherenceCheckServiceTest {
     @DisplayName("Error Message Tests")
     class ErrorMessageTests {
 
-        @Disabled
         @Test
         @DisplayName("should include missing keys in error message")
         void shouldIncludeMissingKeysInErrorMessage() {
@@ -1019,9 +1027,12 @@ public class ResCoherenceCheckServiceTest {
             List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
             tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C1"));
             tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1"));
+            // Add OTHERS trajectories to enable technology intersection
+            tdTrajectories.add(createTDTrajectoryWithData("OTHERS", null, "wind_offshore", "C1"));
+            tdTrajectories.add(createTDTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C1"));
 
-            // Create new IP to import that is not in the DB yet - import OTHERS null with new cluster
-            TrajectoryEntity ipBeingImported = createIPTrajectoryWithData("OTHERS", null, "wind_offshore", "C2");
+            // Create new IP to import with technology - import OTHERS with technology and new cluster
+            TrajectoryEntity ipBeingImported = createIPTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C2");
 
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
                     .thenReturn(ipTrajectories);
@@ -1050,8 +1061,12 @@ public class ResCoherenceCheckServiceTest {
              List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
              tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind_offshore", "C2"));
              tdTrajectories.add(createTDTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C2"));
+             // Add OTHERS trajectories to enable technology intersection
+             tdTrajectories.add(createTDTrajectoryWithData("OTHERS", null, "wind_offshore", "C2"));
+             tdTrajectories.add(createTDTrajectoryWithData("OTHERS", "wind_offshore", "wind_offshore", "C2"));
 
-             TrajectoryEntity ipBeingImported = ipTrajectories.getFirst();
+             // Import an IP with technology to trigger key extraction
+             TrajectoryEntity ipBeingImported = createIPTrajectoryWithData("FR", "wind_offshore", "wind_offshore", "C1");
 
              when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
                     .thenReturn(ipTrajectories);
@@ -1429,6 +1444,9 @@ public class ResCoherenceCheckServiceTest {
 
              List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
              lfTrajectories.add(createLFTrajectory("FR", null));
+             lfTrajectories.add(createLFTrajectory("FR", "wind"));
+             lfTrajectories.add(createLFTrajectory("OTHERS", null));
+             lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
 
              when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
                      .thenReturn(ipTrajectories);
@@ -1726,7 +1744,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "FR", "2030"
+                       "test_trajectory", "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1742,7 +1760,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "nonexistent_trajectory", "groupe1", "cluster1", "FR", "2030"
+                       "nonexistent_trajectory", "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1758,7 +1776,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       null, "groupe1", "cluster1", "FR", "2030"
+                       null, "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1774,7 +1792,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", null, "cluster1", "FR", "2030"
+                       "test_trajectory", "FR", null, "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1790,7 +1808,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", null, "FR", "2030"
+                       "test_trajectory", "FR", "groupe1", null, null, null, "2030"
                );
 
                // Assert
@@ -1806,7 +1824,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", null, "2030"
+                       "test_trajectory", null, "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1822,7 +1840,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "FR", null
+                       "test_trajectory", "FR", "groupe1", "cluster1", null, null, null
                );
 
                // Assert
@@ -1838,7 +1856,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test-trajectory_123", "groupe-1", "cluster+1", "FR", "2030-2031"
+                       "test-trajectory_123", "FR", "groupe-1", "cluster+1", null, null, "2030-2031"
                );
 
                // Assert
@@ -1854,7 +1872,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "", "groupe1", "cluster1", "FR", "2030"
+                       "", "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1870,7 +1888,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "  test_trajectory  ", "groupe1", "cluster1", "FR", "2030"
+                       "  test_trajectory  ", "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1886,7 +1904,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act - Attempt path traversal
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "../../../etc/passwd", "groupe1", "cluster1", "FR", "2030"
+                       "../../../etc/passwd", "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert
@@ -1902,13 +1920,13 @@ public class ResCoherenceCheckServiceTest {
 
                // Act & Assert - Test multiple areas
                assertFalse(resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "BE", "2030"
+                       "test_trajectory", "BE", "groupe1", "cluster1", null, null, "2030"
                ));
                assertFalse(resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "DE", "2030"
+                       "test_trajectory", "DE", "groupe1", "cluster1", null, null, "2030"
                ));
                assertFalse(resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "OTHERS", "2030"
+                       "test_trajectory", "OTHERS", "groupe1", "cluster1", null, null, "2030"
                ));
            }
 
@@ -1921,7 +1939,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "123456", "1000", "500", "FR", "2030"
+                       "123456", "FR", "1000", "500", null, null, "2030"
                );
 
                // Assert
@@ -1937,10 +1955,10 @@ public class ResCoherenceCheckServiceTest {
 
                // Act - Test with different cases
                boolean resultLower = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "fr", "2030"
+                       "test_trajectory", "fr", "groupe1", "cluster1", null, null, "2030"
                );
                boolean resultUpper = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "test_trajectory", "groupe1", "cluster1", "FR", "2030"
+                       "test_trajectory", "FR", "groupe1", "cluster1", null, null, "2030"
                );
 
                // Assert - Both should return false as files don't exist
@@ -1957,7 +1975,7 @@ public class ResCoherenceCheckServiceTest {
 
                // Act - Should not throw exception even with invalid path
                boolean result = resCoherenceCheckService.checkIfLoadFactorFileExists(
-                       "trajectory", "wind", "C1", "FR", "2030"
+                       "trajectory", "FR", "wind", "C1", null, null, "2030"
                );
 
                // Assert
@@ -2001,115 +2019,126 @@ public class ResCoherenceCheckServiceTest {
                ));
            }
 
-           @Test
-           @DisplayName("should throw exception when IP keys missing from LF files")
-           void shouldThrowExceptionWhenIPKeysInvalidInLF() {
-               // Arrange
-               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+             @Test
+             @DisplayName("should throw exception when IP keys missing from LF files")
+             void shouldThrowExceptionWhenIPKeysInvalidInLF() {
+                 // Arrange
+                 when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+                 when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
 
-               List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-               ipTrajectories.add(createIPTrajectoryWithData("FR", "wind", "wind", "C1"));
-               ipTrajectories.forEach(t -> t.setHorizon("2030"));
+                 List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+                 TrajectoryEntity ipTrajectory = createIPTrajectoryWithData("FR", "wind", "wind", "C1");
+                 ipTrajectory.setHorizon("2030");
+                 ipTrajectories.add(ipTrajectory);
 
-               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+                 List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+                 lfTrajectories.add(createLFTrajectory("FR", "wind"));
+                 lfTrajectories.add(createLFTrajectory("OTHERS", "wind")); // Add OTHERS for intersection
 
-               // Act & Assert - Should throw exception as file doesn't exist
-               assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
-                       ipTrajectories, null, lfTrajectories
-               ));
-           }
+                 // Act & Assert - Should throw exception as file doesn't exist
+                 // Pass the IP trajectory with technology as trajectoryBeingImported
+                 assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
+                         ipTrajectories, ipTrajectory, lfTrajectories
+                 ));
+             }
 
-           @Test
-           @DisplayName("should extract correct available technologies from LF trajectories")
-           void shouldExtractCorrectAvailableTechnologies() {
-               // Arrange
-               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+             @Test
+             @DisplayName("should extract correct available technologies from LF trajectories")
+             void shouldExtractCorrectAvailableTechnologies() {
+                 // Arrange
+                 when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+                 when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
 
-               List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-               ipTrajectories.add(createIPTrajectoryWithData("FR", "solar", "solar", "C1"));
-               ipTrajectories.forEach(t -> t.setHorizon("2030"));
+                 List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+                 TrajectoryEntity ipTrajectory = createIPTrajectoryWithData("FR", "solar", "solar", "C1");
+                 ipTrajectory.setHorizon("2030");
+                 ipTrajectories.add(ipTrajectory);
 
-               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-               lfTrajectories.add(createLFTrajectory("FR", null)); // No tech - won't be in available
-               lfTrajectories.add(createLFTrajectory("FR", "wind")); // Different tech
-               lfTrajectories.add(createLFTrajectory("FR", "solar")); // Matching tech
+                 List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+                 lfTrajectories.add(createLFTrajectory("FR", null)); // No tech - won't be in available
+                 lfTrajectories.add(createLFTrajectory("FR", "wind")); // Different tech
+                 lfTrajectories.add(createLFTrajectory("FR", "solar")); // Matching tech
+                 lfTrajectories.add(createLFTrajectory("OTHERS", "solar")); // Add OTHERS for intersection
 
-               // Act & Assert - Should fail because IP has solar but LF doesn't have matching file
-               assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
-                       ipTrajectories, null, lfTrajectories
-               ));
-           }
+                 // Act & Assert - Should fail because IP has solar but LF doesn't have matching file
+                 // Pass the IP trajectory with technology as trajectoryBeingImported
+                 assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
+                         ipTrajectories, ipTrajectory, lfTrajectories
+                 ));
+             }
 
-           @Test
-           @DisplayName("should handle multiple IP trajectories with same area")
-           void shouldHandleMultipleIPTrajectoriesSameArea() {
-               // Arrange
-               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+             @Test
+             @DisplayName("should handle multiple IP trajectories with same area")
+             void shouldHandleMultipleIPTrajectoriesSameArea() {
+                 // Arrange
+                 when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+                 when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
 
-               List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-               TrajectoryEntity ip1 = createIPTrajectoryWithData("FR", "wind", "wind", "C1");
-               ip1.setHorizon("2030");
-               TrajectoryEntity ip2 = createIPTrajectoryWithData("FR", "wind", "wind", "C2");
-               ip2.setHorizon("2030");
-               ipTrajectories.add(ip1);
-               ipTrajectories.add(ip2);
+                 List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+                 TrajectoryEntity ip1 = createIPTrajectoryWithData("FR", "wind", "wind", "C1");
+                 ip1.setHorizon("2030");
+                 TrajectoryEntity ip2 = createIPTrajectoryWithData("FR", "wind", "wind", "C2");
+                 ip2.setHorizon("2030");
+                 ipTrajectories.add(ip1);
+                 ipTrajectories.add(ip2);
 
-               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-               lfTrajectories.add(createLFTrajectory("FR", "wind"));
+                 List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+                 lfTrajectories.add(createLFTrajectory("FR", "wind"));
+                 lfTrajectories.add(createLFTrajectory("OTHERS", "wind")); // Add OTHERS for intersection
 
-               // Act & Assert - Should throw because files don't exist for both C1 and C2
-               assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
-                       ipTrajectories, null, lfTrajectories
-               ));
-           }
+                 // Act & Assert - Should throw because files don't exist for both C1 and C2
+                 // Pass one of the IP trajectories as trajectoryBeingImported
+                 assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
+                         ipTrajectories, ip1, lfTrajectories
+                 ));
+             }
 
-           @Test
-           @DisplayName("should skip validation when no LF trajectories with technologies")
-           void shouldSkipValidationWhenNoLFTechnologies() {
-               // Arrange
-               List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-               TrajectoryEntity ipTrajectory = createIPTrajectoryWithData("FR", "wind", "wind", "C1");
-               ipTrajectory.setHorizon("2030");
-               ipTrajectories.add(ipTrajectory);
+            @Test
+            @DisplayName("should skip validation when no LF trajectories with technologies")
+            void shouldSkipValidationWhenNoLFTechnologies() {
+                // Arrange
+                List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+                TrajectoryEntity ipTrajectory = createIPTrajectoryWithData("FR", "wind", "wind", "C1");
+                ipTrajectory.setHorizon("2030");
+                ipTrajectories.add(ipTrajectory);
 
-               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-               lfTrajectories.add(createLFTrajectory("FR", null)); // Only no tech - no available technologies
+                List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+                lfTrajectories.add(createLFTrajectory("FR", null)); // Only no tech - no available technologies
 
-               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
-                       .thenReturn(lfTrajectories);
-               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                       .thenReturn(new ArrayList<>()); // No DT trajectories
+                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                        .thenReturn(lfTrajectories);
+                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                        .thenReturn(new ArrayList<>()); // No DT trajectories
 
-               // Act & Assert - Should skip file validation (no DT technologies available for filtering)
-               assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLFFilesCoherence(
-                       ipTrajectories, null, lfTrajectories
-               ));
-           }
+                // Act & Assert - Should skip file validation (no DT technologies available for filtering)
+                // Pass IP trajectory with technology as trajectoryBeingImported
+                assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLFFilesCoherence(
+                        ipTrajectories, ipTrajectory, lfTrajectories
+                ));
+            }
 
-           @Test
-           @DisplayName("should handle OTHERS area in IP/LF file validation")
-           void shouldHandleOthersAreaInIPLFValidation() {
-               // Arrange
-               when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
-               when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+             @Test
+             @DisplayName("should handle OTHERS area in IP/LF file validation")
+             void shouldHandleOthersAreaInIPLFValidation() {
+                 // Arrange
+                 when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/nas");
+                 when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
 
-               List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-               TrajectoryEntity ipOthers = createIPTrajectoryWithData("OTHERS", "wind", "wind", "C1");
-               ipOthers.setHorizon("2030");
-               ipTrajectories.add(ipOthers);
+                 List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+                 TrajectoryEntity ipOthers = createIPTrajectoryWithData("OTHERS", "wind", "wind", "C1");
+                 ipOthers.setHorizon("2030");
+                 ipTrajectories.add(ipOthers);
 
-               List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
-               lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+                 List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+                 lfTrajectories.add(createLFTrajectory("FR", "wind")); // Add specific area for intersection
+                 lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
 
-               // Act & Assert
-               assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
-                       ipTrajectories, null, lfTrajectories
-               ));
-           }
+                 // Act & Assert
+                 // Pass the IP trajectory with technology as trajectoryBeingImported
+                 assertThrows(BusinessException.class, () -> resCoherenceCheckService.validateIPLFFilesCoherence(
+                         ipTrajectories, ipOthers, lfTrajectories
+                 ));
+             }
 
            @Test
            @DisplayName("should handle trajectory being imported with correct area extraction")
@@ -2184,33 +2213,36 @@ public class ResCoherenceCheckServiceTest {
 
            @Test
            @DisplayName("formatKey should create correct key format")
-           void formatKeyShouldCreateCorrectKeyFormat() {
-               // Act & Assert - Tested indirectly through error messages
-               List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
-               ipTrajectories.add(createIPTrajectoryWithData("FR", null, "wind", "C1"));
-               ipTrajectories.add(createIPTrajectoryWithData("FR", "wind", "wind", "C1"));
-               ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "wind", "C1"));
-               ipTrajectories.add(createIPTrajectoryWithData("OTHERS", "wind", "wind", "C1"));
+            void formatKeyShouldCreateCorrectKeyFormat() {
+                // Act & Assert - Tested indirectly through error messages
+                List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+                ipTrajectories.add(createIPTrajectoryWithData("FR", null, "wind", "C1"));
+                ipTrajectories.add(createIPTrajectoryWithData("FR", "wind", "wind", "C1"));
+                ipTrajectories.add(createIPTrajectoryWithData("OTHERS", null, "wind", "C1"));
+                ipTrajectories.add(createIPTrajectoryWithData("OTHERS", "wind", "wind", "C1"));
 
-               List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
-               tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C2")); // Different cluster
-               tdTrajectories.add(createTDTrajectoryWithData("FR", "wind", "wind", "C2"));
+                List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+                tdTrajectories.add(createTDTrajectoryWithData("FR", null, "wind", "C2")); // Different cluster
+                tdTrajectories.add(createTDTrajectoryWithData("FR", "wind", "wind", "C2"));
+                tdTrajectories.add(createTDTrajectoryWithData("OTHERS", null, "wind", "C2")); // Add OTHERS for intersection
+                tdTrajectories.add(createTDTrajectoryWithData("OTHERS", "wind", "wind", "C2"));
 
-               TrajectoryEntity ipBeingImported = ipTrajectories.getFirst();
+                // Import with technology to trigger key extraction
+                TrajectoryEntity ipBeingImported = createIPTrajectoryWithData("FR", "wind", "wind", "C1");
 
-               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
-                       .thenReturn(ipTrajectories);
-               when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
-                       .thenReturn(tdTrajectories);
+                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                        .thenReturn(ipTrajectories);
+                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                        .thenReturn(tdTrajectories);
 
-               // Act & Assert
-               BusinessException exception = assertThrows(BusinessException.class, () ->
-                       resCoherenceCheckService.validateIPTDCoherence(studyId, ipBeingImported));
+                // Act & Assert
+                BusinessException exception = assertThrows(BusinessException.class, () ->
+                        resCoherenceCheckService.validateIPTDCoherence(studyId, ipBeingImported));
 
-               // Verify error message contains formatted keys with C1
-               assertTrue(exception.getErrorMessageArguments().stream()
-                       .anyMatch(arg -> arg.toString().contains("C1")));
-           }
+                // Verify error message contains formatted keys with C1
+                assertTrue(exception.getErrorMessageArguments().stream()
+                        .anyMatch(arg -> arg.toString().contains("C1")));
+            }
 
            @Test
            @DisplayName("getDefaultAreas should return all configured areas in uppercase")
@@ -2800,8 +2832,333 @@ public class ResCoherenceCheckServiceTest {
                when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
                        .thenReturn(dtTrajectories);
 
-               // Act & Assert
-               assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
-           }
-       }
+            // Act & Assert
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateLFDTCoherence(studyId, lfBeingImported));
+        }
+    }
+
+    @Nested
+    @DisplayName("validateIPLoadFactorCoherence Tests")
+    class ValidateIPLoadFactorCoherenceTests {
+
+        @Test
+        @DisplayName("should skip validation when no trajectory being imported")
+        void shouldSkipValidationWhenNoTrajectoryBeingImported() {
+            // Act & Assert - Should not throw
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, null));
+        }
+
+        @Test
+        @DisplayName("should validate IP LoadFactor coherence with complete combinations")
+        void shouldValidateIPLoadFactorCoherenceWithCompleteCombinations() {
+            // Arrange - Create complete IP and LF combinations
+            TrajectoryEntity ipBeingImported = createIPTrajectory("FR", "wind");
+            ipBeingImported.setFileName("ip_test");
+            ipBeingImported.setHorizon("2030");
+
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            ipTrajectories.add(createIPTrajectory("FR", null));
+            ipTrajectories.add(createIPTrajectory("OTHERS", null));
+            ipTrajectories.add(createIPTrajectory("OTHERS", "wind"));
+
+            List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+            lfTrajectories.add(createLFTrajectory("FR", null));
+            lfTrajectories.add(createLFTrajectory("FR", "wind"));
+            lfTrajectories.add(createLFTrajectory("OTHERS", null));
+            lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                    .thenReturn(lfTrajectories);
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("traj");
+
+            // Act & Assert - Should not throw (files don't exist but method should not throw for that scenario)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, ipBeingImported));
+        }
+
+        @Test
+        @DisplayName("should skip validation when LF import with missing IP combinations")
+        void shouldSkipValidationWhenLFImportWithMissingIPCombinations() {
+            // Arrange - LF being imported but IP combinations incomplete
+            TrajectoryEntity lfBeingImported = createLFTrajectory("FR", "wind");
+
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            ipTrajectories.add(createIPTrajectory("FR", null)); // Missing: FR with tech, OTHERS
+
+            List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+            lfTrajectories.add(createLFTrajectory("FR", null));
+            lfTrajectories.add(createLFTrajectory("OTHERS", null));
+            lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                    .thenReturn(lfTrajectories);
+
+            // Act & Assert - Should not throw (prérequis not satisfied)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, lfBeingImported));
+        }
+
+        @Test
+        @DisplayName("should skip file validation when no LF trajectories found")
+        void shouldSkipFileValidationWhenNoLFTrajectories() {
+            // Arrange
+            TrajectoryEntity ipBeingImported = createIPTrajectory("FR", "wind");
+
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            ipTrajectories.add(createIPTrajectory("FR", null));
+            ipTrajectories.add(createIPTrajectory("FR", "wind"));
+            ipTrajectories.add(createIPTrajectory("OTHERS", null));
+            ipTrajectories.add(createIPTrajectory("OTHERS", "wind"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                    .thenReturn(new ArrayList<>()); // No LF trajectories
+
+            // Act & Assert - Should not throw (no LF to validate files for)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, ipBeingImported));
+        }
+
+        @Test
+        @DisplayName("should validate LF LoadFactor coherence when importing LF")
+        void shouldValidateLFLoadFactorCoherenceWhenImportingLF() {
+            // Arrange - LF being imported
+            TrajectoryEntity lfBeingImported = createLFTrajectory("FR", null);
+
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            ipTrajectories.add(createIPTrajectory("FR", null));
+            ipTrajectories.add(createIPTrajectory("FR", "wind"));
+            ipTrajectories.add(createIPTrajectory("OTHERS", null));
+            ipTrajectories.add(createIPTrajectory("OTHERS", "wind"));
+
+            List<TrajectoryEntity> lfTrajectories = new ArrayList<>();
+            lfTrajectories.add(createLFTrajectory("FR", "wind"));
+            lfTrajectories.add(createLFTrajectory("OTHERS", null));
+            lfTrajectories.add(createLFTrajectory("OTHERS", "wind"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_LOAD.name(), studyId))
+                    .thenReturn(lfTrajectories);
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("traj");
+
+            // Act & Assert
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, lfBeingImported));
+        }
+    }
+
+    @Nested
+    @DisplayName("hasCompletedDTCombinations Tests")
+    class HasCompletedDTCombinationsTests {
+
+        @Test
+        @DisplayName("should return true when 2 combinations complete without technology")
+        void shouldReturnTrueWhen2CombinationsCompleteWithoutTechnology() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", null);
+
+            // Assert
+            assertTrue(result);
+        }
+
+        @Test
+        @DisplayName("should return true when 2 combinations complete with specific technology")
+        void shouldReturnTrueWhen2CombinationsCompleteWithSpecificTechnology() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", "wind");
+
+            // Assert
+            assertTrue(result);
+        }
+
+        @Test
+        @DisplayName("should return false when missing without technology combination")
+        void shouldReturnFalseWhenMissingWithoutTechCombination() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", null);
+
+            // Assert
+            assertFalse(result);
+        }
+
+        @Test
+        @DisplayName("should return false when missing with technology combination")
+        void shouldReturnFalseWhenMissingWithTechCombination() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", null);
+
+            // Assert
+            assertFalse(result);
+        }
+
+        @Test
+        @DisplayName("should return false when specific technology not found")
+        void shouldReturnFalseWhenSpecificTechnologyNotFound() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", "solar");
+
+            // Assert
+            assertFalse(result);
+        }
+
+        @Test
+        @DisplayName("should handle empty trajectory list")
+        void shouldHandleEmptyTrajectoryList() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", null);
+
+            // Assert
+            assertFalse(result);
+        }
+
+        @Test
+        @DisplayName("should handle different areas")
+        void shouldHandleDifferentAreas() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("BE", null));
+            dtTrajectories.add(createTDTrajectory("BE", "wind"));
+            dtTrajectories.add(createTDTrajectory("DE", null)); // DE only without tech, missing with tech
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "solar"));
+
+            // Act
+            boolean resultBE = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "BE", null);
+            boolean resultDE = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "DE", null);
+            boolean resultFR = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", "solar");
+
+            // Assert
+            assertTrue(resultBE); // BE has both combinations
+            assertFalse(resultDE); // DE missing with technology combination
+            assertTrue(resultFR); // FR has both combinations with solar
+        }
+
+        @Test
+        @DisplayName("should handle whitespace in technology")
+        void shouldHandleWhitespaceInTechnology() {
+            // Arrange
+            List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
+            dtTrajectories.add(createTDTrajectory("FR", null));
+            dtTrajectories.add(createTDTrajectory("FR", "  wind  ")); // With whitespace
+
+            // Act
+            boolean result = resCoherenceCheckService.hasCompletedDTCombinations(dtTrajectories, "FR", "  wind  ");
+
+            // Assert
+            assertTrue(result);
+        }
+    }
+
+    @Nested
+    @DisplayName("Edge Cases and Error Handling Tests")
+    class EdgeCasesTests {
+
+        @Test
+        @DisplayName("should handle null default configuration")
+        void shouldHandleNullDefaultConfiguration() {
+            // This test verifies that the service handles gracefully when defaultConfigService returns null
+            // It's an edge case that should be handled by the application
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, null));
+        }
+
+        @Test
+        @DisplayName("should handle large number of trajectories")
+        void shouldHandleLargeNumberOfTrajectories() {
+            // Arrange - Create a large number of trajectories
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            for (int i = 0; i < 1000; i++) {
+                ipTrajectories.add(createIPTrajectory("FR", i % 2 == 0 ? null : "wind"));
+            }
+            List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+            tdTrajectories.add(createTDTrajectory("FR", null));
+            tdTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(tdTrajectories);
+
+            // Act & Assert - Should handle large datasets efficiently
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, ipTrajectories.get(0)));
+        }
+
+        @Test
+        @DisplayName("should handle mixed case area names correctly")
+        void shouldHandleMixedCaseAreaNames() {
+            // Arrange
+            TrajectoryEntity ipBeingImported = createIPTrajectory("fr", null); // lowercase
+
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            ipTrajectories.add(createIPTrajectory("FR", null));
+            ipTrajectories.add(createIPTrajectory("FR", "wind"));
+            ipTrajectories.add(createIPTrajectory("OTHERS", null));
+            ipTrajectories.add(createIPTrajectory("OTHERS", "wind"));
+
+            List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+            tdTrajectories.add(createTDTrajectory("FR", null));
+            tdTrajectories.add(createTDTrajectory("FR", "wind"));
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(tdTrajectories);
+
+            // Act & Assert
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, ipBeingImported));
+        }
+
+        @Test
+        @DisplayName("should handle multiple missing keys scenario")
+        void shouldHandleMultipleMissingKeysScenario() {
+            // Arrange
+            TrajectoryEntity ipBeingImported = createIPTrajectory("FR", "wind");
+
+            List<TrajectoryEntity> ipTrajectories = new ArrayList<>();
+            ipTrajectories.add(createIPTrajectory("FR", null));
+            ipTrajectories.add(createIPTrajectory("FR", "wind"));
+            ipTrajectories.add(createIPTrajectory("OTHERS", null));
+            ipTrajectories.add(createIPTrajectory("OTHERS", "wind"));
+
+            List<TrajectoryEntity> tdTrajectories = new ArrayList<>();
+            tdTrajectories.add(createTDTrajectory("FR", null)); // Missing: FR with wind, others
+
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_CAPACITY.name(), studyId))
+                    .thenReturn(ipTrajectories);
+            when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
+                    .thenReturn(tdTrajectories);
+
+            // Act & Assert - Should skip validation (prérequis not satisfied)
+            assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, ipBeingImported));
+        }
+    }
 }
