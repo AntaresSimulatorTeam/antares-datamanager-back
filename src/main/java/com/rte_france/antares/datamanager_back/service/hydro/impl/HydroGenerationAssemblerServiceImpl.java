@@ -197,7 +197,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             TrajectoryType type = context.type();
             String fileName = path.getFileName().toString();
             String pspMarker = type == TrajectoryType.HYDRO_PSP_SERIES ? "_psp" : "";
-            String outputDir = getHydroOutputDirectory(type);
+            String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
 
             if (fileName.startsWith("maxpower")) {
                 try {
@@ -226,12 +226,6 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             }
             generatedFilesArrow.add(outputFileName);
         });
-    }
-
-    private String getHydroOutputDirectory(TrajectoryType type) {
-        return type == TrajectoryType.HYDRO_PSP_SERIES
-                ? antaresDataManagerProperties.getPspTsOutputDirectory()
-                : antaresDataManagerProperties.getHydroTsOutputDirectory();
     }
 
     private Set<String> nonOtherAreas(Set<String> areas, Set<String> listAreas) {
