@@ -264,7 +264,6 @@ public class ThermalCostAssembler {
             List<ThermalClusterCapacityEntity> thermalClusterCapacities
     ) {
 
-        //TODO fix it
         if (specificParam.getCluster() == null) {
             return false;
         }
@@ -362,11 +361,12 @@ public class ThermalCostAssembler {
             ThermalCommonParameterEntity commonParam,
             ThermalClusterGenerationDto dto
     ) {
+        double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
         if (economicCostTrajectories == null)
-            return 0.0;
+            return omCost;
         TrajectoryEntity trajectory = economicCostTrajectories.getTrajectory();
         if (trajectory == null)
-            return 0.0;
+            return omCost;
         Double fuelCost = findFuelCost(trajectory, fuel);
         Double co2Cost = findCo2Cost(trajectory);
         Double efficiency = dto.getEfficiency();
@@ -374,12 +374,11 @@ public class ThermalCostAssembler {
             efficiency = efficiency / 100.0;
 
         if (fuelCost != null && co2Cost != null && efficiency != null && efficiency != 0.0) {
-            double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
             Double co2Value = dto.getCo2() != null ? dto.getCo2() : 0.0;
             // Formula: fuel / efficiency + CO2 cost * CO2 (calculated in computeCo2) + om_cost
             return (fuelCost / efficiency) + (co2Cost * co2Value) + omCost;
         }
-        return 0.0;
+        return omCost;
     }
 
     /**

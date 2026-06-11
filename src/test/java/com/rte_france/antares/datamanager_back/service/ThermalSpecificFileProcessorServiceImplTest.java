@@ -310,7 +310,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
             // Header row at index 0 with labels for columns used by castDouble error messages
             var header = sheet.createRow(0);
-            String[] headerLabels = new String[41];
+            String[] headerLabels = new String[40];
             headerLabels[0] = "Node";
             headerLabels[1] = "Cluster";
             headerLabels[2] = "Min Stable Generation";

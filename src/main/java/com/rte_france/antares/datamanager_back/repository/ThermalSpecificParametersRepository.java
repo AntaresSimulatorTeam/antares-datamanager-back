@@ -10,7 +10,7 @@ import java.util.List;
 
 @Repository
 public interface ThermalSpecificParametersRepository extends JpaRepository<ThermalSpecificParametersEntity, Integer> {
-//TODO Fix it
+
     @Query("""
             select p from ThermalSpecificParametersEntity p JOIN p.trajectory.scenarioEntities s
             where p.trajectory.horizon = :horizon AND s.id =:studyId
