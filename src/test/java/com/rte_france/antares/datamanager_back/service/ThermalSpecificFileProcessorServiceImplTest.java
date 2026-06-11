@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -8,10 +9,12 @@ import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClust
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalSpecificFileProcessorServiceImpl;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -455,6 +458,119 @@ class ThermalSpecificFileProcessorServiceImplTest {
         // THEN
         assertTrue(result);
 
+    }
+
+    @Test
+    void shouldSaveThermalSpecificTrajectory() {
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<ThermalSpecificParametersEntity> params = List.of(new ThermalSpecificParametersEntity());
+        TrajectoryType type = TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER;
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        TrajectoryEntity saved = service.saveThermalSpecificTrajectory(trajectory, params, type);
+
+        assertEquals(type.name(), saved.getType());
+        assertEquals(params, saved.getThermalSpecificParameters());
+        assertEquals(saved, params.get(0).getTrajectory());
+        verify(trajectoryRepository).save(trajectory);
+    }
+
+    @Test
+    void shouldSaveThermalSpecificTrajectoryWithEmptyParams() {
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        TrajectoryType type = TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER;
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        TrajectoryEntity saved = service.saveThermalSpecificTrajectory(trajectory, Collections.emptyList(), type);
+
+        assertEquals(type.name(), saved.getType());
+        assertNull(saved.getThermalSpecificParameters());
+        verify(trajectoryRepository).save(trajectory);
+    }
+
+    @Test
+    void testGetNumericCellValue() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row row = sheet.createRow(0);
+
+        // NUMERIC
+        Cell cell0 = row.createCell(0);
+        cell0.setCellValue(123.45);
+        assertEquals(123.45, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 0));
+
+        // STRING (valid)
+        Cell cell1 = row.createCell(1);
+        cell1.setCellValue("  678.9  ");
+        assertEquals(678.9, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 1));
+
+        // STRING (empty)
+        Cell cell2 = row.createCell(2);
+        cell2.setCellValue("  ");
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 2));
+
+        // STRING (invalid)
+        Cell cell3 = row.createCell(3);
+        cell3.setCellValue("abc");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 3));
+
+        // STRING (NaN)
+        Cell cell4 = row.createCell(4);
+        cell4.setCellValue("NaN");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 4));
+
+        // BLANK
+        Cell cell5 = row.createCell(5, CellType.BLANK);
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 5));
+
+        // NULL (MissingCellPolicy)
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 6));
+    }
+
+    @Test
+    void testGetNumericCellValueFormula() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row row = sheet.createRow(0);
+
+        // Formula NUMERIC
+        Cell cell0 = row.createCell(0);
+        cell0.setCellFormula("1+1"); // Evaluates to 2.0
+        // Note: POI requires evaluation, getNumericCellValue handles it internaly
+        assertEquals(2.0, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 0));
+
+        // Formula STRING
+        Cell cell1 = row.createCell(1);
+        cell1.setCellFormula("\"123.4\"");
+        assertEquals(123.4, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 1));
+
+        // Formula STRING empty
+        Cell cell2 = row.createCell(2);
+        cell2.setCellFormula("\"\"");
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 2));
+
+        // Formula STRING invalid
+        Cell cell3 = row.createCell(3);
+        cell3.setCellFormula("\"abc\"");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 3));
+
+        // Formula BOOLEAN (default case in formula switch)
+        Cell cell4 = row.createCell(4);
+        cell4.setCellFormula("TRUE");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 4));
+    }
+
+    @Test
+    void testGetNumericCellValueUnsupported() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row row = sheet.createRow(0);
+
+        Cell cell0 = row.createCell(0, CellType.BOOLEAN);
+        cell0.setCellValue(true);
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 0));
     }
 
 }
