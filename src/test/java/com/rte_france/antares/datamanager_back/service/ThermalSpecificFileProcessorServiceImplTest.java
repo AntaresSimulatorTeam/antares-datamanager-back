@@ -14,7 +14,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -523,7 +522,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
         // BLANK
         Cell cell5 = row.createCell(5, CellType.BLANK);
-        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 5));
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, cell5.getColumnIndex()));
 
         // NULL (MissingCellPolicy)
         assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 6));
