@@ -98,7 +98,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         }
         return name.regionMatches(true, 0, prefix, 0, prefix.length());
     }
-    
+
 
     private String getStringCellValue(Row row, int idx) {
         Cell cell = row.getCell(idx);
@@ -265,7 +265,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
                 Boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(null);
                 if (toUse == null || !toUse) continue;
-                
+
                 fileAreas.add(rowArea);
 
                 if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
@@ -287,7 +287,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 int[] numericColumnIndexes = {3, 6, 8};
                 validateNumericRange(header, row, numericColumnIndexes, rowArea, clusterName, trajectoryFileName);
 
-                int[] integerColumnIndexes = {4, 5, 7, 9};
+                int[] integerColumnIndexes = {4, 5, 7};
                 validateIntegerRange(header, row, integerColumnIndexes, rowArea, clusterName, trajectoryFileName);
 
                 validateBooleanValue(row, 10, rowArea, clusterName, trajectoryFileName);
@@ -295,7 +295,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 DsrClusterEntity entity = mapRowToEntity(row, rowArea, clusterName);
                 results.add(entity);
             }
-            
+
             validateDataPresence(onlyHeader, trajectoryFileName, horizon);
             validateAreas(studyAreas, areaParam, fileAreas,trajectoryFileName, TrajectoryType.DSR);
         }
