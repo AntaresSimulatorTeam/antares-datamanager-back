@@ -2,14 +2,12 @@ package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -106,6 +104,9 @@ public class ThermalPropertiesAssemblerService {
                     .filter(t -> THERMAL_TECHNICAL_SPECIFIC_PARAMETER.equals(TrajectoryType.valueOf(t.getType())))
                     .toList();
 
+            // modulation param ts files ts
+            List<String> splitCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
+
             //clusterRef IP: name, NA, 1
             var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories); //by  area_cluster_ref (area + cluster ref)
             //clusterRef common: name, namePEMMDB, null
@@ -133,9 +134,7 @@ public class ThermalPropertiesAssemblerService {
 
                 ThermalClusterGenerationDto thermalClusterGenerationDto = computeClusterProperties(thermalCapacities, commonsForRef, specificForRef, economicEnerContentParam, economicCostTrajectory);
 
-                // modulation param ts files ts
-                List<String> splitedCmAndMrParamModulationTsFiles = thermalParamModulationService.createMatrixParamModulationTsFiles(study);
-                List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitedCmAndMrParamModulationTsFiles, areaClusterRefKey);
+                List<String> modulationParamTsFiles = extractModulationParamTsFilesByAreaClusterRefKey(splitCmAndMrParamModulationTsFiles, areaClusterRefKey);
                 thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
 
                 thermalClusterGenerationOutput.put(areaClusterRefKey, thermalClusterGenerationDto);
@@ -152,15 +151,18 @@ public class ThermalPropertiesAssemblerService {
 
     public static List<String> extractModulationParamTsFilesByAreaClusterRefKey(List<String> splitedTsFileNameList, AreaClusterRefKey areaClusterRefKey) {
 
-        //example file name : MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Other Gas conventional old 2.csv.6401800f-8425-49d5-a42b-e89cb1e8a293.arrow
+        //example file name: MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Other Gas conventional old 2.csv.6401800f-8425-49d5-a42b-e89cb1e8a293.arrow
         //area : BE
-        //cluster name : Other Gas conventional old 2
+        //cluster name: Other Gas conventional old 2
+        String targetSegment = "_" + areaClusterRefKey.area() + "_" + areaClusterRefKey.thermalClusterRef().getName() + ".csv";
+        String targetSegmentLower = targetSegment.toLowerCase();
+
         return splitedTsFileNameList.stream()
-                .filter(fileName ->
-                        fileName.contains("_" + areaClusterRefKey.area() + "_" + areaClusterRefKey.thermalClusterRef().getName() + ".csv"))
+                .filter(fileName -> {
+                    String fileNameLower = fileName.toLowerCase();
+                    return fileNameLower.contains(targetSegmentLower);
+                })
                 .toList();
-
-
     }
 
     private static LinkedHashMap<String, List<ThermalCommonParameterEntity>> extractCommonParamsByClusterRef(List<TrajectoryEntity> parameterTrajectories) {
