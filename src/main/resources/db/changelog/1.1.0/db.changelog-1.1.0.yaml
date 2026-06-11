@@ -109,6 +109,6 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V51-drop-others_ligne-from-default_load.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V53-add_ocgt_to_thermal_technology.sql
-
       file: classpath*:db/changelog/1.1.0/V52-change_warning_message_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V53-add_ocgt_to_thermal_technology.sql
