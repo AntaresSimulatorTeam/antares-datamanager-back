@@ -121,7 +121,6 @@ public class ThermalPropertiesAssemblerService {
 
                 List<ThermalCommonParameterEntity> commonsForRef = capacityClusterName == null ? List.of() : commonsParamByClusterName.getOrDefault(capacityClusterName, List.of());
                 //get list of specific param for the cluster ref : by matching name and technology is null
-               //TODO FIX IT
                 List<ThermalSpecificParametersEntity> specificForRef = specificTrajectories.stream()
                         .flatMap(t -> Optional.ofNullable(t.getThermalSpecificParameters()).orElseGet(List::of).stream())
                         .filter(specific -> specific.getCluster() != null

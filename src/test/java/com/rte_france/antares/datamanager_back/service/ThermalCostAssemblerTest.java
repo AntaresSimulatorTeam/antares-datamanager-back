@@ -209,6 +209,35 @@ class ThermalCostAssemblerTest {
         assertThat(dto.getMarketBidCost()).isEqualTo(10.8133);
     }
 
+    @Test
+    void computeFallbackMarginalCostWithOm_shouldReturnOmCostWhenDataMissing() {
+        // given
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder()
+                .efficiency(0.5)
+                .nominalCapacity(100.0)
+                .build();
+
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setOmCost(15.0);
+        commonParam.setStartUpFixCost(100.0);
+        commonParam.setStartUpFuel(10.0);
+        commonParam.setFuel("gas");
+
+        // when - economicCostTrajectory is null, so it will fallback
+        thermalCostAssembler.computeStartupAndMarginalCost(dto, List.of(commonParam), List.of(), List.of(), null);
+
+        // then
+        // marginalCost should be omCost (15.0) instead of 0.0
+        assertThat(dto.getMarginalCost()).isEqualTo(15.0);
+        assertThat(dto.getMarginalCostSource()).isEqualTo(ThermalCostAssembler.MarginalCostResult.Source.FALLBACK_OM);
+
+        // marginalCostAdjustment = marginalCost - omCost = 15.0 - 15.0 = 0.0
+        // startupCost = (startupFuel * (1 / 3.6) * efficiency * marginalCostAdjustment) + startupFixCost
+        // startupCost = (10.0 * (1 / 3.6) * 0.5 * 0.0) + 100.0 = 100.0
+        // startupCostFinal = 100.0 * 100.0 = 10000.0
+        assertThat(dto.getStartupCost()).isEqualTo(10000.0);
+    }
+
     private static @NonNull TrajectoryEntity getTrajectoryEntity() {
         ThermalCostTypeEntity fuelType = new ThermalCostTypeEntity();
         fuelType.setFuel("gas");
