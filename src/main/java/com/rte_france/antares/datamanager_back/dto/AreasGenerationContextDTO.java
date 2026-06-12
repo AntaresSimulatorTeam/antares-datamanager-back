@@ -14,6 +14,6 @@ public class AreasGenerationContextDTO {
     private Map<String, StsGenerationDTO> stsClusterProps;
     private Map<String, DsrGenerationDTO> dsrClusterProps;
     private Map<String, List<MiscGenerationDTO>> miscProps;
-    private Map<String, Map<String, Object>> resProps;
+    private Map<String, Map<String, ResClusterGenerationDto>> resProps;
     private Map<String, List<HydroGenerationDTO>> hydroProps;
 }
