@@ -3,6 +3,8 @@ package com.rte_france.antares.datamanager_back.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -630,9 +632,7 @@ class StudyGeneratorServiceImplTest {
     void buildJsonForStudyGeneration_shouldIncludeResInAreas() throws Exception {
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
-        Map<String, Object> cluster = new LinkedHashMap<>();
-        cluster.put("properties", Map.of("group", "wind_offshore", "capacity", 1200.0));
-        cluster.put("series", List.of("fr_wind.arrow"));
+        var cluster = new ResClusterGenerationDto(new ResClusterPropertiesDto(1200.0, "wind_offshore"), List.of("fr_wind.arrow"), null);
         when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Map.of("DE", Map.of("wind_offshore", cluster)));
 
         studyGeneratorService.buildJsonForStudyGeneration(1);

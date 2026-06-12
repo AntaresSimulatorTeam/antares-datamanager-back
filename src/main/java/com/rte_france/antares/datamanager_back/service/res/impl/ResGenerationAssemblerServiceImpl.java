@@ -1,6 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.ResFrAggregationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -35,14 +38,6 @@ import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomain
 @RequiredArgsConstructor
 public class ResGenerationAssemblerServiceImpl implements ResGenerationAssemblerService {
 
-    private static final String PROPERTIES = "properties";
-    private static final String GROUP = "group";
-    private static final String CAPACITY = "capacity";
-    private static final String SERIES = "series";
-    private static final String FR_AGGREGATION = "fr_aggregation";
-    private static final String ZONE_WEIGHTS = "zone_weights";
-    private static final String TECH_WEIGHTS_BY_ZONE = "tech_weights_by_zone";
-    private static final String SERIES_BY_ZONE_AND_TECH = "series_by_zone_and_tech";
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
 
     private final NasFileService nasFileService;
@@ -50,7 +45,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private final PathSecurityUtil pathSecurityUtil;
 
     @Override
-    public Map<String, Map<String, Object>> assembleResProperties(StudyEntity studyEntity) {
+    public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
         var trajectories = studyEntity.getTrajectories();
         if (trajectories == null || trajectories.isEmpty()) {
             return Collections.emptyMap();
@@ -92,7 +87,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .build();
     }
 
-    private Map<String, Map<String, Object>> processAreaClusters(
+    private Map<String, Map<String, ResClusterGenerationDto>> processAreaClusters(
             Map<String, List<ResClusterCapacityEntity>> capacities,
             TrajectoryCollections collections,
             Map<String, ResSeriesRef> frSeriesIndex,
@@ -112,7 +107,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         ));
     }
 
-    private Map<String, Object> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
+    private Map<String, ResClusterGenerationDto> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
         return capacities.stream()
                 .collect(Collectors.groupingBy(cap -> normalizeGroup(cap.getGroupe()), LinkedHashMap::new, Collectors.toList()))
                 .entrySet().stream()
@@ -124,34 +119,27 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 ));
     }
 
-    private Map<String, Object> buildGroupCluster(String groupKey, List<ResClusterCapacityEntity> entities, ClusterAggregationContext context) {
+    private ResClusterGenerationDto buildGroupCluster(String groupKey, List<ResClusterCapacityEntity> entities, ClusterAggregationContext context) {
         var installedPower = entities.stream()
                 .map(ResClusterCapacityEntity::getCapacityByYear)
                 .filter(Objects::nonNull)
                 .mapToDouble(BigDecimal::doubleValue)
                 .sum();
 
-        var clusterPropertiesMap = new LinkedHashMap<String, Object>();
-        clusterPropertiesMap.put(CAPACITY, installedPower);
-        clusterPropertiesMap.put(GROUP, groupKey);
-
-        var clusterMap = new LinkedHashMap<String, Object>();
-        clusterMap.put(PROPERTIES, clusterPropertiesMap);
+        var clusterProperties = new ResClusterPropertiesDto(installedPower, groupKey);
 
         if (ResDomainRules.FR_AREA.equalsIgnoreCase(context.area())) {
-            clusterMap.put(SERIES, Collections.emptyList());
-            clusterMap.put(FR_AGGREGATION, buildFrAggregation(
+            var frAggregation = buildFrAggregation(
                     groupKey, installedPower, context.techDistributions(), context.zonalDistributions(), context.frSeriesIndex()
-            ));
+            );
+            return new ResClusterGenerationDto(clusterProperties, Collections.emptyList(), frAggregation);
         } else {
             var seriesPath = resolveIndexedSingleSeries(context.area(), groupKey, context.nonFrSeriesIndex());
-            clusterMap.put(SERIES, List.of(seriesPath));
+            return new ResClusterGenerationDto(clusterProperties, List.of(seriesPath), null);
         }
-
-        return clusterMap;
     }
 
-    private Map<String, Object> buildFrAggregation(
+    private ResFrAggregationDto buildFrAggregation(
             String normalizedGroup,
             double installedPower,
             List<ResTechnologyDistributionEntity> technologyDistributions,
@@ -170,11 +158,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
 
-        var aggregation = new LinkedHashMap<String, Object>();
-        aggregation.put(ZONE_WEIGHTS, zoneWeights);
-        aggregation.put(TECH_WEIGHTS_BY_ZONE, techWeightsByZone);
-        aggregation.put(SERIES_BY_ZONE_AND_TECH, seriesByZoneAndTech);
-        return aggregation;
+        return new ResFrAggregationDto(zoneWeights, techWeightsByZone, seriesByZoneAndTech);
     }
 
     private Map<String, Double> calculateZoneWeights(

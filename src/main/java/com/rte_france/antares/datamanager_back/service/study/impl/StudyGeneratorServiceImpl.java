@@ -182,7 +182,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, List<MiscGenerationDTO>> areaMiscGenerationDtoMap = miscPropertiesAssemblerService.assembleMiscProperties(studyEntity);
         log.info("Misc generation {} entries", areaMiscGenerationDtoMap != null ? areaMiscGenerationDtoMap.size() : 0);
 
-        Map<String, Map<String, Object>> areaResGenerationMap = resGenerationAssemblerService.assembleResProperties(studyEntity);
+        var areaResGenerationMap = resGenerationAssemblerService.assembleResProperties(studyEntity);
         log.info("RES generation {} entries", areaResGenerationMap != null ? areaResGenerationMap.size() : 0);
 
         Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
@@ -237,7 +237,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), context.getStsClusterProps());
         Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), context.getDsrClusterProps());
         Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), context.getMiscProps());
-        Map<String, Object> resMap = resToJsonService.buildResDataMap(areaDTO.getName(), context.getResProps());
+        var resMap = resToJsonService.buildResDataMap(areaDTO.getName(), context.getResProps());
         Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), context.getHydroProps());
 
         List<String> arrowLoadFiles = context.getArrowLoadFilesByArea().get(areaDTO.getName());

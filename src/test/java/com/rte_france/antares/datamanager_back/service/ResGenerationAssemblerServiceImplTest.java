@@ -1,6 +1,8 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -85,8 +87,8 @@ class ResGenerationAssemblerServiceImplTest {
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity(area, group, 100))
             );
 
-            Map<String, Object> payload = getGroupPayload(service.assembleResProperties(study), area, expectedKey);
-            assertEquals(List.of(fileName + ".arrow"), payload.get("series"));
+            var payload = getGroupPayload(service.assembleResProperties(study), area, expectedKey);
+            assertEquals(List.of(fileName + ".arrow"), payload.series());
         }
 
         @Test
@@ -101,7 +103,7 @@ class ResGenerationAssemblerServiceImplTest {
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "solar pv", 500))
             );
 
-            Map<String, Map<String, Object>> res = service.assembleResProperties(study);
+            var res = service.assembleResProperties(study);
             assertNotNull(res.get("DE").get("solar_pv"));
         }
 
@@ -210,12 +212,11 @@ class ResGenerationAssemblerServiceImplTest {
                             createTech("FR", "solar pv", "FR01", "solar_pv_utility", 100.0))
             );
 
-            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+            var result = service.assembleResProperties(study);
             assertNotNull(result.get("FR").get("solar_pv"));
         }
 
         @Test
-        @SuppressWarnings("unchecked")
         void shouldCoverZeroWeightBranchesInFrLoop() {
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "wind offshore", 1000)),
@@ -224,11 +225,12 @@ class ResGenerationAssemblerServiceImplTest {
                             createTech("FR", "wind offshore", "FR01", "techA", 100.0))
             );
 
-            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-            Map<String, Object> aggregation = (Map<String, Object>) getGroupPayload(result, "FR", "wind_offshore").get("fr_aggregation");
+            var result = service.assembleResProperties(study);
+            var dto = getGroupPayload(result, "FR", "wind_offshore");
 
             // zone_weights contains FR01 with 0.0, but tech_weights_by_zone should be empty for that zone
-            assertTrue(((Map<?, ?>) aggregation.get("tech_weights_by_zone")).isEmpty());
+            assertNotNull(dto.frAggregation());
+            assertTrue(dto.frAggregation().techWeightsByZone().isEmpty());
         }
     }
 
@@ -295,7 +297,7 @@ class ResGenerationAssemblerServiceImplTest {
             case ResClusterCapacityEntity e -> t.setResClusterCapacityEntities(List.of(e));
             case ResZonalDistributionEntity e -> t.setResZonalDistributionCapacityEntities(List.of(e));
             case ResTechnologyDistributionEntity e -> t.setResTechnologyDistributionCapacityEntities(List.of(e));
-            default -> {}
+            default -> { /* nothing */ }
         }
         return t;
     }
@@ -328,7 +330,7 @@ class ResGenerationAssemblerServiceImplTest {
                     createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("DE", "wind onshore", 300))
             );
 
-            var expected = Map.of("properties", Map.of("capacity", 300.0, "group", "wind_onshore"), "series", List.of("de_wind.arrow"));
+            var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(300.0, "wind_onshore"), List.of("de_wind.arrow"), null);
             assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
                     "Area techno capacity should replace area capacity, not sum");
         }
@@ -354,9 +356,9 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             var result = service.assembleResProperties(study).get("DE");
-            assertEquals(Map.of("properties", Map.of("capacity", 300.0, "group", "wind_onshore"), "series", List.of("de.arrow")),
+            assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(300.0, "wind_onshore"), List.of("de.arrow"), null),
                     result.get("wind_onshore"), "Area techno should have priority");
-            assertEquals(Map.of("properties", Map.of("capacity", 200.0, "group", "wind_offshore"), "series", List.of("de.arrow")),
+            assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(200.0, "wind_offshore"), List.of("de.arrow"), null),
                     result.get("wind_offshore"), "Empty area techno should fall back to area");
         }
 
@@ -379,7 +381,7 @@ class ResGenerationAssemblerServiceImplTest {
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
             );
 
-            var expected = Map.of("properties", Map.of("capacity", 100.0, "group", "wind_onshore"), "series", List.of("techno_series.arrow"));
+            var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(100.0, "wind_onshore"), List.of("techno_series.arrow"), null);
             assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
                     "Area techno LF series should take priority over only area LF series");
         }
@@ -391,8 +393,7 @@ class ResGenerationAssemblerServiceImplTest {
         return t;
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> getGroupPayload(Map<String, Map<String, Object>> res, String a, String g) {
-        return (Map<String, Object>) res.get(a.toUpperCase()).get(g.replace(" ", "_"));
+    private ResClusterGenerationDto getGroupPayload(Map<String, Map<String, ResClusterGenerationDto>> res, String a, String g) {
+        return res.get(a.toUpperCase()).get(g.replace(" ", "_"));
     }
 }
