@@ -215,6 +215,7 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        @SuppressWarnings("unchecked")
         void shouldCoverZeroWeightBranchesInFrLoop() {
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "wind offshore", 1000)),
@@ -289,10 +290,13 @@ class ResGenerationAssemblerServiceImplTest {
 
     private TrajectoryEntity createTrajectory(TrajectoryType type, Object content) {
         TrajectoryEntity t = TrajectoryEntity.builder().type(type.name()).fileName(DEFAULT_TRAJECTORY).build();
-        if (content instanceof String s) t.setFileName(s);
-        else if (content instanceof ResClusterCapacityEntity e) t.setResClusterCapacityEntities(List.of(e));
-        else if (content instanceof ResZonalDistributionEntity e) t.setResZonalDistributionCapacityEntities(List.of(e));
-        else if (content instanceof ResTechnologyDistributionEntity e) t.setResTechnologyDistributionCapacityEntities(List.of(e));
+        switch (content) {
+            case String s -> t.setFileName(s);
+            case ResClusterCapacityEntity e -> t.setResClusterCapacityEntities(List.of(e));
+            case ResZonalDistributionEntity e -> t.setResZonalDistributionCapacityEntities(List.of(e));
+            case ResTechnologyDistributionEntity e -> t.setResTechnologyDistributionCapacityEntities(List.of(e));
+            default -> {}
+        }
         return t;
     }
 
@@ -307,6 +311,84 @@ class ResGenerationAssemblerServiceImplTest {
     private ResTechnologyDistributionEntity createTech(String a, String g, String z, String tech, double w) {
         return ResTechnologyDistributionEntity.builder().area(a).groupe(g).pecdZone(z)
                 .pecdTechnology(tech).capacityByYear(w).build();
+    }
+
+    @Nested
+    class TechnoTrajectoryPriority {
+
+        @Test
+        void shouldNotSumCapacityWhenTechnoTrajectoryCoversGroup() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("de_wind.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100)),
+                    createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("DE", "wind onshore", 300))
+            );
+
+            var expected = Map.of("properties", Map.of("capacity", 300.0, "group", "wind_onshore"), "series", List.of("de_wind.arrow"));
+            assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
+                    "Area techno capacity should replace area capacity, not sum");
+        }
+
+        @Test
+        void shouldFallBackToAreaForGroupsNotCoveredByTechnoTrajectory() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_offshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("de.arrow");
+
+            TrajectoryEntity areaCapTraj = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_CAPACITY.name()).fileName(DEFAULT_TRAJECTORY).build();
+            areaCapTraj.setResClusterCapacityEntities(List.of(
+                    createCapacity("DE", "wind onshore", 100),
+                    createCapacity("DE", "wind offshore", 200)
+            ));
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    areaCapTraj,
+                    createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("DE", "wind onshore", 300))
+            );
+
+            var result = service.assembleResProperties(study).get("DE");
+            assertEquals(Map.of("properties", Map.of("capacity", 300.0, "group", "wind_onshore"), "series", List.of("de.arrow")),
+                    result.get("wind_onshore"), "Area techno should have priority");
+            assertEquals(Map.of("properties", Map.of("capacity", 200.0, "group", "wind_offshore"), "series", List.of("de.arrow")),
+                    result.get("wind_offshore"), "Empty area techno should fall back to area");
+        }
+
+        @Test
+        void shouldPreferTechnoLfSeriesOverAreaLfSeriesForSameGroup() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile("LF_techno", "wind_DE_onshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("area_series.arrow", "techno_series.arrow");
+
+            TrajectoryEntity technoLfTraj = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name())
+                    .fileName("LF_techno")
+                    .technology("wind_onshore")
+                    .build();
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    technoLfTraj,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            var expected = Map.of("properties", Map.of("capacity", 100.0, "group", "wind_onshore"), "series", List.of("techno_series.arrow"));
+            assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
+                    "Area techno LF series should take priority over only area LF series");
+        }
+    }
+
+    private TrajectoryEntity createTechnoTrajectory(TrajectoryType type, String technology, Object content) {
+        TrajectoryEntity t = createTrajectory(type, content);
+        t.setTechnology(technology);
+        return t;
     }
 
     @SuppressWarnings("unchecked")
