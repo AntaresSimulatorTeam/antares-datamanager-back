@@ -311,20 +311,24 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .normalize();
 
         List<ResSeriesRef> result = new ArrayList<>();
-
-        // track processed links to avoid duplicate series
         Set<String> processedLinks = new HashSet<>();
 
         for (TrajectoryEntity trajectory : resLoadTrajectories) {
             String trajectoryFileName = trajectory.getFileName();
-            boolean fromTechnoTrajectory = trajectory.getTechnology() != null && !trajectory.getTechnology().isBlank();
-            String linkedArea = trajectory.getArea() != null ? trajectory.getArea().toUpperCase(Locale.ROOT) : "";
-            String linkedTech = trajectory.getTechnology() != null ? trajectory.getTechnology().toUpperCase(Locale.ROOT) : "";
+            if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
+                continue;
+            }
+
+            String rawArea = trajectory.getArea();
+            String rawTech = trajectory.getTechnology();
+            String linkedArea = rawArea != null ? rawArea.toUpperCase(Locale.ROOT) : "";
+            String linkedTech = rawTech != null ? rawTech.toUpperCase(Locale.ROOT) : "";
+            boolean fromTechnoTrajectory = !linkedTech.isBlank();
             String linkKey = trajectoryFileName + "|" + linkedArea + "|" + linkedTech;
 
-            if (trajectoryFileName != null && !trajectoryFileName.isBlank() && processedLinks.add(linkKey)) {
-                resolveSeriesInTrajectory(trajectory, base, result, fromTechnoTrajectory,
-                        trajectory.getArea(), trajectory.getTechnology());
+            if (processedLinks.add(linkKey)) {
+                log.debug("Scanning RES load trajectory '{}' linked to area='{}' tech='{}'", trajectoryFileName, linkedArea, linkedTech);
+                resolveSeriesInTrajectory(trajectory, base, result, fromTechnoTrajectory, linkedArea, linkedTech);
             }
         }
 
@@ -565,7 +569,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                             if (existing.fromTechnoTrajectory() && !replacement.fromTechnoTrajectory()) return existing;
                             throw BusinessException.builder()
                                     .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
-                                    + "'. Only one series is allowed per area and RES group. Check that the linked trajectories do not contain overlapping series files for this combination.")
+                                    + "'. Only one series is allowed per area and RES group. Check that the linked trajectories do not contain overlapping series files for this combination."
+                                    + " (conflicting files: '" + existing.sourceKey() + "' and '" + replacement.sourceKey() + "')")
                                     .httpStatus(HttpStatus.BAD_REQUEST)
                                     .build();
                         }
