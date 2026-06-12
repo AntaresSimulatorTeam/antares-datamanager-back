@@ -59,8 +59,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         var series = createArrowSeriesForResLoad(studyEntity);
-        series.forEach(s -> log.info("RES series collected: area={}, group={}, fromTechno={}, file='{}'",
-                s.area(), s.group(), s.fromTechnoTrajectory(), s.sourceKey()));
         var frSeriesIndex = indexFrSeries(series);
         var nonFrSeriesIndex = indexNonFrSeries(series);
 
@@ -314,38 +312,28 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         List<ResSeriesRef> result = new ArrayList<>();
         Set<String> processedLinks = new HashSet<>();
-
-        for (TrajectoryEntity trajectory : resLoadTrajectories) {
-            String trajectoryFileName = trajectory.getFileName();
-            if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
-                continue;
-            }
-
-            String rawArea = trajectory.getArea();
-            String rawTech = trajectory.getTechnology();
-            String normalizedArea = toKey(rawArea);
-            String normalizedTech = toKey(rawTech);
-            String linkedArea = normalizedArea.toUpperCase(Locale.ROOT);
-            String linkedTech = normalizedTech.toUpperCase(Locale.ROOT);
-            String linkKey = trajectoryFileName + "|" + normalizedArea + "|" + normalizedTech;
-            boolean fromTechnoTrajectory = !normalizedTech.isBlank();
-
-            boolean isNewLink = processedLinks.add(linkKey);
-            log.info("RES load link: file='{}' rawArea=[{}] rawTech=[{}] linkKey='{}' new={}",
-                    trajectoryFileName, rawArea, rawTech, linkKey, isNewLink);
-            if (isNewLink) {
-                resolveSeriesInTrajectory(trajectory, base, result, fromTechnoTrajectory, linkedArea, linkedTech);
-            }
-        }
-
+        resLoadTrajectories.forEach(t -> processResLoadLink(t, base, result, processedLinks));
         return result;
     }
 
-    private void resolveSeriesInTrajectory(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result, boolean fromTechnoTrajectory, String linkedArea, String linkedTech) {
-        String trajectoryFileName = trajectory.getFileName();
-        if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
-            return;
+    private void processResLoadLink(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result, Set<String> processedLinks) {
+        String fileName = trajectory.getFileName();
+        if (fileName == null || fileName.isBlank()) return;
+
+        String normalizedArea = toKey(trajectory.getArea());
+        String normalizedTech = toKey(trajectory.getTechnology());
+        String linkKey = fileName + "|" + normalizedArea + "|" + normalizedTech;
+
+        boolean isNewLink = processedLinks.add(linkKey);
+        log.debug("RES load link: file='{}' area=[{}] tech=[{}] linkKey='{}' new={}",
+                fileName, trajectory.getArea(), trajectory.getTechnology(), linkKey, isNewLink);
+        if (isNewLink) {
+            resolveSeriesInTrajectory(fileName, base, result, !normalizedTech.isBlank(),
+                    normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT));
         }
+    }
+
+    private void resolveSeriesInTrajectory(String trajectoryFileName, Path base, List<ResSeriesRef> result, boolean fromTechnoTrajectory, String linkedArea, String linkedTech) {
 
         try {
             pathSecurityUtil.validatePathFromBaseDir(trajectoryFileName, AntaresDataManagerProperties::getResLoadDirectory);
@@ -367,7 +355,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                                 return false;
                             }
                         })
-                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, result, fromTechnoTrajectory, linkedArea, linkedTech));
+                        .forEach(file -> createSeriesFromFile(file, trajectoryFileName, trajectoryRoot, result, fromTechnoTrajectory, linkedArea, linkedTech));
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -377,7 +365,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
     }
 
-    private void createSeriesFromFile(Path file, Path trajectoryRoot, List<ResSeriesRef> result, boolean fromTechnoTrajectory, String linkedArea, String linkedTech) {
+    private void createSeriesFromFile(Path file, String trajectoryFileName, Path trajectoryRoot, List<ResSeriesRef> result, boolean fromTechnoTrajectory, String linkedArea, String linkedTech) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
             if (linkedArea != null && !linkedArea.isBlank() && !linkedArea.equalsIgnoreCase(parsedKey.area())) {
@@ -390,6 +378,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             try {
                 String arrowName = nasFileService.readAndSaveMatrixToNas(file, outputDir, null, true);
                 result.add(new ResSeriesRef(
+                        trajectoryFileName,
                         toKey(rel.replace('\\', '/')),
                         arrowName,
                         parsedKey.area(),
@@ -558,7 +547,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory) { }
+    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory) { }
 
     private record ParsedSeriesKey(String area, String group, String zone, String technology) {
     }
@@ -575,9 +564,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                             if (existing.fromTechnoTrajectory() && !replacement.fromTechnoTrajectory()) return existing;
                             throw BusinessException.builder()
                                     .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
-                                    + "'. Only one series is allowed per area and RES group. Check that the linked trajectories do not contain overlapping series files for this combination."
-                                    + " (existing: fromTechno=" + existing.fromTechnoTrajectory() + ", file='" + existing.sourceKey()
-                                    + "'; duplicate: fromTechno=" + replacement.fromTechnoTrajectory() + ", file='" + replacement.sourceKey() + "')")
+                                    + "'. Two trajectories linked to this area and group both contain a series for it:"
+                                    + " trajectory '" + existing.trajectoryFileName() + "' and trajectory '" + replacement.trajectoryFileName() + "'."
+                                    + " Only one trajectory should provide a load-factor series per area and RES group."
+                                    + " (conflicting file: '" + existing.sourceKey() + "')")
                                     .httpStatus(HttpStatus.BAD_REQUEST)
                                     .build();
                         }
