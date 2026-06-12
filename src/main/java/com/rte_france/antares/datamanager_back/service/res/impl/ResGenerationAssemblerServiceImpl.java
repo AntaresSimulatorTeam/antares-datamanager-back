@@ -325,8 +325,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String rawTech = trajectory.getTechnology();
             String linkedArea = rawArea != null ? rawArea.toUpperCase(Locale.ROOT) : "";
             String linkedTech = rawTech != null ? rawTech.toUpperCase(Locale.ROOT) : "";
+            String linkKey = trajectoryFileName + "|" + linkedArea + "|" + toKey(rawTech);
             boolean fromTechnoTrajectory = !linkedTech.isBlank();
-            String linkKey = trajectoryFileName + "|" + linkedArea + "|" + linkedTech;
 
             if (processedLinks.add(linkKey)) {
                 log.debug("Scanning RES load trajectory '{}' linked to area='{}' tech='{}'", trajectoryFileName, linkedArea, linkedTech);
