@@ -331,16 +331,17 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         for (TrajectoryEntity trajectory : resLoadTrajectories) {
             String trajectoryFileName = trajectory.getFileName();
+            boolean fromTechnoTrajectory = trajectory.getTechnology() != null && !trajectory.getTechnology().isBlank();
 
             if (trajectoryFileName != null && !trajectoryFileName.isBlank() && processedTrajectories.add(trajectoryFileName)) {
-                resolveSeriesInTrajectory(trajectory, base, result);
+                resolveSeriesInTrajectory(trajectory, base, result, fromTechnoTrajectory);
             }
         }
 
         return result;
     }
 
-    private void resolveSeriesInTrajectory(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result) {
+    private void resolveSeriesInTrajectory(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result, boolean fromTechnoTrajectory) {
         String trajectoryFileName = trajectory.getFileName();
         if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
             return;
@@ -366,7 +367,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                                 return false;
                             }
                         })
-                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, result));
+                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, result, fromTechnoTrajectory));
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -376,7 +377,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
     }
 
-    private void createSeriesFromFile(Path file, Path trajectoryRoot, List<ResSeriesRef> result) {
+    private void createSeriesFromFile(Path file, Path trajectoryRoot, List<ResSeriesRef> result, boolean fromTechnoTrajectory) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
             String outputDir = antaresDataManagerProperties.getResTsOutputDirectory();
@@ -388,7 +389,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         parsedKey.area(),
                         parsedKey.group(),
                         parsedKey.zone(),
-                        parsedKey.technology()
+                        parsedKey.technology(),
+                        fromTechnoTrajectory
                 ));
             } catch (IOException e) {
                 throw TechnicalException.builder()
@@ -550,7 +552,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology) { }
+    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory) { }
 
     private record ParsedSeriesKey(String area, String group, String zone, String technology) {
     }
@@ -562,6 +564,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT),
                         ref -> ref,
                         (existing, replacement) -> {
+                            // area-techno over area only
+                            if (replacement.fromTechnoTrajectory() && !existing.fromTechnoTrajectory()) return replacement;
+                            if (existing.fromTechnoTrajectory() && !replacement.fromTechnoTrajectory()) return existing;
                             throw BusinessException.builder()
                                     .message("Duplicate non-FR series found")
                                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -587,31 +592,70 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     ) {}
 
     private TrajectoryCollections collectTrajectoriesSinglePass(StudyEntity studyEntity) {
-        var capacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
+        var areaCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
+        var technoCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
         var technologies = new LinkedHashMap<String, List<ResTechnologyDistributionEntity>>();
         var zonals = new LinkedHashMap<String, List<ResZonalDistributionEntity>>();
 
         studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .forEach(trajectory -> routeTrajectoryData(trajectory, capacities, technologies, zonals));
+                .forEach(trajectory -> routeTrajectoryData(trajectory, areaCapacities, technoCapacities, technologies, zonals));
 
-        return new TrajectoryCollections(capacities, technologies, zonals);
+        return new TrajectoryCollections(mergeCapacities(areaCapacities, technoCapacities), technologies, zonals);
     }
 
     private void routeTrajectoryData(
             TrajectoryEntity trajectory,
-            Map<String, List<ResClusterCapacityEntity>> capacities,
+            Map<String, List<ResClusterCapacityEntity>> areaCapacities,
+            Map<String, List<ResClusterCapacityEntity>> technoCapacities,
             Map<String, List<ResTechnologyDistributionEntity>> technologies,
             Map<String, List<ResZonalDistributionEntity>> zonals
     ) {
         var type = TrajectoryType.valueOf(trajectory.getType());
+        boolean isTechno = trajectory.getTechnology() != null && !trajectory.getTechnology().isBlank();
 
         switch (type) {
-            case RES_CAPACITY -> extractCapacities(trajectory, capacities);
+            case RES_CAPACITY -> extractCapacities(trajectory, isTechno ? technoCapacities : areaCapacities);
             case RES_TECHNOLOGY_DISTRIBUTION -> extractTechnologies(trajectory, technologies);
             case RES_ZONAL_DISTRIBUTION -> extractZonals(trajectory, zonals);
-            default -> { /* ignore */}
+            default -> { /* ignore */ }
         }
+    }
+
+    /**
+     * Produces the final capacity map with area-techno and area logic:
+     *   Start with area-techno capacities
+     *   Then for each area that also has area capacity, add only the groups not already in area-techno
+     * @param areaOnly
+     * @param technoSpecific
+     * @return the final capacity entities for each area
+     */
+    private Map<String, List<ResClusterCapacityEntity>> mergeCapacities(
+            Map<String, List<ResClusterCapacityEntity>> areaOnly,
+            Map<String, List<ResClusterCapacityEntity>> technoSpecific
+    ) {
+        if (technoSpecific.isEmpty()) return areaOnly;
+        if (areaOnly.isEmpty()) return technoSpecific;
+
+        var merged = new LinkedHashMap<>(technoSpecific);
+
+        areaOnly.forEach((area, areaEntities) -> {
+            if (!merged.containsKey(area)) {
+                merged.put(area, areaEntities);
+            } else {
+                var technoGroups = merged.get(area).stream()
+                        .map(e -> normalizeGroup(e.getGroupe()))
+                        .collect(Collectors.toSet());
+
+                var combined = new ArrayList<>(merged.get(area));
+                areaEntities.stream()
+                        .filter(e -> !technoGroups.contains(normalizeGroup(e.getGroupe())))
+                        .forEach(combined::add);
+                merged.put(area, combined);
+            }
+        });
+
+        return merged;
     }
 
     private void extractCapacities(
