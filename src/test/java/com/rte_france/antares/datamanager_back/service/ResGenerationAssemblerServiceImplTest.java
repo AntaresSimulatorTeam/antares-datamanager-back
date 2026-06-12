@@ -418,6 +418,43 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldNotDuplicateWhenSameFilesLinkedForMultipleAreasAndAreaTechno() throws IOException {
+            // TST_FILE: area-level, covers AT and BE (both wind_offshore series in the same directory)
+            preparePhysicalFile("TST_FILE", "wind_offshore_AT_TST_2030_2031.csv");
+            preparePhysicalFile("TST_FILE", "wind_offshore_BE_TST_2030_2031.csv");
+            // AT2_FILE: area-techno, also covers AT and BE (wind_offshore)
+            preparePhysicalFile("AT2_FILE", "wind_offshore_AT_AT2_2030_2031.csv");
+            preparePhysicalFile("AT2_FILE", "wind_offshore_BE_AT2_2030_2031.csv");
+
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
+
+            TrajectoryEntity lfAt = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("TST_FILE").build();
+            lfAt.setArea("AT");
+            TrajectoryEntity lfBe = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("TST_FILE").build();
+            lfBe.setArea("BE");
+            TrajectoryEntity lfAtTechno = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("AT2_FILE").build();
+            lfAtTechno.setArea("AT");
+            lfAtTechno.setTechnology("wind_offshore");
+            TrajectoryEntity lfBeTechno = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("AT2_FILE").build();
+            lfBeTechno.setArea("BE");
+            lfBeTechno.setTechnology("wind_offshore");
+
+            StudyEntity study = createStudy(
+                    lfAt, lfBe, lfAtTechno, lfBeTechno,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("AT", "wind offshore", 100)),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("BE", "wind offshore", 200))
+            );
+
+            var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "Area-level file linked to multiple areas + area-techno file must not throw a duplicate error");
+            assertEquals(List.of("wind_offshore_AT_AT2_2030_2031.arrow"), result.get("AT").get("wind_offshore").series(),
+                    "AT should use the area-techno series");
+            assertEquals(List.of("wind_offshore_BE_AT2_2030_2031.arrow"), result.get("BE").get("wind_offshore").series(),
+                    "BE should use the area-techno series");
+        }
+
+        @Test
         void shouldPreferTechnoLfSeriesOverAreaLfSeriesForSameGroup() throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
             preparePhysicalFile("LF_techno", "wind_DE_onshore_2030_2031.csv");
