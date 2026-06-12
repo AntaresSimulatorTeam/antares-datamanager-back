@@ -59,6 +59,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         var series = createArrowSeriesForResLoad(studyEntity);
+        series.forEach(s -> log.info("RES series collected: area={}, group={}, fromTechno={}, file='{}'",
+                s.area(), s.group(), s.fromTechnoTrajectory(), s.sourceKey()));
         var frSeriesIndex = indexFrSeries(series);
         var nonFrSeriesIndex = indexNonFrSeries(series);
 
@@ -570,7 +572,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                             throw BusinessException.builder()
                                     .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
                                     + "'. Only one series is allowed per area and RES group. Check that the linked trajectories do not contain overlapping series files for this combination."
-                                    + " (conflicting files: '" + existing.sourceKey() + "' and '" + replacement.sourceKey() + "')")
+                                    + " (existing: fromTechno=" + existing.fromTechnoTrajectory() + ", file='" + existing.sourceKey()
+                                    + "'; duplicate: fromTechno=" + replacement.fromTechnoTrajectory() + ", file='" + replacement.sourceKey() + "')")
                                     .httpStatus(HttpStatus.BAD_REQUEST)
                                     .build();
                         }
