@@ -363,6 +363,61 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldNotProduceDuplicateWhenSameFileLinkedToMultipleAreas() throws IOException {
+            preparePhysicalFile("BIG_FILE", "wind_BE_onshore_2030_2031.csv");
+            preparePhysicalFile("BIG_FILE", "wind_ES_onshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> {
+                        Path p = inv.getArgument(0);
+                        return p != null && p.toString().contains("_BE_") ? "be_wind.arrow" : "es_wind.arrow";
+                    });
+
+            TrajectoryEntity lfBe = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("BIG_FILE").build();
+            lfBe.setArea("BE");
+            TrajectoryEntity lfEs = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("BIG_FILE").build();
+            lfEs.setArea("ES");
+
+            StudyEntity study = createStudy(
+                    lfBe, lfEs,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("BE", "wind onshore", 100)),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("ES", "wind onshore", 200))
+            );
+
+            var result = service.assembleResProperties(study);
+            assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "Same file linked to multiple areas must not throw duplicate error");
+            assertEquals(List.of("be_wind.arrow"), result.get("BE").get("wind_onshore").series(),
+                    "BE should get only its own series");
+            assertEquals(List.of("es_wind.arrow"), result.get("ES").get("wind_onshore").series(),
+                    "ES should get only its own series");
+        }
+
+        @Test
+        void shouldScopeAreaTechnoLinkToLinkedGroup() throws IOException {
+            preparePhysicalFile("TECHNO_FILE", "wind_BE_onshore_2030_2031.csv");
+            preparePhysicalFile("TECHNO_FILE", "wind_BE_offshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("be_onshore.arrow");
+
+            TrajectoryEntity lfTechno = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("TECHNO_FILE").build();
+            lfTechno.setArea("BE");
+            lfTechno.setTechnology("wind_onshore");
+
+            StudyEntity study = createStudy(
+                    lfTechno,
+                    createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("BE", "wind onshore", 100))
+            );
+
+            var result = service.assembleResProperties(study);
+            assertEquals(List.of("be_onshore.arrow"), result.get("BE").get("wind_onshore").series(),
+                    "Area-techno link scoped to wind_onshore should resolve its series");
+            verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean());
+        }
+
+        @Test
         void shouldPreferTechnoLfSeriesOverAreaLfSeriesForSameGroup() throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
             preparePhysicalFile("LF_techno", "wind_DE_onshore_2030_2031.csv");
