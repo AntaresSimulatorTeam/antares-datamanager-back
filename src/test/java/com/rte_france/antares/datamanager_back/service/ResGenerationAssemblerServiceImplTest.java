@@ -455,6 +455,54 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldFallBackToOthersWhenNoSpecificAreaSeriesLinked() throws IOException {
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore_DE_off_2030_2031.csv");
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore_BE_off_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
+
+            TrajectoryEntity othersLf = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("OTHERS_FILE").build();
+            othersLf.setArea("OTHERS");
+
+            StudyEntity study = createStudy(
+                    othersLf,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind offshore", 100)),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("BE", "wind offshore", 200))
+            );
+
+            var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "OTHERS should provide series for areas with no specific trajectory linked");
+            assertEquals(List.of("wind_offshore_DE_off_2030_2031.arrow"), result.get("DE").get("wind_offshore").series());
+            assertEquals(List.of("wind_offshore_BE_off_2030_2031.arrow"), result.get("BE").get("wind_offshore").series());
+        }
+
+        @Test
+        void shouldPreferSpecificAreaSeriesOverOthers() throws IOException {
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore_DE_others_2030_2031.csv");
+            preparePhysicalFile("SPECIFIC_FILE", "wind_offshore_DE_specific_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
+
+            TrajectoryEntity othersLf = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("OTHERS_FILE").build();
+            othersLf.setArea("OTHERS");
+            TrajectoryEntity specificLf = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("SPECIFIC_FILE").build();
+            specificLf.setArea("DE");
+
+            StudyEntity study = createStudy(
+                    othersLf, specificLf,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind offshore", 100))
+            );
+
+            var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "Specific area link should have priority over OTHERS");
+            assertEquals(List.of("wind_offshore_DE_specific_2030_2031.arrow"),
+                    result.get("DE").get("wind_offshore").series(), "Specific area series must take priority over OTHERS");
+        }
+
+        @Test
         void shouldPreferTechnoLfSeriesOverAreaLfSeriesForSameGroup() throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
             preparePhysicalFile("LF_techno", "wind_DE_onshore_2030_2031.csv");

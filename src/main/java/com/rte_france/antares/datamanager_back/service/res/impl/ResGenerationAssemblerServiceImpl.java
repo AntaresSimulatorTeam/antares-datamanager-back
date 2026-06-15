@@ -324,16 +324,17 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         String normalizedTech = toKey(trajectory.getTechnology());
         String linkKey = fileName + "|" + normalizedArea + "|" + normalizedTech;
 
+        boolean fromOthersArea = ResDomainRules.OTHERS_AREA.equalsIgnoreCase(normalizedArea);
         boolean isNewLink = processedLinks.add(linkKey);
         log.debug("RES load link: file='{}' area=[{}] tech=[{}] linkKey='{}' new={}",
                 fileName, trajectory.getArea(), trajectory.getTechnology(), linkKey, isNewLink);
         if (isNewLink) {
-            resolveSeriesInTrajectory(fileName, base, result, !normalizedTech.isBlank(),
+            resolveSeriesInTrajectory(fileName, base, result, !normalizedTech.isBlank(), fromOthersArea,
                     normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT));
         }
     }
 
-    private void resolveSeriesInTrajectory(String trajectoryFileName, Path base, List<ResSeriesRef> result, boolean fromTechnoTrajectory, String linkedArea, String linkedTech) {
+    private void resolveSeriesInTrajectory(String trajectoryFileName, Path base, List<ResSeriesRef> result, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) {
 
         try {
             pathSecurityUtil.validatePathFromBaseDir(trajectoryFileName, AntaresDataManagerProperties::getResLoadDirectory);
@@ -355,7 +356,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                                 return false;
                             }
                         })
-                        .forEach(file -> createSeriesFromFile(file, trajectoryFileName, trajectoryRoot, result, fromTechnoTrajectory, linkedArea, linkedTech));
+                        .forEach(file -> createSeriesFromFile(file, trajectoryFileName, trajectoryRoot, result, fromTechnoTrajectory, fromOthersArea, linkedArea, linkedTech));
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -365,10 +366,11 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
     }
 
-    private void createSeriesFromFile(Path file, String trajectoryFileName, Path trajectoryRoot, List<ResSeriesRef> result, boolean fromTechnoTrajectory, String linkedArea, String linkedTech) {
+    private void createSeriesFromFile(Path file, String trajectoryFileName, Path trajectoryRoot, List<ResSeriesRef> result, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
-            if (linkedArea != null && !linkedArea.isBlank() && !linkedArea.equalsIgnoreCase(parsedKey.area())) {
+            if (fromOthersArea && ResDomainRules.FR_AREA.equalsIgnoreCase(parsedKey.area())) return;
+            if (!fromOthersArea && linkedArea != null && !linkedArea.isBlank() && !linkedArea.equalsIgnoreCase(parsedKey.area())) {
                 return;
             }
             if (linkedTech != null && !linkedTech.isBlank() && !toKey(linkedTech).equalsIgnoreCase(parsedKey.group())) {
@@ -385,7 +387,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         parsedKey.group(),
                         parsedKey.zone(),
                         parsedKey.technology(),
-                        fromTechnoTrajectory
+                        fromTechnoTrajectory,
+                        fromOthersArea
                 ));
             } catch (IOException e) {
                 throw TechnicalException.builder()
@@ -547,7 +550,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory) { }
+    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
 
     private record ParsedSeriesKey(String area, String group, String zone, String technology) {
     }
@@ -558,20 +561,32 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .collect(Collectors.toMap(
                         ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT),
                         ref -> ref,
-                        (existing, replacement) -> {
-                            // area-techno over area only
-                            if (replacement.fromTechnoTrajectory() && !existing.fromTechnoTrajectory()) return replacement;
-                            if (existing.fromTechnoTrajectory() && !replacement.fromTechnoTrajectory()) return existing;
-                            throw BusinessException.builder()
-                                    .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
-                                    + "'. Two trajectories linked to this area and group both contain a series for it:"
-                                    + " trajectory '" + existing.trajectoryFileName() + "' and trajectory '" + replacement.trajectoryFileName() + "'."
-                                    + " Only one trajectory should provide a load-factor series per area and RES group."
-                                    + " (conflicting file: '" + existing.sourceKey() + "')")
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        }
+                        this::mergeSeriesRefs
                 ));
+    }
+
+    /**
+     * Priority: specific area > OTHERS; area-techno > area-level.
+     * - specific+techno=3, specific+area=2, others+techno=1, others+area=0.
+     * If priority is equal, ther's a conflict
+     */
+    private ResSeriesRef mergeSeriesRefs(ResSeriesRef existing, ResSeriesRef replacement) {
+        int ep = seriesPriority(existing);
+        int rp = seriesPriority(replacement);
+        if (rp > ep) return replacement;
+        if (ep > rp) return existing;
+        throw BusinessException.builder()
+                .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
+                        + "'. Two trajectories linked to this area and group both contain a series for it:"
+                        + " trajectory '" + existing.trajectoryFileName() + "' and trajectory '" + replacement.trajectoryFileName() + "'."
+                        + " Only one trajectory should provide a load-factor series per area and RES group."
+                        + " (conflicting file: '" + existing.sourceKey() + "')")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
+
+    private int seriesPriority(ResSeriesRef ref) {
+        return (ref.fromOthersArea() ? 0 : 2) + (ref.fromTechnoTrajectory() ? 1 : 0);
     }
 
     private Map<String, ResSeriesRef> indexFrSeries(List<ResSeriesRef> series) {
@@ -580,7 +595,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .collect(Collectors.toMap(
                         ref -> ref.zone().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.technology().toUpperCase(Locale.ROOT),
                         ref -> ref,
-                        (existing, replacement) -> existing
+                        this::mergeSeriesRefs
                 ));
     }
 
