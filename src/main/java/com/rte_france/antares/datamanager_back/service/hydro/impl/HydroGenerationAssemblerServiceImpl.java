@@ -31,6 +31,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
 
+    private record TrajectoryFileContext(Path path, TrajectoryType type) {}
+
     public HydroGenerationAssemblerServiceImpl(
             NasFileService nasFileService,
             AntaresDataManagerProperties antaresDataManagerProperties,
@@ -47,7 +49,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
         List<TrajectoryEntity> hydroTechnicalTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(t.getType()))
+                .filter(t -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(t.getType()) ||
+                        TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name().equals(t.getType()))
                 .toList();
 
         hydroTechnicalTrajectories.forEach(trajectory ->
@@ -101,26 +104,25 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     }
 
     private Map<String, List<String>> createArrowSeriesForHydroSeries(StudyEntity studyEntity) throws BusinessException {
-        Map<String, List<Path>> hydroSeriesPathByArea = mapTsPathByArea(studyEntity);
+        Map<String, List<TrajectoryFileContext>> hydroSeriesPathByArea = mapTsPathByArea(studyEntity);
         Map<String, List<String>> generatedFilesByArea = new HashMap<>();
-        String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
 
         Set<String> processedAreas = new HashSet<>();
         String otherArea = OTHER_AREA.toUpperCase(Locale.ROOT);
 
         // 1. Specific areas treatment
         for (String area : nonOtherAreas(hydroSeriesPathByArea.keySet(), processedAreas)) {
-            List<Path> hydroSeriesPaths = hydroSeriesPathByArea.get(area);
+            List<TrajectoryFileContext> hydroSeriesContexts = hydroSeriesPathByArea.get(area);
 
-            if (hydroSeriesPaths != null && !hydroSeriesPaths.isEmpty()) {
+            if (hydroSeriesContexts != null && !hydroSeriesContexts.isEmpty()) {
                 List<String> generatedFilesArrow = new ArrayList<>();
-                processSeriesByArea(studyEntity, area, hydroSeriesPaths, outputDir, generatedFilesArrow);
+                processSeriesByArea(studyEntity, area, hydroSeriesContexts, generatedFilesArrow);
                 generatedFilesByArea.put(area, generatedFilesArrow);
             }
         }
 
         // 2. OTHER case
-        List<Path> othersTsPath = hydroSeriesPathByArea.get(otherArea);
+        List<TrajectoryFileContext> othersTsPath = hydroSeriesPathByArea.get(otherArea);
         if (processedAreas.contains(otherArea) && othersTsPath != null && !othersTsPath.isEmpty()) {
             Set<String> alreadyProcessedAreas = generatedFilesByArea.keySet().stream()
                     .filter(Objects::nonNull)
@@ -129,22 +131,22 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
             Set<String> remainingOtherAreas = othersTsPath.stream()
                     .filter(Objects::nonNull)
-                    .filter(path -> path.getFileName() != null)
-                    .filter(path -> !isMaxpowerFile(path.getFileName().toString()))
-                    .map(this::extractAreaFromFileName)
+                    .filter(context -> context.path().getFileName() != null)
+                    .filter(context -> !isMaxpowerFile(context.path().getFileName().toString()))
+                    .map(context -> extractAreaFromFileName(context.path()))
                     .flatMap(Optional::stream)
                     .map(area -> area.toUpperCase(Locale.ROOT))
                     .filter(area -> !alreadyProcessedAreas.contains(area))
                     .collect(Collectors.toSet());
 
             for (String area : remainingOtherAreas) {
-                List<Path> pathsForArea = othersTsPath.stream()
-                        .filter(path -> belongsToAreaOrIsMaxpower(path, area))
+                List<TrajectoryFileContext> pathsForArea = othersTsPath.stream()
+                        .filter(context -> belongsToAreaOrIsMaxpower(context.path(), area))
                         .toList();
 
                 if (!pathsForArea.isEmpty()) {
                     List<String> generatedFilesArrow = new ArrayList<>();
-                    processSeriesByArea(studyEntity, area, pathsForArea, outputDir, generatedFilesArrow);
+                    processSeriesByArea(studyEntity, area, pathsForArea, generatedFilesArrow);
                     generatedFilesByArea.put(area, generatedFilesArrow);
                 }
             }
@@ -186,16 +188,25 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
         return Optional.of(parts[parts.length - 2].toUpperCase(Locale.ROOT));
     }
-    
-    private List<String> processSeriesByArea(StudyEntity studyEntity, String area, List<Path> hydroSeriesPath, String outputDir, List<String> generatedFilesArrow) throws BusinessException {
-        hydroSeriesPath.forEach(path -> {
-            String outputFileName = null;
+
+    private void processSeriesByArea(StudyEntity studyEntity, String area, List<TrajectoryFileContext> hydroSeriesContexts, List<String> generatedFilesArrow) throws BusinessException {
+        hydroSeriesContexts.forEach(context -> {
+            String outputFileName;
             TimeSeriesMatrix matrix;
+            Path path = context.path();
+            TrajectoryType type = context.type();
             String fileName = path.getFileName().toString();
+            String pspMarker = type == TrajectoryType.HYDRO_PSP_SERIES ? "_psp" : "";
+            String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
+
             if (fileName.startsWith("maxpower")) {
                 try {
-                    matrix = timeSeriesReader.readSelectedColumnsFromXlsx(path, studyEntity.getHorizon(), Collections.singleton(area));
-                    outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + "_maxpower", outputDir);
+                    Set<String> columnsToRead = type == TrajectoryType.HYDRO_PSP_SERIES
+                            ? Set.of(area + "_generating", area + "_pumping")
+                            : Collections.singleton(area);
+
+                    matrix = timeSeriesReader.readSelectedColumnsFromXlsx(path, studyEntity.getHorizon(), columnsToRead);
+                    outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_maxpower", outputDir);
                 } catch (IOException e) {
                     throw BusinessException.builder()
                             .message("Could not generate matrix for maxpower")
@@ -205,7 +216,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             } else {
                 try {
                     matrix = nasFileService.readMatrix(path, studyEntity.getHorizon(), false);
-                    outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + "_" + getHydroSeriesType(fileName), outputDir);
+                    outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_" + getHydroSeriesType(fileName), outputDir);
                 } catch (IOException e) {
                     throw BusinessException.builder()
                             .message("Could not generate matrix for hydro series")
@@ -215,7 +226,6 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             }
             generatedFilesArrow.add(outputFileName);
         });
-        return generatedFilesArrow;
     }
 
     private Set<String> nonOtherAreas(Set<String> areas, Set<String> listAreas) {
@@ -225,15 +235,15 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return result;
     }
 
-    private Map<String, List<Path>> mapTsPathByArea(StudyEntity study) {
-
+    private Map<String, List<TrajectoryFileContext>> mapTsPathByArea(StudyEntity study) {
         Path hydroSeriesDir = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                 .resolve(antaresDataManagerProperties.getHydroSeriesDirectory());
 
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(trajectory -> TrajectoryType.HYDRO_SERIES.name().equals(trajectory.getType()))
+                .filter(trajectory -> TrajectoryType.HYDRO_SERIES.name().equals(trajectory.getType()) ||
+                        TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType()))
                 .filter(trajectory -> trajectory.getArea() != null)
                 .flatMap(trajectory -> Optional.ofNullable(trajectory.getHydroSeriesEntities())
                         .orElseGet(Collections::emptyList)
@@ -243,20 +253,19 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                         .filter(hydroSeries -> shouldKeepHydroSeries(study, trajectory, hydroSeries))
                         .map(hydroSeries -> Map.entry(
                                 trajectory.getArea().toUpperCase(Locale.ROOT),
-                                resolveHydroSeriesPath(hydroSeriesDir, trajectory, hydroSeries)
+                                new TrajectoryFileContext(
+                                        resolveHydroSeriesPath(hydroSeriesDir, trajectory, hydroSeries),
+                                        TrajectoryType.valueOf(trajectory.getType())
+                                )
                         )))
-                .filter(entry -> Files.exists(entry.getValue()))
+                .filter(entry -> Files.exists(entry.getValue().path()))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
     }
 
-    private boolean shouldKeepHydroSeries(
-            StudyEntity study,
-            TrajectoryEntity trajectory,
-            HydroSeriesEntity hydroSeries
-    ) {
+    private boolean shouldKeepHydroSeries(StudyEntity study, TrajectoryEntity trajectory, HydroSeriesEntity hydroSeries) {
         String tsName = hydroSeries.getTsName();
 
         if (!tsName.toLowerCase(Locale.ROOT).startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
@@ -273,9 +282,13 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
         String normalizedArea = area.toUpperCase(Locale.ROOT);
 
+        String targetTechType = TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType())
+                ? TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name()
+                : TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name();
+
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(studyTrajectory -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(studyTrajectory.getType()))
+                .filter(studyTrajectory -> targetTechType.equals(studyTrajectory.getType()))
                 .flatMap(studyTrajectory -> Optional.ofNullable(studyTrajectory.getHydroParametersEntities())
                         .orElseGet(Collections::emptyList)
                         .stream())

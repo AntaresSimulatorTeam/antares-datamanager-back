@@ -77,10 +77,11 @@ class HydroToJsonServiceTest {
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
         assertNotNull(result);
-        assertEquals(3, result.size());
+        assertEquals(4, result.size());
         assertTrue(result.containsKey("properties"));
         assertTrue(result.containsKey("series"));
         assertTrue(result.containsKey("allocation"));
+        assertTrue(result.containsKey("psp"));
 
         @SuppressWarnings("unchecked")
         List<HydroGenerationDTO> properties = (List<HydroGenerationDTO>) result.get("properties");

@@ -187,7 +187,7 @@ class DsrFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Values nb_hour_per_day, max_hour_per_day, nb_units, FO_duration for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}");
+                .hasMessageContaining("Values nb_hour_per_day, max_hour_per_day, nb_units for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}");
     }
 
     @Test

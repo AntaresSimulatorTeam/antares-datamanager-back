@@ -27,6 +27,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -801,5 +802,141 @@ class HydroGenerationAssemblerServiceImplTest {
         Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void assembleHydroProperties_returnsGroupedProperties_forPsp() {
+        HydroParametersEntity hp = HydroParametersEntity.builder()
+                .node("FR")
+                .reservoirCapacity(new BigDecimal(3000))
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertEquals(1, result.size());
+        assertEquals(3000, result.get("FR").get(0).getReservoirCapacity());
+    }
+
+    @Test
+    void assembleHydroProperties_setsSeriesForMaxpowerFile_forPsp_readsSpecificColumnsAndAppendsMarker(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj_psp");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("maxpower_2030.xlsx"));
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), any(), any())).thenReturn(matrix);
+        when(nasFileService.saveMatrixToNas(any(), eq("FR_psp_maxpower"), eq("hydro_output")))
+                .thenReturn("FR_psp_maxpower.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("maxpower_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PSP_SERIES.name())
+                .area("FR")
+                .fileName("traj_psp")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        // check that we get both generating and pumping columns for PSP
+        verify(timeSeriesReader).readSelectedColumnsFromXlsx(any(), any(), eq(Set.of("FR_generating", "FR_pumping")));
+
+        assertNotNull(result.get("FR").get(0).getSeries());
+        assertArrayEquals(new String[]{"FR_psp_maxpower.arrow"}, result.get("FR").get(0).getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_setsSeriesForNormalFile_forPsp_appendsMarker(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj_psp").resolve("mingen");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
+
+        when(nasFileService.readMatrix(any(), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.saveMatrixToNas(any(), eq("FR_psp_mingen"), eq("hydro_output")))
+                .thenReturn("FR_psp_mingen.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PSP_SERIES.name())
+                .area("FR")
+                .fileName("traj_psp")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertNotNull(result.get("FR").get(0).getSeries());
+        assertArrayEquals(new String[]{"FR_psp_mingen.arrow"}, result.get("FR").get(0).getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_usesHydroOutputDirectoryForNonPspSeries(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj_hydro");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("maxpower_2030.xlsx"));
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), any(), any())).thenReturn(matrix);
+        when(nasFileService.saveMatrixToNas(any(), eq("FR_maxpower"), eq("hydro_output")))
+                .thenReturn("FR_maxpower.arrow");
+
+        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("maxpower_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj_hydro")
+                .hydroSeriesEntities(List.of(hydroSeries))
+                .build();
+        HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
+        TrajectoryEntity techTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .build();
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory, techTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        assertNotNull(result.get("FR").get(0).getSeries());
+        assertArrayEquals(new String[]{"FR_maxpower.arrow"}, result.get("FR").get(0).getSeries());
     }
 }
