@@ -44,6 +44,26 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
 
+    private record TrajectoryCollections(
+            Map<String, List<ResClusterCapacityEntity>> capacities,
+            Map<String, List<ResTechnologyDistributionEntity>> technologies,
+            Map<String, List<ResZonalDistributionEntity>> zonals
+    ) {}
+
+    private record ClusterAggregationContext(
+            String area,
+            List<ResTechnologyDistributionEntity> techDistributions,
+            List<ResZonalDistributionEntity> zonalDistributions,
+            Map<String, ResSeriesRef> frSeriesIndex,
+            Map<String, ResSeriesRef> nonFrSeriesIndex
+    ) {}
+
+    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
+
+    private record SeriesScanContext(String trajectoryFileName, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) { }
+
+    private record ParsedSeriesKey(String area, String group, String zone, String technology) { }
+
     @Override
     public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
         var trajectories = studyEntity.getTrajectories();
@@ -64,14 +84,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         return processAreaClusters(capacities, collections, frSeriesIndex, nonFrSeriesIndex);
     }
-
-    private record ClusterAggregationContext(
-            String area,
-            List<ResTechnologyDistributionEntity> techDistributions,
-            List<ResZonalDistributionEntity> zonalDistributions,
-            Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex
-    ) {}
 
     private String resolveIndexedSingleSeries(String area, String group, Map<String, ResSeriesRef> nonFrSeriesIndex) {
         var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT);
@@ -329,20 +341,20 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         log.debug("RES load link: file='{}' area=[{}] tech=[{}] linkKey='{}' new={}",
                 fileName, trajectory.getArea(), trajectory.getTechnology(), linkKey, isNewLink);
         if (isNewLink) {
-            resolveSeriesInTrajectory(fileName, base, result, !normalizedTech.isBlank(), fromOthersArea,
+            var scanContext = new SeriesScanContext(fileName, !normalizedTech.isBlank(), fromOthersArea,
                     normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT));
+            resolveSeriesInTrajectory(scanContext, base, result);
         }
     }
 
-    private void resolveSeriesInTrajectory(String trajectoryFileName, Path base, List<ResSeriesRef> result, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) {
-
+    private void resolveSeriesInTrajectory(SeriesScanContext scanContext, Path base, List<ResSeriesRef> result) {
         try {
-            pathSecurityUtil.validatePathFromBaseDir(trajectoryFileName, AntaresDataManagerProperties::getResLoadDirectory);
-            Path trajectoryRoot = base.resolve(trajectoryFileName).normalize();
+            pathSecurityUtil.validatePathFromBaseDir(scanContext.trajectoryFileName(), AntaresDataManagerProperties::getResLoadDirectory);
+            Path trajectoryRoot = base.resolve(scanContext.trajectoryFileName()).normalize();
 
             if (!trajectoryRoot.startsWith(base) || !Files.exists(trajectoryRoot)) {
                 throw BusinessException.builder()
-                        .message("Invalid RES load trajectory path: " + trajectoryFileName)
+                        .message("Invalid RES load trajectory path: " + scanContext.trajectoryFileName())
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -356,39 +368,39 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                                 return false;
                             }
                         })
-                        .forEach(file -> createSeriesFromFile(file, trajectoryFileName, trajectoryRoot, result, fromTechnoTrajectory, fromOthersArea, linkedArea, linkedTech));
+                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, scanContext, result));
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
-                    .message("Could not list RES load trajectory files for " + trajectoryFileName)
+                    .message("Could not list RES load trajectory files for " + scanContext.trajectoryFileName())
                     .cause(e)
                     .build();
         }
     }
 
-    private void createSeriesFromFile(Path file, String trajectoryFileName, Path trajectoryRoot, List<ResSeriesRef> result, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) {
+    private void createSeriesFromFile(Path file, Path trajectoryRoot, SeriesScanContext scanContext, List<ResSeriesRef> result) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
-            if (fromOthersArea && ResDomainRules.FR_AREA.equalsIgnoreCase(parsedKey.area())) return;
-            if (!fromOthersArea && linkedArea != null && !linkedArea.isBlank() && !linkedArea.equalsIgnoreCase(parsedKey.area())) {
+            if (scanContext.fromOthersArea() && ResDomainRules.FR_AREA.equalsIgnoreCase(parsedKey.area())) return;
+            if (!scanContext.fromOthersArea() && scanContext.linkedArea() != null && !scanContext.linkedArea().isBlank() && !scanContext.linkedArea().equalsIgnoreCase(parsedKey.area())) {
                 return;
             }
-            if (linkedTech != null && !linkedTech.isBlank() && !toKey(linkedTech).equalsIgnoreCase(parsedKey.group())) {
+            if (scanContext.linkedTech() != null && !scanContext.linkedTech().isBlank() && !toKey(scanContext.linkedTech()).equalsIgnoreCase(parsedKey.group())) {
                 return;
             }
             String outputDir = antaresDataManagerProperties.getResTsOutputDirectory();
             try {
                 String arrowName = nasFileService.readAndSaveMatrixToNas(file, outputDir, null, true);
                 result.add(new ResSeriesRef(
-                        trajectoryFileName,
+                        scanContext.trajectoryFileName(),
                         toKey(rel.replace('\\', '/')),
                         arrowName,
                         parsedKey.area(),
                         parsedKey.group(),
                         parsedKey.zone(),
                         parsedKey.technology(),
-                        fromTechnoTrajectory,
-                        fromOthersArea
+                        scanContext.fromTechnoTrajectory(),
+                        scanContext.fromOthersArea()
                 ));
             } catch (IOException e) {
                 throw TechnicalException.builder()
@@ -550,11 +562,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
-
-    private record ParsedSeriesKey(String area, String group, String zone, String technology) {
-    }
-
     private Map<String, ResSeriesRef> indexNonFrSeries(List<ResSeriesRef> series) {
         return series.stream()
                 .filter(ref -> !ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
@@ -598,12 +605,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         this::mergeSeriesRefs
                 ));
     }
-
-    private record TrajectoryCollections(
-            Map<String, List<ResClusterCapacityEntity>> capacities,
-            Map<String, List<ResTechnologyDistributionEntity>> technologies,
-            Map<String, List<ResZonalDistributionEntity>> zonals
-    ) {}
 
     private TrajectoryCollections collectTrajectoriesSinglePass(StudyEntity studyEntity) {
         var areaCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
