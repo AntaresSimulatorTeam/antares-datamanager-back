@@ -74,9 +74,9 @@ class ResGenerationAssemblerServiceImplTest {
     class NonFrResolution {
         @ParameterizedTest
         @CsvSource({
-                "wind_DE_onshore_2030_2031.csv, DE, wind onshore, wind_onshore",
-                "solar_pv_IT_utility_2030_2031.txt, IT, solar pv, solar_pv",
-                "wind_UK_offshore_2030_2031.xlsx, UK, wind offshore, wind_offshore"
+                "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv, DE, wind onshore, wind_onshore",
+                "solar_pv/solar_pv/solar_pv_IT_utility_2030_2031.txt, IT, solar pv, solar_pv",
+                "wind_offshore/wind_offshore/wind_offshore_UK_2030_2031.xlsx, UK, wind offshore, wind_offshore"
         })
         void shouldResolveVariousFormats(String fileName, String area, String group, String expectedKey) throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
@@ -93,8 +93,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldHandleStyleBAndHorizonLogic() throws IOException {
-            // Style B with single year (should NOT be stripped)
-            String fileName = "solar_pv_DE_utility_2030.csv";
+            // Single trailing year should NOT be stripped as horizon pair
+            String fileName = "solar_pv/solar_pv/solar_pv_DE_2030.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("styleB.arrow");
 
@@ -109,8 +109,9 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldFailOnAmbiguousSeries() throws IOException {
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_v1_2030_2031.csv");
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_v2_2030_2031.csv");
+            // Both files parse to the same (DE, wind_onshore, wind_onshore) -> conflict
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_v1_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_v2_2030_2031.csv");
 
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
@@ -122,13 +123,11 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldReturnEmptyParsedKeyWhenFrTechTokensAreEmpty() throws IOException {
-            // File 1: This file is intentionally wrong for an FR zone (missing tech tokens).
-            // The parser will return Optional.empty(), and the file will be skipped.
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_FR01_onshore.csv");
+            // File 1: Malformed FR series name
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_FR01_2030_2031.csv");
 
-            // File 2: A valid series for DE must be present, otherwise resolveSingleSeries
-            // will throw a BusinessException because it findsnone
-            String validFile = "wind_DE_onshore_2030_2031.csv";
+            // File 2: A valid series for DE must be present, otherwise resolveIndexedSingleSeries throws
+            String validFile = "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, validFile);
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("valid_de.arrow");
 
@@ -144,11 +143,11 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldSkipMalformedGlobalFrSeriesAndProcessValidOnes() throws IOException {
-            // It has "FR" instead of "FR01".
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_offshore_FR_OFF_SP370_HH155_2026-2027.csv");
+            // FR instead of FR01, FR02, ..
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_offshore/wind_offshore/wind_offshore_FR_2030_2031.csv");
 
-            // File 2: A valid series
-            String validFile = "wind_DE_onshore_2030_2031.csv";
+            // File 2: A valid series for wind_onshore DE
+            String validFile = "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, validFile);
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("valid_de.arrow");
 
@@ -199,7 +198,7 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldCoverFrTechLoopAndCandidateKeys() throws IOException {
-            String fileName = "solar_FR01_pv_utility_2030_2031.csv";
+            String fileName = "solar_pv/solar_pv/solar_pv_FR01_utility_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("fr_solar.arrow");
 
@@ -240,7 +239,7 @@ class ResGenerationAssemblerServiceImplTest {
         void shouldIgnoreOldAndLockFiles() throws IOException {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "old/wind_DE_onshore_2030_2031.csv");
             preparePhysicalFile(DEFAULT_TRAJECTORY, ".~lock.wind_DE_onshore.csv");
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_valid_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
 
             when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenReturn("valid.arrow");
 
@@ -255,7 +254,7 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldHandleTechnicalFailures() throws IOException {
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean())).thenThrow(new IOException("NAS Down"));
 
             StudyEntity study = createStudy(
@@ -303,7 +302,11 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     private ResClusterCapacityEntity createCapacity(String a, String g, double c) {
-        return ResClusterCapacityEntity.builder().toUse(true).area(a).groupe(g).cluster("1").capacityByYear(BigDecimal.valueOf(c)).build();
+        return createCapacity(a, g, g.replace(" ", "_"), c);
+    }
+
+    private ResClusterCapacityEntity createCapacity(String a, String g, String cluster, double c) {
+        return ResClusterCapacityEntity.builder().toUse(true).area(a).groupe(g).cluster(cluster).capacityByYear(BigDecimal.valueOf(c)).build();
     }
 
     private ResZonalDistributionEntity createZonal(String a, String g, String z, double w) {
@@ -311,7 +314,11 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     private ResTechnologyDistributionEntity createTech(String a, String g, String z, String tech, double w) {
-        return ResTechnologyDistributionEntity.builder().area(a).groupe(g).pecdZone(z)
+        return createTech(a, g, g.replace(" ", "_"), z, tech, w);
+    }
+
+    private ResTechnologyDistributionEntity createTech(String a, String g, String cluster, String z, String tech, double w) {
+        return ResTechnologyDistributionEntity.builder().area(a).groupe(g).cluster(cluster).pecdZone(z)
                 .pecdTechnology(tech).capacityByYear(w).build();
     }
 
@@ -320,7 +327,7 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldNotSumCapacityWhenTechnoTrajectoryCoversGroup() throws IOException {
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenReturn("de_wind.arrow");
 
@@ -337,8 +344,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldFallBackToAreaForGroupsNotCoveredByTechnoTrajectory() throws IOException {
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_offshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_offshore/wind_offshore/wind_offshore_DE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenReturn("de.arrow");
 
@@ -364,8 +371,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldNotProduceDuplicateWhenSameFileLinkedToMultipleAreas() throws IOException {
-            preparePhysicalFile("BIG_FILE", "wind_BE_onshore_2030_2031.csv");
-            preparePhysicalFile("BIG_FILE", "wind_ES_onshore_2030_2031.csv");
+            preparePhysicalFile("BIG_FILE", "wind_onshore/wind_onshore/wind_onshore_BE_2030_2031.csv");
+            preparePhysicalFile("BIG_FILE", "wind_onshore/wind_onshore/wind_onshore_ES_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenAnswer(inv -> {
                         Path p = inv.getArgument(0);
@@ -396,8 +403,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldScopeAreaTechnoLinkToLinkedGroup() throws IOException {
-            preparePhysicalFile("TECHNO_FILE", "wind_BE_onshore_2030_2031.csv");
-            preparePhysicalFile("TECHNO_FILE", "wind_BE_offshore_2030_2031.csv");
+            preparePhysicalFile("TECHNO_FILE", "wind_onshore/wind_onshore/wind_onshore_BE_2030_2031.csv");
+            preparePhysicalFile("TECHNO_FILE", "wind_offshore/wind_offshore/wind_offshore_BE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenReturn("be_onshore.arrow");
 
@@ -420,11 +427,11 @@ class ResGenerationAssemblerServiceImplTest {
         @Test
         void shouldNotDuplicateWhenSameFilesLinkedForMultipleAreasAndAreaTechno() throws IOException {
             // TST_FILE: area-level, covers AT and BE (both wind_offshore series in the same directory)
-            preparePhysicalFile("TST_FILE", "wind_offshore_AT_TST_2030_2031.csv");
-            preparePhysicalFile("TST_FILE", "wind_offshore_BE_TST_2030_2031.csv");
+            preparePhysicalFile("TST_FILE", "wind_offshore/wind_offshore/wind_offshore_AT_TST_2030_2031.csv");
+            preparePhysicalFile("TST_FILE", "wind_offshore/wind_offshore/wind_offshore_BE_TST_2030_2031.csv");
             // AT2_FILE: area-techno, also covers AT and BE (wind_offshore)
-            preparePhysicalFile("AT2_FILE", "wind_offshore_AT_AT2_2030_2031.csv");
-            preparePhysicalFile("AT2_FILE", "wind_offshore_BE_AT2_2030_2031.csv");
+            preparePhysicalFile("AT2_FILE", "wind_offshore/wind_offshore/wind_offshore_AT_AT2_2030_2031.csv");
+            preparePhysicalFile("AT2_FILE", "wind_offshore/wind_offshore/wind_offshore_BE_AT2_2030_2031.csv");
 
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
@@ -456,8 +463,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldFallBackToOthersWhenNoSpecificAreaSeriesLinked() throws IOException {
-            preparePhysicalFile("OTHERS_FILE", "wind_offshore_DE_off_2030_2031.csv");
-            preparePhysicalFile("OTHERS_FILE", "wind_offshore_BE_off_2030_2031.csv");
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore/wind_offshore/wind_offshore_DE_off_2030_2031.csv");
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore/wind_offshore/wind_offshore_BE_off_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
 
@@ -479,8 +486,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldPreferSpecificAreaSeriesOverOthers() throws IOException {
-            preparePhysicalFile("OTHERS_FILE", "wind_offshore_DE_others_2030_2031.csv");
-            preparePhysicalFile("SPECIFIC_FILE", "wind_offshore_DE_specific_2030_2031.csv");
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore/wind_offshore/wind_offshore_DE_others_2030_2031.csv");
+            preparePhysicalFile("SPECIFIC_FILE", "wind_offshore/wind_offshore/wind_offshore_DE_specific_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
 
@@ -504,8 +511,8 @@ class ResGenerationAssemblerServiceImplTest {
 
         @Test
         void shouldPreferTechnoLfSeriesOverAreaLfSeriesForSameGroup() throws IOException {
-            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
-            preparePhysicalFile("LF_techno", "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
+            preparePhysicalFile("LF_techno", "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
                     .thenReturn("area_series.arrow", "techno_series.arrow");
 
@@ -524,6 +531,35 @@ class ResGenerationAssemblerServiceImplTest {
             var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(100.0, "wind_onshore"), List.of("techno_series.arrow"), null);
             assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
                     "Area techno LF series should take priority over only area LF series");
+        }
+
+        @Test
+        void shouldProduceSeparateJsonEntryPerCluster() throws IOException {
+            // Each cluster has its own subfolder and its own series file
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "solar_pv/cluster_A/cluster_A_DE_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "solar_pv/cluster_B/cluster_B_DE_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("de_solar.arrow");
+
+            TrajectoryEntity capTraj = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_CAPACITY.name()).fileName(DEFAULT_TRAJECTORY).build();
+            capTraj.setResClusterCapacityEntities(List.of(
+                    createCapacity("DE", "solar pv", "cluster_A", 100),
+                    createCapacity("DE", "solar pv", "cluster_B", 200)
+            ));
+
+            StudyEntity study = createStudy(createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY), capTraj);
+
+            var deResult = service.assembleResProperties(study).get("DE");
+
+            assertNotNull(deResult.get("cluster_A"), "cluster_A must be a separate JSON entry");
+            assertNotNull(deResult.get("cluster_B"), "cluster_B must be a separate JSON entry");
+            assertNull(deResult.get("solar_pv"), "group name must not appear as output key");
+            assertEquals(100.0, deResult.get("cluster_A").properties().capacity());
+            assertEquals(200.0, deResult.get("cluster_B").properties().capacity());
+            assertEquals("solar_pv", deResult.get("cluster_A").properties().group());
+            assertEquals("solar_pv", deResult.get("cluster_B").properties().group());
+            assertEquals(List.of("de_solar.arrow"), deResult.get("cluster_A").series());
+            assertEquals(List.of("de_solar.arrow"), deResult.get("cluster_B").series());
         }
     }
 
