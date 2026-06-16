@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -10,7 +11,7 @@ import java.util.Map;
 @Service
 public class ResToJsonService {
 
-    public Map<String, Object> buildResDataMap(String areaName, Map<String, Map<String, Object>> resPropsByArea) {
+    public Map<String, ResClusterGenerationDto> buildResDataMap(String areaName, Map<String, Map<String, ResClusterGenerationDto>> resPropsByArea) {
         if (resPropsByArea == null || resPropsByArea.isEmpty()) {
             log.info("resMapGenerator: missing RES data for area={}", areaName);
             return Collections.emptyMap();
@@ -21,7 +22,7 @@ public class ResToJsonService {
             return Collections.emptyMap();
         }
 
-        Map<String, Object> areaRes = resPropsByArea.get(areaName.toUpperCase());
+        Map<String, ResClusterGenerationDto> areaRes = resPropsByArea.get(areaName.toUpperCase());
         if (areaRes == null || areaRes.isEmpty()) {
             log.info("resMapGenerator: no RES found for area={}", areaName);
             return Collections.emptyMap();
@@ -30,4 +31,3 @@ public class ResToJsonService {
         return areaRes;
     }
 }
-
