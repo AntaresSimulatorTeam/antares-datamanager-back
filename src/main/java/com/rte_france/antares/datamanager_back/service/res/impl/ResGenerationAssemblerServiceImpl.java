@@ -457,7 +457,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         if (ZONAL_AREAS.contains(baseArea)) {
             if (areaOrZone.equals(baseArea)) {
-                log.warn("Malformed zonal series skipped (area without zonal identifier, expected example: {}01): {}", baseArea, relativePath);
+                log.warn("Malformed zonal series skipped. Expected zone (like: {}01), but found global zone: {}", baseArea, relativePath);
                 return Optional.empty();
             }
             List<String> techTokens = trimTrailingYearTokens(remaining.subList(1, remaining.size()));
