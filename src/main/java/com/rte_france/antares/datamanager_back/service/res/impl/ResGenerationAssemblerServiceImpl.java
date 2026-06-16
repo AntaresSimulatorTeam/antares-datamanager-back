@@ -1,6 +1,9 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.ResFrAggregationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -35,22 +38,34 @@ import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomain
 @RequiredArgsConstructor
 public class ResGenerationAssemblerServiceImpl implements ResGenerationAssemblerService {
 
-    private static final String PROPERTIES = "properties";
-    private static final String GROUP = "group";
-    private static final String CAPACITY = "capacity";
-    private static final String SERIES = "series";
-    private static final String FR_AGGREGATION = "fr_aggregation";
-    private static final String ZONE_WEIGHTS = "zone_weights";
-    private static final String TECH_WEIGHTS_BY_ZONE = "tech_weights_by_zone";
-    private static final String SERIES_BY_ZONE_AND_TECH = "series_by_zone_and_tech";
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
 
     private final NasFileService nasFileService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
 
+    private record TrajectoryCollections(
+            Map<String, List<ResClusterCapacityEntity>> capacities,
+            Map<String, List<ResTechnologyDistributionEntity>> technologies,
+            Map<String, List<ResZonalDistributionEntity>> zonals
+    ) {}
+
+    private record ClusterAggregationContext(
+            String area,
+            List<ResTechnologyDistributionEntity> techDistributions,
+            List<ResZonalDistributionEntity> zonalDistributions,
+            Map<String, ResSeriesRef> frSeriesIndex,
+            Map<String, ResSeriesRef> nonFrSeriesIndex
+    ) {}
+
+    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
+
+    private record SeriesScanContext(String trajectoryFileName, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) { }
+
+    private record ParsedSeriesKey(String area, String group, String zone, String technology) { }
+
     @Override
-    public Map<String, Map<String, Object>> assembleResProperties(StudyEntity studyEntity) {
+    public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
         var trajectories = studyEntity.getTrajectories();
         if (trajectories == null || trajectories.isEmpty()) {
             return Collections.emptyMap();
@@ -70,14 +85,6 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return processAreaClusters(capacities, collections, frSeriesIndex, nonFrSeriesIndex);
     }
 
-    private record ClusterAggregationContext(
-            String area,
-            List<ResTechnologyDistributionEntity> techDistributions,
-            List<ResZonalDistributionEntity> zonalDistributions,
-            Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex
-    ) {}
-
     private String resolveIndexedSingleSeries(String area, String group, Map<String, ResSeriesRef> nonFrSeriesIndex) {
         var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT);
         var match = nonFrSeriesIndex.get(lookupKey);
@@ -87,12 +94,13 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         throw BusinessException.builder()
-                .message("Non-FR RES series must resolve to exactly one arrow for area/group " + area + "/" + group)
+                .message("No load-factor series found for area '" + area + "', group '" + group
+                        + "'. Link a load-factor trajectory that contains a series file for this area and group.")
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }
 
-    private Map<String, Map<String, Object>> processAreaClusters(
+    private Map<String, Map<String, ResClusterGenerationDto>> processAreaClusters(
             Map<String, List<ResClusterCapacityEntity>> capacities,
             TrajectoryCollections collections,
             Map<String, ResSeriesRef> frSeriesIndex,
@@ -112,7 +120,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         ));
     }
 
-    private Map<String, Object> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
+    private Map<String, ResClusterGenerationDto> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
         return capacities.stream()
                 .collect(Collectors.groupingBy(cap -> normalizeGroup(cap.getGroupe()), LinkedHashMap::new, Collectors.toList()))
                 .entrySet().stream()
@@ -124,34 +132,27 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 ));
     }
 
-    private Map<String, Object> buildGroupCluster(String groupKey, List<ResClusterCapacityEntity> entities, ClusterAggregationContext context) {
+    private ResClusterGenerationDto buildGroupCluster(String groupKey, List<ResClusterCapacityEntity> entities, ClusterAggregationContext context) {
         var installedPower = entities.stream()
                 .map(ResClusterCapacityEntity::getCapacityByYear)
                 .filter(Objects::nonNull)
                 .mapToDouble(BigDecimal::doubleValue)
                 .sum();
 
-        var clusterPropertiesMap = new LinkedHashMap<String, Object>();
-        clusterPropertiesMap.put(CAPACITY, installedPower);
-        clusterPropertiesMap.put(GROUP, groupKey);
-
-        var clusterMap = new LinkedHashMap<String, Object>();
-        clusterMap.put(PROPERTIES, clusterPropertiesMap);
+        var clusterProperties = new ResClusterPropertiesDto(installedPower, groupKey);
 
         if (ResDomainRules.FR_AREA.equalsIgnoreCase(context.area())) {
-            clusterMap.put(SERIES, Collections.emptyList());
-            clusterMap.put(FR_AGGREGATION, buildFrAggregation(
+            var frAggregation = buildFrAggregation(
                     groupKey, installedPower, context.techDistributions(), context.zonalDistributions(), context.frSeriesIndex()
-            ));
+            );
+            return new ResClusterGenerationDto(clusterProperties, Collections.emptyList(), frAggregation);
         } else {
             var seriesPath = resolveIndexedSingleSeries(context.area(), groupKey, context.nonFrSeriesIndex());
-            clusterMap.put(SERIES, List.of(seriesPath));
+            return new ResClusterGenerationDto(clusterProperties, List.of(seriesPath), null);
         }
-
-        return clusterMap;
     }
 
-    private Map<String, Object> buildFrAggregation(
+    private ResFrAggregationDto buildFrAggregation(
             String normalizedGroup,
             double installedPower,
             List<ResTechnologyDistributionEntity> technologyDistributions,
@@ -170,11 +171,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         validateFrAggregation(normalizedGroup, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
 
-        var aggregation = new LinkedHashMap<String, Object>();
-        aggregation.put(ZONE_WEIGHTS, zoneWeights);
-        aggregation.put(TECH_WEIGHTS_BY_ZONE, techWeightsByZone);
-        aggregation.put(SERIES_BY_ZONE_AND_TECH, seriesByZoneAndTech);
-        return aggregation;
+        return new ResFrAggregationDto(zoneWeights, techWeightsByZone, seriesByZoneAndTech);
     }
 
     private Map<String, Double> calculateZoneWeights(
@@ -232,7 +229,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         throw BusinessException.builder()
-                .message("FR RES series resolution must return exactly one arrow for zone " + zone + " and technology " + technology)
+                .message("No load-factor series found for FR zone '" + zone + "', technology '" + technology
+                        + "'. The load-factor trajectory must include a series file for this zone and technology.")
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }
@@ -325,34 +323,38 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .normalize();
 
         List<ResSeriesRef> result = new ArrayList<>();
-
-        // track already processed trajectories
-        Set<String> processedTrajectories = new HashSet<>();
-
-        for (TrajectoryEntity trajectory : resLoadTrajectories) {
-            String trajectoryFileName = trajectory.getFileName();
-
-            if (trajectoryFileName != null && !trajectoryFileName.isBlank() && processedTrajectories.add(trajectoryFileName)) {
-                resolveSeriesInTrajectory(trajectory, base, result);
-            }
-        }
-
+        Set<String> processedLinks = new HashSet<>();
+        resLoadTrajectories.forEach(t -> processResLoadLink(t, base, result, processedLinks));
         return result;
     }
 
-    private void resolveSeriesInTrajectory(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result) {
-        String trajectoryFileName = trajectory.getFileName();
-        if (trajectoryFileName == null || trajectoryFileName.isBlank()) {
-            return;
-        }
+    private void processResLoadLink(TrajectoryEntity trajectory, Path base, List<ResSeriesRef> result, Set<String> processedLinks) {
+        String fileName = trajectory.getFileName();
+        if (fileName == null || fileName.isBlank()) return;
 
+        String normalizedArea = toKey(trajectory.getArea());
+        String normalizedTech = toKey(trajectory.getTechnology());
+        String linkKey = fileName + "|" + normalizedArea + "|" + normalizedTech;
+
+        boolean fromOthersArea = ResDomainRules.OTHERS_AREA.equalsIgnoreCase(normalizedArea);
+        boolean isNewLink = processedLinks.add(linkKey);
+        log.debug("RES load link: file='{}' area=[{}] tech=[{}] linkKey='{}' new={}",
+                fileName, trajectory.getArea(), trajectory.getTechnology(), linkKey, isNewLink);
+        if (isNewLink) {
+            var scanContext = new SeriesScanContext(fileName, !normalizedTech.isBlank(), fromOthersArea,
+                    normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT));
+            resolveSeriesInTrajectory(scanContext, base, result);
+        }
+    }
+
+    private void resolveSeriesInTrajectory(SeriesScanContext scanContext, Path base, List<ResSeriesRef> result) {
         try {
-            pathSecurityUtil.validatePathFromBaseDir(trajectoryFileName, AntaresDataManagerProperties::getResLoadDirectory);
-            Path trajectoryRoot = base.resolve(trajectoryFileName).normalize();
+            pathSecurityUtil.validatePathFromBaseDir(scanContext.trajectoryFileName(), AntaresDataManagerProperties::getResLoadDirectory);
+            Path trajectoryRoot = base.resolve(scanContext.trajectoryFileName()).normalize();
 
             if (!trajectoryRoot.startsWith(base) || !Files.exists(trajectoryRoot)) {
                 throw BusinessException.builder()
-                        .message("Invalid RES load trajectory path: " + trajectoryFileName)
+                        .message("Invalid RES load trajectory path: " + scanContext.trajectoryFileName())
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -366,29 +368,39 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                                 return false;
                             }
                         })
-                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, result));
+                        .forEach(file -> createSeriesFromFile(file, trajectoryRoot, scanContext, result));
             }
         } catch (IOException e) {
             throw TechnicalException.builder()
-                    .message("Could not list RES load trajectory files for " + trajectoryFileName)
+                    .message("Could not list RES load trajectory files for " + scanContext.trajectoryFileName())
                     .cause(e)
                     .build();
         }
     }
 
-    private void createSeriesFromFile(Path file, Path trajectoryRoot, List<ResSeriesRef> result) {
+    private void createSeriesFromFile(Path file, Path trajectoryRoot, SeriesScanContext scanContext, List<ResSeriesRef> result) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
+            if (scanContext.fromOthersArea() && ResDomainRules.FR_AREA.equalsIgnoreCase(parsedKey.area())) return;
+            if (!scanContext.fromOthersArea() && scanContext.linkedArea() != null && !scanContext.linkedArea().isBlank() && !scanContext.linkedArea().equalsIgnoreCase(parsedKey.area())) {
+                return;
+            }
+            if (scanContext.linkedTech() != null && !scanContext.linkedTech().isBlank() && !toKey(scanContext.linkedTech()).equalsIgnoreCase(parsedKey.group())) {
+                return;
+            }
             String outputDir = antaresDataManagerProperties.getResTsOutputDirectory();
             try {
                 String arrowName = nasFileService.readAndSaveMatrixToNas(file, outputDir, null, true);
                 result.add(new ResSeriesRef(
+                        scanContext.trajectoryFileName(),
                         toKey(rel.replace('\\', '/')),
                         arrowName,
                         parsedKey.area(),
                         parsedKey.group(),
                         parsedKey.zone(),
-                        parsedKey.technology()
+                        parsedKey.technology(),
+                        scanContext.fromTechnoTrajectory(),
+                        scanContext.fromOthersArea()
                 ));
             } catch (IOException e) {
                 throw TechnicalException.builder()
@@ -550,24 +562,38 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .replaceAll("\\s+", "_");
     }
 
-    private record ResSeriesRef(String sourceKey, String arrowPath, String area, String group, String zone, String technology) { }
-
-    private record ParsedSeriesKey(String area, String group, String zone, String technology) {
-    }
-
     private Map<String, ResSeriesRef> indexNonFrSeries(List<ResSeriesRef> series) {
         return series.stream()
                 .filter(ref -> !ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
                         ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT),
                         ref -> ref,
-                        (existing, replacement) -> {
-                            throw BusinessException.builder()
-                                    .message("Duplicate non-FR series found")
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        }
+                        this::mergeSeriesRefs
                 ));
+    }
+
+    /**
+     * Priority: specific area > OTHERS; area-techno > area-level.
+     * - specific+techno=3, specific+area=2, others+techno=1, others+area=0.
+     * If priority is equal, ther's a conflict
+     */
+    private ResSeriesRef mergeSeriesRefs(ResSeriesRef existing, ResSeriesRef replacement) {
+        int ep = seriesPriority(existing);
+        int rp = seriesPriority(replacement);
+        if (rp > ep) return replacement;
+        if (ep > rp) return existing;
+        throw BusinessException.builder()
+                .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
+                        + "'. Two trajectories linked to this area and group both contain a series for it:"
+                        + " trajectory '" + existing.trajectoryFileName() + "' and trajectory '" + replacement.trajectoryFileName() + "'."
+                        + " Only one trajectory should provide a load-factor series per area and RES group."
+                        + " (conflicting file: '" + existing.sourceKey() + "')")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
+
+    private int seriesPriority(ResSeriesRef ref) {
+        return (ref.fromOthersArea() ? 0 : 2) + (ref.fromTechnoTrajectory() ? 1 : 0);
     }
 
     private Map<String, ResSeriesRef> indexFrSeries(List<ResSeriesRef> series) {
@@ -576,42 +602,75 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .collect(Collectors.toMap(
                         ref -> ref.zone().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.technology().toUpperCase(Locale.ROOT),
                         ref -> ref,
-                        (existing, replacement) -> existing
+                        this::mergeSeriesRefs
                 ));
     }
 
-    private record TrajectoryCollections(
-            Map<String, List<ResClusterCapacityEntity>> capacities,
-            Map<String, List<ResTechnologyDistributionEntity>> technologies,
-            Map<String, List<ResZonalDistributionEntity>> zonals
-    ) {}
-
     private TrajectoryCollections collectTrajectoriesSinglePass(StudyEntity studyEntity) {
-        var capacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
+        var areaCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
+        var technoCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
         var technologies = new LinkedHashMap<String, List<ResTechnologyDistributionEntity>>();
         var zonals = new LinkedHashMap<String, List<ResZonalDistributionEntity>>();
 
         studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .forEach(trajectory -> routeTrajectoryData(trajectory, capacities, technologies, zonals));
+                .forEach(trajectory -> routeTrajectoryData(trajectory, areaCapacities, technoCapacities, technologies, zonals));
 
-        return new TrajectoryCollections(capacities, technologies, zonals);
+        return new TrajectoryCollections(mergeCapacities(areaCapacities, technoCapacities), technologies, zonals);
     }
 
     private void routeTrajectoryData(
             TrajectoryEntity trajectory,
-            Map<String, List<ResClusterCapacityEntity>> capacities,
+            Map<String, List<ResClusterCapacityEntity>> areaCapacities,
+            Map<String, List<ResClusterCapacityEntity>> technoCapacities,
             Map<String, List<ResTechnologyDistributionEntity>> technologies,
             Map<String, List<ResZonalDistributionEntity>> zonals
     ) {
         var type = TrajectoryType.valueOf(trajectory.getType());
+        boolean isTechno = trajectory.getTechnology() != null && !trajectory.getTechnology().isBlank();
 
         switch (type) {
-            case RES_CAPACITY -> extractCapacities(trajectory, capacities);
+            case RES_CAPACITY -> extractCapacities(trajectory, isTechno ? technoCapacities : areaCapacities);
             case RES_TECHNOLOGY_DISTRIBUTION -> extractTechnologies(trajectory, technologies);
             case RES_ZONAL_DISTRIBUTION -> extractZonals(trajectory, zonals);
-            default -> { /* ignore */}
+            default -> { /* ignore */ }
         }
+    }
+
+    /**
+     * Produces the final capacity map with area-techno and area logic:
+     *   Start with area-techno capacities
+     *   Then for each area that also has area capacity, add only the groups not already in area-techno
+     * @param areaOnly
+     * @param technoSpecific
+     * @return the final capacity entities for each area
+     */
+    private Map<String, List<ResClusterCapacityEntity>> mergeCapacities(
+            Map<String, List<ResClusterCapacityEntity>> areaOnly,
+            Map<String, List<ResClusterCapacityEntity>> technoSpecific
+    ) {
+        if (technoSpecific.isEmpty()) return areaOnly;
+        if (areaOnly.isEmpty()) return technoSpecific;
+
+        var merged = new LinkedHashMap<>(technoSpecific);
+
+        areaOnly.forEach((area, areaEntities) -> {
+            if (!merged.containsKey(area)) {
+                merged.put(area, areaEntities);
+            } else {
+                var technoGroups = merged.get(area).stream()
+                        .map(e -> normalizeGroup(e.getGroupe()))
+                        .collect(Collectors.toSet());
+
+                var combined = new ArrayList<>(merged.get(area));
+                areaEntities.stream()
+                        .filter(e -> !technoGroups.contains(normalizeGroup(e.getGroupe())))
+                        .forEach(combined::add);
+                merged.put(area, combined);
+            }
+        });
+
+        return merged;
     }
 
     private void extractCapacities(

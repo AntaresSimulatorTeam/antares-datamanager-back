@@ -1,6 +1,8 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -85,8 +87,8 @@ class ResGenerationAssemblerServiceImplTest {
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity(area, group, 100))
             );
 
-            Map<String, Object> payload = getGroupPayload(service.assembleResProperties(study), area, expectedKey);
-            assertEquals(List.of(fileName + ".arrow"), payload.get("series"));
+            var payload = getGroupPayload(service.assembleResProperties(study), area, expectedKey);
+            assertEquals(List.of(fileName + ".arrow"), payload.series());
         }
 
         @Test
@@ -101,7 +103,7 @@ class ResGenerationAssemblerServiceImplTest {
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "solar pv", 500))
             );
 
-            Map<String, Map<String, Object>> res = service.assembleResProperties(study);
+            var res = service.assembleResProperties(study);
             assertNotNull(res.get("DE").get("solar_pv"));
         }
 
@@ -210,7 +212,7 @@ class ResGenerationAssemblerServiceImplTest {
                             createTech("FR", "solar pv", "FR01", "solar_pv_utility", 100.0))
             );
 
-            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
+            var result = service.assembleResProperties(study);
             assertNotNull(result.get("FR").get("solar_pv"));
         }
 
@@ -223,11 +225,12 @@ class ResGenerationAssemblerServiceImplTest {
                             createTech("FR", "wind offshore", "FR01", "techA", 100.0))
             );
 
-            Map<String, Map<String, Object>> result = service.assembleResProperties(study);
-            Map<String, Object> aggregation = (Map<String, Object>) getGroupPayload(result, "FR", "wind_offshore").get("fr_aggregation");
+            var result = service.assembleResProperties(study);
+            var dto = getGroupPayload(result, "FR", "wind_offshore");
 
             // zone_weights contains FR01 with 0.0, but tech_weights_by_zone should be empty for that zone
-            assertTrue(((Map<?, ?>) aggregation.get("tech_weights_by_zone")).isEmpty());
+            assertNotNull(dto.frAggregation());
+            assertTrue(dto.frAggregation().techWeightsByZone().isEmpty());
         }
     }
 
@@ -289,10 +292,13 @@ class ResGenerationAssemblerServiceImplTest {
 
     private TrajectoryEntity createTrajectory(TrajectoryType type, Object content) {
         TrajectoryEntity t = TrajectoryEntity.builder().type(type.name()).fileName(DEFAULT_TRAJECTORY).build();
-        if (content instanceof String s) t.setFileName(s);
-        else if (content instanceof ResClusterCapacityEntity e) t.setResClusterCapacityEntities(List.of(e));
-        else if (content instanceof ResZonalDistributionEntity e) t.setResZonalDistributionCapacityEntities(List.of(e));
-        else if (content instanceof ResTechnologyDistributionEntity e) t.setResTechnologyDistributionCapacityEntities(List.of(e));
+        switch (content) {
+            case String s -> t.setFileName(s);
+            case ResClusterCapacityEntity e -> t.setResClusterCapacityEntities(List.of(e));
+            case ResZonalDistributionEntity e -> t.setResZonalDistributionCapacityEntities(List.of(e));
+            case ResTechnologyDistributionEntity e -> t.setResTechnologyDistributionCapacityEntities(List.of(e));
+            default -> { /* nothing */ }
+        }
         return t;
     }
 
@@ -309,8 +315,225 @@ class ResGenerationAssemblerServiceImplTest {
                 .pecdTechnology(tech).capacityByYear(w).build();
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> getGroupPayload(Map<String, Map<String, Object>> res, String a, String g) {
-        return (Map<String, Object>) res.get(a.toUpperCase()).get(g.replace(" ", "_"));
+    @Nested
+    class TechnoTrajectoryPriority {
+
+        @Test
+        void shouldNotSumCapacityWhenTechnoTrajectoryCoversGroup() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("de_wind.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100)),
+                    createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("DE", "wind onshore", 300))
+            );
+
+            var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(300.0, "wind_onshore"), List.of("de_wind.arrow"), null);
+            assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
+                    "Area techno capacity should replace area capacity, not sum");
+        }
+
+        @Test
+        void shouldFallBackToAreaForGroupsNotCoveredByTechnoTrajectory() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_offshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("de.arrow");
+
+            TrajectoryEntity areaCapTraj = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_CAPACITY.name()).fileName(DEFAULT_TRAJECTORY).build();
+            areaCapTraj.setResClusterCapacityEntities(List.of(
+                    createCapacity("DE", "wind onshore", 100),
+                    createCapacity("DE", "wind offshore", 200)
+            ));
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    areaCapTraj,
+                    createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("DE", "wind onshore", 300))
+            );
+
+            var result = service.assembleResProperties(study).get("DE");
+            assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(300.0, "wind_onshore"), List.of("de.arrow"), null),
+                    result.get("wind_onshore"), "Area techno should have priority");
+            assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(200.0, "wind_offshore"), List.of("de.arrow"), null),
+                    result.get("wind_offshore"), "Empty area techno should fall back to area");
+        }
+
+        @Test
+        void shouldNotProduceDuplicateWhenSameFileLinkedToMultipleAreas() throws IOException {
+            preparePhysicalFile("BIG_FILE", "wind_BE_onshore_2030_2031.csv");
+            preparePhysicalFile("BIG_FILE", "wind_ES_onshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> {
+                        Path p = inv.getArgument(0);
+                        return p != null && p.toString().contains("_BE_") ? "be_wind.arrow" : "es_wind.arrow";
+                    });
+
+            TrajectoryEntity lfBe = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("BIG_FILE").build();
+            lfBe.setArea("BE");
+            TrajectoryEntity lfEs = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("BIG_FILE").build();
+            lfEs.setArea("ES");
+
+            StudyEntity study = createStudy(
+                    lfBe, lfEs,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("BE", "wind onshore", 100)),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("ES", "wind onshore", 200))
+            );
+
+            var result = service.assembleResProperties(study);
+            assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "Same file linked to multiple areas must not throw duplicate error");
+            assertEquals(List.of("be_wind.arrow"), result.get("BE").get("wind_onshore").series(),
+                    "BE should get only its own series");
+            assertEquals(List.of("es_wind.arrow"), result.get("ES").get("wind_onshore").series(),
+                    "ES should get only its own series");
+        }
+
+        @Test
+        void shouldScopeAreaTechnoLinkToLinkedGroup() throws IOException {
+            preparePhysicalFile("TECHNO_FILE", "wind_BE_onshore_2030_2031.csv");
+            preparePhysicalFile("TECHNO_FILE", "wind_BE_offshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("be_onshore.arrow");
+
+            TrajectoryEntity lfTechno = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("TECHNO_FILE").build();
+            lfTechno.setArea("BE");
+            lfTechno.setTechnology("wind_onshore");
+
+            StudyEntity study = createStudy(
+                    lfTechno,
+                    createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("BE", "wind onshore", 100))
+            );
+
+            var result = service.assembleResProperties(study);
+            assertEquals(List.of("be_onshore.arrow"), result.get("BE").get("wind_onshore").series(),
+                    "Area-techno link scoped to wind_onshore should resolve its series");
+            verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean());
+        }
+
+        @Test
+        void shouldNotDuplicateWhenSameFilesLinkedForMultipleAreasAndAreaTechno() throws IOException {
+            // TST_FILE: area-level, covers AT and BE (both wind_offshore series in the same directory)
+            preparePhysicalFile("TST_FILE", "wind_offshore_AT_TST_2030_2031.csv");
+            preparePhysicalFile("TST_FILE", "wind_offshore_BE_TST_2030_2031.csv");
+            // AT2_FILE: area-techno, also covers AT and BE (wind_offshore)
+            preparePhysicalFile("AT2_FILE", "wind_offshore_AT_AT2_2030_2031.csv");
+            preparePhysicalFile("AT2_FILE", "wind_offshore_BE_AT2_2030_2031.csv");
+
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
+
+            TrajectoryEntity lfAt = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("TST_FILE").build();
+            lfAt.setArea("AT");
+            TrajectoryEntity lfBe = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("TST_FILE").build();
+            lfBe.setArea("BE");
+            TrajectoryEntity lfAtTechno = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("AT2_FILE").build();
+            lfAtTechno.setArea("AT");
+            lfAtTechno.setTechnology("wind_offshore");
+            TrajectoryEntity lfBeTechno = TrajectoryEntity.builder().type(TrajectoryType.RES_LOAD.name()).fileName("AT2_FILE").build();
+            lfBeTechno.setArea("BE");
+            lfBeTechno.setTechnology("wind_offshore");
+
+            StudyEntity study = createStudy(
+                    lfAt, lfBe, lfAtTechno, lfBeTechno,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("AT", "wind offshore", 100)),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("BE", "wind offshore", 200))
+            );
+
+            var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "Area-level file linked to multiple areas + area-techno file must not throw a duplicate error");
+            assertEquals(List.of("wind_offshore_AT_AT2_2030_2031.arrow"), result.get("AT").get("wind_offshore").series(),
+                    "AT should use the area-techno series");
+            assertEquals(List.of("wind_offshore_BE_AT2_2030_2031.arrow"), result.get("BE").get("wind_offshore").series(),
+                    "BE should use the area-techno series");
+        }
+
+        @Test
+        void shouldFallBackToOthersWhenNoSpecificAreaSeriesLinked() throws IOException {
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore_DE_off_2030_2031.csv");
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore_BE_off_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
+
+            TrajectoryEntity othersLf = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("OTHERS_FILE").build();
+            othersLf.setArea("OTHERS");
+
+            StudyEntity study = createStudy(
+                    othersLf,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind offshore", 100)),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("BE", "wind offshore", 200))
+            );
+
+            var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "OTHERS should provide series for areas with no specific trajectory linked");
+            assertEquals(List.of("wind_offshore_DE_off_2030_2031.arrow"), result.get("DE").get("wind_offshore").series());
+            assertEquals(List.of("wind_offshore_BE_off_2030_2031.arrow"), result.get("BE").get("wind_offshore").series());
+        }
+
+        @Test
+        void shouldPreferSpecificAreaSeriesOverOthers() throws IOException {
+            preparePhysicalFile("OTHERS_FILE", "wind_offshore_DE_others_2030_2031.csv");
+            preparePhysicalFile("SPECIFIC_FILE", "wind_offshore_DE_specific_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenAnswer(inv -> ((Path) inv.getArgument(0)).getFileName().toString().replace(".csv", ".arrow"));
+
+            TrajectoryEntity othersLf = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("OTHERS_FILE").build();
+            othersLf.setArea("OTHERS");
+            TrajectoryEntity specificLf = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name()).fileName("SPECIFIC_FILE").build();
+            specificLf.setArea("DE");
+
+            StudyEntity study = createStudy(
+                    othersLf, specificLf,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind offshore", 100))
+            );
+
+            var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
+                    "Specific area link should have priority over OTHERS");
+            assertEquals(List.of("wind_offshore_DE_specific_2030_2031.arrow"),
+                    result.get("DE").get("wind_offshore").series(), "Specific area series must take priority over OTHERS");
+        }
+
+        @Test
+        void shouldPreferTechnoLfSeriesOverAreaLfSeriesForSameGroup() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_DE_onshore_2030_2031.csv");
+            preparePhysicalFile("LF_techno", "wind_DE_onshore_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("area_series.arrow", "techno_series.arrow");
+
+            TrajectoryEntity technoLfTraj = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_LOAD.name())
+                    .fileName("LF_techno")
+                    .technology("wind_onshore")
+                    .build();
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    technoLfTraj,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+
+            var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(100.0, "wind_onshore"), List.of("techno_series.arrow"), null);
+            assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
+                    "Area techno LF series should take priority over only area LF series");
+        }
+    }
+
+    private TrajectoryEntity createTechnoTrajectory(TrajectoryType type, String technology, Object content) {
+        TrajectoryEntity t = createTrajectory(type, content);
+        t.setTechnology(technology);
+        return t;
+    }
+
+    private ResClusterGenerationDto getGroupPayload(Map<String, Map<String, ResClusterGenerationDto>> res, String a, String g) {
+        return res.get(a.toUpperCase()).get(g.replace(" ", "_"));
     }
 }
