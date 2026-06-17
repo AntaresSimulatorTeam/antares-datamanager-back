@@ -431,6 +431,7 @@ public class StudyServiceImpl implements StudyService {
         if (studyDTO.getProject() != null) updateProjectIfPresent(study, studyDTO);
         if (studyDTO.getName() != null) updateStudyNameIfPresent(study, studyDTO);
         if (studyDTO.getTags() != null) updateTagsIfPresent(study, studyDTO);
+        if (studyDTO.getHvdc() != null) study.setHvdc(studyDTO.getHvdc());
         var saved = studyRepository.save(study);
         return StudyMapper.toStudyDTO(saved);
     }
