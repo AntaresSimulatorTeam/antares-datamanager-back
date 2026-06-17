@@ -44,6 +44,8 @@ public class StudyEntity {
 
     private String horizon;
 
+    private Boolean hvdc;
+
     @OneToMany(mappedBy = "studyEntity", orphanRemoval = true)
     private Set<StudyTrajectoryEntity> studyTrajectoryEntities = new LinkedHashSet<>();
 

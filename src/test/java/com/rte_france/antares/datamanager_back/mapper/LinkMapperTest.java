@@ -27,7 +27,6 @@ class LinkMapperTest {
                 .hvdcNbIndirect(1.0)
                 .hvdcFoRateDirect(1.0)
                 .hvdcFoRateIndirect(1.0)
-                .hvdc(false)
                 .hurdleCost(0.5)
                 .build();
         //When
@@ -51,7 +50,6 @@ class LinkMapperTest {
         assertEquals(1.0, dto.getHvdcNbIndirect());
         assertEquals(1.0, dto.getHvdcFoRateDirect());
         assertEquals(1.0, dto.getHvdcFoRateIndirect());
-        assertEquals("false", dto.getHvdc());
         assertEquals(0.5, dto.getHurdleCost());
     }
 

@@ -226,7 +226,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .hvdcFoRateDirect(getNumericCellValue(row, 14))
                             .hvdcFoRateIndirect(getNumericCellValue(row, 15))
                             .hurdleCost(hurdleCost)
-                            .hvdc(hvdc)
                             .build();
                     linkEntities.add(link);
 

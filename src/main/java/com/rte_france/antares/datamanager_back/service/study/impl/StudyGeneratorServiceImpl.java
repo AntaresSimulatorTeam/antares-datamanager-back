@@ -113,7 +113,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
                     switch (trajectoryType) {
                         case AREA -> buildAreasDataMap(study, trajectory, areasMap);
-                        case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap);
+                        case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
                         case LOAD ->
                                 log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                         case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
