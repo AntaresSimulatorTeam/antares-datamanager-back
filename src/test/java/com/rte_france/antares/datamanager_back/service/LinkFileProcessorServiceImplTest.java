@@ -14,6 +14,8 @@ import com.rte_france.antares.datamanager_back.service.common.WarningService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -24,6 +26,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,6 +36,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class LinkFileProcessorServiceImplTest {
@@ -194,6 +198,51 @@ class LinkFileProcessorServiceImplTest {
         verify(warningService).getMessage(
                 WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value(), "CH-IT, CH-FR"
         );
+    }
+
+    @Test
+    void processLinkFile_whenHvdcColumnsAreEmpty() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "EmptyHvdc.xlsx",
+                List.of("parameters", "2030-2031"),
+                List.of(
+                        List.of("Parameter", "2030-2031"),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                                "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
+                ),
+                List.of(
+                        List.of(List.of("hurdle_cost", 10.5), List.of("HVDC", true)),
+                        List.of(
+                                List.of("AT-CH", 100, 200, 150, 175, 300, 400, 250, 275, "TRUE", "", "", "", "", "", ""),
+                                List.of("AT-CZ", 110, 210, 160, 185, 310, 410, 260, 285, "TRUE", 50.0, 25.0, 1, 1, 1, 1)
+                        )
+                ));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        TrajectoryEntity areaTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA.name())
+                .areaConfigEntities(List.of(
+                        AreaConfigEntity.builder().area(AreaEntity.builder().name("AT").build()).build(),
+                        AreaConfigEntity.builder().area(AreaEntity.builder().name("CH").build()).build(),
+                        AreaConfigEntity.builder().area(AreaEntity.builder().name("CZ").build()).build()
+                ))
+                .build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 1)).thenReturn(List.of(areaTrajectory));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1));
+
+        verify(trajectoryRepository, times(1)).save(any());
+        verify(linkRepository, times(1)).saveAll(argThat(links -> {
+            LinkEntity atCh = ((List<LinkEntity>)links).stream().filter(l -> "AT-CH".equals(l.getName())).findFirst().orElseThrow();
+            return atCh.getHvdcMwDirect() == null && atCh.getHvdcMwIndirect() == null;
+        }));
     }
 
     @Test
@@ -508,6 +557,17 @@ class LinkFileProcessorServiceImplTest {
 
         assertTrue(warningMessages.isEmpty());
     }
+
+    @Test
+    void testCheckIfHorizonExist_IOException_ThrowsTechnicalException() throws IOException {
+        Path invalidPath = Path.of("non_existent_file_path_67890");
+
+        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+            linkFileProcessorService.processLinkFile(invalidPath, "2030-2031", 1);
+        });
+
+        assertTrue(exception.getMessage().contains("could not check if horizon exist") || exception.getMessage().contains("non_existent_file_path_67890"));
+    }
     @Test
     void saveTrajectory_shouldThrowExceptionWhenFileNameExceedsMaxLength() {
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -555,5 +615,125 @@ class LinkFileProcessorServiceImplTest {
         });
 
         assertEquals("Header row is missing in the sheet.", exception.getMessage());
+    }
+
+    @Test
+    void testGetNumericCellValue_NumericCell() {
+        Row mockRow = mock(Row.class);
+        Cell mockCell = mock(Cell.class);
+        when(mockRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(mockCell);
+        when(mockCell.getCellType()).thenReturn(CellType.NUMERIC);
+        when(mockCell.getNumericCellValue()).thenReturn(123.45);
+
+        Double result = ReflectionTestUtils.invokeMethod(linkFileProcessorService, "getNumericCellValue", mockRow, 0);
+
+        assertEquals(123.45, result);
+    }
+
+    @Test
+    void testGetNumericCellValue_StringCell_ValidDouble() {
+        Row mockRow = mock(Row.class);
+        Cell mockCell = mock(Cell.class);
+        when(mockRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(mockCell);
+        when(mockCell.getCellType()).thenReturn(CellType.STRING);
+        when(mockCell.getStringCellValue()).thenReturn(" 123,45 ");
+
+        Double result = ReflectionTestUtils.invokeMethod(linkFileProcessorService, "getNumericCellValue", mockRow, 0);
+
+        assertEquals(123.45, result);
+    }
+
+    @Test
+    void testGetNumericCellValue_StringCell_Empty() {
+        Row mockRow = mock(Row.class);
+        Cell mockCell = mock(Cell.class);
+        when(mockRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(mockCell);
+        when(mockCell.getCellType()).thenReturn(CellType.STRING);
+        when(mockCell.getStringCellValue()).thenReturn("  ");
+
+        Double result = ReflectionTestUtils.invokeMethod(linkFileProcessorService, "getNumericCellValue", mockRow, 0);
+
+        assertNull(result);
+    }
+
+    @Test
+    void testGetNumericCellValue_NullCell() {
+        Row mockRow = mock(Row.class);
+        when(mockRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(null);
+
+        Double result = ReflectionTestUtils.invokeMethod(linkFileProcessorService, "getNumericCellValue", mockRow, 0);
+
+        assertNull(result);
+    }
+
+    @Test
+    void testGetNumericCellValue_BooleanCell_ReturnsNull() {
+        Row mockRow = mock(Row.class);
+        Cell mockCell = mock(Cell.class);
+        when(mockRow.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).thenReturn(mockCell);
+        when(mockCell.getCellType()).thenReturn(CellType.BOOLEAN);
+
+        Double result = ReflectionTestUtils.invokeMethod(linkFileProcessorService, "getNumericCellValue", mockRow, 0);
+
+        assertNull(result);
+    }
+
+    @Test
+    void testCheckConsistencyTrajectoryLinkAndArea_MissingAreas_AddsWarning() {
+        // Given
+        List<LinkEntity> linkEntities = List.of(
+                LinkEntity.builder().name("FR-DE").build()
+        );
+        List<String> areaNames = Arrays.asList("FR", "DE", "ES"); // ES is missing from links
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+        Integer studyId = 1;
+        Integer trajectoryId = 2;
+        String userNni = "testUser";
+        TrajectoryEntity secondTrajectory = TrajectoryEntity.builder().id(3).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(warningService.getMessage(anyString(), any())).thenReturn("Warning Message");
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt())).thenReturn(false);
+
+        // When
+        linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(
+                linkEntities, areaNames, warningMessages,
+                studyId, trajectoryId, secondTrajectory, userNni);
+
+        // Then
+        assertEquals(1, warningMessages.size());
+        WarningMessageEntity warning = warningMessages.iterator().next();
+        assertEquals(WarningCode.LINKS_AREA_NOT_PRESENT, warning.getWarningCode());
+        assertEquals("Warning Message", warning.getWarningContent());
+        assertEquals(study, warning.getStudy());
+        assertEquals(secondTrajectory, warning.getSecondTrajectory());
+        verify(warningService).getMessage(eq(WarningCode.LINKS_AREA_NOT_PRESENT.value()), eq("ES"));
+    }
+
+    @Test
+    void testCheckConsistencyTrajectoryLinkAndArea_WarningAlreadyExists() {
+        // Given
+        List<LinkEntity> linkEntities = List.of(
+                LinkEntity.builder().name("FR-DE").build()
+        );
+        List<String> areaNames = Arrays.asList("FR", "DE", "ES");
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+        Integer studyId = 1;
+        Integer trajectoryId = 2;
+        String userNni = "testUser";
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(warningService.getMessage(anyString(), any())).thenReturn("Warning Message");
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt())).thenReturn(true);
+
+        // When
+        linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(
+                linkEntities, areaNames, warningMessages,
+                studyId, trajectoryId, null, userNni);
+
+        // Then
+        assertTrue(warningMessages.isEmpty());
     }
 }

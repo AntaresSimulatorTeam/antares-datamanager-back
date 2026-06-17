@@ -24,7 +24,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 public class LinksValidator {
 
     /**
-     * @param path     trajectory to be added to database
+     * @param path     trajectory to be added to the database
      * @param fileType Links
      * @param horizon  sheet in file to be read
      */
@@ -50,12 +50,12 @@ public class LinksValidator {
 
     private static void checkColumnsRules(Sheet sheet, String horizon, List<String> numericColumns, List<String> booleanColumns, List<String> stringColumns, String trajectoryType) {
         checkNumericColumns(sheet, horizon, numericColumns);
-        checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
+        checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType, true);
         stringColumns.forEach(column -> checkStringColumns(sheet, horizon, column, TrajectoryType.LINK.name()));
     }
 
     /**
-     * @param sheet          to be read in Excel file
+     * @param sheet          to be read in the Excel file
      * @param horizon        to make error clearer
      * @param numericColumns numeric columns must be numeric and positive values
      */
@@ -67,7 +67,8 @@ public class LinksValidator {
 
         for (String columnName : numericColumns) {
             int columnIndex = findColumnIndex(sheet, columnName, horizon, TrajectoryType.LINK.name());
-            processColumn(sheet, nameColumnIndex, columnIndex, columnName, notNumericByColumn, negativeValuesByColumn);
+            boolean isOptional = columnName.toLowerCase(Locale.ROOT).startsWith("hvdc");
+            processColumn(sheet, nameColumnIndex, columnIndex, columnName, notNumericByColumn, negativeValuesByColumn, isOptional);
         }
 
         handleErrors(notNumericByColumn, negativeValuesByColumn);
@@ -84,7 +85,8 @@ public class LinksValidator {
 
 private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIndex, String columnName,
                                    Map<String, Set<String>> notNumericByColumn,
-                                   Map<String, Set<String>> negativeValuesByColumn) {
+                                   Map<String, Set<String>> negativeValuesByColumn,
+                                   boolean isOptional) {
      Set<String> notNumericLinks = new LinkedHashSet<>();
      Set<String> negativeLinks = new LinkedHashSet<>();
 
@@ -98,7 +100,7 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
          if (nameCell != null && nameCell.getCellType() == CellType.STRING) {
              String linkName = nameCell.getStringCellValue().trim();
              if (!linkName.isEmpty()) {
-                 processValueCell(row.getCell(columnIndex), linkName, notNumericLinks, negativeLinks);
+                 processValueCell(row.getCell(columnIndex), linkName, notNumericLinks, negativeLinks, isOptional);
              }
          }
      }
@@ -118,9 +120,12 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
      */
 
     private static void processValueCell(Cell valueCell, String linkName,
-                                         Set<String> notNumericLinks, Set<String> negativeLinks) {
-        if (valueCell == null) {
-            notNumericLinks.add(linkName);
+                                         Set<String> notNumericLinks, Set<String> negativeLinks,
+                                         boolean isOptional) {
+        if (valueCell == null || isCellEmpty(valueCell)) {
+            if (!isOptional) {
+                notNumericLinks.add(linkName);
+            }
             return;
         }
 
@@ -338,7 +343,7 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
     }
 
     private static void checkBooleanInParametersSheet(Workbook workbook, String horizon, int rowIndex, String parameterName) {
-        Sheet parametersSheet = workbook.getSheet("parameters"); // already valdiated
+        Sheet parametersSheet = workbook.getSheet("parameters");
 
         Row headerRow = parametersSheet.getRow(0);
         if (headerRow == null) {
