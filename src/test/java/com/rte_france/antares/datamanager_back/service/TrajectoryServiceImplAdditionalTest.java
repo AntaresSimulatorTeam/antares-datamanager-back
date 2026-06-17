@@ -492,6 +492,10 @@ class TrajectoryServiceImplAdditionalTest {
         Path mod2024 = nuclearDir.resolve("modulation_2024-2025");
         Files.createDirectory(mod2023);
         Files.createDirectory(mod2024);
+        
+        // Add files inside to make directories non-empty
+        Files.createFile(mod2023.resolve("data.txt"));
+        Files.createFile(mod2024.resolve("data.txt"));
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
@@ -518,6 +522,10 @@ class TrajectoryServiceImplAdditionalTest {
         Path lt2024 = nuclearDir.resolve("lt_2024-2025");
         Files.createDirectory(lt2023);
         Files.createDirectory(lt2024);
+        
+        // Add files inside to make directories non-empty
+        Files.createFile(lt2023.resolve("data.txt"));
+        Files.createFile(lt2024.resolve("data.txt"));
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
@@ -552,3 +560,4 @@ class TrajectoryServiceImplAdditionalTest {
     }
 
 }
+
