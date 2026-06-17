@@ -354,8 +354,8 @@ class LinksValidatorTest {
     }
 
     @Test
-    void shouldFailWhenEmptyCellsArePresent() throws IOException {
-        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyCells.xlsx", "2037-2038",
+    void shouldFailWhenEmptyMandatoryCellsArePresent() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyMandatoryCells.xlsx", "2037-2038",
                 List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
                         "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
                         "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
@@ -371,17 +371,15 @@ class LinksValidatorTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2037-2038", TrajectoryType.LINK.name()));
 
-
         assertAll(
                 () -> assertEquals("Empty values found for {0}(s): {1} for horizon {2} in {3} trajectory",
                         exception.getMessage()),
                 () -> assertIterableEquals(
-                        List.of(TrajectoryType.LINK.name().toLowerCase(),"Area1/Area2, Area3/Area4", "2037-2038", "LINK"),
+                        List.of(TrajectoryType.LINK.name().toLowerCase(), "Area1/Area2, Area3/Area4", "2037-2038", "LINK"),
                         exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST,
                         exception.getHttpStatus())
         );
-
     }
 
     @Test
@@ -428,5 +426,108 @@ class LinksValidatorTest {
                 () -> assertIterableEquals(List.of("HVDC", TrajectoryType.LINK.name()), exception.getErrorMessageArguments()),
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
         );
+    }
+    @Test
+    void shouldNotFailWhenHvdcColumnsAreEmpty() throws IOException {
+        String horizon = "2030-2031";
+        List<String> sheetNames = List.of(horizon, "parameters");
+
+        List<List<String>> headers = List.of(
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                List.of("Parameter", horizon)
+        );
+
+        List<List<List<?>>> rows = List.of(
+                List.of(
+                        List.of("AT-CH", 100, 200, 150, 175, 300, 400, 250, 275, "TRUE", "", "", "", "", "", ""),
+                        List.of("AT-CZ", 110, 210, 160, 185, 310, 410, 260, 285, "TRUE", 50.0, 25.0, 1, 1, 1, 1)
+                ),
+                List.of(
+                        List.of("hurdle_cost", 10.5),
+                        List.of("HVDC", true)
+                )
+        );
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(tempDir, "EmptyHvdc.xlsx", sheetNames, headers, rows);
+
+        assertDoesNotThrow(() ->
+                LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, horizon));
+    }
+
+    @Test
+    void shouldFailWhenNonHvdcNumericColumnsAreEmpty() throws IOException {
+        String horizon = "2030-2031";
+        List<String> sheetNames = List.of(horizon, "parameters");
+
+        List<List<String>> headers = List.of(
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                List.of("Parameter", horizon)
+        );
+
+        List<List<List<?>>> rows = List.of(
+                List.of(
+                        List.of("AT-CH", "", 200, 150, 175, 300, 400, 250, 275, "TRUE", 50.0, 25.0, 1, 1, 1, 1)
+                ),
+                List.of(
+                        List.of("hurdle_cost", 10.5),
+                        List.of("HVDC", true)
+                )
+        );
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(tempDir, "EmptyNumeric.xlsx", sheetNames, headers, rows);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, horizon));
+
+        assertTrue(exception.getMessage().contains("Waiting for Numeric Value"));
+        assertTrue(exception.getErrorMessageArguments().contains("Winter_HP_Direct_MW"));
+    }
+    @Test
+    void shouldFailWhenFlowbasedPerimeterIsEmpty() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyFlowbased.xlsx", "2037-2038",
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                List.of(
+                        List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, "", 50.0, 25.0, 1, 1, 1, 1)
+                )
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.LINKS, "2037-2038", TrajectoryType.LINK.name()));
+
+        assertTrue(exception.getMessage().contains("Empty values found"));
+    }
+    @Test
+    void shouldFailWhenFlowbasedPerimeterIsInvalid() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidFlowbased.xlsx", "2037-2038",
+                List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                        "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                        "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                        "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                        "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                        "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                List.of(
+                        List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, "NotABoolean", 50.0, 25.0, 1, 1, 1, 1)
+                )
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2037-2038"));
+
+        assertTrue(exception.getMessage().contains("Waiting for boolean value"));
     }
 }
