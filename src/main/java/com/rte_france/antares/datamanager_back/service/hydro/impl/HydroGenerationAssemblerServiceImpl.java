@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.mapper.HydroMapper;
