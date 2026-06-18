@@ -60,7 +60,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId, Boolean isHvdcModel) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 
         checkIfHorizonExist(path, horizon, TrajectoryType.LINK.name());
@@ -90,6 +90,13 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
         checkForWarnings(path, horizon, studyId, warningMessageEntities, userNni, trajectory);
         checkConsistencyTrajectoryLinkAndArea(listLink, areaNames, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
+
+        if (Boolean.TRUE.equals(isHvdcModel)) {
+            studyRepository.findById(studyId).ifPresent(study -> {
+                study.setHvdc(true);
+                studyRepository.save(study);
+            });
+        }
 
         return saveTrajectory(trajectory, listLink, warningMessageEntities);
     }
@@ -226,7 +233,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .hvdcFoRateDirect(getNumericCellValue(row, 14))
                             .hvdcFoRateIndirect(getNumericCellValue(row, 15))
                             .hurdleCost(hurdleCost)
-                            .hvdc(hvdc)
                             .build();
                     linkEntities.add(link);
 
