@@ -18,6 +18,9 @@ public class LinksToJsonService {
     public void buildLinksDataMap(TrajectoryEntity trajectory, Map<String, Object> linksMap, StudyEntity study) {
         log.info("Links for trajectory={}, links count={}", trajectory.getFileName(), trajectory.getLinkEntities() != null ? trajectory.getLinkEntities().size() : 0);
         List<LinkEntity> linkEntityList = trajectory.getLinkEntities();
+        if (linkEntityList == null) {
+            return;
+        }
         boolean isStudyWithHvdc = study.getHvdc() != null && study.getHvdc();
 
         Map<String, Map<String, Object>> linksDataMap = linkEntityList.stream()

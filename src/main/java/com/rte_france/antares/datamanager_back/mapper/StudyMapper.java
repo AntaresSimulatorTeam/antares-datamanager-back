@@ -32,6 +32,7 @@ public class StudyMapper {
                 .horizon(entity.getHorizon())
                 .status(entity.getStatus().name())
                 .trajectoryIds(entity.getTrajectories() != null ? entity.getTrajectories().stream().map(TrajectoryEntity::getId).toList() : Collections.emptyList())
+                .hvdc(entity.getHvdc())
                 .build();
     }
 
