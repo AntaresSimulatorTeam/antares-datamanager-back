@@ -25,6 +25,9 @@ public class StudyEntity {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "hvdc")
+    private Boolean hvdc;
+
     @Size(max = 255)
     @Column(name = "created_by")
     private String createdBy;
@@ -43,6 +46,7 @@ public class StudyEntity {
     private StudyStatus status;
 
     private String horizon;
+
 
     @OneToMany(mappedBy = "studyEntity", orphanRemoval = true)
     private Set<StudyTrajectoryEntity> studyTrajectoryEntities = new LinkedHashSet<>();

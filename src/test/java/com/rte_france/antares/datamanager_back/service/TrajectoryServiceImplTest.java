@@ -132,7 +132,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
 
-        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1);
+        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1, false);
 
         verify(areaFileProcessorService, times(1)).processAreaFile(any(), any());
     }
@@ -145,9 +145,9 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getLinkDirectory()).thenReturn("/links");
 
-        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024", 1);
+        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024", 1, true);
 
-        verify(linkFileProcessorService, times(1)).processLinkFile(any(), any(), any());
+        verify(linkFileProcessorService, times(1)).processLinkFile(any(), any(), any(), any());
     }
 
     @Test
@@ -563,10 +563,17 @@ class TrajectoryServiceImplTest {
         Integer trajectoryId = 1;
         Integer studyId = 1;
         StudyTrajectoryKey key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
-        StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder().id(key).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type("LINK").scenarioEntities(new HashSet<>()).build();
+        StudyEntity study = StudyEntity.builder().id(studyId).trajectories(new HashSet<>(Set.of(trajectory))).build();
+        trajectory.getScenarioEntities().add(study);
+
+        StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder()
+                .id(key)
+                .studyEntity(study)
+                .trajectory(trajectory)
+                .build();
 
         // When
-        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type("LINK").build();
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
         when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(entity));
 
@@ -574,6 +581,8 @@ class TrajectoryServiceImplTest {
 
         // Then
         verify(studyTrajectoryRepository, times(1)).delete(entity);
+        assertFalse(study.getTrajectories().contains(trajectory));
+        assertFalse(trajectory.getScenarioEntities().contains(study));
     }
 
 
@@ -603,10 +612,18 @@ class TrajectoryServiceImplTest {
         var trajectoryId = 1;
         var studyId = 1;
         var key = StudyTrajectoryKey.builder().trajectoryId(trajectoryId).scenarioId(studyId).build();
-        var entity = StudyTrajectoryEntity.builder().id(key).build();
 
         // When
-        var areaTrajectory = TrajectoryEntity.builder().id(trajectoryId).type("AREA").build();
+        var areaTrajectory = TrajectoryEntity.builder().id(trajectoryId).type("AREA").scenarioEntities(new HashSet<>()).build();
+        var study = StudyEntity.builder().id(studyId).trajectories(new HashSet<>(Set.of(areaTrajectory))).build();
+        areaTrajectory.getScenarioEntities().add(study);
+
+        var entity = StudyTrajectoryEntity.builder()
+                .id(key)
+                .studyEntity(study)
+                .trajectory(areaTrajectory)
+                .build();
+
         when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(areaTrajectory));
         when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(areaTrajectory));
         when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(entity));
@@ -615,6 +632,8 @@ class TrajectoryServiceImplTest {
 
         // Then
         verify(studyTrajectoryRepository, times(1)).delete(entity);
+        assertFalse(study.getTrajectories().contains(areaTrajectory));
+        assertFalse(areaTrajectory.getScenarioEntities().contains(study));
     }
 
     @Test
@@ -635,7 +654,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
-        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.UNKNOWN, "testFile", "2023-2024", 1));
+        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.UNKNOWN, "testFile", "2023-2024", 1, false));
     }
 
     @Test
@@ -3531,12 +3550,18 @@ class TrajectoryServiceImplTest {
                 .fileName("cm_test.xlsx")
                 .build();
 
+        var study = StudyEntity.builder().id(studyId).trajectories(new HashSet<>(Set.of(dsrTrajectory))).build();
+        dsrTrajectory.setScenarioEntities(new HashSet<>(Set.of(study)));
+        var cmStudy = StudyEntity.builder().id(studyId).trajectories(new HashSet<>(Set.of(cmTrajectory))).build();
+        cmTrajectory.setScenarioEntities(new HashSet<>(Set.of(cmStudy)));
+
         var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
                 .trajectoryId(dsrTrajectoryId)
                 .scenarioId(studyId)
                 .build();
         var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(dsrStudyTrajectoryKey)
+                .studyEntity(study)
                 .trajectory(dsrTrajectory)
                 .build();
 
@@ -3546,6 +3571,7 @@ class TrajectoryServiceImplTest {
                 .build();
         var cmStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(cmStudyTrajectoryKey)
+                .studyEntity(cmStudy)
                 .trajectory(cmTrajectory)
                 .build();
 
@@ -3586,12 +3612,16 @@ class TrajectoryServiceImplTest {
                 .hasTimeSeries(true)
                 .build();
 
+        var study = StudyEntity.builder().id(studyId).trajectories(new HashSet<>(Set.of(dsrTrajectory))).build();
+        dsrTrajectory.setScenarioEntities(new HashSet<>(Set.of(study)));
+
         var dsrStudyTrajectoryKey = StudyTrajectoryKey.builder()
                 .trajectoryId(dsrTrajectoryId)
                 .scenarioId(studyId)
                 .build();
         var dsrStudyTrajectory = StudyTrajectoryEntity.builder()
                 .id(dsrStudyTrajectoryKey)
+                .studyEntity(study)
                 .trajectory(dsrTrajectory)
                 .build();
 

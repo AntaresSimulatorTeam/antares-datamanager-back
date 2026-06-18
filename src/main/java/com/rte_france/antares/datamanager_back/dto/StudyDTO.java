@@ -41,6 +41,10 @@ public class StudyDTO {
     @JsonProperty("horizon")
     String horizon;
 
+    @JsonProperty("hvdc")
+    Boolean hvdc;
+
+
     @JsonProperty("trajectoryIds")
     List<Integer> trajectoryIds;
 }

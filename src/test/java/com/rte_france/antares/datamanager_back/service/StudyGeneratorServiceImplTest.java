@@ -179,9 +179,9 @@ class StudyGeneratorServiceImplTest {
 
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
-            new LinksToJsonService().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1));
+            new LinksToJsonService().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1), studyEntity);
             return null;
-        }).when(linksToJsonService).buildLinksDataMap(any(), any());
+        }).when(linksToJsonService).buildLinksDataMap(any(), any(), any());
 
         // Delegate STS building to real implementation by default
         lenient().doAnswer(inv -> new StsToJsonService().stsMapGenerator(inv.getArgument(0), inv.getArgument(1)))
