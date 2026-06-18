@@ -559,5 +559,120 @@ class TrajectoryServiceImplAdditionalTest {
         assertTrue(result.isEmpty(), "Should return empty list for empty directory");
     }
 
+    // ==================== TEST FOR IOException HANDLING IN isDirectoryEmpty ====================
+
+    @Test
+    void isDirectoryEmpty_withInvalidPath_returnsTrue() {
+        // Given - a non-existent path
+        Path invalidPath = Path.of("/non/existent/path/that/does/not/exist");
+
+        // When - calling isDirectoryEmpty with invalid path
+        boolean result = trajectoryService.isDirectoryEmpty(invalidPath);
+
+        // Then - should return true (treats inaccessible directory as empty)
+        assertTrue(result, "Should return true when directory cannot be read (IOException)");
+    }
+
+    @Test
+    void isDirectoryEmpty_withPermissionDenied_returnsTrue() throws IOException {
+        // Given - a directory (on Unix systems) with no read permissions
+        Path tempDir = Files.createTempDirectory("test_no_read_");
+        try {
+            // Remove read permission (this only works on Unix-like systems)
+            tempDir.toFile().setReadable(false);
+
+            // When - calling isDirectoryEmpty with restricted directory
+            boolean result = trajectoryService.isDirectoryEmpty(tempDir);
+
+            // Then - should return true (treats permission denied as empty)
+            assertTrue(result, "Should return true when directory cannot be read due to permissions");
+        } finally {
+            // Cleanup - restore permissions and delete
+            try {
+                tempDir.toFile().setReadable(true);
+                Files.deleteIfExists(tempDir);
+            } catch (Exception e) {
+                // Ignore cleanup errors
+            }
+        }
+    }
+
+    @Test
+    void isDirectoryEmpty_withEmptyDirectory_returnsFalse(@TempDir Path tempDir) {
+        // Given - an empty directory
+        
+        // When - calling isDirectoryEmpty
+        boolean result = trajectoryService.isDirectoryEmpty(tempDir);
+
+        // Then - should return true (directory is empty)
+        assertTrue(result, "Should return true for empty directory");
+    }
+
+    @Test
+    void isDirectoryEmpty_withNonEmptyDirectory_returnsFalse(@TempDir Path tempDir) throws IOException {
+        // Given - a directory with a file
+        Files.createFile(tempDir.resolve("test.txt"));
+
+        // When - calling isDirectoryEmpty
+        boolean result = trajectoryService.isDirectoryEmpty(tempDir);
+
+        // Then - should return false (directory is not empty)
+        assertFalse(result, "Should return false for non-empty directory");
+    }
+
+    @Test
+    void findTrajectoriesByType_withEmptyDirectoryTrajectory_skipsDirectory(@TempDir Path tempDir) throws IOException {
+        // Given - a nuclear modulation directory with empty subdirectories
+        Path nuclearDir = tempDir.resolve("nuclear/modulation");
+        Files.createDirectories(nuclearDir);
+        
+        // Create empty subdirectories
+        Path emptyMod1 = nuclearDir.resolve("empty_modulation_1");
+        Path emptyMod2 = nuclearDir.resolve("empty_modulation_2");
+        Files.createDirectory(emptyMod1);
+        Files.createDirectory(emptyMod2);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn("nuclear/modulation");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(
+                TrajectoryType.NUCLEAR_FR_MODULATION, null, null, null);
+
+        // Then - empty directories should be skipped (not included in results)
+        // because isDirectoryEmpty returns true and isDirectoryTrajectory checks !isDirectoryEmpty(path)
+        assertTrue(result.isEmpty(), "Should skip empty directory trajectories");
+    }
+
+    @Test
+    void findTrajectoriesByType_mixedEmptyAndNonEmptyDirectories_returnsOnlyNonEmpty(@TempDir Path tempDir) throws IOException {
+        // Given - a directory with both empty and non-empty subdirectories
+        Path nuclearDir = tempDir.resolve("nuclear/modulation");
+        Files.createDirectories(nuclearDir);
+        
+        // Create empty directory
+        Path emptyMod = nuclearDir.resolve("empty_modulation");
+        Files.createDirectory(emptyMod);
+        
+        // Create non-empty directory
+        Path nonEmptyMod = nuclearDir.resolve("modulation_2023-2024");
+        Files.createDirectory(nonEmptyMod);
+        Files.createFile(nonEmptyMod.resolve("data.txt"));
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn("nuclear/modulation");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(
+                TrajectoryType.NUCLEAR_FR_MODULATION, null, null, null);
+
+        // Then - only non-empty directory should be returned
+        assertEquals(1, result.size(), "Should return only non-empty directories");
+        assertEquals("modulation_2023-2024", result.getFirst().getFileName(),
+                "Should return the non-empty directory");
+    }
+
 }
 

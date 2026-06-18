@@ -1005,7 +1005,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType);
     }
 
-    private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
+    public boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
         return Files.isDirectory(path) &&
                 !isDirectoryEmpty(path) &&
                 (trajectoryType == TrajectoryType.LOAD
@@ -1027,7 +1027,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param path the directory path
      * @return true if the directory is empty, false otherwise
      */
-    private boolean isDirectoryEmpty(Path path) {
+    public boolean isDirectoryEmpty(Path path) {
         try {
             return Files.list(path).findFirst().isEmpty();
         } catch (IOException e) {
