@@ -235,7 +235,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId, Boolean isHvdcModel) throws IOException {
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId, boolean isHvdcModel) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse, "");
 
 
