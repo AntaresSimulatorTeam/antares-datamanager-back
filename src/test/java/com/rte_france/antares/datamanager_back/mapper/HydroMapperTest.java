@@ -34,15 +34,15 @@ class HydroMapperTest {
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(entity);
 
         assertThat(result).isNotNull();
-        assertThat(result.getFollowLoadModulation()).isTrue();
-        assertThat(result.getInterDailyBreakdown()).isEqualTo(1);
-        assertThat(result.getInterDailyModulation()).isEqualTo(2);
-        assertThat(result.getInterMonthlyBreakdown()).isEqualTo(3);
-        assertThat(result.getReservoirManagement()).isTrue();
-        assertThat(result.getReservoirCapacity()).isEqualTo(5000);
-        assertThat(result.getPumpingEfficiency()).isEqualTo(90);
-        assertThat(result.getInitializeReservoirDate()).isEqualTo(7);
-        assertThat(result.getUseWater()).isFalse();
+        assertThat(result.getProperties().getFollowLoadModulation()).isTrue();
+        assertThat(result.getProperties().getInterDailyBreakdown()).isEqualTo(1);
+        assertThat(result.getProperties().getInterDailyModulation()).isEqualTo(2);
+        assertThat(result.getProperties().getInterMonthlyBreakdown()).isEqualTo(3);
+        assertThat(result.getProperties().getReservoirManagement()).isTrue();
+        assertThat(result.getProperties().getReservoirCapacity()).isEqualTo(5000);
+        assertThat(result.getProperties().getPumpingEfficiency()).isEqualTo(90);
+        assertThat(result.getProperties().getInitializeReservoirDate()).isEqualTo(7);
+        assertThat(result.getProperties().getUseWater()).isFalse();
     }
 
     @Test
@@ -55,7 +55,7 @@ class HydroMapperTest {
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(entity);
 
         assertThat(result).isNotNull();
-        assertThat(result.getReservoirCapacity()).isNull();
+        assertThat(result.getProperties().getReservoirCapacity()).isNull();
     }
 
     @Test
@@ -66,7 +66,7 @@ class HydroMapperTest {
 
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(entity);
 
-        assertThat(result.getReservoirCapacity()).isEqualTo(1999);
+        assertThat(result.getProperties().getReservoirCapacity()).isEqualTo(1999);
     }
 
     @Test
@@ -92,9 +92,9 @@ class HydroMapperTest {
 
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(entity);
 
-        assertThat(result.getFollowLoadModulation()).isNull();
-        assertThat(result.getReservoirManagement()).isNull();
-        assertThat(result.getUseWater()).isNull();
+        assertThat(result.getProperties().getFollowLoadModulation()).isNull();
+        assertThat(result.getProperties().getReservoirManagement()).isNull();
+        assertThat(result.getProperties().getUseWater()).isNull();
     }
 
     @Test
@@ -104,14 +104,14 @@ class HydroMapperTest {
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(entity);
 
         assertThat(result).isNotNull();
-        assertThat(result.getFollowLoadModulation()).isNull();
-        assertThat(result.getInterDailyBreakdown()).isNull();
-        assertThat(result.getInterDailyModulation()).isNull();
-        assertThat(result.getInterMonthlyBreakdown()).isNull();
-        assertThat(result.getReservoirManagement()).isNull();
-        assertThat(result.getReservoirCapacity()).isNull();
-        assertThat(result.getPumpingEfficiency()).isNull();
-        assertThat(result.getInitializeReservoirDate()).isNull();
-        assertThat(result.getUseWater()).isNull();
+        assertThat(result.getProperties().getFollowLoadModulation()).isNull();
+        assertThat(result.getProperties().getInterDailyBreakdown()).isNull();
+        assertThat(result.getProperties().getInterDailyModulation()).isNull();
+        assertThat(result.getProperties().getInterMonthlyBreakdown()).isNull();
+        assertThat(result.getProperties().getReservoirManagement()).isNull();
+        assertThat(result.getProperties().getReservoirCapacity()).isNull();
+        assertThat(result.getProperties().getPumpingEfficiency()).isNull();
+        assertThat(result.getProperties().getInitializeReservoirDate()).isNull();
+        assertThat(result.getProperties().getUseWater()).isNull();
     }
 }
