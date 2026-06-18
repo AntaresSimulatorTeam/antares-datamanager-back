@@ -51,7 +51,7 @@ class TrajectoryControllerTest {
 
     @Test
     void uploadTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any(), anyBoolean())).thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -59,18 +59,19 @@ class TrajectoryControllerTest {
                         .param("trajectoryToUse", "test")
                         .param("horizon", "2023-2024")
                         .param("studyId", "1")
+                        .param("isHvdcModel", "true")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
 
                 //Then
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any());
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
     void uploadTrajectory_withSpacesInFileName_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any())).thenReturn(TrajectoryEntity.builder().build());
+        when(trajectoryServiceImpl.processTrajectory(any(), any(), any(), any(), anyBoolean())).thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -84,7 +85,7 @@ class TrajectoryControllerTest {
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
-        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any());
+        verify(trajectoryServiceImpl, times(1)).processTrajectory(any(), any(), any(), any(), anyBoolean());
     }
 
     @Test

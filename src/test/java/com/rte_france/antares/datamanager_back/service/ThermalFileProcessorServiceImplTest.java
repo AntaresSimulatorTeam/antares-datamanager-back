@@ -37,6 +37,7 @@ import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+import static com.rte_france.antares.datamanager_back.util.Utils.isSameFileWithDifferentContent;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
@@ -262,7 +263,7 @@ class ThermalFileProcessorServiceImplTest {
             for (int m = 1; m <= 6; m++) {
                 header.createCell(col++).setCellValue(String.format("%04d_%02d", 2026, m));
             }
-            
+
             // ce qui évite d'avoir à construire des cellules et limite le test à la validation des colonnes.
             try (var fos = new FileOutputStream(file.toFile())) {
                 wb.write(fos);
@@ -1030,7 +1031,8 @@ class ThermalFileProcessorServiceImplTest {
             utilsMock.when(() -> Utils.checkTrajectoryVersion(eq(path), eq(existing))).thenReturn(true);
 
             // Since existingOpt.present && checkTrajectoryVersion true => buildTrajectory called with existing version
-            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()))
+            utilsMock.when(() -> Utils.buildTrajectory(eq(path), eq(existing.getVersion()), eq(horizon), eq("NNI2"),
+                            eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER), isNull(), isNull(), isNull()))
                     .thenReturn(builtTrajectory);
 
             when(thermalEconomicCostAndRateService.saveThermalEconomicCostAndRateTrajectory(eq(builtTrajectory), eq(costs), eq(rates), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER)))

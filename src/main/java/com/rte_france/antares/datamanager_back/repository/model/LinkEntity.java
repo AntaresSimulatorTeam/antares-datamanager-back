@@ -36,7 +36,6 @@ public class LinkEntity {
     private Double hvdcNbIndirect;
     private Double hvdcFoRateDirect;
     private Double hvdcFoRateIndirect;
-    private Boolean hvdc;
     private double hurdleCost;
 
     @ManyToOne(fetch = FetchType.LAZY)

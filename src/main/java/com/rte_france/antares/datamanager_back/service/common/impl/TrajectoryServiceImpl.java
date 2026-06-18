@@ -16,7 +16,6 @@ import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulation
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
-import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
@@ -232,15 +231,17 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryToUse the name of the trajectory file to use
      * @param horizon         the horizon period in the format yyyy-yyyy
      * @param studyId         the ID of the study
+     * @param isHvdcModel     the hvdc model flag
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId, boolean isHvdcModel) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse, "");
+
 
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
-            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
+            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId, isHvdcModel);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
@@ -691,6 +692,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
+        studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
         studyTrajectoryRepository.delete(studyTrajectory);
 
         if (requiresCmUnlink) {
@@ -719,7 +721,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .scenarioId(studyId)
                 .build();
 
-        studyTrajectoryRepository.findById(key).ifPresent(studyTrajectoryRepository::delete);
+        studyTrajectoryRepository.findById(key).ifPresent(studyTrajectory -> {
+            studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
+            studyTrajectoryRepository.delete(studyTrajectory);
+        });
         log.info("Unlinked CM trajectory: {} from study: {}", cmTrajectory.getFileName(), studyId);
     }
 
