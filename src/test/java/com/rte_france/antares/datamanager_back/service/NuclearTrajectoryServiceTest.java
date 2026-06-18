@@ -79,6 +79,10 @@ class NuclearTrajectoryServiceTest {
         Path mod_export = nuclearDir.resolve("modulation_export_2023-2024");
         Files.createDirectory(mod_france);
         Files.createDirectory(mod_export);
+        
+        // Add files inside to make directories non-empty
+        Files.createFile(mod_france.resolve("data.txt"));
+        Files.createFile(mod_export.resolve("data.txt"));
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
@@ -155,6 +159,10 @@ class NuclearTrajectoryServiceTest {
         Path lt2024 = ltDir.resolve("lt_2024");
         Files.createDirectory(lt2023);
         Files.createDirectory(lt2024);
+        
+        // Add files inside to make directories non-empty
+        Files.createFile(lt2023.resolve("data.txt"));
+        Files.createFile(lt2024.resolve("data.txt"));
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
@@ -255,6 +263,11 @@ class NuclearTrajectoryServiceTest {
         Files.createDirectory(mod_2023);
         Files.createDirectory(mod_2024);
         Files.createDirectory(mod_other);
+        
+        // Add files inside to make directories non-empty
+        Files.createFile(mod_2023.resolve("data.txt"));
+        Files.createFile(mod_2024.resolve("data.txt"));
+        Files.createFile(mod_other.resolve("data.txt"));
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");

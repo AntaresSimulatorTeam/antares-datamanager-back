@@ -125,9 +125,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public static final String RES_CAPACITY_PREFIX = "installedres_";
     public static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
     public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
-    private static final String NUCLEAR_TALON_PREFIX = "talon_nuc";
-    private static final String NUCLEAR_EPR_PREFIX = "ts_epr";
-    private static final String NUCLEAR_SMR_PREFIX = "ts_smr";
+    private static final String NUCLEAR_TALON_PREFIX = "talon_nuc_";
+    private static final String NUCLEAR_EPR_PREFIX = "ts_epr_";
+    private static final String NUCLEAR_SMR_PREFIX = "ts_smr_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -1005,8 +1005,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType);
     }
 
-    private boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
+    public boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
         return Files.isDirectory(path) &&
+                !isDirectoryEmpty(path) &&
                 (trajectoryType == TrajectoryType.LOAD
                         || trajectoryType == RES_CAPACITY && isDefaultArea(area)
                         || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
@@ -1018,6 +1019,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM);
+    }
+
+    /**
+     * Checks if a directory is empty.
+     *
+     * @param path the directory path
+     * @return true if the directory is empty, false otherwise
+     */
+    public boolean isDirectoryEmpty(Path path) {
+        try {
+            return Files.list(path).findFirst().isEmpty();
+        } catch (IOException e) {
+            log.debug("Error checking if directory is empty: {}", path, e);
+            return true; // Consider directory as empty if we can't read it
+        }
     }
 
     private boolean fileNameMatches(FsTrajectoryDTO dto, String fileNameContains) {
