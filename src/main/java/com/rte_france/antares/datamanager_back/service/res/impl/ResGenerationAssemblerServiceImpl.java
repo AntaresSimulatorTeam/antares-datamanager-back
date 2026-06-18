@@ -120,13 +120,27 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         ));
     }
 
+    private record ClusterGroupKey(String group, String cluster) {}
+
     private Map<String, ResClusterGenerationDto> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
-        return capacities.stream()
-                .collect(Collectors.groupingBy(ResClusterCapacityEntity::getCluster, LinkedHashMap::new, Collectors.toList()))
+        var byGroupAndCluster = capacities.stream()
+                .collect(Collectors.groupingBy(
+                        e -> new ClusterGroupKey(normalizeGroup(e.getGroupe()), e.getCluster()),
+                        LinkedHashMap::new, Collectors.toList()));
+
+        var clusterNamesSharedAcrossGroups = byGroupAndCluster.keySet().stream()
+                .collect(Collectors.groupingBy(ClusterGroupKey::cluster, Collectors.mapping(ClusterGroupKey::group, Collectors.toSet())))
                 .entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+
+        return byGroupAndCluster.entrySet().stream()
                 .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> buildClusterEntry(entry.getKey(), entry.getValue(), context),
+                        entry -> clusterNamesSharedAcrossGroups.contains(entry.getKey().cluster())
+                                ? entry.getKey().cluster() + "_" + entry.getKey().group()
+                                : entry.getKey().cluster(),
+                        entry -> buildClusterEntry(entry.getKey().cluster(), entry.getValue(), context),
                         (a, b) -> a,
                         LinkedHashMap::new
                 ));
