@@ -87,13 +87,13 @@ class HydroGenerationAssemblerServiceImplTest {
 
         List<HydroGenerationDTO> frProps = result.get("FR");
         assertEquals(1, frProps.size());
-        assertEquals(Boolean.TRUE, frProps.get(0).getFollowLoadModulation());
-        assertEquals(1000, frProps.get(0).getReservoirCapacity());
+        assertEquals(Boolean.TRUE, frProps.getFirst().getProperties().getFollowLoadModulation());
+        assertEquals(1000, frProps.getFirst().getProperties().getReservoirCapacity());
 
         List<HydroGenerationDTO> beProps = result.get("BE");
         assertEquals(1, beProps.size());
-        assertEquals(Boolean.FALSE, beProps.get(0).getFollowLoadModulation());
-        assertEquals(2000, beProps.get(0).getReservoirCapacity());
+        assertEquals(Boolean.FALSE, beProps.getFirst().getProperties().getFollowLoadModulation());
+        assertEquals(2000, beProps.getFirst().getProperties().getReservoirCapacity());
     }
 
     @Test
@@ -401,15 +401,15 @@ class HydroGenerationAssemblerServiceImplTest {
         Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
 
         HydroGenerationDTO dto = result.get("FR").get(0);
-        assertEquals(Boolean.TRUE, dto.getFollowLoadModulation());
-        assertEquals(1, dto.getInterDailyBreakdown());
-        assertEquals(2, dto.getInterDailyModulation());
-        assertEquals(3, dto.getInterMonthlyBreakdown());
-        assertEquals(Boolean.TRUE, dto.getReservoirManagement());
-        assertEquals(5000, dto.getReservoirCapacity());
-        assertEquals(90, dto.getPumpingEfficiency());
-        assertEquals(7, dto.getInitializeReservoirDate());
-        assertEquals(Boolean.FALSE, dto.getUseWater());
+        assertEquals(Boolean.TRUE, dto.getProperties().getFollowLoadModulation());
+        assertEquals(1, dto.getProperties().getInterDailyBreakdown());
+        assertEquals(2, dto.getProperties().getInterDailyModulation());
+        assertEquals(3, dto.getProperties().getInterMonthlyBreakdown());
+        assertEquals(Boolean.TRUE, dto.getProperties().getReservoirManagement());
+        assertEquals(5000, dto.getProperties().getReservoirCapacity());
+        assertEquals(90, dto.getProperties().getPumpingEfficiency());
+        assertEquals(7, dto.getProperties().getInitializeReservoirDate());
+        assertEquals(Boolean.FALSE, dto.getProperties().getUseWater());
     }
 
     @Test
@@ -823,7 +823,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
 
         assertEquals(1, result.size());
-        assertEquals(3000, result.get("FR").get(0).getReservoirCapacity());
+        assertEquals(3000, result.get("FR").get(0).getProperties().getReservoirCapacity());
     }
 
     @Test

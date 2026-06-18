@@ -15,31 +15,7 @@ import java.util.Map;
 public class HydroGenerationDTO {
 
     @JsonProperty("follow_load")
-    private Boolean followLoadModulation;
-
-    @JsonProperty("inter_daily_breakdown")
-    private Integer interDailyBreakdown;
-
-    @JsonProperty("inter_daily_modulation")
-    private Integer interDailyModulation;
-
-    @JsonProperty("inter_monthly_breakdown")
-    private Integer interMonthlyBreakdown;
-
-    @JsonProperty("reservoir")
-    private Boolean reservoirManagement;
-
-    @JsonProperty("reservoir_capacity")
-    private Integer reservoirCapacity;
-
-    @JsonProperty("pumping_efficiency")
-    private Integer pumpingEfficiency;
-
-    @JsonProperty("initialize_reservoir_date")
-    private Integer initializeReservoirDate;
-
-    @JsonProperty("use_water")
-    private Boolean useWater;
+    private HydroPropertiesGenerationDTO properties;
 
     @JsonProperty("allocation")
     private Map<String, Double> allocation;
