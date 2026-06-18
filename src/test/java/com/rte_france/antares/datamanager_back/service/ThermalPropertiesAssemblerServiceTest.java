@@ -169,7 +169,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
                 .thermalSpecificParameters(List.of(
                         specificParams(
-                                gasRef,
+
                                 0.50, // minStableGeneration (ratio of nominal)
                                 0.23, // spinning
                                 0.37, // efficiency (ratio)
@@ -483,7 +483,7 @@ class ThermalPropertiesAssemblerServiceTest {
         econCo2.setTrajectory(economicTrajectory);
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .area("FR")
                 .marginalCost(10.0)
                 .build();
@@ -571,7 +571,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .area("FR")
                 .marginalCost(10.0)
                 .build();
@@ -639,7 +639,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thenReturn(Optional.empty());
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .area("AT")
                 .marginalCost(10.0)
                 .build();
@@ -696,7 +696,6 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     private static ThermalSpecificParametersEntity specificParams(
-            ThermalClusterRef ref,
             double minStableGeneration,
             double spinning,
             double efficiency,
@@ -709,7 +708,7 @@ class ThermalPropertiesAssemblerServiceTest {
             List<Double> poMonthlyRate
     ) {
         return ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(ref)
+                .cluster("Gas1")
                 .minStableGeneration(minStableGeneration)
                 .spinning(spinning)
                 .efficiency(efficiency)
@@ -769,7 +768,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .marginalCost(30.0) // marginal_cost
                 .minStableGeneration(0.4)
                 .spinning(0.0)
@@ -901,7 +900,7 @@ class ThermalPropertiesAssemblerServiceTest {
         commonParam.setFuel("GAS");
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .marketBid(105.0) // market_bid exists
                 .marginalCost(100.0)
                 .spinning(0.0)
@@ -947,7 +946,7 @@ class ThermalPropertiesAssemblerServiceTest {
         commonParam.setFuel("GAS");
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .marketBid(null) // market_bid missing
                 .marginalCost(100.0)
                 .spinning(0.0)
@@ -982,7 +981,7 @@ class ThermalPropertiesAssemblerServiceTest {
     @Test
     void assembleForTrajectory_computesCosts_correctlyPopulated() {
         // given
-        var capTraj = TrajectoryEntity.builder()
+        var capacityTrajectory = TrajectoryEntity.builder()
                 .type("THERMAL_CAPACITY")
                 .thermalClusterCapacities(List.of(
                         cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder()
@@ -1008,7 +1007,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .marginalCost(200.0)
                 .area("FR")
                 .build();
@@ -1017,7 +1016,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // when
         var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(
-                capTraj,
+                capacityTrajectory,
                 TrajectoryEntity.builder().type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()).thermalCommonParameters(List.of(commonParam)).build(),
                 TrajectoryEntity.builder().type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name()).thermalSpecificParameters(List.of(specificParam)).build()
         )).build());
@@ -1076,8 +1075,8 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
                 .area("FR")
+                .cluster("Gas1")
                 .marginalCost(10.0)
                 .build();
 
@@ -1120,7 +1119,7 @@ class ThermalPropertiesAssemblerServiceTest {
         // NO THERMAL_TECHNICAL_COMMON_PARAMETER trajectory
 
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+                .cluster("Gas1")
                 .marginalCost(100.0) // specifically set marginal cost
                 .efficiency(0.50)
                 .area("FR")
@@ -1230,7 +1229,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // Specific parameters with NULL durations
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+           //     .thermalClusterRef(gasRef)
                 .foDuration(null)
                 .poDuration(null)
                 .build();
@@ -1283,7 +1282,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // Specific parameters with NULL monthly rates (f1 and p1 are null)
         var specificParam = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(gasRef)
+            //    .thermalClusterRef(gasRef)
                 .f1(null).f2(null).f3(null).f4(null).f5(null).f6(null).f7(null).f8(null).f9(null).f10(null).f11(null).f12(null)
                 .p1(null).p2(null).p3(null).p4(null).p5(null).p6(null).p7(null).p8(null).p9(null).p10(null).p11(null).p12(null)
                 .build();
@@ -1310,7 +1309,7 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     @Test
-    void assembleForTrajectories_prioritizesNASpecificParameters() {
+    void assembleForTrajectories_specificParametersTakenByArea() {
         // given
         // 1. Standard Ref
         var standardRef = ThermalClusterRef.builder()
@@ -1320,16 +1319,9 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thermalTechnology(new ThermalTechnology())
                 .build();
 
-        // 2. NA Ref with same name
-        var naRef = ThermalClusterRef.builder()
-                .id(102)
-                .name("ClusterX")
-                .namePemmdb("NA")
-                .thermalTechnology(null)
-                .build();
 
         // Capacity Trajectory for standard ref
-        var capTraj = TrajectoryEntity.builder()
+        var capacityTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_CAPACITY.name())
                 .thermalClusterCapacities(List.of(
                         cap(standardRef, CategoryEnum.POWER, 100.0, true)
@@ -1340,35 +1332,36 @@ class ThermalPropertiesAssemblerServiceTest {
                 ))
                 .build();
 
-        // Specific Trajectory containing both standard and NA parameters
+        // Specific Trajectory containing same cluster for FR et IT
         var standardParams = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(standardRef)
-                .efficiency(0.5) // 50%
+                .cluster("ClusterX")
+                .efficiency(0.8)
                 .area("FR")
                 .build();
 
         var naParams = ThermalSpecificParametersEntity.builder()
-                .thermalClusterRef(naRef)
-                .efficiency(0.8) // 80% - this should be prioritized
-                .area("FR")
+                .cluster("ClusterX")
+                .efficiency(0.9)
+                .area("IT")
                 .build();
 
         var specificTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
                 .thermalSpecificParameters(List.of(standardParams, naParams))
+                .area("FR")
                 .build();
 
         when(groupMappingService.toGroup("ClusterX")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, specificTraj)).build());
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, specificTraj)).build());
 
         // then
         var key = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", standardRef);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
-        // Efficiency should be 80.0 (from NA params) not 50.0 (from standard params)
+        // Efficiency should be 80.0 for FR
         assertThat(dto.getEfficiency()).isEqualTo(80.0);
     }
     @Test

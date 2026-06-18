@@ -536,6 +536,12 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         } else {
             try {
                 value = Double.parseDouble(cell.getStringCellValue());
+                if (Double.isNaN(value)) {
+                    throw BusinessException.builder()
+                            .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory  {1} must be numeric")
+                            .errorMessageArguments(List.of(horizon, trajectoryFileName))
+                            .build();
+                }
             } catch (NumberFormatException e) {
                 throw BusinessException.builder()
                         .message("The value of power or number of horizon {0} in THERMAL Installed Power trajectory  {1} must be numeric")

@@ -263,16 +263,17 @@ public class ThermalCostAssembler {
             ThermalCommonParameterEntity commonParam,
             List<ThermalClusterCapacityEntity> thermalClusterCapacities
     ) {
-        if (specificParam.getThermalClusterRef() == null) {
+
+        if (specificParam.getCluster() == null) {
             return false;
         }
-        String specificClusterName = specificParam.getThermalClusterRef().getName();
+        String specificClusterName = specificParam.getCluster();
         if (commonParam != null && commonParam.getThermalClusterRef() != null) {
             return Objects.equals(specificClusterName, commonParam.getThermalClusterRef().getName());
         }
-        return thermalClusterCapacities.stream()
+       return thermalClusterCapacities.stream()
                 .anyMatch(c -> c.getThermalClusterRef() != null
-                        && Objects.equals(specificClusterName, c.getThermalClusterRef().getName()));
+                       && Objects.equals(specificClusterName, c.getThermalClusterRef().getName()));
     }
 
     private void updateStartupCost(
@@ -360,9 +361,12 @@ public class ThermalCostAssembler {
             ThermalCommonParameterEntity commonParam,
             ThermalClusterGenerationDto dto
     ) {
-        if (economicCostTrajectories == null) return null;
+        double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
+        if (economicCostTrajectories == null)
+            return omCost;
         TrajectoryEntity trajectory = economicCostTrajectories.getTrajectory();
-        if (trajectory == null) return null;
+        if (trajectory == null)
+            return omCost;
         Double fuelCost = findFuelCost(trajectory, fuel);
         Double co2Cost = findCo2Cost(trajectory);
         Double efficiency = dto.getEfficiency();
@@ -370,12 +374,11 @@ public class ThermalCostAssembler {
             efficiency = efficiency / 100.0;
 
         if (fuelCost != null && co2Cost != null && efficiency != null && efficiency != 0.0) {
-            double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
             Double co2Value = dto.getCo2() != null ? dto.getCo2() : 0.0;
             // Formula: fuel / efficiency + CO2 cost * CO2 (calculated in computeCo2) + om_cost
             return (fuelCost / efficiency) + (co2Cost * co2Value) + omCost;
         }
-        return null;
+        return omCost;
     }
 
     /**
@@ -394,13 +397,14 @@ public class ThermalCostAssembler {
 
         if (!commonParams.isEmpty()) {
             ThermalCommonParameterEntity firstCommon = commonParams.getFirst();
+
             marketBid = specificParams.stream()
-                    .filter(s -> firstCommon.getThermalClusterRef() != null && s.getThermalClusterRef() != null
-                            && Objects.equals(s.getThermalClusterRef().getName(), firstCommon.getThermalClusterRef().getName()))
+                    .filter(s -> firstCommon.getThermalClusterRef() != null && s.getCluster() != null
+                            && Objects.equals(s.getCluster(), firstCommon.getThermalClusterRef().getName()))
                     .map(ThermalSpecificParametersEntity::getMarketBid)
-                    .filter(Objects::nonNull)
+                   .filter(Objects::nonNull)
                     .findFirst()
-                    .orElse(null);
+                   .orElse(null);
         }
 
         if (marketBid != null) {

@@ -23,6 +23,9 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Column(name = "node", length = 20)
     private String node;
 
+    @Column(name = "cluster")
+    private String cluster;
+
     @Column(name = "min_stable_generation")
     private Double minStableGeneration;
 
@@ -95,9 +98,5 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Size(max = 50)
     @Column(name = "area")
     private String area;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "thermal_cluster_ref_id")
-    private ThermalClusterRef thermalClusterRef;
 
 }

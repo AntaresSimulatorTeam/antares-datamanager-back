@@ -47,7 +47,6 @@ public class ExcelCommonValidator {
 
             List<String> actualColumns = extractActualColumns(headerRow);
             validateColumns(fileType, actualColumns, horizon, trajectoryType);
-
             checkAllRowsHaveValues(sheet, fileType.getColumnCount(), horizon, trajectoryType);
 
         } catch (IOException e) {
@@ -126,6 +125,19 @@ public class ExcelCommonValidator {
     }
 
 
+    /**
+     * Validates that all rows in the given sheet have values in their cells. Throws a {@code BusinessException}
+     * if any empty cell is found, providing detailed information about the row and column where the error occurred.
+     * The validation is performed based on the trajectory type which also determines how identifiers for rows
+     * are extracted.
+     *
+     * @param sheet          the Excel sheet to validate; must not be {@code null}.
+     * @param columnCount    the total number of columns to check in each row.
+     * @param horizon        the horizon context used for error messaging; must not be {@code null} or empty.
+     * @param trajectoryType the type of trajectory (e.g., AREA, LINK) that determines the identifier retrieval logic;
+     *                       must not be {@code null}.
+     * @throws BusinessException if any cell in the sheet is empty and throws detailed information about affected rows.
+     */
     private static void checkAllRowsHaveValues(Sheet sheet, int columnCount, String horizon, String trajectoryType) {
         Set<String> emptyRowIdentifiers = new TreeSet<>();
 
@@ -147,10 +159,20 @@ public class ExcelCommonValidator {
                     }
 
                     final String finalIdentifier = identifier;
+                    Row headerRow = sheet.getRow(0);
                     return IntStream.range(0, columnCount)
                             .mapToObj(colIndex -> {
                                 Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                                 if (cell == null || isCellEmpty(cell)) {
+                                    if (TrajectoryType.LINK.name().equals(trajectoryType) && headerRow != null) {
+                                        Cell headerCell = headerRow.getCell(colIndex);
+                                        if (headerCell != null && headerCell.getCellType() == CellType.STRING) {
+                                            String columnName = headerCell.getStringCellValue();
+                                            if (columnName.toLowerCase(Locale.ROOT).startsWith("hvdc")) {
+                                                return null;
+                                            }
+                                        }
+                                    }
                                     emptyRowIdentifiers.add(finalIdentifier);
                                     return "Row " + (row.getRowNum() + 1) + " - Column " + (colIndex + 1);
                                 }
@@ -175,7 +197,7 @@ public class ExcelCommonValidator {
         }
     }
 
-    private static boolean isCellEmpty(Cell cell) {
+    public static boolean isCellEmpty(Cell cell) {
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim().isEmpty();
             case NUMERIC, BOOLEAN, FORMULA -> false;
@@ -197,6 +219,10 @@ public class ExcelCommonValidator {
 
 
     public static void checkBooleanColumns(Sheet sheet, String horizon, List<String> booleanColumns, String trajectoryType) {
+        checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType, false);
+    }
+
+    public static void checkBooleanColumns(Sheet sheet, String horizon, List<String> booleanColumns, String trajectoryType, boolean failOnEmpty) {
         Map<String, Integer> columnIndexes = booleanColumns.stream()
                 .collect(Collectors.toMap(Function.identity(), column -> ExcelCommonValidator.findColumnIndex(sheet, column, horizon, trajectoryType)));
 
@@ -217,6 +243,9 @@ public class ExcelCommonValidator {
                 .filter(row -> columnIndexes.entrySet().stream()
                         .anyMatch(entry -> {
                             Cell cell = row.getCell(entry.getValue(), Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                            if (failOnEmpty && isInvalidOrUndefinedCell(cell)) {
+                                return true;
+                            }
                             return !isValidBoolean(cell);
                         }))
                 .map(row -> Optional.of(row)

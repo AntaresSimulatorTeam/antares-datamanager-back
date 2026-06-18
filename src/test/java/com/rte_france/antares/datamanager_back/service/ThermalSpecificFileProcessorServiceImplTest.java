@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -10,6 +9,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalClust
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalSpecificFileProcessorServiceImpl;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
+
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
@@ -110,7 +109,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
         assertEquals(2, result.size());
         // Basic field checks
         assertEquals("FR", result.get(0).getNode());
-        assertEquals("Cluster1", result.get(0).getThermalClusterRef().getName());
+        assertEquals("Cluster1", result.get(0).getCluster());
         assertEquals(1.0, result.get(0).getMinStableGeneration());
         assertEquals(38.0, result.get(0).getP12());
     }
@@ -208,15 +207,14 @@ class ThermalSpecificFileProcessorServiceImplTest {
         ThermalSpecificParametersEntity e = list.get(0);
 
         assertEquals("NODE-A", e.getNode());
-        assertNotNull(e.getThermalClusterRef());
-        assertEquals("ClusterA", e.getThermalClusterRef().getName());
-        assertEquals("PEM-001", e.getThermalClusterRef().getNamePemmdb());
+        assertNotNull(e.getCluster());
+        assertEquals("ClusterA", e.getCluster());
 
         // Check a few numeric fields (rounded to 2 decimals by castDouble)
-        assertEquals(10.00, e.getMinStableGeneration());
-        assertEquals(1.50, e.getSpinning());
-        assertEquals(0.42, e.getEfficiency());
+        assertEquals(10, e.getMinStableGeneration());
+        assertEquals(1.5, e.getSpinning());
         assertEquals(0.11, e.getF1());
+        assertEquals(0.42, e.getEfficiency());
         assertEquals(210.00, e.getP12());
     }
 
@@ -260,16 +258,10 @@ class ThermalSpecificFileProcessorServiceImplTest {
             var row = sheet.createRow(3 + r); // data starts at row index 3 (4th row)
             // 0..2 textual (node, cluster_pemmdb, cluster)
             row.createCell(0).setCellValue(r == 0 ? "FR" : "DE");
-            row.createCell(1).setCellValue("PEM1");
-            if (makeClusterEmpty) {
-                row.createCell(2).setCellValue("");
-            } else {
-                row.createCell(2).setCellValue("Cluster1");
-            }
-
-            // numeric columns 3..40
+            row.createCell(1).setCellValue("Cluster1");
+            // numeric columns 2..40
             int v = 1;
-            for (int c = 3; c <= 40; c++) {
+            for (int c = 2; c <= 40; c++) {
                 row.createCell(c).setCellValue(v++);
             }
         }
@@ -320,29 +312,28 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
             // Header row at index 0 with labels for columns used by castDouble error messages
             var header = sheet.createRow(0);
-            String[] headerLabels = new String[41];
+            String[] headerLabels = new String[40];
             headerLabels[0] = "Node";
-            headerLabels[1] = "Cluster PEMMDB";
-            headerLabels[2] = "Cluster Name";
-            headerLabels[3] = "Min Stable Generation";
-            headerLabels[4] = "Spinning";
-            headerLabels[5] = "Efficiency";
-            headerLabels[6] = "FO Rate";
-            headerLabels[7] = "FO Duration";
-            headerLabels[8] = "PO Duration";
-            headerLabels[9] = "PO Winter";
-            headerLabels[10] = "Marginal Cost";
-            headerLabels[11] = "Market Bid";
-            headerLabels[12] = "MR Specific";
-            headerLabels[13] = "CM Specific";
-            headerLabels[14] = "NPO Max Winter";
-            headerLabels[15] = "NPO Max Summer";
-            headerLabels[16] = "Nb Unit";
-            for (int i = 17; i <= 28; i++) {
-                headerLabels[i] = "F" + (i - 16);
+            headerLabels[1] = "Cluster";
+            headerLabels[2] = "Min Stable Generation";
+            headerLabels[3] = "Spinning";
+            headerLabels[4] = "Efficiency";
+            headerLabels[5] = "FO Rate";
+            headerLabels[6] = "FO Duration";
+            headerLabels[7] = "PO Duration";
+            headerLabels[8] = "PO Winter";
+            headerLabels[9] = "Marginal Cost";
+            headerLabels[10] = "Market Bid";
+            headerLabels[11] = "MR Specific";
+            headerLabels[12] = "CM Specific";
+            headerLabels[13] = "NPO Max Winter";
+            headerLabels[14] = "NPO Max Summer";
+            headerLabels[15] = "Nb Unit";
+            for (int i = 16; i <= 27; i++) {
+                headerLabels[i] = "F" + (i - 15);
             }
-            for (int i = 29; i <= 40; i++) {
-                headerLabels[i] = "P" + (i - 28);
+            for (int i = 28; i <= 39; i++) {
+                headerLabels[i] = "P" + (i - 27);
             }
             for (int i = 0; i < headerLabels.length; i++) {
                 if (headerLabels[i] == null) headerLabels[i] = "Col" + i;
@@ -352,7 +343,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
             // Leave row 1 and 2 empty to mimic metadata rows; first data row is index 3
             var row = sheet.createRow(3);
             Object[] values = new Object[]{
-                    "NODE-A", "PEM-001", "ClusterA",
+                    "NODE-A", "ClusterA",
                     10.0, 1.5, 0.42, 0.05, 2.0, 3.0, 4.0, 50.0, 60.0,
                     1.0, 0.0, 7.0, 8.0, 2.0,
                     0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22,
@@ -388,12 +379,12 @@ class ThermalSpecificFileProcessorServiceImplTest {
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
                                 .mrSpecific(1)
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .cluster("ClusterA")
                                 .build(),
                         ThermalSpecificParametersEntity.builder()
                                 .area("DE")
                                 .mrSpecific(1)
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .cluster("ClusterB")
                                 .build()
                 ));
 
@@ -409,12 +400,12 @@ class ThermalSpecificFileProcessorServiceImplTest {
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
                                 .cmSpecific(1)
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .cluster("ClusterA")
                                 .build(),
                         ThermalSpecificParametersEntity.builder()
                                 .area("DE")
                                 .cmSpecific(1)
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .cluster("ClusterB")
                                 .build()
                 ));
 
@@ -430,12 +421,12 @@ class ThermalSpecificFileProcessorServiceImplTest {
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
                                 .mrSpecific(0)
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                           //    .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
                                 .build(),
                         ThermalSpecificParametersEntity.builder()
                                 .area("DE")
                                 .mrSpecific(null)
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                           //     .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
                                 .build()
                 ));
 
@@ -466,6 +457,119 @@ class ThermalSpecificFileProcessorServiceImplTest {
         // THEN
         assertTrue(result);
 
+    }
+
+    @Test
+    void shouldSaveThermalSpecificTrajectory() {
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        List<ThermalSpecificParametersEntity> params = List.of(new ThermalSpecificParametersEntity());
+        TrajectoryType type = TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER;
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        TrajectoryEntity saved = service.saveThermalSpecificTrajectory(trajectory, params, type);
+
+        assertEquals(type.name(), saved.getType());
+        assertEquals(params, saved.getThermalSpecificParameters());
+        assertEquals(saved, params.get(0).getTrajectory());
+        verify(trajectoryRepository).save(trajectory);
+    }
+
+    @Test
+    void shouldSaveThermalSpecificTrajectoryWithEmptyParams() {
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        TrajectoryType type = TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER;
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        TrajectoryEntity saved = service.saveThermalSpecificTrajectory(trajectory, Collections.emptyList(), type);
+
+        assertEquals(type.name(), saved.getType());
+        assertNull(saved.getThermalSpecificParameters());
+        verify(trajectoryRepository).save(trajectory);
+    }
+
+    @Test
+    void testGetNumericCellValue() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row row = sheet.createRow(0);
+
+        // NUMERIC
+        Cell cell0 = row.createCell(0);
+        cell0.setCellValue(123.45);
+        assertEquals(123.45, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 0));
+
+        // STRING (valid)
+        Cell cell1 = row.createCell(1);
+        cell1.setCellValue("  678.9  ");
+        assertEquals(678.9, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 1));
+
+        // STRING (empty)
+        Cell cell2 = row.createCell(2);
+        cell2.setCellValue("  ");
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 2));
+
+        // STRING (invalid)
+        Cell cell3 = row.createCell(3);
+        cell3.setCellValue("abc");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 3));
+
+        // STRING (NaN)
+        Cell cell4 = row.createCell(4);
+        cell4.setCellValue("NaN");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 4));
+
+        // BLANK
+        Cell cell5 = row.createCell(5, CellType.BLANK);
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, cell5.getColumnIndex()));
+
+        // NULL (MissingCellPolicy)
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 6));
+    }
+
+    @Test
+    void testGetNumericCellValueFormula() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row row = sheet.createRow(0);
+
+        // Formula NUMERIC
+        Cell cell0 = row.createCell(0);
+        cell0.setCellFormula("1+1"); // Evaluates to 2.0
+        // Note: POI requires evaluation, getNumericCellValue handles it internaly
+        assertEquals(2.0, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 0));
+
+        // Formula STRING
+        Cell cell1 = row.createCell(1);
+        cell1.setCellFormula("\"123.4\"");
+        assertEquals(123.4, ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 1));
+
+        // Formula STRING empty
+        Cell cell2 = row.createCell(2);
+        cell2.setCellFormula("\"\"");
+        assertNull(ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 2));
+
+        // Formula STRING invalid
+        Cell cell3 = row.createCell(3);
+        cell3.setCellFormula("\"abc\"");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 3));
+
+        // Formula BOOLEAN (default case in formula switch)
+        Cell cell4 = row.createCell(4);
+        cell4.setCellFormula("TRUE");
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 4));
+    }
+
+    @Test
+    void testGetNumericCellValueUnsupported() {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet();
+        Row row = sheet.createRow(0);
+
+        Cell cell0 = row.createCell(0, CellType.BOOLEAN);
+        cell0.setCellValue(true);
+        assertThrows(IllegalArgumentException.class, () -> ThermalSpecificFileProcessorServiceImpl.getNumericCellValue(row, 0));
     }
 
 }

@@ -22,7 +22,7 @@ public interface ThermalSpecificParametersRepository extends JpaRepository<Therm
                  JOIN p2.trajectory.scenarioEntities s
             where p2.trajectory.horizon = :horizon AND s.id =:studyId
                     and coalesce(upper(p2.area),'') = coalesce(upper(p.area),'')
-                    and coalesce(upper(p2.thermalClusterRef.name),'') = coalesce(upper(p.thermalClusterRef.name),'')
+                    and coalesce(upper(p2.cluster),'') = coalesce(upper(p.cluster),'')
                     and coalesce(upper(p2.trajectory.area),'') <> 'OTHERS'
                 )
               )

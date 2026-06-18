@@ -22,13 +22,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ThermalControlsServiceImplTest {
@@ -336,7 +339,7 @@ class ThermalControlsServiceImplTest {
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterB").build())
+                                .cluster("ClusterB")
                                 .build()
                 ))
                 .fileName("SpecificParamFile")
@@ -365,7 +368,7 @@ class ThermalControlsServiceImplTest {
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
-                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                                .cluster("ClusterA")
                                 .build()
                 ))
                 .build();
@@ -422,6 +425,122 @@ class ThermalControlsServiceImplTest {
 
 
         }
+    }
+
+    @Test
+    void checkMissingClusters_shouldMergeExistingSpecificClusters_whenAreaIsOthers() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        // paramClusters = clusters in the NEW file being uploaded
+        Set<String> paramClusters = new HashSet<>(Set.of("ClusterInFile/AreaA"));
+
+        // Capacity has both: ClusterInFile/AreaA AND ClusterBD/AreaB
+        // ClusterBD/AreaB is ALREADY in the DB specific trajectory, so it's NOT in the new file.
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of(
+                        TrajectoryEntity.builder()
+                                .thermalClusterCapacities(List.of(
+                                        ThermalClusterCapacityEntity.builder().area("AreaA").thermalClusterRef(ThermalClusterRef.builder().name("ClusterInFile").build()).build(),
+                                        ThermalClusterCapacityEntity.builder().area("AreaB").thermalClusterRef(ThermalClusterRef.builder().name("ClusterBD").build()).build()
+                                ))
+                                .build()
+                ));
+
+        // Mock existing specific clusters in BD: ClusterBD/AreaB
+        TrajectoryEntity existingTraj = TrajectoryEntity.builder()
+                .thermalSpecificParameters(List.of(
+                        ThermalSpecificParametersEntity.builder().cluster("ClusterBD").area("AreaB").build()
+                ))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId))
+                .thenReturn(List.of(existingTraj));
+
+        // When the area is OTHERS_AREA, it should merge "ClusterBD/AreaB" into paramClusters.
+        // Then checkMissingClusters will check if ALL clusters in capacity are in paramClusters.
+        // If "ClusterBD/AreaB" WAS NOT merged, checkMissingClusters would throw because ClusterBD/AreaB is in capacity but not in paramClusters.
+        assertDoesNotThrow(() -> thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA));
+    }
+
+    @Test
+    void checkMissingClusters_shouldThrowWhenSpecificClusterIsMissingFromNewFileAndDB_AreaOthers() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        // New file only has ClusterInFile/AreaA
+        Set<String> paramClusters = new java.util.HashSet<>(Set.of("ClusterInFile/AreaA"));
+
+        // Capacity has: ClusterInFile/AreaA AND ClusterMissing/AreaM
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of(
+                        TrajectoryEntity.builder()
+                                .thermalClusterCapacities(List.of(
+                                        ThermalClusterCapacityEntity.builder().area("AreaA").thermalClusterRef(ThermalClusterRef.builder().name("ClusterInFile").build()).build(),
+                                        ThermalClusterCapacityEntity.builder().area("AreaM").thermalClusterRef(ThermalClusterRef.builder().name("ClusterMissing").build()).build()
+                                ))
+                                .build()
+                ));
+
+        // DB has nothing related
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId))
+                .thenReturn(List.of());
+
+        // Should throw because ClusterMissing/AreaM is in capacity but NOT in new file AND NOT in DB
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA));
+
+        assertTrue(exception.getMessage().contains("ClusterMissing/AreaM"));
+    }
+
+    @Test
+    void checkMissingClusters_shouldMergeSpecificClusters_whenAreaIsSpecific() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        String targetArea = "AreaA";
+        Set<String> paramClusters = new java.util.HashSet<>(Set.of("ClusterInFile/AreaA"));
+
+        // Capacity has both
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of(
+                        TrajectoryEntity.builder()
+                                .thermalClusterCapacities(List.of(
+                                        ThermalClusterCapacityEntity.builder().area("AreaA").thermalClusterRef(ThermalClusterRef.builder().name("ClusterInFile").build()).build(),
+                                        ThermalClusterCapacityEntity.builder().area("AreaA").thermalClusterRef(ThermalClusterRef.builder().name("ClusterBD").build()).build()
+                                ))
+                                .build()
+                ));
+
+        // Existing in BD: ClusterBD in OTHERS trajectory, but with area AreaA
+        TrajectoryEntity existingOthersTraj = TrajectoryEntity.builder()
+                .area(OTHERS_AREA)
+                .thermalSpecificParameters(List.of(
+                        ThermalSpecificParametersEntity.builder().cluster("ClusterBD").area(targetArea).build(),
+                        ThermalSpecificParametersEntity.builder().cluster("ClusterOther").area("OtherArea").build()
+                ))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId))
+                .thenReturn(List.of(existingOthersTraj));
+
+        // Should merge ClusterBD/AreaA, but NOT ClusterOther/OtherArea
+        // Then validate them against capacity.
+        assertDoesNotThrow(() ->
+                thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, targetArea));
+    }
+
+    @Test
+    void checkMissingClusters_shouldNotMerge_whenTypeIsNotSpecific() {
+        Integer studyId = 1;
+        String horizon = "2023-2024";
+        Set<String> paramClusters = new java.util.HashSet<>(Set.of("ClusterCommon"));
+
+        // Capacity is empty
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of());
+
+        // Should NOT call trajectoryRepository.findByTypeAndStudyId because type is COMMON
+        thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
+
+        verify(trajectoryRepository, never()).findByTypeAndStudyId(anyString(), anyInt());
     }
 
     @Test

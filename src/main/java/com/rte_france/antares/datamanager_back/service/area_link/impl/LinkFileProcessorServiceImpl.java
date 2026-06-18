@@ -205,21 +205,26 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
                     LinkEntity link = LinkEntity.builder()
                             .name(row.getCell(0).getStringCellValue())
-                            .winterHpDirectMw(row.getCell(1).getNumericCellValue())
-                            .winterHpIndirectMw(row.getCell(2).getNumericCellValue())
-                            .winterHcDirectMw(row.getCell(3).getNumericCellValue())
-                            .winterHcIndirectMw(row.getCell(4).getNumericCellValue())
-                            .summerHpDirectMw(row.getCell(5).getNumericCellValue())
-                            .summerHpIndirectMw(row.getCell(6).getNumericCellValue())
-                            .summerHcDirectMw(row.getCell(7).getNumericCellValue())
-                            .summerHcIndirectMw(row.getCell(8).getNumericCellValue())
-                            .flowbasedPerimeter(getBooleanCellValue(row.getCell(9)).orElseThrow())
-                            .hvdcMwDirect(row.getCell(10).getNumericCellValue())
-                            .hvdcMwIndirect(row.getCell(11).getNumericCellValue())
-                            .hvdcNbDirect(row.getCell(12).getNumericCellValue())
-                            .hvdcNbIndirect(row.getCell(13).getNumericCellValue())
-                            .hvdcFoRateDirect(row.getCell(14).getNumericCellValue())
-                            .hvdcFoRateIndirect(row.getCell(15).getNumericCellValue())
+                            .winterHpDirectMw(getNumericCellValue(row, 1))
+                            .winterHpIndirectMw(getNumericCellValue(row, 2))
+                            .winterHcDirectMw(getNumericCellValue(row, 3))
+                            .winterHcIndirectMw(getNumericCellValue(row, 4))
+                            .summerHpDirectMw(getNumericCellValue(row, 5))
+                            .summerHpIndirectMw(getNumericCellValue(row, 6))
+                            .summerHcDirectMw(getNumericCellValue(row, 7))
+                            .summerHcIndirectMw(getNumericCellValue(row, 8))
+                            .flowbasedPerimeter(getBooleanCellValue(row.getCell(9))
+                                    .orElseThrow(() -> BusinessException.builder()
+                                            .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
+                                            .errorMessageArguments(List.of(LinksColumns.FLOWBASED_PERIMETER.getDisplayName(), TrajectoryType.LINK.name()))
+                                            .httpStatus(HttpStatus.BAD_REQUEST)
+                                            .build()))
+                            .hvdcMwDirect(getNumericCellValue(row, 10))
+                            .hvdcMwIndirect(getNumericCellValue(row, 11))
+                            .hvdcNbDirect(getNumericCellValue(row, 12))
+                            .hvdcNbIndirect(getNumericCellValue(row, 13))
+                            .hvdcFoRateDirect(getNumericCellValue(row, 14))
+                            .hvdcFoRateIndirect(getNumericCellValue(row, 15))
                             .hurdleCost(hurdleCost)
                             .hvdc(hvdc)
                             .build();
@@ -231,6 +236,21 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             throw TechnicalException.builder().message("could not build link list : " + e.getMessage()).build();
         }
         return linkEntities;
+    }
+
+    private Double getNumericCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null) {
+            return null;
+        }
+        return switch (cell.getCellType()) {
+            case NUMERIC -> cell.getNumericCellValue();
+            case STRING -> {
+                String value = cell.getStringCellValue().trim();
+                yield value.isEmpty() ? null : Double.parseDouble(value.replace(",", "."));
+            }
+            default -> null;
+        };
     }
 
     public int findCellIndexByHorizon(Sheet sheet, String horizon) {
