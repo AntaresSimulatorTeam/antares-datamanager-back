@@ -759,7 +759,7 @@ class TrajectoryServiceImplTest {
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
         verify(thermalControlService, times(1)).verifyClustersInCommonParamTrajectory(studyId, horizon, thermalClusterCapacities);
-        verify(thermalControlService, times(1)).verifyClustersInSpecificParamTrajectory(studyId, horizon, thermalClusterCapacities);
+        verify(thermalControlService, times(1)).verifyClustersInSpecificParamTrajectory(eq(studyId), eq(horizon), eq(thermalClusterCapacities), any());
     }
 
     @Test

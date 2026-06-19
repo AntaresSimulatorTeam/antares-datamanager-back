@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -326,9 +327,55 @@ class ThermalControlsServiceImplTest {
 
 
     @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldCheckExistingClustersWithCorrectArea() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String area = "FR";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder().area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterNew").build())
+                        .build()
+        );
+
+        // Suppose ClusterExisting/FR already exists in DB for this study/horizon/area
+        when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
+                .thenReturn(List.of(
+                        TrajectoryEntity.builder()
+                                .thermalClusterCapacities(List.of(
+                                        ThermalClusterCapacityEntity.builder()
+                                                .area("FR")
+                                                .thermalClusterRef(ThermalClusterRef.builder().name("ClusterExisting").build())
+                                                .build()
+                                ))
+                                .build()
+                ));
+
+        // The specific param trajectory MUST contain both ClusterNew/FR and ClusterExisting/FR
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area("FR")
+                .fileName("SpecificParamFR")
+                .thermalSpecificParameters(List.of(
+                        ThermalSpecificParametersEntity.builder().area("FR").cluster("ClusterNew").build(),
+                        ThermalSpecificParametersEntity.builder().area("FR").cluster("ClusterExisting").build()
+                ))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        assertDoesNotThrow(() ->
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
+        );
+
+        // Verify that getInstalledPowerClusters was called with the correct area
+        verify(trajectoryRepository).findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name());
+    }
+
+    @org.junit.jupiter.api.Test
     void verifyClustersInSpecificParamTrajectory_shouldThrowExceptionWhenClustersAreMissing() {
         Integer studyId = 1;
         String horizon = "2025-2026";
+        String area = "FR";
         List<ThermalClusterCapacityEntity> capacities = List.of(
                 ThermalClusterCapacityEntity.builder().area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
@@ -336,6 +383,7 @@ class ThermalControlsServiceImplTest {
         );
 
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area("FR")
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
@@ -349,7 +397,7 @@ class ThermalControlsServiceImplTest {
                 .thenReturn(List.of(specificParamTrajectory));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
         );
 
         assertTrue(exception.getMessage().contains("Clusters ClusterA/FR are not in Specific trajectory SpecificParamFile"));
@@ -359,15 +407,18 @@ class ThermalControlsServiceImplTest {
     void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenAllClustersArePresent() {
         Integer studyId = 1;
         String horizon = "2025-2026";
+        String area = "FR";
         List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
+                ThermalClusterCapacityEntity.builder().area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
                         .build()
         );
 
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area("FR")
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder()
+                                .area("FR")
                                 .cluster("ClusterA")
                                 .build()
                 ))
@@ -377,7 +428,7 @@ class ThermalControlsServiceImplTest {
                 .thenReturn(List.of(specificParamTrajectory));
 
         assertDoesNotThrow(() ->
-                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
         );
     }
 
@@ -385,8 +436,9 @@ class ThermalControlsServiceImplTest {
     void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenNoSpecificParamTrajectoryExists() {
         Integer studyId = 1;
         String horizon = "2025-2026";
+        String area = "FR";
         List<ThermalClusterCapacityEntity> capacities = List.of(
-                ThermalClusterCapacityEntity.builder()
+                ThermalClusterCapacityEntity.builder().area("FR")
                         .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
                         .build()
         );
@@ -395,8 +447,110 @@ class ThermalControlsServiceImplTest {
                 .thenReturn(List.of());
 
         assertDoesNotThrow(() ->
-                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities)
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
         );
+    }
+
+    @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldWorkWithOthersAreaAndCorrectNode() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String area = "FR";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder().area("FR")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterA").build())
+                        .build()
+        );
+
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area(OTHERS_AREA)
+                .thermalSpecificParameters(new ArrayList<>())
+                .fileName("SpecificParamOthers")
+                .build();
+
+        ThermalSpecificParametersEntity param = ThermalSpecificParametersEntity.builder()
+                .area("FR")
+                .cluster("ClusterA")
+                .node("FR")
+                .build();
+        param.setTrajectory(specificParamTrajectory);
+        specificParamTrajectory.getThermalSpecificParameters().add(param);
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        assertDoesNotThrow(() ->
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
+        );
+    }
+
+    @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldNotThrowExceptionWhenNoClustersForRequestedAreaInOthersTrajectory() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String area = "AT";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder().area("AT")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterAT").build())
+                        .build()
+        );
+
+        // Trajectory OTHERS exists but only contains FR data
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area(OTHERS_AREA)
+                .fileName("SpecificParamOthers")
+                .thermalSpecificParameters(new ArrayList<>())
+                .build();
+
+        ThermalSpecificParametersEntity paramFR = ThermalSpecificParametersEntity.builder()
+                .area("FR")
+                .cluster("ClusterFR")
+                .node("FR")
+                .build();
+        paramFR.setTrajectory(specificParamTrajectory);
+        specificParamTrajectory.getThermalSpecificParameters().add(paramFR);
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        // Should not throw exception because specificParamAreaClusters will be empty for AT
+        assertDoesNotThrow(() ->
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
+        );
+    }
+
+    @org.junit.jupiter.api.Test
+    void verifyClustersInSpecificParamTrajectory_shouldThrowExceptionWhenSomeClustersAreMissingButOthersArePresent() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String area = "AT";
+        List<ThermalClusterCapacityEntity> capacities = List.of(
+                ThermalClusterCapacityEntity.builder().area("AT")
+                        .thermalClusterRef(ThermalClusterRef.builder().name("ClusterMissing").build())
+                        .build()
+        );
+
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area("AT")
+                .fileName("SpecificParamAT")
+                .thermalSpecificParameters(new ArrayList<>())
+                .build();
+
+        ThermalSpecificParametersEntity paramPresent = ThermalSpecificParametersEntity.builder()
+                .area("AT")
+                .cluster("ClusterPresent")
+                .build();
+        paramPresent.setTrajectory(specificParamTrajectory);
+        specificParamTrajectory.getThermalSpecificParameters().add(paramPresent);
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        // Should throw because AT trajectory exists and has some clusters, but not all
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
+        );
+        assertTrue(exception.getMessage().contains("Clusters ClusterMissing/AT are not in Specific trajectory SpecificParamAT"));
     }
 
     @Test
