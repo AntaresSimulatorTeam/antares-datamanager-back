@@ -132,7 +132,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
 
-        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1, false);
+        trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1);
 
         verify(areaFileProcessorService, times(1)).processAreaFile(any(), any());
     }
@@ -145,9 +145,9 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getLinkDirectory()).thenReturn("/links");
 
-        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024", 1, true);
+        trajectoryService.processTrajectory(TrajectoryType.LINK, "links_BP23_A_ref", "2023-2024", 1);
 
-        verify(linkFileProcessorService, times(1)).processLinkFile(any(), any(), any(), any());
+        verify(linkFileProcessorService, times(1)).processLinkFile(any(), any(), any());
     }
 
     @Test
@@ -654,7 +654,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
 
-        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.UNKNOWN, "testFile", "2023-2024", 1, false));
+        assertThrows(TechnicalException.class, () -> trajectoryService.processTrajectory(TrajectoryType.UNKNOWN, "testFile", "2023-2024", 1));
     }
 
     @Test

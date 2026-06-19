@@ -66,10 +66,10 @@ public class TrajectoryController {
                                                           String trajectoryToUse,
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
-                                                          @RequestParam("studyId") Integer studyId,
-                                                          @RequestParam(value = "isHvdcModel", defaultValue = "false") boolean isHvdcModel) throws IOException {
+                                                          @RequestParam("studyId") Integer studyId
+                                                          ) throws IOException {
         pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaresDataManagerProperties::getTrajectoryFilePath);
-        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId, isHvdcModel)), HttpStatus.CREATED);
+        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
     @Operation(summary = "import Trajectory load to database ")

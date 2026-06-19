@@ -44,7 +44,6 @@ public class StudyDTO {
     @JsonProperty("hvdc")
     Boolean hvdc;
 
-
     @JsonProperty("trajectoryIds")
     List<Integer> trajectoryIds;
 }
