@@ -258,7 +258,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         checkPowerAndNumberWithSameToUse(filteredCapacities, path.getFileName().toString());
 
         thermalControlService.verifyClustersInCommonParamTrajectory(studyId, horizon, filteredCapacities);
-        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, horizon, filteredCapacities);
+
+        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, horizon, filteredCapacities, area);
 
         if (area.equals(OTHERS_AREA)) {
             log.info("Areas liés à l'étude récupérées : {}", studyAreas);

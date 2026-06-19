@@ -1278,7 +1278,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private void verifyThermalCapacity(Integer studyId, TrajectoryEntity trajectory) {
         thermalControlService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities(), trajectory.getArea());
 
     }
 

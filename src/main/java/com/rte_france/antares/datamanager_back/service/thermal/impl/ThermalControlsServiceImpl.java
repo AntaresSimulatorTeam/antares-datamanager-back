@@ -124,26 +124,38 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
      * @param capacities The list of thermal cluster capacities.
      */
     @Override
-    public void verifyClustersInSpecificParamTrajectory(Integer studyId, String horizon, List<ThermalClusterCapacityEntity> capacities) {
+    public void verifyClustersInSpecificParamTrajectory(Integer studyId, String horizon, List<ThermalClusterCapacityEntity> capacities, String area) {
         List<TrajectoryEntity> specificParamTrajectories = trajectoryRepository
                 .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId);
 
         if (!specificParamTrajectories.isEmpty()) {
 
             Set<String> specificParamAreaClusters = specificParamTrajectories.stream()
+                    .filter(t -> t.getArea() != null && (t.getArea().equalsIgnoreCase(area) || t.getArea().equalsIgnoreCase(OTHERS_AREA)))
                     .map(TrajectoryEntity::getThermalSpecificParameters)
                     .filter(Objects::nonNull)
                     .flatMap(List::stream)
-                    .map(e -> e.getCluster()+ "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .filter(e -> {
+                        //If the trajectory area is OTHERS, check that NODE (in specific_parameters) matches the area of the thermal capacity trajectory.
+                        if (e.getTrajectory() != null && OTHERS_AREA.equalsIgnoreCase(e.getTrajectory().getArea())) {
+                            return area.equalsIgnoreCase(e.getNode());
+                        }
+                        return true;
+                    })
+                    .map(e -> e.getCluster() + "/" + (e.getArea() != null ? e.getArea() : ""))
                     .collect(Collectors.toSet());
 
+            if (specificParamAreaClusters.isEmpty()) {
+                return;
+            }
+
             //Retrieve all clusters/areas from installed power that already exists and the ones being imported
-            Set<String> installedPowerAreaClusters = getInstalledPowerClusterAreaByStudyId(studyId, horizon, OTHERS_AREA);
+            Set<String> installedPowerAreaClusters = getInstalledPowerClusterAreaByStudyId(studyId, horizon, area);
             capacities.forEach(e -> installedPowerAreaClusters.add(
                     e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : "")));
 
             List<String> missingAreaClusters = installedPowerAreaClusters.stream()
-                   .filter(ac -> !specificParamAreaClusters.contains(ac))
+                    .filter(ac -> !specificParamAreaClusters.contains(ac))
                     .toList();
 
             if (!missingAreaClusters.isEmpty()) {
