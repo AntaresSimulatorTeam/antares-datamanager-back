@@ -797,5 +797,55 @@ class ThermalControlsServiceImplTest {
         assertTrue(exception.getMessage().contains("Study with id {0} not found"));
     }
 
+    @Test
+    void verifyClustersInSpecificParamTrajectory_shouldNotThrowNpeWhenAreaIsNull() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String area = null;
+        List<ThermalClusterCapacityEntity> capacities = new ArrayList<>();
+
+        // Mocking to reach the problematic code
+        ThermalSpecificParametersEntity entity = new ThermalSpecificParametersEntity();
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area(OTHERS_AREA)
+                .fileName("SpecificParamOthers")
+                .thermalSpecificParameters(List.of(entity))
+                .build();
+        entity.setTrajectory(specificParamTrajectory);
+        entity.setNode(null); // Node is null
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        // This should not throw NPE even if e.getNode() is null
+        assertDoesNotThrow(() ->
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
+        );
+    }
+
+    @Test
+    void verifyClustersInSpecificParamTrajectory_shouldNotThrowNpeWhenAreaIsBlank() {
+        Integer studyId = 1;
+        String horizon = "2025-2026";
+        String area = "  ";
+        List<ThermalClusterCapacityEntity> capacities = new ArrayList<>();
+
+        ThermalSpecificParametersEntity entity = new ThermalSpecificParametersEntity();
+        TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
+                .area(OTHERS_AREA)
+                .fileName("SpecificParamOthers")
+                .thermalSpecificParameters(List.of(entity))
+                .build();
+        entity.setTrajectory(specificParamTrajectory);
+        entity.setNode("SOME_NODE");
+
+        when(trajectoryRepository.findByTypeAndStudyId(any(), any()))
+                .thenReturn(List.of(specificParamTrajectory));
+
+        assertDoesNotThrow(() ->
+                thermalControlsService.verifyClustersInSpecificParamTrajectory(studyId, horizon, capacities, area)
+        );
+    }
+
 
 }
