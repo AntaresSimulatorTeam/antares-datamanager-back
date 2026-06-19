@@ -39,6 +39,7 @@ import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomain
 public class ResGenerationAssemblerServiceImpl implements ResGenerationAssemblerService {
 
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
+    private static final double MAX_COEFF_SUM = 1d;
 
     private final NasFileService nasFileService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
@@ -198,6 +199,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             SeriesLookup frLookup
     ) {
         var zoneWeights = calculateZoneWeights(normalizedGroup, zonalDistributions);
+        validateZonalCoefficientSum(normalizedGroup, cluster, zoneWeights);
+
         var accumulator = new FrAggregationAccumulator(zoneWeights, new LinkedHashMap<>(), new LinkedHashMap<>());
 
         technologyDistributions.stream()
@@ -205,6 +208,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .filter(entity -> cluster.equalsIgnoreCase(entity.getCluster()))
                 .forEach(entity -> processTechnologyEntity(entity, normalizedGroup, cluster, accumulator, frLookup));
 
+        validateTechnologyCoefficientSums(normalizedGroup, cluster, accumulator.techWeightsByZone());
         validateFrAggregation(normalizedGroup, cluster, installedPower, accumulator);
 
         return new ResFrAggregationDto(accumulator.zoneWeights(), accumulator.techWeightsByZone(), accumulator.seriesByZoneAndTech());
@@ -222,6 +226,36 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                         Double::sum,
                         LinkedHashMap::new
                 ));
+    }
+
+    private void validateZonalCoefficientSum(String normalizedGroup, String cluster, Map<String, Double> zoneWeights) {
+        double sum = zoneWeights.values().stream().mapToDouble(Double::doubleValue).sum();
+        if (sum > MAX_COEFF_SUM) {
+            throw BusinessException.builder()
+                    .message("Invalid zonal distribution for RES group '" + normalizedGroup + "', cluster '" + cluster
+                            + "': PECD zone coeffs sum to " + formatAsPercentage(sum)
+                            + ", but must not be over 100%. Check the zonal distribution file for this group/cluster and correct the zone percentages so they total at most 100%.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void validateTechnologyCoefficientSums(String normalizedGroup, String cluster, Map<String, Map<String, Double>> techWeightsByZone) {
+        techWeightsByZone.forEach((zone, techWeights) -> {
+            double sum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
+            if (sum > MAX_COEFF_SUM) {
+                throw BusinessException.builder()
+                        .message("Invalid technology distribution for RES group '" + normalizedGroup + "', cluster '" + cluster
+                                + "', zone '" + zone + "': technology coeffs sum to " + formatAsPercentage(sum)
+                                + ", but must not be over 100%. Check the technology distribution file for this zone and correct the technology percentages so they total at most 100%.")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        });
+    }
+
+    private String formatAsPercentage(double fraction) {
+        return String.format(Locale.ROOT, "%.1f%%", fraction * 100d);
     }
 
     private void processTechnologyEntity(
