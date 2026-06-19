@@ -910,6 +910,8 @@ class TrajectoryServiceImplTest {
         Files.createDirectories(modulationDir);
         Path trajectoryDirectory = modulationDir.resolve("traj_mod");
         Files.createDirectories(trajectoryDirectory);
+        // Add content to make directory non-empty (required by isDirectoryEmpty check)
+        Files.createFile(trajectoryDirectory.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
@@ -1009,8 +1011,15 @@ class TrajectoryServiceImplTest {
         Path thermalDir = tempDir.resolve("RES/installed power/FR/");
         Files.createDirectories(thermalDir);
 
-        Files.createDirectory(thermalDir.resolve("BP23_Aref"));
-        Files.createDirectory(thermalDir.resolve("BP23_Aref_v2"));
+        // Create directories with content (not empty)
+        Path dir1 = thermalDir.resolve("BP23_Aref");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder")); // Add content to make directory non-empty
+
+        Path dir2 = thermalDir.resolve("BP23_Aref_v2");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder")); // Add content to make directory non-empty
+
         Files.createFile(thermalDir.resolve("installedRES_offshore_BP23_Aref.xlsx"));
         Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.xlsx"));
         Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.txt"));
@@ -1040,8 +1049,15 @@ class TrajectoryServiceImplTest {
         Path thermalDir = tempDir.resolve("RES/installed power/FR");
         Files.createDirectories(thermalDir);
 
-        Files.createDirectory(thermalDir.resolve("BP23_Aref"));
-        Files.createDirectory(thermalDir.resolve("BP23_Aref_v2"));
+        // Create directories with content (not empty)
+        Path dir1 = thermalDir.resolve("BP23_Aref");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder")); // Add content to make directory non-empty
+
+        Path dir2 = thermalDir.resolve("BP23_Aref_v2");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder")); // Add content to make directory non-empty
+
         Files.createFile(thermalDir.resolve("installedRES_onshore_BP23_Aref.xlsx"));
         Files.createFile(thermalDir.resolve("other_installedRES_BP23_Aref.txt"));
 
@@ -1193,9 +1209,17 @@ class TrajectoryServiceImplTest {
         Path thermalDir = tempDir.resolve("RES/load factor/");
         Files.createDirectories(thermalDir);
 
-        Files.createDirectory(thermalDir.resolve("BP23_A_ref_FR"));
-        Files.createDirectory(thermalDir.resolve("BP23_A_ref_FR_v2"));
-        Files.createDirectory(thermalDir.resolve("BP23_A_ref_FR_v3"));
+        Path dir1 = thermalDir.resolve("BP23_A_ref_FR");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = thermalDir.resolve("BP23_A_ref_FR_v2");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
+
+        Path dir3 = thermalDir.resolve("BP23_A_ref_FR_v3");
+        Files.createDirectory(dir3);
+        Files.createFile(dir3.resolve(".placeholder"));
         Files.createFile(thermalDir.resolve("BP23_A_ref_FR_v3.xlsx"));
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
@@ -1401,8 +1425,13 @@ class TrajectoryServiceImplTest {
         Path hydroDir = tempDir.resolve("hydro/series/");
         Files.createDirectories(hydroDir);
 
-        Files.createDirectory(hydroDir.resolve("BP_23_ref"));
-        Files.createDirectory(hydroDir.resolve("BP_50_ref"));
+        Path dir1 = hydroDir.resolve("BP_23_ref");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = hydroDir.resolve("BP_50_ref");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
@@ -1426,8 +1455,13 @@ class TrajectoryServiceImplTest {
         Path hydroTechnicalParametersDir = tempDir.resolve("hydro/technical_parameters");
         Files.createDirectories(hydroTechnicalParametersDir);
 
-        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_23_ref"));
-        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_50_ref"));
+        Path dir1 = hydroTechnicalParametersDir.resolve("BP_23_ref");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = hydroTechnicalParametersDir.resolve("BP_50_ref");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
@@ -1450,8 +1484,13 @@ class TrajectoryServiceImplTest {
         Path hydroDir = tempDir.resolve("PSP_virtual/series/");
         Files.createDirectories(hydroDir);
 
-        Files.createDirectory(hydroDir.resolve("BP_23_ref_psp"));
-        Files.createDirectory(hydroDir.resolve("BP_50_ref_psp"));
+        Path dir1 = hydroDir.resolve("BP_23_ref_psp");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = hydroDir.resolve("BP_50_ref_psp");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
@@ -1475,8 +1514,13 @@ class TrajectoryServiceImplTest {
         Path hydroTechnicalParametersDir = tempDir.resolve("PSP_virtual/technical_parameters");
         Files.createDirectories(hydroTechnicalParametersDir);
 
-        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_23_ref_psp"));
-        Files.createDirectory(hydroTechnicalParametersDir.resolve("BP_50_ref_psp"));
+        Path dir1 = hydroTechnicalParametersDir.resolve("BP_23_ref_psp");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = hydroTechnicalParametersDir.resolve("BP_50_ref_psp");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
@@ -1563,8 +1607,13 @@ class TrajectoryServiceImplTest {
         Path nuclearDir = tempDir.resolve("nuclear/modulation");
         Files.createDirectories(nuclearDir);
 
-        Files.createDirectory(nuclearDir.resolve("modulation_2025"));
-        Files.createDirectory(nuclearDir.resolve("modulation_2030"));
+        Path dir1 = nuclearDir.resolve("modulation_2025");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = nuclearDir.resolve("modulation_2030");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn(nuclearDir.toString());
 
@@ -1584,8 +1633,13 @@ class TrajectoryServiceImplTest {
         Path nuclearDir = tempDir.resolve("nuclear/long_term");
         Files.createDirectories(nuclearDir);
 
-        Files.createDirectory(nuclearDir.resolve("lt_2025"));
-        Files.createDirectory(nuclearDir.resolve("lt_2030"));
+        Path dir1 = nuclearDir.resolve("lt_2025");
+        Files.createDirectory(dir1);
+        Files.createFile(dir1.resolve(".placeholder"));
+
+        Path dir2 = nuclearDir.resolve("lt_2030");
+        Files.createDirectory(dir2);
+        Files.createFile(dir2.resolve(".placeholder"));
 
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn(nuclearDir.toString());
 
