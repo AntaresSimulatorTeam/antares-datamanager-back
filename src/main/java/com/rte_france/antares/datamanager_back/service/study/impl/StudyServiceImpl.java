@@ -342,6 +342,7 @@ public class StudyServiceImpl implements StudyService {
                 .tags(studyDTO.getTags())
                 .warningMessages(new HashSet<>())
                 .trajectories(trajectories)
+                .hvdc(false)
                 .build();
     }
 
