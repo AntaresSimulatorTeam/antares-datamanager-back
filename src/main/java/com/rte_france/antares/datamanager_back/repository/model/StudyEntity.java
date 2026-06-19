@@ -26,7 +26,7 @@ public class StudyEntity {
     private String name;
 
     @Column(name = "hvdc")
-    private Boolean hvdc;
+    private Boolean hvdc = false;
 
     @Size(max = 255)
     @Column(name = "created_by")
