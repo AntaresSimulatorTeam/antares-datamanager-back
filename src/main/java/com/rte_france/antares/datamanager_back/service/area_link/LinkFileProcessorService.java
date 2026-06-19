@@ -11,7 +11,7 @@ import java.util.Set;
 
 public interface LinkFileProcessorService {
 
-    TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId, Boolean isHvdcModel) throws IOException;
+    TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException;
 
     TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessageEntities);
 

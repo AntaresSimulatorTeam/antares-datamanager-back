@@ -96,15 +96,14 @@ class LinkFileProcessorServiceImplTest {
 
     @Test
     void processLinkFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-        StudyEntity studyEntity = StudyEntity.builder().id(1).build();
+        StudyEntity studyEntity = StudyEntity.builder().id(1).hvdc(true).build();
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(studyRepository.findById(any())).thenReturn(Optional.of(studyEntity));
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
 
-        linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1, true);
+        linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
-        verify(studyRepository, atLeastOnce()).save(studyEntity);
         assertTrue(studyEntity.getHvdc());
     }
 
@@ -116,7 +115,7 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
 
-        linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1,false);
+        linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
         verify(trajectoryRepository, times(1)).save(any());
     }
@@ -154,7 +153,7 @@ class LinkFileProcessorServiceImplTest {
                 .thenReturn(Optional.of(trajectory));
 
 
-        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1,false);
+        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
         verify(warningService).getMessage(
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(), "CH-IT, FR-GE"
@@ -195,7 +194,7 @@ class LinkFileProcessorServiceImplTest {
                 .thenReturn(Optional.of(trajectory));
 
 
-        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1,false);
+        linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
 
         verify(warningService).getMessage(
                 WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value(), "CH-IT, CH-FR"
@@ -238,7 +237,7 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 1)).thenReturn(List.of(areaTrajectory));
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
 
-        assertDoesNotThrow(() -> linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1,false));
+        assertDoesNotThrow(() -> linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1));
 
         verify(trajectoryRepository, times(1)).save(any());
         verify(linkRepository, times(1)).saveAll(argThat(links -> {
@@ -281,7 +280,7 @@ class LinkFileProcessorServiceImplTest {
 
 
         var exception = assertThrows(BusinessException.class, () -> {
-            linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1,false);
+            linkFileProcessorService.processLinkFile(tempFile, "2032-2033", 1);
         });
 
         System.out.println(exception.getMessage());
@@ -426,7 +425,7 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
-        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1,false);
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
         verify(warningService, times(1)).getMessage(
                 WarningCode.LINKS_ALL_VALUES_ZERO.value(),
@@ -465,7 +464,7 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
-        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1,false);
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
         verify(warningService, times(1)).getMessage(
                 WarningCode.LINKS_AREA_NOT_PRESENT.value(),
@@ -506,7 +505,7 @@ class LinkFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("TestFileWar.xlsx", "2033-2034", TrajectoryType.LINK.name()))
                 .thenReturn(Optional.of(trajectory));
 
-        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1,false);
+        linkFileProcessorService.processLinkFile(tempFile, "2033-2034", 1);
 
         verify(warningService).getMessage(
                 eq(WarningCode.LINKS_UNILATERAL_VALUES_ZERO.value()),
@@ -565,7 +564,7 @@ class LinkFileProcessorServiceImplTest {
         Path invalidPath = Path.of("non_existent_file_path_67890");
 
         TechnicalException exception = assertThrows(TechnicalException.class, () -> {
-            linkFileProcessorService.processLinkFile(invalidPath, "2030-2031", 1,false);
+            linkFileProcessorService.processLinkFile(invalidPath, "2030-2031", 1);
         });
 
         assertTrue(exception.getMessage().contains("could not check if horizon exist") || exception.getMessage().contains("non_existent_file_path_67890"));
