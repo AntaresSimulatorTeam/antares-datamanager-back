@@ -197,6 +197,36 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldFailWhenZonalCoefficientsSumAboveOne() {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 60)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR02", 50))
+            );
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("zonal distribution"));
+        }
+
+        @Test
+        void shouldFailWhenTechnologyCoefficientsSumAboveOne() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "solar_pv/solar_pv/solar_pv_FR01_utility_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "solar_pv/solar_pv/solar_pv_FR01_premium_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("fr_solar.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 1000)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 100)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "solar pv", "FR01", "solar_pv_utility", 70.0)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "solar pv", "FR01", "solar_pv_premium", 40.0))
+            );
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("technology distribution"));
+        }
+
+        @Test
         void shouldCoverFrTechLoopAndCandidateKeys() throws IOException {
             String fileName = "solar_pv/solar_pv/solar_pv_FR01_utility_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
