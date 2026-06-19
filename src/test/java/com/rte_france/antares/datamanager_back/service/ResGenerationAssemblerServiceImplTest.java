@@ -542,7 +542,10 @@ class ResGenerationAssemblerServiceImplTest {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             preparePhysicalFile("LF_techno", "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
-                    .thenReturn("area_series.arrow", "techno_series.arrow");
+                    .thenAnswer(invocation -> {
+                        Path file = invocation.getArgument(0);
+                        return file.toString().contains("LF_techno") ? "techno_series.arrow" : "area_series.arrow";
+                    });
 
             TrajectoryEntity technoLfTraj = TrajectoryEntity.builder()
                     .type(TrajectoryType.RES_LOAD.name())
