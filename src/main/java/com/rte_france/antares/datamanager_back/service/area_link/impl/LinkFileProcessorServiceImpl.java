@@ -197,7 +197,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             Sheet parametersSheet = workbook.getSheet("parameters");
             Sheet sLinksSheet = workbook.getSheet(horizon);
 
-            // get hurdle_cost and hvdc since they're fixed in param sheet
+            // Get hurdle_cost from the parameters sheet (fixed per horizon)
             int horizonCellIndex = findCellIndexByHorizon(parametersSheet, horizon);
             double hurdleCost = parametersSheet.getRow(1).getCell(horizonCellIndex).getNumericCellValue();
 
