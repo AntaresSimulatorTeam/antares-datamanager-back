@@ -628,7 +628,8 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing file hydroAllocation or hydroParameters"));
+        String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
+        assertTrue(formattedMessage.contains("Missing file hydroAllocation or hydroParameters"));
         verify(trajectoryRepository, never()).save(any());
     }
 
@@ -842,7 +843,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_ALLOCATION);
 
         assertDoesNotThrow(() ->
-                service.validateEmptyRequiredColumns(context, new String[]{"col1"}, true, "100"));
+                service.validateEmptyRequiredColumns(context, new String[]{"col1"}, true, false, "100"));
     }
 
     @Test
@@ -850,7 +851,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_ALLOCATION);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"allocation", "extra"}, true, (Object) null));
+                service.validateEmptyRequiredColumns(context, new String[]{"allocation", "extra"}, true, false, (Object) null));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Allocation column", exception.getErrorMessageArguments().getFirst());
@@ -861,7 +862,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"col1", "extra"}, true, "not_a_number"));
+                service.validateEmptyRequiredColumns(context, new String[]{"col1", "extra"}, true, false, "not_a_number"));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Column(s) 2 to 6 and 8", exception.getErrorMessageArguments().getFirst());
@@ -872,7 +873,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, (Object) null));
+                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, false, (Object) null));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
@@ -883,7 +884,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, "maybe"));
+                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, false, "maybe"));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
@@ -945,7 +946,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_ALLOCATION);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"allocation"}, true, (Object) null));
+                service.validateEmptyRequiredColumns(context, new String[]{"allocation"}, true, false, (Object) null));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Allocation column", exception.getErrorMessageArguments().getFirst());
