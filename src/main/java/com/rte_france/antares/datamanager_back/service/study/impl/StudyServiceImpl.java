@@ -153,8 +153,9 @@ public class StudyServiceImpl implements StudyService {
                 studyToDuplicate.getTrajectories(),
                 studyDTO.getHorizon()
         );
-
-        studyDTO.setTrajectoryIds(List.of(areaTrajectory.getId()));
+        List<Integer> availableTrajectoriesId = trajectoriesAvailable.stream().map(TrajectoryEntity::getId).collect(Collectors.toList());
+        availableTrajectoriesId.add(areaTrajectory.getId());
+        studyDTO.setTrajectoryIds(availableTrajectoriesId);
         StudyDTO savedStudyDTO = createStudy(studyDTO);
 
         DuplicationTrajectoryUtils.TrajectoryProcessingResult result = DuplicationTrajectoryUtils.processAndLinkTrajectories(areaTrajectory,
@@ -201,7 +202,16 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private List<TrajectoryEntity> getTrajectoriesForSameHorizon(Set<TrajectoryEntity> existingStudyTrajectories) {
-        return new ArrayList<>(existingStudyTrajectories);
+        // Reload trajectories to ensure all lazy relationships are properly loaded
+        List<Integer> trajectoryIds = existingStudyTrajectories.stream()
+                .map(TrajectoryEntity::getId)
+                .collect(Collectors.toList());
+        
+        if (trajectoryIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        return new ArrayList<>(trajectoryRepository.findAllByIdWithWarnings(trajectoryIds));
     }
 
     private List<TrajectoryEntity> getTrajectoriesForChangedHorizon(Set<TrajectoryEntity> existingStudyTrajectories, String newHorizonYear) {
@@ -272,7 +282,6 @@ public class StudyServiceImpl implements StudyService {
                 for (TrajectoryEntity trajectory : trajectories) {
                     Set<WarningMessageEntity> warningMessages = new HashSet<>();
                     trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, userNni);
-                    trajectoryService.linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.valueOf(trajectoryType));
                 }
             } catch (IOException e) {
                 log.error("Error checking trajectory coherence for type {} during duplication: {}", trajectoryType, e.getMessage(), e);

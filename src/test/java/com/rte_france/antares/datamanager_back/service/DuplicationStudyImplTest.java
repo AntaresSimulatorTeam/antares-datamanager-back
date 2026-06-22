@@ -15,8 +15,6 @@ import com.rte_france.antares.datamanager_back.service.study.impl.StudyServiceIm
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,7 +23,6 @@ import org.springframework.http.HttpStatus;
 import java.io.IOException;
 import java.util.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -51,8 +48,6 @@ class DuplicationStudyImplTest {
     @Mock
     private WarningService warningService;
 
-    @Captor
-    private ArgumentCaptor<List<String>> listCaptor;
 
     @InjectMocks
     private StudyServiceImpl studyService;
@@ -101,7 +96,6 @@ class DuplicationStudyImplTest {
         Set<TrajectoryEntity> trajectories = Set.of(areaTrajectory);
         studyEntity.setTrajectories(trajectories);
 
-        when(trajectoryService.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(areaTrajectory);
         // Mock checkTrajectoryCoherence to avoid IOException
         doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
         // Mock trajectoryRepository
@@ -117,15 +111,13 @@ class DuplicationStudyImplTest {
         assertEquals("2030-2031", result.getHorizon());
         verify(projectRepository).findByName("project1");
         verify(studyRepository).save(any(StudyEntity.class));
-        verify(trajectoryService).linkTrajectoryToStudy(1,1, TrajectoryType.AREA);
         // Verify that checkTrajectoryCoherence was called
         verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(areaTrajectory), eq("user1"));
-
 
     }
 
     @Test
-    void duplicateStudy_withoutAreaTrajectory_shouldThrowException() throws IOException {
+    void duplicateStudy_withoutAreaTrajectory_shouldThrowException() {
 
         StudyDTO studyDTO = StudyDTO.builder()
                 .name("test_duplication")
@@ -191,7 +183,6 @@ class DuplicationStudyImplTest {
         when(studyRepository.save(any(StudyEntity.class)))
                 .thenReturn(studyEntity);
 
-        when(trajectoryService.linkTrajectoryToStudy(1, 1, TrajectoryType.AREA)).thenReturn(areaTrajectory);
         // Mock checkTrajectoryCoherence to avoid IOException
         doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
         // Mock trajectoryRepository - for same horizon, return the area only
@@ -204,11 +195,8 @@ class DuplicationStudyImplTest {
          assertNotNull(result);
          verify(projectRepository).findByName("project1");
          verify(studyRepository).save(any(StudyEntity.class));
-         verify(trajectoryService).linkTrajectoryToStudy(1, 1, TrajectoryType.AREA);
          // Verify that checkTrajectoryCoherence was called for the area trajectory
          verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(areaTrajectory), eq("user1"));
-
-
 
     }
 
@@ -244,9 +232,6 @@ class DuplicationStudyImplTest {
 
         when(studyRepository.save(any(StudyEntity.class)))
                 .thenReturn(studyEntity);
-
-        when(trajectoryService.linkTrajectoryToStudy(anyInt(), eq(1), any(TrajectoryType.class)))
-                .thenReturn(areaTrajectory);
         
         // Mock checkTrajectoryCoherence to avoid IOException
         doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
@@ -265,7 +250,7 @@ class DuplicationStudyImplTest {
     }
 
     @Test
-    void duplicateStudy_checkTrajectoryCoherenceHandlesIOException() throws IOException {
+    void duplicateStudy_checkTrajectoryCoherenceHandlesIOException() {
 
         StudyDTO studyDTO = StudyDTO.builder()
                 .name("test_duplication")
