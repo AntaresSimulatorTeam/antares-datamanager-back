@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -45,11 +46,8 @@ public class HydroToJsonService {
                 .findFirst()
                 .orElse(Collections.emptyMap());
 
-        List<HydroGenerationDTO> areaHydroWithoutMetadata = areaHydro.stream()
-                .map(dto -> dto.toBuilder()
-                        .series(null)
-                        .allocation(null)
-                        .build())
+        List<HydroPropertiesGenerationDTO> areaHydroWithoutMetadata = areaHydro.stream()
+                .map(HydroGenerationDTO::getProperties)
                 .toList();
 
         Map<String, Object> areaHydroMap = new LinkedHashMap<>();

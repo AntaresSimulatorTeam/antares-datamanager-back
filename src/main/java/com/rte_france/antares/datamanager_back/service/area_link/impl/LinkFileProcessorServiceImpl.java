@@ -60,7 +60,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId, Boolean isHvdcModel) throws IOException {
+    public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 
         checkIfHorizonExist(path, horizon, TrajectoryType.LINK.name());
@@ -91,12 +91,6 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         checkForWarnings(path, horizon, studyId, warningMessageEntities, userNni, trajectory);
         checkConsistencyTrajectoryLinkAndArea(listLink, areaNames, warningMessageEntities, studyId, trajectory.getId(), secondTrajectory, userNni);
 
-        if (Boolean.TRUE.equals(isHvdcModel)) {
-            studyRepository.findById(studyId).ifPresent(study -> {
-                study.setHvdc(true);
-                studyRepository.save(study);
-            });
-        }
 
         return saveTrajectory(trajectory, listLink, warningMessageEntities);
     }
@@ -203,10 +197,9 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             Sheet parametersSheet = workbook.getSheet("parameters");
             Sheet sLinksSheet = workbook.getSheet(horizon);
 
-            // get hurdle_cost and hvdc since they're fixed in param sheet
+            // Get hurdle_cost from the parameters sheet (fixed per horizon)
             int horizonCellIndex = findCellIndexByHorizon(parametersSheet, horizon);
             double hurdleCost = parametersSheet.getRow(1).getCell(horizonCellIndex).getNumericCellValue();
-            boolean hvdc = getBooleanCellValue(parametersSheet.getRow(2).getCell(horizonCellIndex)).orElse(false);
 
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {

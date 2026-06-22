@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
 import com.rte_france.antares.datamanager_back.service.study.impl.HydroToJsonService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,9 +67,10 @@ class HydroToJsonServiceTest {
     void buildHydroDataMap_returnsPropertiesMapForValidArea() {
         String[] series = {"file1.arrow", "file2.arrow"};
         Map<String, Double> allocation = Map.of("BE", 0.5, "DE", 0.5);
+        HydroPropertiesGenerationDTO properties = HydroPropertiesGenerationDTO.builder().followLoadModulation(true)
+                .interDailyBreakdown(1).build();
         HydroGenerationDTO dto = HydroGenerationDTO.builder()
-                .followLoadModulation(true)
-                .interDailyBreakdown(1)
+                .properties(properties)
                 .series(series)
                 .allocation(allocation)
                 .build();
@@ -84,11 +86,9 @@ class HydroToJsonServiceTest {
         assertTrue(result.containsKey("psp"));
 
         @SuppressWarnings("unchecked")
-        List<HydroGenerationDTO> properties = (List<HydroGenerationDTO>) result.get("properties");
-        assertEquals(1, properties.size());
-        assertNull(properties.get(0).getSeries());
-        assertNull(properties.get(0).getAllocation());
-        assertEquals(dto.getFollowLoadModulation(), properties.get(0).getFollowLoadModulation());
+        List<HydroPropertiesGenerationDTO> propertiesHydro = (List<HydroPropertiesGenerationDTO>) result.get("properties");
+        assertEquals(1, propertiesHydro.size());
+        assertEquals(dto.getProperties().getFollowLoadModulation(), propertiesHydro.getFirst().getFollowLoadModulation());
 
         assertArrayEquals(series, (String[]) result.get("series"));
         assertEquals(allocation, result.get("allocation"));
@@ -96,7 +96,8 @@ class HydroToJsonServiceTest {
 
     @Test
     void buildHydroDataMap_areaLookupUsesUppercase() {
-        HydroGenerationDTO dto = HydroGenerationDTO.builder().followLoadModulation(false).build();
+        HydroPropertiesGenerationDTO properties = HydroPropertiesGenerationDTO.builder().followLoadModulation(false).build();
+        HydroGenerationDTO dto = HydroGenerationDTO.builder().properties(properties).build();
         Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("FR", List.of(dto));
 
         Map<String, Object> result = service.buildHydroDataMap("fr", hydroProps);
@@ -113,21 +114,20 @@ class HydroToJsonServiceTest {
     void buildHydroDataMap_multipleDtosAreAllReturned() {
         String[] series = {"file.arrow"};
         Map<String, Double> allocation = Map.of("BE", 1.0);
-        HydroGenerationDTO dto1 = HydroGenerationDTO.builder().interDailyBreakdown(1).series(series).allocation(allocation).build();
-        HydroGenerationDTO dto2 = HydroGenerationDTO.builder().interDailyBreakdown(2).series(series).allocation(allocation).build();
-        HydroGenerationDTO dto3 = HydroGenerationDTO.builder().interDailyBreakdown(3).series(series).allocation(allocation).build();
+        HydroPropertiesGenerationDTO properties1 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(1).build();
+        HydroGenerationDTO dto1 = HydroGenerationDTO.builder().properties(properties1).series(series).allocation(allocation).build();
+        HydroPropertiesGenerationDTO properties2 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(2).build();
+        HydroGenerationDTO dto2 = HydroGenerationDTO.builder().properties(properties2).series(series).allocation(allocation).build();
+        HydroPropertiesGenerationDTO properties3 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(3).build();
+        HydroGenerationDTO dto3 = HydroGenerationDTO.builder().properties(properties3).series(series).allocation(allocation).build();
         List<HydroGenerationDTO> dtos = List.of(dto1, dto2, dto3);
         Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("FR", dtos);
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
         @SuppressWarnings("unchecked")
-        List<HydroGenerationDTO> returnedDtos = (List<HydroGenerationDTO>) result.get("properties");
+        List<HydroPropertiesGenerationDTO> returnedDtos = (List<HydroPropertiesGenerationDTO>) result.get("properties");
         assertEquals(3, returnedDtos.size());
-        for (HydroGenerationDTO dto : returnedDtos) {
-            assertNull(dto.getSeries());
-            assertNull(dto.getAllocation());
-        }
         assertArrayEquals(series, (String[]) result.get("series"));
         assertEquals(allocation, result.get("allocation"));
     }
@@ -144,8 +144,10 @@ class HydroToJsonServiceTest {
 
     @Test
     void buildHydroDataMap_multipleAreasInMapReturnsOnlyRequestedArea() {
-        HydroGenerationDTO dtoFR = HydroGenerationDTO.builder().interDailyBreakdown(1).build();
-        HydroGenerationDTO dtoBE = HydroGenerationDTO.builder().interDailyBreakdown(2).build();
+        HydroPropertiesGenerationDTO properties1 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(1).build();
+        HydroGenerationDTO dtoFR = HydroGenerationDTO.builder().properties(properties1).build();
+        HydroPropertiesGenerationDTO properties2 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(2).build();
+        HydroGenerationDTO dtoBE = HydroGenerationDTO.builder().properties(properties2).build();
         Map<String, List<HydroGenerationDTO>> hydroProps = Map.of(
                 "FR", List.of(dtoFR),
                 "BE", List.of(dtoBE)
@@ -154,9 +156,9 @@ class HydroToJsonServiceTest {
         Map<String, Object> result = service.buildHydroDataMap("BE", hydroProps);
 
         @SuppressWarnings("unchecked")
-        List<HydroGenerationDTO> returnedDtos = (List<HydroGenerationDTO>) result.get("properties");
+        List<HydroPropertiesGenerationDTO> returnedDtos = (List<HydroPropertiesGenerationDTO>) result.get("properties");
         assertEquals(1, returnedDtos.size());
-        assertEquals(dtoBE.getInterDailyBreakdown(), returnedDtos.get(0).getInterDailyBreakdown());
+        assertEquals(dtoBE.getProperties().getInterDailyBreakdown(), returnedDtos.getFirst().getInterDailyBreakdown());
         assertArrayEquals(new String[0], (String[]) result.get("series"));
         assertEquals(Collections.emptyMap(), result.get("allocation"));
     }

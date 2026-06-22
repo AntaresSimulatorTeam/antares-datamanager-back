@@ -231,17 +231,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryToUse the name of the trajectory file to use
      * @param horizon         the horizon period in the format yyyy-yyyy
      * @param studyId         the ID of the study
-     * @param isHvdcModel     the hvdc model flag
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId, boolean isHvdcModel) throws IOException {
+    public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse, "");
 
 
         return switch (trajectoryType) {
             case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
-            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId, isHvdcModel);
+            case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
@@ -1278,7 +1277,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private void verifyThermalCapacity(Integer studyId, TrajectoryEntity trajectory) {
         thermalControlService.verifyClustersInCommonParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
-        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities());
+        thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, trajectory.getHorizon(), trajectory.getThermalClusterCapacities(), trajectory.getArea());
 
     }
 

@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -12,7 +13,8 @@ public class HydroMapper {
         if (entity == null) {
             return null;
         }
-        return HydroGenerationDTO.builder()
+
+        HydroPropertiesGenerationDTO properties = HydroPropertiesGenerationDTO.builder()
                 .followLoadModulation(entity.getFollowLoad())
                 .interDailyBreakdown(entity.getInterDailyBreakdown())
                 .interDailyModulation(entity.getInterDailyModulation())
@@ -23,5 +25,11 @@ public class HydroMapper {
                 .initializeReservoirDate(entity.getInitializeReservoirDate())
                 .useWater(entity.getUseWater())
                 .build();
+        
+        return  HydroGenerationDTO.builder()
+                .properties(properties)
+                .allocation(null)
+                .series(null)
+                .build();       
     }
 }

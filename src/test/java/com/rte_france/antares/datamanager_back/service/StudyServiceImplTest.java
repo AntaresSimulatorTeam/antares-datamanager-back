@@ -5,9 +5,8 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.ProjectRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.study.impl.StudyServiceImpl;
-import com.rte_france.antares.datamanager_back.service.user.UserService;
+
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -609,6 +608,30 @@ class StudyServiceImplTest {
         assertNotNull(result);
         verify(studyRepository).save(any(StudyEntity.class));
         verify(projectRepository, never()).findByName(anyString());
+    }
+
+    @Test
+    void updateStudy_updatesOnlyHvdc_whenOnlyHvdcIsProvided() {
+        var project = ProjectEntity.builder().id(1).name("Project").build();
+
+        var study = StudyEntity.builder()
+                .id(1)
+                .name("MyStudy_2030")
+                .project(project)
+                .status(StudyStatus.IN_PROGRESS)
+                .hvdc(false)
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
+
+        var dto = StudyDTO.builder().hvdc(true).build();
+
+        StudyDTO result = studyServiceImpl.updateStudy(1, dto);
+
+        assertNotNull(result);
+        assertTrue(study.getHvdc());
+        verify(studyRepository).save(any(StudyEntity.class));
     }
 
     @Test

@@ -139,7 +139,7 @@ public class StudyServiceImpl implements StudyService {
     @Transactional
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
-        
+
         StudyEntity studyToDuplicate = loadStudyToDuplicateOrThrow(studyDTO);
 
 
@@ -173,7 +173,7 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private StudyEntity loadStudyToDuplicateOrThrow(StudyDTO studyDTO) {
-        return studyRepository.findById(studyDTO.getId()).orElseThrow(() -> 
+        return studyRepository.findById(studyDTO.getId()).orElseThrow(() ->
                 BusinessException.builder()
                         .message("Study {0} not found")
                         .errorMessageArguments(List.of(studyDTO.getName()))
@@ -342,6 +342,7 @@ public class StudyServiceImpl implements StudyService {
                 .tags(studyDTO.getTags())
                 .warningMessages(new HashSet<>())
                 .trajectories(trajectories)
+                .hvdc(false)
                 .build();
     }
 
@@ -432,6 +433,7 @@ public class StudyServiceImpl implements StudyService {
         if (studyDTO.getProject() != null) updateProjectIfPresent(study, studyDTO);
         if (studyDTO.getName() != null) updateStudyNameIfPresent(study, studyDTO);
         if (studyDTO.getTags() != null) updateTagsIfPresent(study, studyDTO);
+        if (studyDTO.getHvdc() != null) study.setHvdc(studyDTO.getHvdc());
         var saved = studyRepository.save(study);
         return StudyMapper.toStudyDTO(saved);
     }
