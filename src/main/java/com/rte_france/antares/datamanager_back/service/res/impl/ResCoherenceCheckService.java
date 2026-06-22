@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ResClusterCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ResTechnologyDistributionEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import lombok.RequiredArgsConstructor;
@@ -261,21 +262,13 @@ public class ResCoherenceCheckService {
          // Extraire les technologies disponibles dans les trajectoires TD avec technologie
          // Les technologies doivent exister à la fois avec l'area spécifique ET avec area = OTHERS
          Set<String> technologiesWithSpecificArea = allTdTrajectories.stream()
-                 .filter(t -> t.getArea().equals(area))
+                 .filter(t -> !t.getArea().equals(OTHERS_AREA) && t.getTechnology() != null && !t.getTechnology().trim().isEmpty())
                  .flatMap(t -> t.getResTechnologyDistributionCapacityEntities() != null ? t.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
-                 .map(entity -> entity.getGroupe())
-                 .filter(groupe -> !isBlankOrEmpty(groupe))
-                 .collect(Collectors.toSet());
-
-         Set<String> technologiesWithOthersArea = allTdTrajectories.stream()
-                 .filter(t -> t.getArea().equals(OTHERS_AREA))
-                 .flatMap(t -> t.getResTechnologyDistributionCapacityEntities() != null ? t.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
-                 .map(entity -> entity.getGroupe())
+                 .map(ResTechnologyDistributionEntity::getGroupe)
                  .filter(groupe -> !isBlankOrEmpty(groupe))
                  .collect(Collectors.toSet());
 
          Set<String> availableTDTechnologies = new HashSet<>(technologiesWithSpecificArea);
-         availableTDTechnologies.retainAll(technologiesWithOthersArea);
          log.info("Technologies disponibles (intersection): {}", availableTDTechnologies);
 
          Set<String> tdKeys = extractTDKeys(allTdTrajectories, area, availableTDTechnologies, importedTechnology);
