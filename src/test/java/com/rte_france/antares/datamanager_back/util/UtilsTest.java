@@ -933,12 +933,13 @@ class UtilsTest {
         when(workbook.getNumberOfSheets()).thenReturn(1);
         when(workbook.getSheet("H1")).thenReturn(null);
 
-        BusinessException ex = assertThrows(
-                BusinessException.class,
-                () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), TrajectoryType.HYDRO_PSP_SERIES.name())
+        assertEquals(
+                List.of("H1", "PSP_Virtual Series", "trajectory.xlsx", "for maxpower file"),
+                assertThrows(
+                        BusinessException.class,
+                        () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), TrajectoryType.HYDRO_PSP_SERIES.name())
+                ).getErrorMessageArguments()
         );
-
-        assertEquals(List.of("H1", "PSP_Virtual Series", "trajectory.xlsx", "for maxpower file"), ex.getErrorMessageArguments());
     }
 
     @ParameterizedTest

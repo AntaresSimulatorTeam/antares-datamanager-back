@@ -256,7 +256,7 @@ class StudyGeneratorServiceImplTest {
     }
 
     @Test
-    void testBuildJsonForStudyGenerationDoesNotThrowForPspTrajectories() throws IOException {
+    void testBuildJsonForStudyGenerationDoesNotThrowForPspTrajectories() {
         Integer studyId = 2;
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
