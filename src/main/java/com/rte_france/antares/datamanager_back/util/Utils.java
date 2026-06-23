@@ -843,7 +843,7 @@ public class Utils {
         List<String> messageArguments = new ArrayList<>(Arrays.asList(arguments));
         StringBuilder msg = new StringBuilder(message);
 
-        if ("HYDRO_SERIES".equals(trajectoryType)) {
+        if ("HYDRO_SERIES".equals(trajectoryType) || "HYDRO_PSP_SERIES".equals(trajectoryType)) {
             messageArguments.add("for maxpower file");
             msg.append(" {").append(hydroSeriesArgumentIndex).append("}");
         }
@@ -946,6 +946,7 @@ public class Utils {
             case "RES_ZONAL_DISTRIBUTION" -> "RES Zonal repartition";
             case "STS"-> "STS";
             case "HYDRO_SERIES" -> "Hydro Series";
+            case "HYDRO_PSP_SERIES" -> "PSP_Virtual Hydro Series";
             case "HYDRO_ALLOCATION" -> "hydroAllocation TechnicalParameters";
             case "HYDRO_PARAMETERS" -> "hydroParameters TechnicalParameters";
             default -> "trajectory";

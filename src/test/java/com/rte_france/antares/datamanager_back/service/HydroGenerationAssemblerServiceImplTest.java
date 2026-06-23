@@ -50,6 +50,7 @@ class HydroGenerationAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroSeriesDirectory()).thenReturn("hydro_series");
+        when(antaresDataManagerProperties.getPspSeriesDirectory()).thenReturn("psp_series");
     }
 
     // --- Tests existants corrigés ---
@@ -831,7 +832,7 @@ class HydroGenerationAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
 
-        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj_psp");
+        Path fileDir = tempDir.resolve("trajectories").resolve("psp_series").resolve("traj_psp");
         Files.createDirectories(fileDir);
         Files.createFile(fileDir.resolve("maxpower_2030.xlsx"));
 
@@ -872,7 +873,7 @@ class HydroGenerationAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
 
-        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj_psp").resolve("mingen");
+        Path fileDir = tempDir.resolve("trajectories").resolve("psp_series").resolve("traj_psp").resolve("mingen");
         Files.createDirectories(fileDir);
         Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
 
