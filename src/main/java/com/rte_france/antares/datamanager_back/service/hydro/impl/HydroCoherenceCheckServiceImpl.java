@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMessageHelper;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.HydroAllocationEntity;
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersEntity;
@@ -29,6 +30,7 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
     @Override
     public void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> areasInHydroSeriesFiles, String areaParam, String trajectoryToUse, String seriesTrajectoryType) {
         String targetTpType = getAssociatedTechnicalType(seriesTrajectoryType);
+        boolean isPsp = seriesTrajectoryType.contains("PSP");
         TrajectoryEntity tpTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, targetTpType);
             if (tpTrajectory != null) {
                 List<String> areasInHydroAllocationEntities = getAreasInHydroAllocationAreas(tpTrajectory.getId());
@@ -37,14 +39,16 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
                     List<String> areasInHydroParametersEntities = getAreasInHydroParametersAreas(tpTrajectory.getId());
                     boolean isHydroParametersTrajectoryHasAreas = areasInHydroParametersEntities.containsAll(areasInHydroSeriesFiles);
                     if (!isHydroParametersTrajectoryHasAreas) {
+                        String label = HydroMessageHelper.getFileLabel("hydroParameters", isPsp);
                         throw BusinessException.builder()
-                                .message("Missing areas hydroParameters in Hydro TechnicalParameters trajectory "+trajectoryToUse)
+                                .message("Missing areas " + label + " in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + " trajectory "+trajectoryToUse)
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build();
                     }
                 } else {
+                    String label = HydroMessageHelper.getFileLabel("hydroAllocation", isPsp);
                     throw BusinessException.builder()
-                            .message("Missing areas hydroAllocation in Hydro TechnicalParameters trajectory "+trajectoryToUse)
+                            .message("Missing areas " + label + " in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + " trajectory "+trajectoryToUse)
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
@@ -54,15 +58,18 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
     @Override
     public void checkHydroTPTrajectoriesConsistency(Integer studyId, List<String> areasTPFiles, String areaParam, String trajectoryToUse, String childTrajectoryType, String parentTrajectoryType) {
         String targetSeriesType = getAssociatedSeriesType(parentTrajectoryType);
+        boolean isPsp = parentTrajectoryType.contains("PSP");
         TrajectoryEntity seriesTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, targetSeriesType);
         if (seriesTrajectory != null) {
             List<String> areasModInHydroSeriesTrajectory = getAreasInHydroSeriesModFiles(seriesTrajectory.getId());
             boolean isHydroSeriesTrajectoryHasTPAreas = areasTPFiles.containsAll(areasModInHydroSeriesTrajectory);
 
             if (!isHydroSeriesTrajectoryHasTPAreas) {
+                String childLabel = Objects.equals(childTrajectoryType, TrajectoryType.HYDRO_ALLOCATION.name()) ? "hydroAllocation" : "hydroParameters";
+                String label = HydroMessageHelper.getFileLabel(childLabel, isPsp);
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(Objects.equals(childTrajectoryType, TrajectoryType.HYDRO_ALLOCATION.name()) ? "hydroAllocation" : "hydroParameters"))
-                        .message("Missing areas {0} in Hydro TechnicalParameters trajectory " + trajectoryToUse)
+                        .errorMessageArguments(List.of(label))
+                        .message("Missing areas {0} in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + " trajectory " + trajectoryToUse)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

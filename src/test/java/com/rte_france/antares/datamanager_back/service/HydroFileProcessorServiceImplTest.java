@@ -656,24 +656,34 @@ class HydroFileProcessorServiceImplTest {
     }
 
     @Test
-    void processHydroTechnicalParametersFile_throwsWithPspLabelsWhenParametersFileMissing() throws Exception {
-        Path base = tempDir.resolve("hydro_tech_psp_missing_params");
+    void processHydroTechnicalParametersFile_throwsWithPspLabelWhenSelectedAreaMissingFromAllocation() throws Exception {
+        Path base = tempDir.resolve("hydro_tech_psp_area_mismatch");
         Path traj = base.resolve(TRAJ);
         Files.createDirectories(traj);
 
         CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_ALLOCATION, HORIZON,
-                List.of("hydro"), List.of());
+                List.of("hydro", "load", "allocation"),
+                List.of(List.of("FR", "FR_LOAD", 100)));
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_PARAMETERS, HORIZON,
+                List.of("node", "inter.daily.breakdown", "intra.daily.modulation", "inter.monthly.breakdown",
+                        "initialize.reservoir.date", "pumping.efficiency",
+                        "reservoir", "reservoir.capacity", "follow.load", "use.water"),
+                List.of(List.of("FR", 1, 1, 1, 1, 1, true, 1000, false, true)));
 
         Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
+        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false));
+                service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, "DE", false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
-        assertTrue(formattedMessage.contains("Missing file PSP_Virtual hydroAllocation or PSP_Virtual hydroParameters"));
+        assertTrue(formattedMessage.contains("Selected area"));
+        assertTrue(formattedMessage.contains("PSP_Virtual hydroAllocation TechnicalParameters"));
         verify(trajectoryRepository, never()).save(any());
     }
 

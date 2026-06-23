@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.mapper.HydroMapper;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMessageHelper;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import lombok.extern.slf4j.Slf4j;
@@ -279,8 +280,9 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                     matrix = nasFileService.readMatrix(path, studyEntity.getHorizon(), false);
                     outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_" + getHydroSeriesType(fileName), outputDir);
                 } catch (IOException e) {
+                    boolean isPsp = type == TrajectoryType.HYDRO_PSP_SERIES;
                     throw BusinessException.builder()
-                            .message("Could not generate matrix for hydro series")
+                            .message("Could not generate matrix for " + HydroMessageHelper.getSeriesLabel(isPsp))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }

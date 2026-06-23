@@ -115,12 +115,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<HydroSeriesEntity> entities = new ArrayList<>();
         List<String> filesNameFinal = new ArrayList<>();
 
+        boolean isPsp = trajectoryType == TrajectoryType.HYDRO_PSP_SERIES;
         var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
         var hasOnlyRorFile = true;
         List<String> missingModFiles = new ArrayList<>();
 
         for (var area : areaList) {
-            var filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
+            var filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas, isPsp);
             if (!checkHydroFileConsistency(filesName, area, horizon, missingModFiles)) hasOnlyRorFile = false;
             filesNameFinal.addAll(filesName);
         }
@@ -314,12 +315,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Path trajectoryFilePath,
             String horizon,
             String areaParam,
-            List<String> studyAreas
+            List<String> studyAreas,
+            boolean isPsp
     ) throws IOException, BusinessException {
 
         Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
         List<String> filesName = new ArrayList<>(List.of());
-        
+
         for (var entry : REQUIRED_SERIES.entrySet()) {
             String directory = entry.getKey();
             SeriesConfig config = entry.getValue();
@@ -328,7 +330,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (!Files.isDirectory(seriesDirectoryPath)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
-                        .message("Missing folder {0} in hydro series trajectory {1}")
+                        .message("Missing folder {0} in " + HydroMessageHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -337,7 +339,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (!isPathWithinDirectory(realTrajectoryFilePath, realSeriesDirectoryPath)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
-                        .message("Path for folder {0} is out of trajectory directory in hydro series trajectory {1}")
+                        .message("Path for folder {0} is out of trajectory directory in " + HydroMessageHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

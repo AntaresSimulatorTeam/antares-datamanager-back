@@ -946,7 +946,7 @@ public class Utils {
             case "RES_ZONAL_DISTRIBUTION" -> "RES Zonal repartition";
             case "STS"-> "STS";
             case "HYDRO_SERIES" -> "Hydro Series";
-            case "HYDRO_PSP_SERIES" -> "PSP_Virtual Hydro Series";
+            case "HYDRO_PSP_SERIES" -> "PSP_Virtual Series";
             case "HYDRO_ALLOCATION" -> "hydroAllocation TechnicalParameters";
             case "HYDRO_PARAMETERS" -> "hydroParameters TechnicalParameters";
             default -> "trajectory";
