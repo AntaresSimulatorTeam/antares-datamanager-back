@@ -655,6 +655,28 @@ class HydroFileProcessorServiceImplTest {
         verify(trajectoryRepository, never()).save(any());
     }
 
+    @Test
+    void processHydroTechnicalParametersFile_throwsWithPspLabelsWhenParametersFileMissing() throws Exception {
+        Path base = tempDir.resolve("hydro_tech_psp_missing_params");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj);
+
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_ALLOCATION, HORIZON,
+                List.of("hydro"), List.of());
+
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
+        assertTrue(formattedMessage.contains("Missing file PSP_Virtual hydroAllocation or PSP_Virtual hydroParameters"));
+        verify(trajectoryRepository, never()).save(any());
+    }
+
     // -------------------------------------------------------------------------
     // processTechnicalParametersFile
     // -------------------------------------------------------------------------
