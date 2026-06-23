@@ -256,6 +256,21 @@ class StudyGeneratorServiceImplTest {
     }
 
     @Test
+    void testBuildJsonForStudyGenerationDoesNotThrowForPspTrajectories() throws IOException {
+        Integer studyId = 2;
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        TrajectoryEntity pspSeriesTrajectory = TrajectoryEntity.builder().type("HYDRO_PSP_SERIES").fileName("psp_series").build();
+        TrajectoryEntity pspParametersTrajectory = TrajectoryEntity.builder().type("HYDRO_PSP_TECHNICAL_PARAMETERS").fileName("psp_params").build();
+        StudyEntity pspStudy = StudyEntity.builder().id(studyId).name("studyPsp")
+                .trajectories(Set.of(pspSeriesTrajectory, pspParametersTrajectory))
+                .build();
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(pspStudy));
+
+        assertDoesNotThrow(() -> studyGeneratorService.buildJsonForStudyGeneration(studyId));
+    }
+
+    @Test
     void testBuildLinksDataMap() throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
         Integer studyId = 1;
