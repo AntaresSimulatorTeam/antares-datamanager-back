@@ -749,7 +749,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     checkNotDuplicate(entity, seenCombos, trajectoryToUse);
                 }
             }
-            default -> { }
+            default -> { /* do nothing */ }
         }
     }
 
