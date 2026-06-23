@@ -938,7 +938,7 @@ class UtilsTest {
                 () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), TrajectoryType.HYDRO_PSP_SERIES.name())
         );
 
-        assertEquals(List.of("H1", "PSP_Virtual Hydro Series", "trajectory.xlsx", "for maxpower file"), ex.getErrorMessageArguments());
+        assertEquals(List.of("H1", "PSP_Virtual Series", "trajectory.xlsx", "for maxpower file"), ex.getErrorMessageArguments());
     }
 
     @ParameterizedTest
