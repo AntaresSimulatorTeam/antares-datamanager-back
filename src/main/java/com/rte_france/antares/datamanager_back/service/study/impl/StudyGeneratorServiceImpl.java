@@ -130,6 +130,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 log.warn("RES trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                         case HYDRO_TECHNICAL_PARAMETERS, HYDRO_SERIES, HYDRO_PARAMETERS, HYDRO_ALLOCATION ->
                                 log.warn("HYDRO trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
+                        case HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS ->
+                                log.warn("HYDRO PSP trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                         default -> {
                             log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                             throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();

@@ -297,16 +297,21 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     }
 
     private Map<String, List<TrajectoryFileContext>> mapTsPathByArea(StudyEntity study) {
-        Path hydroSeriesDir = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaresDataManagerProperties.getHydroSeriesDirectory());
+        Path trajectoryFilePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+        Path hydroSeriesDir = trajectoryFilePath.resolve(antaresDataManagerProperties.getHydroSeriesDirectory());
+        Path pspSeriesDir = trajectoryFilePath.resolve(antaresDataManagerProperties.getPspSeriesDirectory());
 
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(trajectory -> TrajectoryType.HYDRO_SERIES.name().equals(trajectory.getType()) ||
                         TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType()))
                 .filter(trajectory -> trajectory.getArea() != null)
-                .flatMap(trajectory -> Optional.ofNullable(trajectory.getHydroSeriesEntities())
+                .flatMap(trajectory -> {
+                    Path seriesDir = TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType())
+                            ? pspSeriesDir
+                            : hydroSeriesDir;
+                    return Optional.ofNullable(trajectory.getHydroSeriesEntities())
                         .orElseGet(Collections::emptyList)
                         .stream()
                         .filter(Objects::nonNull)
@@ -315,10 +320,11 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                         .map(hydroSeries -> Map.entry(
                                 trajectory.getArea().toUpperCase(Locale.ROOT),
                                 new TrajectoryFileContext(
-                                        resolveHydroSeriesPath(hydroSeriesDir, trajectory, hydroSeries),
+                                        resolveHydroSeriesPath(seriesDir, trajectory, hydroSeries),
                                         TrajectoryType.valueOf(trajectory.getType())
                                 )
-                        )))
+                        ));
+                })
                 .filter(entry -> Files.exists(entry.getValue().path()))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
