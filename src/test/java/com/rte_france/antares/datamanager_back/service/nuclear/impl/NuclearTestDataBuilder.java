@@ -127,6 +127,29 @@ public class NuclearTestDataBuilder {
     }
 
     /**
+     * Create a valid simulation Excel file for nuclear long-term
+     */
+    public static void createValidSimulationFile(Path filePath) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Simulation");
+
+            // Create a minimal valid sheet with data
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("Year");
+            headerRow.createCell(1).setCellValue("Capacity");
+
+            Row dataRow = sheet.createRow(1);
+            dataRow.createCell(0).setCellValue(2025);
+            dataRow.createCell(1).setCellValue(1000.0);
+
+            // Write to file
+            try (OutputStream outputStream = Files.newOutputStream(filePath)) {
+                workbook.write(outputStream);
+            }
+        }
+    }
+
+    /**
      * Create a time series Excel file without the required sheet
      */
     public static void createTimeSeriesFileWithoutSheet(Path filePath) throws IOException {
