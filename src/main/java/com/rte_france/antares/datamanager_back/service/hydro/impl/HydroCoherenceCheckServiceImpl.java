@@ -26,6 +26,7 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
     private final HydroSeriesRepository hydroSeriesRepository;
 
     protected static final String HYDRO_SERIES_INFLOWS_MOD = "mod";
+    private static final String TRAJECTORY_LABEL = " trajectory ";
     
     @Override
     public void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> areasInHydroSeriesFiles, String areaParam, String trajectoryToUse, String seriesTrajectoryType) {
@@ -41,14 +42,14 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
                     if (!isHydroParametersTrajectoryHasAreas) {
                         String label = HydroMessageHelper.getFileLabel("hydroParameters", isPsp);
                         throw BusinessException.builder()
-                                .message("Missing areas " + label + " in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + " trajectory "+trajectoryToUse)
+                                .message("Missing areas " + label + " in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + TRAJECTORY_LABEL + trajectoryToUse)
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build();
                     }
                 } else {
                     String label = HydroMessageHelper.getFileLabel("hydroAllocation", isPsp);
                     throw BusinessException.builder()
-                            .message("Missing areas " + label + " in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + " trajectory "+trajectoryToUse)
+                            .message("Missing areas " + label + " in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + TRAJECTORY_LABEL + trajectoryToUse)
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
@@ -69,7 +70,7 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
                 String label = HydroMessageHelper.getFileLabel(childLabel, isPsp);
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(label))
-                        .message("Missing areas {0} in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + " trajectory " + trajectoryToUse)
+                        .message("Missing areas {0} in " + HydroMessageHelper.getTechnicalParametersLabel(isPsp) + TRAJECTORY_LABEL + trajectoryToUse)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

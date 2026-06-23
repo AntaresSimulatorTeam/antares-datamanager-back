@@ -929,17 +929,17 @@ class UtilsTest {
     void getRequiredSheet_shouldUsePspLabelForPspSeries() {
         Workbook workbook = mock(Workbook.class);
         Path path = Path.of("trajectory.xlsx");
+        String pathAsString = path.toString();
 
         when(workbook.getNumberOfSheets()).thenReturn(1);
         when(workbook.getSheet("H1")).thenReturn(null);
 
-        assertEquals(
-                List.of("H1", "PSP_Virtual Series", "trajectory.xlsx", "for maxpower file"),
-                assertThrows(
-                        BusinessException.class,
-                        () -> Utils.getRequiredSheet(workbook, "H1", path.toString(), TrajectoryType.HYDRO_PSP_SERIES.name())
-                ).getErrorMessageArguments()
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", pathAsString, TrajectoryType.HYDRO_PSP_SERIES.name())
         );
+
+        assertEquals(List.of("H1", "PSP_Virtual Series", "trajectory.xlsx", "for maxpower file"), ex.getErrorMessageArguments());
     }
 
     @ParameterizedTest
