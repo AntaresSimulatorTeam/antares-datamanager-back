@@ -718,25 +718,14 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<String> missing = new ArrayList<>();
 
         for (int i = 0; i < requiredColumns.length; i++) {
-            if (i >= values.length || values[i] == null || (isNumeric && values[i] instanceof String s && !isInteger(s)) || (!isNumeric && values[i] instanceof String str && !isBooleanStringValue(str))) {
+            if (isValueInvalid(values, i, isNumeric)) {
                 missing.add(requiredColumns[i]);
             }
         }
 
         if (!missing.isEmpty()) {
-            String columnsLabel;
-            if (context.getTrajectoryType() == TrajectoryType.HYDRO_ALLOCATION) {
-                columnsLabel = "Allocation column";
-            } else if (isNumeric) {
-                columnsLabel = "Column(s) 2 to 6 and 8";
-            } else {
-                columnsLabel = "Column(s) 7, 9 and 10";
-            }
-
-            String typeLabel = getErrorMessageLabelFromType(context.getTrajectoryType().name());
-            if (isPsp) {
-                typeLabel = "PSP_Virtual " + typeLabel;
-            }
+            String columnsLabel = getColumnsLabel(context.getTrajectoryType(), isNumeric);
+            String typeLabel = getTypeLabel(context.getTrajectoryType(), isPsp);
             String valuesLabel = isNumeric ? "filled and of numeric type" : "boolean values";
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(columnsLabel, typeLabel, context.getTrajectoryToUse(), valuesLabel))
@@ -744,6 +733,31 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+    }
+
+    private boolean isValueInvalid(Object[] values, int i, boolean isNumeric) {
+        if (i >= values.length || values[i] == null) {
+            return true;
+        }
+        return switch (values[i]) {
+            case String s -> isNumeric ? !isInteger(s) : !isBooleanStringValue(s);
+            default -> false;
+        };
+    }
+
+    private String getColumnsLabel(TrajectoryType trajectoryType, boolean isNumeric) {
+        if (trajectoryType == TrajectoryType.HYDRO_ALLOCATION) {
+            return "Allocation column";
+        }
+        return isNumeric ? "Column(s) 2 to 6 and 8" : "Column(s) 7, 9 and 10";
+    }
+
+    private String getTypeLabel(TrajectoryType trajectoryType, boolean isPsp) {
+        String typeLabel = getErrorMessageLabelFromType(trajectoryType.name());
+        if (isPsp) {
+            typeLabel = "PSP_Virtual " + typeLabel;
+        }
+        return typeLabel;
     }
 
     private @NonNull HydroTechnicalParametersRowProcessingResult getHydroRowProcessingResult(TrajectoryType trajectoryType) {
