@@ -3,11 +3,13 @@ package com.rte_france.antares.datamanager_back.service.nuclear.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -420,7 +423,7 @@ class NuclearFileProcessorServiceImplTest {
         Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
         
         // Get the actual checksum of the folder
-        String actualChecksum = com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum(trajectoryFolder);
+        String actualChecksum = Utils.calculateDirectoryChecksum(trajectoryFolder);
         
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -534,6 +537,421 @@ class NuclearFileProcessorServiceImplTest {
         });
     }
 
+    // ========== Tests for processNuclearLongTermFile (nuclear-lt) ==========
+
+    @Test
+    void processNuclearLongTermFile_withMissingTrajectoryFolder_throwsBusinessException() throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            nuclearFileProcessorService.processNuclearLongTermFile(trajectoryName, horizon, studyId, area);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Nuclear long-term trajectory folder not found"));
+    }
+
+    @Test
+    void processNuclearLongTermFile_withMissingSimulationFile_throwsBusinessException() throws IOException {
+        Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_lt/" + trajectoryName);
+        Files.createDirectories(trajectoryFolder);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            nuclearFileProcessorService.processNuclearLongTermFile(trajectoryName, horizon, studyId, area);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Simulation file not found"));
+    }
+
+    @Test
+    void processNuclearLongTermFile_withValidExcelFile_successfulProcessing_firstVersion() throws IOException {
+        Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_lt/" + trajectoryName);
+        Files.createDirectories(trajectoryFolder);
+
+        Path simulationFile = trajectoryFolder.resolve("Simu_" + horizon + ".xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simulationFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(1);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearLongTermFile(
+                trajectoryName, horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals(trajectoryName, result.getFileName());
+        assertEquals(horizon, result.getHorizon());
+        assertEquals(area, result.getArea());
+        assertEquals(TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name(), result.getType());
+        assertEquals(1, result.getVersion());
+        assertTrue(result.getHasTimeSeries());
+    }
+
+    @Test
+    void processNuclearLongTermFile_withDifferentChecksum_successfulProcessing_nextVersion() throws IOException {
+        Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_lt/" + trajectoryName);
+        Files.createDirectories(trajectoryFolder);
+
+        Path simulationFile = trajectoryFolder.resolve("Simu_" + horizon + ".xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simulationFile);
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryName)
+                .horizon(horizon)
+                .type(TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name())
+                .checksum("old_checksum_value")
+                .version(1)
+                .area(area)
+                .build();
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(2);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearLongTermFile(
+                trajectoryName, horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals(2, result.getVersion());
+        assertNotEquals("old_checksum_value", result.getChecksum());
+    }
+
+    @Test
+    void processNuclearLongTermFile_withDifferentAreas() throws IOException {
+        String[] areas = {"FR", "DE", "IT", "ES", "BE"};
+
+        for (String testArea : areas) {
+            Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_lt/" + trajectoryName + "_" + testArea);
+            Files.createDirectories(trajectoryFolder);
+
+            Path simulationFile = trajectoryFolder.resolve("Simu_" + horizon + ".xlsx");
+            NuclearTestDataBuilder.createValidSimulationFile(simulationFile);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+            when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+            doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                    trajectoryName + "_" + testArea, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
+                    .thenReturn(Optional.empty());
+            when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                    .thenAnswer(inv -> {
+                        TrajectoryEntity entity = inv.getArgument(0);
+                        entity.setId(1);
+                        return entity;
+                    });
+
+            TrajectoryEntity result = nuclearFileProcessorService.processNuclearLongTermFile(
+                    trajectoryName + "_" + testArea, horizon, studyId, testArea);
+
+            assertEquals(testArea, result.getArea());
+        }
+    }
+
+    @Test
+    void processNuclearLongTermFile_withDifferentHorizons() throws IOException {
+        String[] horizons = {"2020-2021", "2025-2026", "2030-2031", "2035-2036"};
+
+        for (String testHorizon : horizons) {
+            Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_lt/" + trajectoryName);
+            Files.createDirectories(trajectoryFolder);
+
+            Path simulationFile = trajectoryFolder.resolve("Simu_" + testHorizon + ".xlsx");
+            NuclearTestDataBuilder.createValidSimulationFile(simulationFile);
+
+            when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+            when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+            when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+            doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                    trajectoryName, testHorizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
+                    .thenReturn(Optional.empty());
+            when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                    .thenAnswer(inv -> {
+                        TrajectoryEntity entity = inv.getArgument(0);
+                        entity.setId(1);
+                        return entity;
+                    });
+
+            TrajectoryEntity result = nuclearFileProcessorService.processNuclearLongTermFile(
+                    trajectoryName, testHorizon, studyId, area);
+
+            assertEquals(testHorizon, result.getHorizon());
+        }
+    }
+
+    @Test
+    void processNuclearLongTermFile_storesCorrectMetadata() throws IOException {
+        Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_lt/" + trajectoryName);
+        Files.createDirectories(trajectoryFolder);
+
+        Path simulationFile = trajectoryFolder.resolve("Simu_" + horizon + ".xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simulationFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
+        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(1);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearLongTermFile(
+                trajectoryName, horizon, studyId, area);
+
+        assertNotNull(result.getChecksum());
+        assertNotNull(result.getCreationDate());
+        assertNotNull(result.getLastModificationContentDate());
+        assertTrue(result.getFileSize() > 0);
+    }
+
+    // ========== Tests for processNuclearTsErpFile (nuclear-ts-erp) ==========
+
+    @Test
+    void processNuclearTsErpFile_withValidExcelFile_successfulProcessing_firstVersion() throws IOException, TechnicalException {
+        Path erpDir = testDirectory.resolve("specific_nuclear/TS_dispo/EPR");
+        Files.createDirectories(erpDir);
+
+        Path simpleExcelFile = erpDir.resolve("ts_epr_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn("specific_nuclear/TS_dispo/EPR");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "ts_epr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_ERP.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(1);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearTsErpFile(
+                "ts_epr_2030.xlsx", horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals("ts_epr_2030.xlsx", result.getFileName());
+        assertEquals(horizon, result.getHorizon());
+        assertEquals(TrajectoryType.NUCLEAR_FR_TS_ERP.name(), result.getType());
+        assertEquals(1, result.getVersion());
+        assertTrue(result.getHasTimeSeries());
+    }
+
+    @Test
+    void processNuclearTsErpFile_withMissingFile_throwsBusinessException() throws IOException {
+        Path erpDir = testDirectory.resolve("specific_nuclear/TS_dispo/EPR");
+        Files.createDirectories(erpDir);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn("specific_nuclear/TS_dispo/EPR");
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearTsErpFile("nonexistent.xlsx", horizon, studyId, area)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Nuclear trajectory file not found"));
+    }
+
+    @Test
+    void processNuclearTsErpFile_withDuplicateChecksum_throwsConflictException() throws IOException, TechnicalException {
+        Path erpDir = testDirectory.resolve("specific_nuclear/TS_dispo/EPR");
+        Files.createDirectories(erpDir);
+
+        Path simpleExcelFile = erpDir.resolve("ts_epr_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        String fileChecksum = Utils.getFileChecksum(simpleExcelFile.toString());
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("ts_epr_2030.xlsx")
+                .horizon(horizon)
+                .type(TrajectoryType.NUCLEAR_FR_TS_ERP.name())
+                .checksum(fileChecksum)
+                .version(1)
+                .area(area)
+                .build();
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn("specific_nuclear/TS_dispo/EPR");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "ts_epr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_ERP.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearTsErpFile("ts_epr_2030.xlsx", horizon, studyId, area)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("with the same checksum already exists"));
+    }
+
+    // ========== Tests for processNuclearTsSmrFile (nuclear-ts-smr) ==========
+
+    @Test
+    void processNuclearTsSmrFile_withValidExcelFile_successfulProcessing_firstVersion() throws IOException, TechnicalException {
+        Path smrDir = testDirectory.resolve("specific_nuclear/TS_dispo/SMR");
+        Files.createDirectories(smrDir);
+
+        Path simpleExcelFile = smrDir.resolve("ts_smr_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "ts_smr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(1);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearTsSmrFile(
+                "ts_smr_2030.xlsx", horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals("ts_smr_2030.xlsx", result.getFileName());
+        assertEquals(horizon, result.getHorizon());
+        assertEquals(TrajectoryType.NUCLEAR_FR_TS_SMR.name(), result.getType());
+        assertEquals(1, result.getVersion());
+        assertTrue(result.getHasTimeSeries());
+    }
+
+    @Test
+    void processNuclearTsSmrFile_withMissingFile_throwsBusinessException() throws IOException {
+        Path smrDir = testDirectory.resolve("specific_nuclear/TS_dispo/SMR");
+        Files.createDirectories(smrDir);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearTsSmrFile("nonexistent.xlsx", horizon, studyId, area)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Nuclear trajectory file not found"));
+    }
+
+    @Test
+    void processNuclearTsSmrFile_withDuplicateChecksum_throwsConflictException() throws IOException, TechnicalException {
+        Path smrDir = testDirectory.resolve("specific_nuclear/TS_dispo/SMR");
+        Files.createDirectories(smrDir);
+
+        Path simpleExcelFile = smrDir.resolve("ts_smr_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        String fileChecksum = Utils.getFileChecksum(simpleExcelFile.toString());
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("ts_smr_2030.xlsx")
+                .horizon(horizon)
+                .type(TrajectoryType.NUCLEAR_FR_TS_SMR.name())
+                .checksum(fileChecksum)
+                .version(1)
+                .area(area)
+                .build();
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "ts_smr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearTsSmrFile("ts_smr_2030.xlsx", horizon, studyId, area)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("with the same checksum already exists"));
+    }
+
+    @Test
+    void processNuclearTsSmrFile_withDifferentChecksum_successfulProcessing_nextVersion() throws IOException, TechnicalException {
+        Path smrDir = testDirectory.resolve("specific_nuclear/TS_dispo/SMR");
+        Files.createDirectories(smrDir);
+
+        Path simpleExcelFile = smrDir.resolve("ts_smr_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("ts_smr_2030.xlsx")
+                .horizon(horizon)
+                .type(TrajectoryType.NUCLEAR_FR_TS_SMR.name())
+                .checksum("old_checksum_value")
+                .version(1)
+                .area(area)
+                .build();
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "ts_smr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(2);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearTsSmrFile(
+                "ts_smr_2030.xlsx", horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals(2, result.getVersion());
+        assertNotEquals("old_checksum_value", result.getChecksum());
+    }
+
     @AfterEach
     void tearDown() throws IOException {
         if (testDirectory != null && Files.exists(testDirectory)) {
@@ -551,4 +969,3 @@ class NuclearFileProcessorServiceImplTest {
         }
     }
 }
-

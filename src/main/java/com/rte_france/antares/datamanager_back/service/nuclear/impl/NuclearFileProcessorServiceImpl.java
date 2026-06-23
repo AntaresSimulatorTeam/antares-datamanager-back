@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum;
+import static com.rte_france.antares.datamanager_back.util.Utils.getFileChecksum;
 import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 
 @Slf4j
@@ -350,6 +351,212 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     })
                     .sum();
         }
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processNuclearLongTermFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
+        
+        // Build the trajectory path
+        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+        
+        // Get the nuclear long-term directory from the configuration
+        String ltDirectory = antaresDataManagerProperties.getNuclearLtDirectory();
+
+        // Validate path security
+        validatePathFromTrajectoryRoot(ltDirectory, trajectoryToUse);
+        
+        // Full path to trajectory folder
+        Path trajectoryFolder = basePath
+                .resolve(ltDirectory)
+                .resolve(trajectoryToUse)
+                .normalize();
+
+        // Check trajectory folder exists
+        if (!Files.isDirectory(trajectoryFolder)) {
+            throw BusinessException.builder()
+                    .message("Nuclear long-term trajectory folder not found: {0}")
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Build simulation file path: Simu_<horizon>.xlsx
+        String simulationFileName = "Simu_" + horizon + ".xlsx";
+        Path simulationFilePath = trajectoryFolder.resolve(simulationFileName);
+
+        // Check simulation file exists
+        if (!Files.isRegularFile(simulationFilePath)) {
+            throw BusinessException.builder()
+                    .message("Simulation file not found: {0}")
+                    .errorMessageArguments(List.of(simulationFileName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+
+        // Calculate checksum for the Excel simulation file
+        String checksum = getFileChecksum(simulationFilePath.toString());
+
+        // Build trajectory entity
+        TrajectoryEntity trajectory = buildNuclearLongTermTrajectory(
+                trajectoryToUse, trajectoryFolder, horizon, checksum, area);
+
+        // Check if trajectory already exists with this checksum
+        var existingTrajectory = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryToUse,
+                horizon,
+                TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name());
+
+        if (existingTrajectory.isPresent()) {
+            if (existingTrajectory.get().getChecksum().equals(checksum)) {
+                throw BusinessException.builder()
+                        .message("Nuclear long-term trajectory {0} with the same checksum already exists")
+                        .errorMessageArguments(List.of(trajectoryToUse))
+                        .httpStatus(HttpStatus.CONFLICT)
+                        .build();
+            } else {
+                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
+            }
+        } else {
+            trajectory.setVersion(1);
+        }
+
+        // Save trajectory
+        TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
+
+        log.info("Nuclear long-term trajectory {} imported successfully (version: {})",
+                trajectoryToUse, savedTrajectory.getVersion());
+
+        return savedTrajectory;
+    }
+
+    /**
+     * Build trajectory entity for nuclear long-term
+     */
+    private TrajectoryEntity buildNuclearLongTermTrajectory(
+            String trajectoryName, Path trajectoryFolder, String horizon, String checksum, String area) throws IOException {
+
+        String createdBy = userService.getCurrentUserDetails() != null ? 
+                userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+
+        return TrajectoryEntity.builder()
+                .fileName(trajectoryName)
+                .fileSize(calculateDirectorySize(trajectoryFolder))
+                .checksum(checksum)
+                .type(TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name())
+                .horizon(horizon)
+                .area(area)
+                .creationDate(LocalDateTime.now())
+                .lastModificationContentDate(LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(Files.getLastModifiedTime(trajectoryFolder).toMillis()),
+                        ZoneId.systemDefault()))
+                .createdBy(createdBy)
+                .hasTimeSeries(true)
+                .build();
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processNuclearTsErpFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
+        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+                antaresDataManagerProperties.getNuclearEprDirectory(), TrajectoryType.NUCLEAR_FR_TS_ERP);
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processNuclearTsSmrFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
+        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+                antaresDataManagerProperties.getNuclearSmrDirectory(), TrajectoryType.NUCLEAR_FR_TS_SMR);
+    }
+
+    /**
+     * Generic method to process nuclear time series (EPR/SMR) files
+     */
+    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon, Integer studyId, 
+            String area, String directoryPath, TrajectoryType trajectoryType) throws IOException {
+        
+        // Build the full path to the file using NAS directory and trajectory file path
+        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
+        
+        // If trajectoryToUse doesn't have an extension, add .xlsx
+        String fileName = trajectoryToUse.endsWith(".xlsx") ? trajectoryToUse : trajectoryToUse + ".xlsx";
+        
+        Path filePath = basePath
+                .resolve(directoryPath)
+                .resolve(fileName)
+                .normalize();
+
+        // Check file exists
+        if (!Files.isRegularFile(filePath)) {
+            throw BusinessException.builder()
+                    .message("Nuclear trajectory file not found: {0}")
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Calculate checksum for the Excel file
+        String checksum = getFileChecksum(filePath.toString());
+
+        // Build trajectory entity
+        TrajectoryEntity trajectory = buildNuclearTsTrajectory(
+                trajectoryToUse, filePath, horizon, checksum, area, trajectoryType);
+
+        // Check if trajectory already exists with this checksum
+        var existingTrajectory = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryToUse,
+                horizon,
+                trajectoryType.name());
+
+        if (existingTrajectory.isPresent()) {
+            if (existingTrajectory.get().getChecksum().equals(checksum)) {
+                throw BusinessException.builder()
+                        .message("Nuclear {0} trajectory {1} with the same checksum already exists")
+                        .errorMessageArguments(List.of(trajectoryType.name(), trajectoryToUse))
+                        .httpStatus(HttpStatus.CONFLICT)
+                        .build();
+            } else {
+                trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
+            }
+        } else {
+            trajectory.setVersion(1);
+        }
+
+        // Save trajectory
+        TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
+
+        log.info("Nuclear {} trajectory {} imported successfully (version: {})",
+                trajectoryType.name(), trajectoryToUse, savedTrajectory.getVersion());
+
+        return savedTrajectory;
+    }
+
+    /**
+     * Build trajectory entity for nuclear time series (EPR/SMR)
+     */
+    private TrajectoryEntity buildNuclearTsTrajectory(
+            String fileName, Path filePath, String horizon, String checksum, String area, TrajectoryType trajectoryType) throws IOException {
+
+        String createdBy = userService.getCurrentUserDetails() != null ? 
+                userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+
+        return TrajectoryEntity.builder()
+                .fileName(fileName)
+                .fileSize(Files.size(filePath))
+                .checksum(checksum)
+                .type(trajectoryType.name())
+                .horizon(horizon)
+                .area(area)
+                .creationDate(LocalDateTime.now())
+                .lastModificationContentDate(LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(Files.getLastModifiedTime(filePath).toMillis()),
+                        ZoneId.systemDefault()))
+                .createdBy(createdBy)
+                .hasTimeSeries(true)
+                .build();
     }
 
     /**
