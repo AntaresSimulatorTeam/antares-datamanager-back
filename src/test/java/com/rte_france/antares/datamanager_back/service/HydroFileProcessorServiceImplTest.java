@@ -650,7 +650,8 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing file hydroAllocation or hydroParameters"));
+        String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
+        assertTrue(formattedMessage.contains("Missing file hydroAllocation or hydroParameters"));
         verify(trajectoryRepository, never()).save(any());
     }
 
