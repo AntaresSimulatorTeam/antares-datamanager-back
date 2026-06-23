@@ -925,6 +925,23 @@ class UtilsTest {
         assertEquals(List.of("H1", "DSR capacity modulation", "trajectory.xlsx"), ex.getErrorMessageArguments());
     }
 
+    @Test
+    void getRequiredSheet_shouldUsePspLabelForPspSeries() {
+        Workbook workbook = mock(Workbook.class);
+        Path path = Path.of("trajectory.xlsx");
+        String pathAsString = path.toString();
+
+        when(workbook.getNumberOfSheets()).thenReturn(1);
+        when(workbook.getSheet("H1")).thenReturn(null);
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> Utils.getRequiredSheet(workbook, "H1", pathAsString, TrajectoryType.HYDRO_PSP_SERIES.name())
+        );
+
+        assertEquals(List.of("H1", "PSP_Virtual Series", "trajectory.xlsx", "for maxpower file"), ex.getErrorMessageArguments());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
             "solar",

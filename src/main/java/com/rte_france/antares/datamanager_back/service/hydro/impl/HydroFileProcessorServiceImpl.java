@@ -115,12 +115,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<HydroSeriesEntity> entities = new ArrayList<>();
         List<String> filesNameFinal = new ArrayList<>();
 
+        boolean isPsp = trajectoryType == TrajectoryType.HYDRO_PSP_SERIES;
         var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
         var hasOnlyRorFile = true;
         List<String> missingModFiles = new ArrayList<>();
 
         for (var area : areaList) {
-            var filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas);
+            var filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas, isPsp);
             if (!checkHydroFileConsistency(filesName, area, horizon, missingModFiles)) hasOnlyRorFile = false;
             filesNameFinal.addAll(filesName);
         }
@@ -177,7 +178,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 null
         );
 
-        Map<TrajectoryType, Path> pathFiles = findHydroFiles(trajectoryFilePath);
+        boolean isPsp = trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS;
+        Map<TrajectoryType, Path> pathFiles = findHydroFiles(trajectoryFilePath, isPsp);
 
         List<HydroAllocationEntity> allocationEntities;
         List<HydroParametersEntity> parametersEntities;
@@ -269,7 +271,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         }
     }
 
-    private Map<TrajectoryType, Path> findHydroFiles(Path trajectoryFilePath) throws BusinessException {
+    private Map<TrajectoryType, Path> findHydroFiles(Path trajectoryFilePath, boolean isPsp) throws BusinessException {
         Map<TrajectoryType, Path> result = new EnumMap<>(TrajectoryType.class);
 
         try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
@@ -297,9 +299,11 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         }
 
         if (result.values().stream().anyMatch(Objects::isNull)) {
+            String allocationLabel = isPsp ? "PSP_Virtual hydroAllocation" : "hydroAllocation";
+            String parametersLabel = isPsp ? "PSP_Virtual hydroParameters" : "hydroParameters";
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
-                    .message("Missing file hydroAllocation or hydroParameters in trajectory Hydro Technical parameters trajectory {0}")
+                    .errorMessageArguments(List.of(allocationLabel, parametersLabel, trajectoryFilePath.getFileName().toString()))
+                    .message("Missing file {0} or {1} in trajectory Hydro Technical parameters trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -311,12 +315,13 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             Path trajectoryFilePath,
             String horizon,
             String areaParam,
-            List<String> studyAreas
+            List<String> studyAreas,
+            boolean isPsp
     ) throws IOException, BusinessException {
 
         Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
         List<String> filesName = new ArrayList<>(List.of());
-        
+
         for (var entry : REQUIRED_SERIES.entrySet()) {
             String directory = entry.getKey();
             SeriesConfig config = entry.getValue();
@@ -325,7 +330,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (!Files.isDirectory(seriesDirectoryPath)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
-                        .message("Missing folder {0} in hydro series trajectory {1}")
+                        .message("Missing folder {0} in " + HydroMessageHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -334,7 +339,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (!isPathWithinDirectory(realTrajectoryFilePath, realSeriesDirectoryPath)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
-                        .message("Path for folder {0} is out of trajectory directory in hydro series trajectory {1}")
+                        .message("Path for folder {0} is out of trajectory directory in " + HydroMessageHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -510,19 +515,42 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         Path normalizedFile = ctx.filePath().toRealPath();
         var context = ResRowProcessingContext.builder().studyAreas(ctx.studyAreas()).areaParam(ctx.areaParam()).trajectoryToUse(ctx.trajectoryToUse()).trajectoryType(ctx.trajectoryType()).build();
         String[] requiredColumns = ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION ? REQUIRED_HYDRO_ALLOCATION_COLUMNS : REQUIRED_HYDRO_PARAMETERS_COLUMNS;
+        boolean isPsp = ctx.parentTrajectoryType() == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS;
+        String label = getErrorMessageLabelFromType(ctx.trajectoryType().name());
 
         try (InputStream is = Files.newInputStream(normalizedFile);
              Workbook workbook = WorkbookFactory.create(is)) {
 
-            Sheet sheet = getRequiredSheet(workbook, ctx.horizon(), ctx.trajectoryToUse(), ctx.trajectoryType().name());
-            checkMissingColumns(sheet, requiredColumns, ctx.trajectoryToUse(), ctx.trajectoryType());
+            Sheet sheet;
+            try {
+                sheet = getRequiredSheet(workbook, ctx.horizon(), ctx.trajectoryToUse(), ctx.trajectoryType().name());
+                checkMissingColumns(sheet, requiredColumns, ctx.trajectoryToUse(), ctx.trajectoryType());
+            } catch (BusinessException e) {
+                throw applyPspLabel(e, label, isPsp);
+            }
 
             HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, ctx);
 
-            validateAreas(ctx.studyAreas(), ctx.areaParam(), result.fileAreas(), ctx.trajectoryToUse(), ctx.trajectoryType());
+            try {
+                validateAreas(ctx.studyAreas(), ctx.areaParam(), result.fileAreas(), ctx.trajectoryToUse(), ctx.trajectoryType());
+            } catch (BusinessException e) {
+                throw applyPspLabel(e, label, isPsp);
+            }
 
             return result;
         }
+    }
+
+    private static BusinessException applyPspLabel(BusinessException e, String label, boolean isPsp) {
+        if (!isPsp) return e;
+        
+        List<String> args = new ArrayList<>(e.getErrorMessageArguments());
+        args.replaceAll(arg -> label.equals(arg) ? "PSP_Virtual " + label : arg);
+        return BusinessException.builder()
+                .message(e.getMessage())
+                .errorMessageArguments(args)
+                .httpStatus(e.getHttpStatus())
+                .build();
     }
 
     private HydroTechnicalParametersRowProcessingResult processRows(
@@ -552,15 +580,21 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(ctx.studyId(), result.fileAreas(), ctx.areaParam(), ctx.trajectoryToUse(), ctx.trajectoryType().name(), ctx.parentTrajectoryType().name());
         }
 
+        boolean isPsp = ctx.parentTrajectoryType() == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS;
+
         for (Row row : nonEmptyRows) {
             if (ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION) {
-                processHydroAllocationRow(context, (HydroAllocationRowProcessingResult) result, row);
+                processHydroAllocationRow(context, (HydroAllocationRowProcessingResult) result, row, isPsp);
             } else {
-                processHydroParametersRow(context, (HydroParametersRowProcessingResult) result, row);
+                processHydroParametersRow(context, (HydroParametersRowProcessingResult) result, row, isPsp);
             }
         }
 
-        validateEmptyRows(nonEmptyRows.isEmpty(), ctx.trajectoryType(), context.getTrajectoryToUse());
+        try {
+            validateEmptyRows(nonEmptyRows.isEmpty(), ctx.trajectoryType(), context.getTrajectoryToUse());
+        } catch (BusinessException e) {
+            throw applyPspLabel(e, getErrorMessageLabelFromType(ctx.trajectoryType().name()), isPsp);
+        }
 
         return result;
     }
@@ -568,7 +602,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     private void processHydroAllocationRow(
             ResRowProcessingContext context,
             HydroAllocationRowProcessingResult result,
-            Row row
+            Row row,
+            boolean isPsp
     ) {
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
@@ -581,7 +616,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         Object[] values = new Object[] { allocation };
 
-        validateEmptyRequiredColumns(context, new String[]{ALLOCATION_COLUMN}, true, values);
+        validateEmptyRequiredColumns(context, new String[]{ALLOCATION_COLUMN}, true, isPsp, values);
 
         HydroAllocationEntity entity = HydroAllocationEntity.builder()
                 .hydro(area)
@@ -600,7 +635,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     private void processHydroParametersRow(
             ResRowProcessingContext context,
             HydroParametersRowProcessingResult result,
-            Row row
+            Row row,
+            boolean isPsp
     ) {
         if (ExcelCommonValidator.isRowEmpty(row)) return;
 
@@ -620,9 +656,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         Object[] numericValues = new Object[] { interDailyBreakdown, interDailyModulation, interMonthlyBreakdown, initializeReservoirDate, pumpingEfficiency, reservoirCapacity };
         Object[] booleanValues = new Object[] { reservoir, followLoad, useWater };
-        
-        validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS, true, numericValues);
-        validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS, false, booleanValues);
+
+        validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS, true, isPsp, numericValues);
+        validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS, false, isPsp, booleanValues);
 
         BigDecimal reservoirCapacityValue = BigDecimal.valueOf(Long.parseLong(reservoirCapacity));
 
@@ -676,27 +712,20 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             ResRowProcessingContext context,
             String[] requiredColumns,
             boolean isNumeric,
+            boolean isPsp,
             Object... values
     ) {
         List<String> missing = new ArrayList<>();
 
         for (int i = 0; i < requiredColumns.length; i++) {
-            if (i >= values.length || values[i] == null || (isNumeric && values[i] instanceof String s && !isInteger(s)) || (!isNumeric && values[i] instanceof String str && !isBooleanStringValue(str))) {
+            if (isValueInvalid(values, i, isNumeric)) {
                 missing.add(requiredColumns[i]);
             }
         }
-        
-        if (!missing.isEmpty()) {
-            String columnsLabel;
-            if (context.getTrajectoryType() == TrajectoryType.HYDRO_ALLOCATION) {
-                columnsLabel = "Allocation column";
-            } else if (isNumeric) {
-                columnsLabel = "Column(s) 2 to 6 and 8";
-            } else {
-                columnsLabel = "Column(s) 7, 9 and 10";
-            }
 
-            String typeLabel = getErrorMessageLabelFromType(context.getTrajectoryType().name());
+        if (!missing.isEmpty()) {
+            String columnsLabel = getColumnsLabel(context.getTrajectoryType(), isNumeric);
+            String typeLabel = getTypeLabel(context.getTrajectoryType(), isPsp);
             String valuesLabel = isNumeric ? "filled and of numeric type" : "boolean values";
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(columnsLabel, typeLabel, context.getTrajectoryToUse(), valuesLabel))
@@ -704,6 +733,31 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+    }
+
+    private boolean isValueInvalid(Object[] values, int i, boolean isNumeric) {
+        if (i >= values.length || values[i] == null) {
+            return true;
+        }
+        return switch (values[i]) {
+            case String s -> isNumeric ? !isInteger(s) : !isBooleanStringValue(s);
+            default -> false;
+        };
+    }
+
+    private String getColumnsLabel(TrajectoryType trajectoryType, boolean isNumeric) {
+        if (trajectoryType == TrajectoryType.HYDRO_ALLOCATION) {
+            return "Allocation column";
+        }
+        return isNumeric ? "Column(s) 2 to 6 and 8" : "Column(s) 7, 9 and 10";
+    }
+
+    private String getTypeLabel(TrajectoryType trajectoryType, boolean isPsp) {
+        String typeLabel = getErrorMessageLabelFromType(trajectoryType.name());
+        if (isPsp) {
+            typeLabel = "PSP_Virtual " + typeLabel;
+        }
+        return typeLabel;
     }
 
     private @NonNull HydroTechnicalParametersRowProcessingResult getHydroRowProcessingResult(TrajectoryType trajectoryType) {

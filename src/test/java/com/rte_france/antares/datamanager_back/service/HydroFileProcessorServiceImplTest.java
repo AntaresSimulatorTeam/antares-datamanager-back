@@ -628,7 +628,8 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing file hydroAllocation or hydroParameters"));
+        String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
+        assertTrue(formattedMessage.contains("Missing file hydroAllocation or hydroParameters"));
         verify(trajectoryRepository, never()).save(any());
     }
 
@@ -649,7 +650,40 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing file hydroAllocation or hydroParameters"));
+        String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
+        assertTrue(formattedMessage.contains("Missing file hydroAllocation or hydroParameters"));
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processHydroTechnicalParametersFile_throwsWithPspLabelWhenSelectedAreaMissingFromAllocation() throws Exception {
+        Path base = tempDir.resolve("hydro_tech_psp_area_mismatch");
+        Path traj = base.resolve(TRAJ);
+        Files.createDirectories(traj);
+
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_ALLOCATION, HORIZON,
+                List.of("hydro", "load", "allocation"),
+                List.of(List.of("FR", "FR_LOAD", 100)));
+        CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_PARAMETERS, HORIZON,
+                List.of("node", "inter.daily.breakdown", "intra.daily.modulation", "inter.monthly.breakdown",
+                        "initialize.reservoir.date", "pumping.efficiency",
+                        "reservoir", "reservoir.capacity", "follow.load", "use.water"),
+                List.of(List.of("FR", 1, 1, 1, 1, 1, true, 1000, false, true)));
+
+        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+            setName(AREA_FR);
+        }}));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS, TRAJ, HORIZON, 1, "DE", false));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
+        assertTrue(formattedMessage.contains("Selected area"));
+        assertTrue(formattedMessage.contains("PSP_Virtual hydroAllocation TechnicalParameters"));
         verify(trajectoryRepository, never()).save(any());
     }
 
@@ -842,7 +876,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_ALLOCATION);
 
         assertDoesNotThrow(() ->
-                service.validateEmptyRequiredColumns(context, new String[]{"col1"}, true, "100"));
+                service.validateEmptyRequiredColumns(context, new String[]{"col1"}, true, false, "100"));
     }
 
     @Test
@@ -850,7 +884,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_ALLOCATION);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"allocation", "extra"}, true, (Object) null));
+                service.validateEmptyRequiredColumns(context, new String[]{"allocation", "extra"}, true, false, (Object) null));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Allocation column", exception.getErrorMessageArguments().getFirst());
@@ -861,7 +895,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"col1", "extra"}, true, "not_a_number"));
+                service.validateEmptyRequiredColumns(context, new String[]{"col1", "extra"}, true, false, "not_a_number"));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Column(s) 2 to 6 and 8", exception.getErrorMessageArguments().getFirst());
@@ -872,7 +906,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, (Object) null));
+                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, false, (Object) null));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
@@ -883,7 +917,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_PARAMETERS);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, "maybe"));
+                service.validateEmptyRequiredColumns(context, new String[]{"reservoir", "extra"}, false, false, "maybe"));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
@@ -945,7 +979,7 @@ class HydroFileProcessorServiceImplTest {
         ResRowProcessingContext context = buildContext(TrajectoryType.HYDRO_ALLOCATION);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.validateEmptyRequiredColumns(context, new String[]{"allocation"}, true, (Object) null));
+                service.validateEmptyRequiredColumns(context, new String[]{"allocation"}, true, false, (Object) null));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Allocation column", exception.getErrorMessageArguments().getFirst());

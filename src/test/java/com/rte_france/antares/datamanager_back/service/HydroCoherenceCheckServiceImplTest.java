@@ -309,7 +309,8 @@ class HydroCoherenceCheckServiceImplTest {
     void validateHydroSeriesCoherence_delegatesToCheckWithModAreas() {
         Integer trajectoryId = 5;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME).build();
+                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME)
+                .type(TrajectoryType.HYDRO_SERIES.name()).build();
         when(hydroSeriesRepository.findHydroSeriesEntitiesByTrajectoryId(trajectoryId))
                 .thenReturn(List.of(HydroSeriesEntity.builder().tsName("mod_FR_2029-2030").build()));
         when(trajectoryRepository.findLatestByStudyIdAndAreaAndType(
@@ -327,7 +328,8 @@ class HydroCoherenceCheckServiceImplTest {
     void validateHydroSeriesCoherence_throwsWhenCoherenceCheckFails() {
         Integer trajectoryId = 5;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME).build();
+                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME)
+                .type(TrajectoryType.HYDRO_SERIES.name()).build();
         TrajectoryEntity tpTrajectory = TrajectoryEntity.builder().id(10).build();
 
         when(hydroSeriesRepository.findHydroSeriesEntitiesByTrajectoryId(trajectoryId))
@@ -370,7 +372,8 @@ class HydroCoherenceCheckServiceImplTest {
     void validateHydroTechnicalParametersCoherence_usesAllocationAreasForHydroAllocationType() {
         Integer trajectoryId = 6;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME).build();
+                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME)
+                .type(TrajectoryType.HYDRO_ALLOCATION.name()).build();
         when(hydroAllocationRepository.findHydroAllocationEntitiesByTrajectoryId(trajectoryId))
                 .thenReturn(List.of(HydroAllocationEntity.builder().hydro("FR").build()));
         when(trajectoryRepository.findLatestByStudyIdAndAreaAndType(
@@ -388,7 +391,8 @@ class HydroCoherenceCheckServiceImplTest {
     void validateHydroTechnicalParametersCoherence_usesParametersAreasForHydroParametersType() {
         Integer trajectoryId = 6;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME).build();
+                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME)
+                .type(TrajectoryType.HYDRO_PARAMETERS.name()).build();
         when(hydroParametersRepository.findHydroParametersEntitiesByTrajectoryId(trajectoryId))
                 .thenReturn(List.of(HydroParametersEntity.builder().node("FR").build()));
         when(trajectoryRepository.findLatestByStudyIdAndAreaAndType(
@@ -406,7 +410,8 @@ class HydroCoherenceCheckServiceImplTest {
     void validateHydroTechnicalParametersCoherence_throwsWhenCoherenceCheckFails() {
         Integer trajectoryId = 6;
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME).build();
+                .id(trajectoryId).area(AREA).fileName(TRAJ_NAME)
+                .type(TrajectoryType.HYDRO_ALLOCATION.name()).build();
         TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder().id(20).build();
 
         when(hydroAllocationRepository.findHydroAllocationEntitiesByTrajectoryId(trajectoryId))
