@@ -105,7 +105,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .reduce(this::merge)
                 .orElse(null);
           Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
-          
+
+           validateNoDuplicateCapacityRows(aggregated, trajectoryToUse);
+
            // Construire la trajectoire complète AVANT la validation
            TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, referencePath, TrajectoryType.RES_CAPACITY, aggregated);
 
@@ -732,6 +734,45 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .append(group).append("|")
                 .append(cluster).append("|")
                 .append(capacityByYear).append("|");
+    }
+
+    /**
+     * Onshore RES groups (solar_pv, wind_onshore, solar_thermo) have no zone breakdown,
+     * so a row is uniquely identified by area/group/cluster. wind_offshore is split by
+     * PECD zone instead, so the zone replaces the area in the uniqueness key.
+     */
+    private void validateNoDuplicateCapacityRows(ResRowProcessingResult result, String trajectoryToUse) {
+        switch (result) {
+            case ResRowProcessingCapacityResult cap -> {
+                Set<String> seenCombos = new HashSet<>();
+                for (ResClusterCapacityEntity entity : cap.entities()) {
+                    checkNotDuplicate(entity, seenCombos, trajectoryToUse);
+                }
+            }
+            default -> { }
+        }
+    }
+
+    private void checkNotDuplicate(ResClusterCapacityEntity entity, Set<String> seenCombos, String trajectoryToUse) {
+        boolean isOffshore = ResGroupEnum.WIND_OFFSHORE.value().equals(ResGroupEnum.normalizeForGenerator(entity.getGroupe()));
+        String fieldName = isOffshore ? "PECD zone" : "area";
+        String fieldValue = isOffshore ? entity.getPecdZone() : entity.getArea();
+
+        String key = buildComboKey(fieldValue, entity.getGroupe(), entity.getCluster());
+        if (!seenCombos.add(key)) {
+            throw BusinessException.builder()
+                    .message("Duplicate row detected in RES capacity trajectory {0} for {1} {2}, group {3}, cluster {4}."
+                            + " Only one row is allowed per {1}/group/cluster combination for the selected horizon.")
+                    .errorMessageArguments(List.of(trajectoryToUse, fieldName, fieldValue, entity.getGroupe(), entity.getCluster()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private String buildComboKey(String first, String second, String third) {
+        return Objects.toString(first, "").trim().toUpperCase(Locale.ROOT) + "|"
+                + Objects.toString(second, "").trim().toUpperCase(Locale.ROOT) + "|"
+                + Objects.toString(third, "").trim().toUpperCase(Locale.ROOT);
     }
 
     private void processResTechnoDistributionCapacityRow(

@@ -232,9 +232,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         double sum = zoneWeights.values().stream().mapToDouble(Double::doubleValue).sum();
         if (sum > MAX_COEFF_SUM) {
             throw BusinessException.builder()
-                    .message("Invalid zonal distribution for RES group '" + normalizedGroup + "', cluster '" + cluster
-                            + "': PECD zone coeffs sum to " + formatAsPercentage(sum)
-                            + ", but must not be over 100%. Check the zonal distribution file for this group/cluster and correct the zone percentages so they total at most 100%.")
+                    .message("Invalid zonal distribution for RES group {0}, cluster {1}: PECD zone coeffs sum to {2},"
+                            + " but must not be over 100%. Check the zonal distribution file for this group/cluster and correct the zone percentages so they total at most 100%.")
+                    .errorMessageArguments(List.of(normalizedGroup, cluster, formatAsPercentage(sum)))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -245,9 +245,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             double sum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
             if (sum > MAX_COEFF_SUM) {
                 throw BusinessException.builder()
-                        .message("Invalid technology distribution for RES group '" + normalizedGroup + "', cluster '" + cluster
-                                + "', zone '" + zone + "': technology coeffs sum to " + formatAsPercentage(sum)
-                                + ", but must not be over 100%. Check the technology distribution file for this zone and correct the technology percentages so they total at most 100%.")
+                        .message("Invalid technology distribution for RES group {0}, cluster {1}, zone {2}: technology coeffs sum to {3},"
+                                + " but must not be over 100%. Check the technology distribution file for this zone and correct the technology percentages so they total at most 100%.")
+                        .errorMessageArguments(List.of(normalizedGroup, cluster, zone, formatAsPercentage(sum)))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
