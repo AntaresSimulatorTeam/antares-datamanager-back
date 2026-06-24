@@ -90,11 +90,12 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         generatedFilesArrowNameByArea.forEach((area, generatedFilesArrowNames) -> {
             String normalizedArea = area.toUpperCase(Locale.ROOT);
 
-            List<HydroGenerationDTO> hydroDtos = hydroGenerationDTO.get(normalizedArea);
-
-            if (hydroDtos != null) {
-                hydroDtos.forEach(dto -> dto.setSeries(generatedFilesArrowNames.toArray(String[]::new)));
+            if (hydroGenerationDTO.isEmpty() || !hydroGenerationDTO.containsKey(normalizedArea)) {
+                hydroGenerationDTO.computeIfAbsent(normalizedArea, key -> new ArrayList<>())
+                        .add(HydroMapper.mapToHydroGenerationDTO(null));
             }
+            List<HydroGenerationDTO> hydroDtos = hydroGenerationDTO.get(normalizedArea);
+            hydroDtos.forEach(dto -> dto.setSeries(generatedFilesArrowNames.toArray(String[]::new)));
         });
 
         return hydroGenerationDTO;
