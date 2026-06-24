@@ -1066,4 +1066,135 @@ class NuclearControllerTest {
                 .andExpect(jsonPath("$.area").value("FR"))
                 .andExpect(jsonPath("$.hasTimeSeries").value(true));
     }
+
+    // ========== Nuclear Talon Tests ==========
+
+    @Test
+    void uploadNuclearTalonTrajectory_mustReturnCreated() throws Exception {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(4)
+                .fileName("talon_2030.xlsx")
+                .type("NUCLEAR_FR_TALON")
+                .version(1)
+                .horizon("2025-2026")
+                .area("FR")
+                .createdBy("testUser")
+                .hasTimeSeries(true)
+                .build();
+
+        when(nuclearFileProcessorService.processNuclearTalonFile(
+                anyString(), anyString(), anyInt(), anyString()))
+                .thenReturn(trajectory);
+
+        this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
+                .param("trajectoryToUse", "talon_2030.xlsx")
+                .param("horizon", "2025-2026")
+                .param("studyId", "1")
+                .param("area", "FR"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.trajectoryName").value("talon_2030.xlsx"))
+                .andExpect(jsonPath("$.type").value("NUCLEAR_FR_TALON"))
+                .andExpect(jsonPath("$.area").value("FR"));
+    }
+
+    @Test
+    void uploadNuclearTalonTrajectory_withoutArea_mustReturnCreated() throws Exception {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(4)
+                .fileName("talon_2030.xlsx")
+                .type("NUCLEAR_FR_TALON")
+                .version(1)
+                .horizon("2025-2026")
+                .area(null)
+                .createdBy("testUser")
+                .hasTimeSeries(true)
+                .build();
+
+        when(nuclearFileProcessorService.processNuclearTalonFile(
+                anyString(), anyString(), anyInt(), isNull()))
+                .thenReturn(trajectory);
+
+        this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
+                .param("trajectoryToUse", "talon_2030.xlsx")
+                .param("horizon", "2025-2026")
+                .param("studyId", "1"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.trajectoryName").value("talon_2030.xlsx"))
+                .andExpect(jsonPath("$.type").value("NUCLEAR_FR_TALON"));
+    }
+
+    @Test
+    void uploadNuclearTalonTrajectory_withDifferentHorizons_mustReturnCreated() throws Exception {
+        String[] horizons = {"2020-2021", "2025-2026", "2030-2031", "2035-2036"};
+
+        for (String testHorizon : horizons) {
+            TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                    .id(4)
+                    .fileName("talon.xlsx")
+                    .type("NUCLEAR_FR_TALON")
+                    .version(1)
+                    .horizon(testHorizon)
+                    .area("FR")
+                    .createdBy("testUser")
+                    .hasTimeSeries(true)
+                    .build();
+
+            when(nuclearFileProcessorService.processNuclearTalonFile(
+                    anyString(), eq(testHorizon), anyInt(), anyString()))
+                    .thenReturn(trajectory);
+
+            this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
+                    .param("trajectoryToUse", "talon.xlsx")
+                    .param("horizon", testHorizon)
+                    .param("studyId", "1")
+                    .param("area", "FR"))
+                    .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
+    void uploadNuclearTalonTrajectory_withValidTrajectoryNames_mustReturnCreated() throws Exception {
+        String[] names = {"talon_2030.xlsx", "talon-2025.xlsx", "talon_test.xlsx"};
+
+        for (String name : names) {
+            TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                    .id(4)
+                    .fileName(name)
+                    .type("NUCLEAR_FR_TALON")
+                    .version(1)
+                    .horizon("2025-2026")
+                    .area("FR")
+                    .createdBy("testUser")
+                    .hasTimeSeries(true)
+                    .build();
+
+            when(nuclearFileProcessorService.processNuclearTalonFile(
+                    eq(name), anyString(), anyInt(), anyString()))
+                    .thenReturn(trajectory);
+
+            this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
+                    .param("trajectoryToUse", name)
+                    .param("horizon", "2025-2026")
+                    .param("studyId", "1")
+                    .param("area", "FR"))
+                    .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
+    void uploadNuclearTalonTrajectory_whenServiceThrowsConflictException_mustReturn409() throws Exception {
+        when(nuclearFileProcessorService.processNuclearTalonFile(
+                anyString(), anyString(), anyInt(), anyString()))
+                .thenThrow(BusinessException.builder()
+                        .message("Nuclear NUCLEAR_FR_TALON trajectory talon_2030.xlsx with the same checksum already exists")
+                        .httpStatus(HttpStatus.CONFLICT)
+                        .build());
+
+        this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
+                .param("trajectoryToUse", "talon_2030.xlsx")
+                .param("horizon", "2025-2026")
+                .param("studyId", "1")
+                .param("area", "FR"))
+                .andExpect(status().isConflict());
+    }
 }

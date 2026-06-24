@@ -968,4 +968,132 @@ class NuclearFileProcessorServiceImplTest {
             }
         }
     }
+
+    // ========== Tests for processNuclearTalonFile (nuclear-talon) ==========
+
+    @Test
+    void processNuclearTalonFile_withValidExcelFile_successfulProcessing_firstVersion() throws IOException, TechnicalException {
+        Path talonDir = testDirectory.resolve("specific_nuclear/Talon_nuc");
+        Files.createDirectories(talonDir);
+
+        Path simpleExcelFile = talonDir.resolve("talon_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn("specific_nuclear/Talon_nuc");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "talon_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TALON.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(1);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearTalonFile(
+                "talon_2030.xlsx", horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals("talon_2030.xlsx", result.getFileName());
+        assertEquals(horizon, result.getHorizon());
+        assertEquals(TrajectoryType.NUCLEAR_FR_TALON.name(), result.getType());
+        assertEquals(1, result.getVersion());
+        assertTrue(result.getHasTimeSeries());
+    }
+
+    @Test
+    void processNuclearTalonFile_withMissingFile_throwsBusinessException() throws IOException {
+        Path talonDir = testDirectory.resolve("specific_nuclear/Talon_nuc");
+        Files.createDirectories(talonDir);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn("specific_nuclear/Talon_nuc");
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearTalonFile("nonexistent.xlsx", horizon, studyId, area)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("Nuclear trajectory file not found"));
+    }
+
+    @Test
+    void processNuclearTalonFile_withDuplicateChecksum_throwsConflictException() throws IOException, TechnicalException {
+        Path talonDir = testDirectory.resolve("specific_nuclear/Talon_nuc");
+        Files.createDirectories(talonDir);
+
+        Path simpleExcelFile = talonDir.resolve("talon_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        String fileChecksum = Utils.getFileChecksum(simpleExcelFile.toString());
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("talon_2030.xlsx")
+                .horizon(horizon)
+                .type(TrajectoryType.NUCLEAR_FR_TALON.name())
+                .checksum(fileChecksum)
+                .version(1)
+                .area(area)
+                .build();
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn("specific_nuclear/Talon_nuc");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "talon_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TALON.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearTalonFile("talon_2030.xlsx", horizon, studyId, area)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
+        assertTrue(exception.getMessage().contains("with the same checksum already exists"));
+    }
+
+    @Test
+    void processNuclearTalonFile_withDifferentChecksum_successfulProcessing_nextVersion() throws IOException, TechnicalException {
+        Path talonDir = testDirectory.resolve("specific_nuclear/Talon_nuc");
+        Files.createDirectories(talonDir);
+
+        Path simpleExcelFile = talonDir.resolve("talon_2030.xlsx");
+        NuclearTestDataBuilder.createValidSimulationFile(simpleExcelFile);
+
+        String fileChecksum = Utils.getFileChecksum(simpleExcelFile.toString());
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("talon_2030.xlsx")
+                .horizon(horizon)
+                .type(TrajectoryType.NUCLEAR_FR_TALON.name())
+                .checksum("DIFFERENT_CHECKSUM")
+                .version(1)
+                .area(area)
+                .build();
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(testDirectory.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getNuclearTalonDirectory()).thenReturn("specific_nuclear/Talon_nuc");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "talon_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TALON.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(2);
+                    return entity;
+                });
+
+        TrajectoryEntity result = nuclearFileProcessorService.processNuclearTalonFile(
+                "talon_2030.xlsx", horizon, studyId, area);
+
+        assertNotNull(result);
+        assertEquals("talon_2030.xlsx", result.getFileName());
+        assertEquals(2, result.getVersion());
+        assertEquals(fileChecksum, result.getChecksum());
+    }
 }
