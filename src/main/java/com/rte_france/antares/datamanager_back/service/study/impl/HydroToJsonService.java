@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,12 +47,12 @@ public class HydroToJsonService {
                 .findFirst()
                 .orElse(Collections.emptyMap());
 
-        List<HydroPropertiesGenerationDTO> areaHydroWithoutMetadata = areaHydro.stream()
+        var areaHydroWithoutMetadata = areaHydro.stream()
                 .map(HydroGenerationDTO::getProperties)
-                .toList();
+                .toList().getFirst();
 
         Map<String, Object> areaHydroMap = new LinkedHashMap<>();
-        areaHydroMap.put(PROPERTIES, areaHydroWithoutMetadata);
+        areaHydroMap.put(PROPERTIES, areaHydroWithoutMetadata != null ? areaHydroWithoutMetadata : new HashMap<>());
         areaHydroMap.put(SERIES, series);
         areaHydroMap.put(ALLOCATION, allocation);
         areaHydroMap.put(PSP, isPsp);
