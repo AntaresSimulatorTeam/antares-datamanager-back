@@ -115,7 +115,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<HydroSeriesEntity> entities = new ArrayList<>();
         List<String> filesNameFinal = new ArrayList<>();
 
-        boolean isPsp = trajectoryType == TrajectoryType.HYDRO_PSP_SERIES;
+        boolean isPsp = HydroTypeHelper.isPsp(trajectoryType);
         var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
         var hasOnlyRorFile = true;
         List<String> missingModFiles = new ArrayList<>();
@@ -178,7 +178,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 null
         );
 
-        boolean isPsp = trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS;
+        boolean isPsp = HydroTypeHelper.isPsp(trajectoryType);
         Map<TrajectoryType, Path> pathFiles = findHydroFiles(trajectoryFilePath, isPsp);
 
         List<HydroAllocationEntity> allocationEntities;
@@ -330,7 +330,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (!Files.isDirectory(seriesDirectoryPath)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
-                        .message("Missing folder {0} in " + HydroMessageHelper.getSeriesLabel(isPsp) + " trajectory {1}")
+                        .message("Missing folder {0} in " + HydroTypeHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -339,7 +339,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (!isPathWithinDirectory(realTrajectoryFilePath, realSeriesDirectoryPath)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(directory, trajectoryFilePath.getFileName().toString()))
-                        .message("Path for folder {0} is out of trajectory directory in " + HydroMessageHelper.getSeriesLabel(isPsp) + " trajectory {1}")
+                        .message("Path for folder {0} is out of trajectory directory in " + HydroTypeHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -475,16 +475,17 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             List<String> headerAreas = new ArrayList<>();
 
             DataFormatter formatter = new DataFormatter();
+            boolean isPsp = HydroTypeHelper.isPsp(trajectoryType);
 
             for (int i = 1; i < header.getLastCellNum(); i++) {
                 Cell cell = header.getCell(i);
-                String value = formatter.formatCellValue(cell);
+                String value = formatter.formatCellValue(cell).trim();
 
-                // delete PSP suffix
-                String normalizedArea = value.replace("_generating", "").replace("_pumping", "").trim();
-                if (!normalizedArea.isEmpty()) {
-                    headerAreas.add(normalizedArea);
+                if (value.isEmpty()) {
+                    continue;
                 }
+
+                headerAreas.add(extractAreaFromMaxPowerColumn(value, isPsp, trajectoryToUse));
             }
 
             validateTrajectoryAreasPresence(studyAreas, headerAreas, trajectoryType, trajectoryToUse);
@@ -496,6 +497,29 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 }
             }
         }
+    }
+
+    private static final List<String> PSP_MAXPOWER_SUFFIXES = List.of("_GENERATING", "_PUMPING");
+
+    private String extractAreaFromMaxPowerColumn(String value, boolean isPsp, String trajectoryToUse) {
+        if (!isPsp) {
+            return value.toUpperCase(Locale.ROOT);
+        }
+
+        String upper = value.toUpperCase(Locale.ROOT);
+        String suffix = PSP_MAXPOWER_SUFFIXES.stream().filter(upper::endsWith).findFirst().orElse(null);
+        boolean hasNoWhitespace = value.chars().noneMatch(Character::isWhitespace);
+        boolean isValid = suffix != null && suffix.length() < upper.length() && hasNoWhitespace;
+
+        if (!isValid) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(value, trajectoryToUse))
+                    .message("Invalid column {0} in PSP_Virtual maxpower trajectory {1}. Expected columns like <AREA>_generating or <AREA>_pumping")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        return upper.substring(0, upper.length() - suffix.length());
     }
 
     public HydroTechnicalParametersRowProcessingResult processTechnicalParametersFile(
@@ -515,7 +539,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         Path normalizedFile = ctx.filePath().toRealPath();
         var context = ResRowProcessingContext.builder().studyAreas(ctx.studyAreas()).areaParam(ctx.areaParam()).trajectoryToUse(ctx.trajectoryToUse()).trajectoryType(ctx.trajectoryType()).build();
         String[] requiredColumns = ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION ? REQUIRED_HYDRO_ALLOCATION_COLUMNS : REQUIRED_HYDRO_PARAMETERS_COLUMNS;
-        boolean isPsp = ctx.parentTrajectoryType() == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS;
+        boolean isPsp = HydroTypeHelper.isPsp(ctx.parentTrajectoryType());
         String label = getErrorMessageLabelFromType(ctx.trajectoryType().name());
 
         try (InputStream is = Files.newInputStream(normalizedFile);
@@ -543,9 +567,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
     private static BusinessException applyPspLabel(BusinessException e, String label, boolean isPsp) {
         if (!isPsp) return e;
-        
+
+        String pspLabel = HydroTypeHelper.getFileLabel(label, true);
         List<String> args = new ArrayList<>(e.getErrorMessageArguments());
-        args.replaceAll(arg -> label.equals(arg) ? "PSP_Virtual " + label : arg);
+        args.replaceAll(arg -> label.equals(arg) ? pspLabel : arg);
         return BusinessException.builder()
                 .message(e.getMessage())
                 .errorMessageArguments(args)
@@ -580,7 +605,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             hydroCoherenceCheckService.checkHydroTPTrajectoriesConsistency(ctx.studyId(), result.fileAreas(), ctx.areaParam(), ctx.trajectoryToUse(), ctx.trajectoryType().name(), ctx.parentTrajectoryType().name());
         }
 
-        boolean isPsp = ctx.parentTrajectoryType() == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS;
+        boolean isPsp = HydroTypeHelper.isPsp(ctx.parentTrajectoryType());
 
         for (Row row : nonEmptyRows) {
             if (ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION) {
@@ -753,11 +778,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     }
 
     private String getTypeLabel(TrajectoryType trajectoryType, boolean isPsp) {
-        String typeLabel = getErrorMessageLabelFromType(trajectoryType.name());
-        if (isPsp) {
-            typeLabel = "PSP_Virtual " + typeLabel;
-        }
-        return typeLabel;
+        return HydroTypeHelper.getFileLabel(getErrorMessageLabelFromType(trajectoryType.name()), isPsp);
     }
 
     private @NonNull HydroTechnicalParametersRowProcessingResult getHydroRowProcessingResult(TrajectoryType trajectoryType) {
