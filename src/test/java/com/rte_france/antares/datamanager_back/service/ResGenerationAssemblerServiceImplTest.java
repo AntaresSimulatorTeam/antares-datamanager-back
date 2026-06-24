@@ -197,6 +197,36 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldFailWhenZonalCoefficientsSumAboveOne() {
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 60)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR02", 50))
+            );
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("zonal distribution"));
+        }
+
+        @Test
+        void shouldFailWhenTechnologyCoefficientsSumAboveOne() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "solar_pv/solar_pv/solar_pv_FR01_utility_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "solar_pv/solar_pv/solar_pv_FR01_premium_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("fr_solar.arrow");
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 1000)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 100)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "solar pv", "FR01", "solar_pv_utility", 70.0)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "solar pv", "FR01", "solar_pv_premium", 40.0))
+            );
+            BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+            assertTrue(ex.getMessage().contains("technology distribution"));
+        }
+
+        @Test
         void shouldCoverFrTechLoopAndCandidateKeys() throws IOException {
             String fileName = "solar_pv/solar_pv/solar_pv_FR01_utility_2030_2031.csv";
             preparePhysicalFile(DEFAULT_TRAJECTORY, fileName);
@@ -370,6 +400,34 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldKeepGroupsSeparateWhenClusterNameIsSharedAcrossGroups() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/SHARED/SHARED_DE_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_offshore/SHARED/SHARED_DE_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("de.arrow");
+
+            TrajectoryEntity areaCapTraj = TrajectoryEntity.builder()
+                    .type(TrajectoryType.RES_CAPACITY.name()).fileName(DEFAULT_TRAJECTORY).build();
+            areaCapTraj.setResClusterCapacityEntities(List.of(
+                    createCapacity("DE", "wind onshore", "SHARED", 100),
+                    createCapacity("DE", "wind offshore", "SHARED", 200)
+            ));
+
+            StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
+                    areaCapTraj
+            );
+
+            var result = service.assembleResProperties(study).get("DE");
+
+            assertEquals(2, result.size(), "Same cluster name in two different groups must make two different entrsies");
+            assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(100.0, "wind_onshore"), List.of("de.arrow"), null),
+                    result.get("SHARED_wind_onshore"), "Onshore capacity must not be summed with offshore's");
+            assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(200.0, "wind_offshore"), List.of("de.arrow"), null),
+                    result.get("SHARED_wind_offshore"), "Offshore capacity must not be summed with onshore's");
+        }
+
+        @Test
         void shouldNotProduceDuplicateWhenSameFileLinkedToMultipleAreas() throws IOException {
             preparePhysicalFile("BIG_FILE", "wind_onshore/wind_onshore/wind_onshore_BE_2030_2031.csv");
             preparePhysicalFile("BIG_FILE", "wind_onshore/wind_onshore/wind_onshore_ES_2030_2031.csv");
@@ -514,7 +572,10 @@ class ResGenerationAssemblerServiceImplTest {
             preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             preparePhysicalFile("LF_techno", "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv");
             when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean()))
-                    .thenReturn("area_series.arrow", "techno_series.arrow");
+                    .thenAnswer(invocation -> {
+                        Path file = invocation.getArgument(0);
+                        return file.toString().contains("LF_techno") ? "techno_series.arrow" : "area_series.arrow";
+                    });
 
             TrajectoryEntity technoLfTraj = TrajectoryEntity.builder()
                     .type(TrajectoryType.RES_LOAD.name())

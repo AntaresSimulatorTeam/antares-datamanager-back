@@ -39,6 +39,7 @@ import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomain
 public class ResGenerationAssemblerServiceImpl implements ResGenerationAssemblerService {
 
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
+    private static final double MAX_COEFF_SUM = 1d;
 
     private final NasFileService nasFileService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
@@ -50,19 +51,29 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             Map<String, List<ResZonalDistributionEntity>> zonals
     ) {}
 
+    private record SeriesLookup(Map<String, ResSeriesRef> index, Map<Path, String> arrowCache) {}
+
+    private record FrAggregationAccumulator(
+            Map<String, Double> zoneWeights,
+            Map<String, Map<String, Double>> techWeightsByZone,
+            Map<String, Map<String, String>> seriesByZoneAndTech
+    ) {}
+
     private record ClusterAggregationContext(
             String area,
             List<ResTechnologyDistributionEntity> techDistributions,
             List<ResZonalDistributionEntity> zonalDistributions,
-            Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex
+            SeriesLookup frLookup,
+            SeriesLookup nonFrLookup
     ) {}
 
-    private record ResSeriesRef(String trajectoryFileName, String sourceKey, String arrowPath, String area, String group, String cluster, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
+    private record ResSeriesRef(String trajectoryFileName, String sourceKey, Path filePath, String area, String group, String cluster, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
 
     private record SeriesScanContext(String trajectoryFileName, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) { }
 
     private record ParsedSeriesKey(String area, String group, String cluster, String zone, String technology) { }
+
+    private record ClusterGroupKey(String group, String cluster) {}
 
     @Override
     public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
@@ -78,19 +89,20 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             return Collections.emptyMap();
         }
 
-        var series = createArrowSeriesForResLoad(studyEntity);
-        var frSeriesIndex = indexFrSeries(series);
-        var nonFrSeriesIndex = indexNonFrSeries(series);
+        var series = collectResLoadSeriesRefs(studyEntity);
+        var arrowCache = new HashMap<Path, String>();
+        var frLookup = new SeriesLookup(indexFrSeries(series), arrowCache);
+        var nonFrLookup = new SeriesLookup(indexNonFrSeries(series), arrowCache);
 
-        return processAreaClusters(capacities, collections, frSeriesIndex, nonFrSeriesIndex);
+        return processAreaClusters(capacities, collections, frLookup, nonFrLookup);
     }
 
-    private String resolveIndexedSingleSeries(String area, String group, String cluster, Map<String, ResSeriesRef> nonFrSeriesIndex) {
+    private String resolveIndexedSingleSeries(String area, String group, String cluster, SeriesLookup nonFrLookup) {
         var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_" + cluster.toUpperCase(Locale.ROOT);
-        var match = nonFrSeriesIndex.get(lookupKey);
+        var match = nonFrLookup.index().get(lookupKey);
 
         if (match != null) {
-            return match.arrowPath();
+            return convertSeriesToArrowIfAbsent(match, nonFrLookup.arrowCache());
         }
 
         throw BusinessException.builder()
@@ -100,11 +112,24 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .build();
     }
 
+    private String convertSeriesToArrowIfAbsent(ResSeriesRef ref, Map<Path, String> arrowCache) {
+        return arrowCache.computeIfAbsent(ref.filePath(), filePath -> {
+            try {
+                return nasFileService.readAndSaveMatrixToNas(filePath, antaresDataManagerProperties.getResTsOutputDirectory(), null, true);
+            } catch (IOException e) {
+                throw TechnicalException.builder()
+                        .message("Could not generate RES arrow file from " + filePath)
+                        .cause(e)
+                        .build();
+            }
+        });
+    }
+
     private Map<String, Map<String, ResClusterGenerationDto>> processAreaClusters(
             Map<String, List<ResClusterCapacityEntity>> capacities,
             TrajectoryCollections collections,
-            Map<String, ResSeriesRef> frSeriesIndex,
-            Map<String, ResSeriesRef> nonFrSeriesIndex
+            SeriesLookup frLookup,
+            SeriesLookup nonFrLookup
     ) {
         return capacities.entrySet().stream().collect(Collectors.toMap(
                 Map.Entry::getKey,
@@ -112,7 +137,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     var area = entry.getKey();
                     var techs = collections.technologies().getOrDefault(area, Collections.emptyList());
                     var zonals = collections.zonals().getOrDefault(area, Collections.emptyList());
-                    var context = new ClusterAggregationContext(area, techs, zonals, frSeriesIndex, nonFrSeriesIndex);
+                    var context = new ClusterAggregationContext(area, techs, zonals, frLookup, nonFrLookup);
                     return buildClustersForArea(entry.getValue(), context);
                 },
                 (a, b) -> a,
@@ -121,12 +146,24 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private Map<String, ResClusterGenerationDto> buildClustersForArea(List<ResClusterCapacityEntity> capacities, ClusterAggregationContext context) {
-        return capacities.stream()
-                .collect(Collectors.groupingBy(ResClusterCapacityEntity::getCluster, LinkedHashMap::new, Collectors.toList()))
+        var byGroupAndCluster = capacities.stream()
+                .collect(Collectors.groupingBy(
+                        e -> new ClusterGroupKey(normalizeGroup(e.getGroupe()), e.getCluster()),
+                        LinkedHashMap::new, Collectors.toList()));
+
+        var clusterNamesSharedAcrossGroups = byGroupAndCluster.keySet().stream()
+                .collect(Collectors.groupingBy(ClusterGroupKey::cluster, Collectors.mapping(ClusterGroupKey::group, Collectors.toSet())))
                 .entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+
+        return byGroupAndCluster.entrySet().stream()
                 .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> buildClusterEntry(entry.getKey(), entry.getValue(), context),
+                        entry -> clusterNamesSharedAcrossGroups.contains(entry.getKey().cluster())
+                                ? entry.getKey().cluster() + "_" + entry.getKey().group()
+                                : entry.getKey().cluster(),
+                        entry -> buildClusterEntry(entry.getKey().cluster(), entry.getValue(), context),
                         (a, b) -> a,
                         LinkedHashMap::new
                 ));
@@ -144,11 +181,11 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         if (ResDomainRules.FR_AREA.equalsIgnoreCase(context.area())) {
             var frAggregation = buildFrAggregation(
-                    groupKey, clusterName, installedPower, context.techDistributions(), context.zonalDistributions(), context.frSeriesIndex()
+                    groupKey, clusterName, installedPower, context.techDistributions(), context.zonalDistributions(), context.frLookup()
             );
             return new ResClusterGenerationDto(clusterProperties, Collections.emptyList(), frAggregation);
         } else {
-            var seriesPath = resolveIndexedSingleSeries(context.area(), groupKey, clusterName, context.nonFrSeriesIndex());
+            var seriesPath = resolveIndexedSingleSeries(context.area(), groupKey, clusterName, context.nonFrLookup());
             return new ResClusterGenerationDto(clusterProperties, List.of(seriesPath), null);
         }
     }
@@ -159,22 +196,22 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             double installedPower,
             List<ResTechnologyDistributionEntity> technologyDistributions,
             List<ResZonalDistributionEntity> zonalDistributions,
-            Map<String, ResSeriesRef> frSeriesIndex
+            SeriesLookup frLookup
     ) {
         var zoneWeights = calculateZoneWeights(normalizedGroup, zonalDistributions);
-        var techWeightsByZone = new LinkedHashMap<String, Map<String, Double>>();
-        var seriesByZoneAndTech = new LinkedHashMap<String, Map<String, String>>();
+        validateZonalCoefficientSum(normalizedGroup, cluster, zoneWeights);
+
+        var accumulator = new FrAggregationAccumulator(zoneWeights, new LinkedHashMap<>(), new LinkedHashMap<>());
 
         technologyDistributions.stream()
                 .filter(entity -> normalizedGroup.equals(normalizeGroup(entity.getGroupe())))
                 .filter(entity -> cluster.equalsIgnoreCase(entity.getCluster()))
-                .forEach(entity -> processTechnologyEntity(
-                        entity, normalizedGroup, cluster, zoneWeights, techWeightsByZone, seriesByZoneAndTech, frSeriesIndex
-                ));
+                .forEach(entity -> processTechnologyEntity(entity, normalizedGroup, cluster, accumulator, frLookup));
 
-        validateFrAggregation(normalizedGroup, cluster, installedPower, zoneWeights, techWeightsByZone, seriesByZoneAndTech);
+        validateTechnologyCoefficientSums(normalizedGroup, cluster, accumulator.techWeightsByZone());
+        validateFrAggregation(normalizedGroup, cluster, installedPower, accumulator);
 
-        return new ResFrAggregationDto(zoneWeights, techWeightsByZone, seriesByZoneAndTech);
+        return new ResFrAggregationDto(accumulator.zoneWeights(), accumulator.techWeightsByZone(), accumulator.seriesByZoneAndTech());
     }
 
     private Map<String, Double> calculateZoneWeights(
@@ -191,17 +228,45 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 ));
     }
 
+    private void validateZonalCoefficientSum(String normalizedGroup, String cluster, Map<String, Double> zoneWeights) {
+        double sum = zoneWeights.values().stream().mapToDouble(Double::doubleValue).sum();
+        if (sum > MAX_COEFF_SUM) {
+            throw BusinessException.builder()
+                    .message("Invalid zonal distribution for RES group {0}, cluster {1}: PECD zone coeffs sum to {2},"
+                            + " but must not be over 100%. Check the zonal distribution file for this group/cluster and correct the zone percentages so they total at most 100%.")
+                    .errorMessageArguments(List.of(normalizedGroup, cluster, formatAsPercentage(sum)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void validateTechnologyCoefficientSums(String normalizedGroup, String cluster, Map<String, Map<String, Double>> techWeightsByZone) {
+        techWeightsByZone.forEach((zone, techWeights) -> {
+            double sum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
+            if (sum > MAX_COEFF_SUM) {
+                throw BusinessException.builder()
+                        .message("Invalid technology distribution for RES group {0}, cluster {1}, zone {2}: technology coeffs sum to {3},"
+                                + " but must not be over 100%. Check the technology distribution file for this zone and correct the technology percentages so they total at most 100%.")
+                        .errorMessageArguments(List.of(normalizedGroup, cluster, zone, formatAsPercentage(sum)))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        });
+    }
+
+    private String formatAsPercentage(double fraction) {
+        return String.format(Locale.ROOT, "%.1f%%", fraction * 100d);
+    }
+
     private void processTechnologyEntity(
             ResTechnologyDistributionEntity entity,
             String normalizedGroup,
             String cluster,
-            Map<String, Double> zoneWeights,
-            Map<String, Map<String, Double>> techWeightsByZone,
-            Map<String, Map<String, String>> seriesByZoneAndTech,
-            Map<String, ResSeriesRef> frSeriesIndex
+            FrAggregationAccumulator accumulator,
+            SeriesLookup frLookup
     ) {
         var zone = canonicalFrZone(entity.getPecdZone());
-        var zoneWeight = zoneWeights.getOrDefault(zone, 0d);
+        var zoneWeight = accumulator.zoneWeights().getOrDefault(zone, 0d);
 
         if (zoneWeight <= 0d) {
             return;
@@ -210,10 +275,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         var technology = toKey(entity.getPecdTechnology());
         var weight = normalizeWeight(entity.getCapacityByYear(), "technology", zone, entity.getPecdTechnology());
 
-        techWeightsByZone.computeIfAbsent(zone, k -> new LinkedHashMap<>()).put(technology, weight);
+        accumulator.techWeightsByZone().computeIfAbsent(zone, k -> new LinkedHashMap<>()).put(technology, weight);
 
-        var arrowPath = resolveIndexedFrSeries(zone, normalizedGroup, cluster, technology, frSeriesIndex);
-        seriesByZoneAndTech.computeIfAbsent(zone, k -> new LinkedHashMap<>()).put(technology, arrowPath);
+        var arrowPath = resolveIndexedFrSeries(zone, normalizedGroup, cluster, technology, frLookup);
+        accumulator.seriesByZoneAndTech().computeIfAbsent(zone, k -> new LinkedHashMap<>()).put(technology, arrowPath);
     }
 
     private String resolveIndexedFrSeries(
@@ -221,16 +286,16 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String group,
             String cluster,
             String technology,
-            Map<String, ResSeriesRef> frSeriesIndex
+            SeriesLookup frLookup
     ) {
         var candidateKeys = buildFrTechnologyCandidateKeys(group, technology);
 
         for (var candidateKey : candidateKeys) {
             var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_"
                     + cluster.toUpperCase(Locale.ROOT) + "_" + candidateKey.toUpperCase(Locale.ROOT);
-            var match = frSeriesIndex.get(lookupKey);
+            var match = frLookup.index().get(lookupKey);
             if (match != null) {
-                return match.arrowPath();
+                return convertSeriesToArrowIfAbsent(match, frLookup.arrowCache());
             }
         }
 
@@ -246,23 +311,21 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String normalizedGroup,
             String cluster,
             double installedPower,
-            Map<String, Double> zoneWeights,
-            Map<String, Map<String, Double>> techWeightsByZone,
-            Map<String, Map<String, String>> seriesByZoneAndTech
+            FrAggregationAccumulator accumulator
     ) {
         if (installedPower <= 0d) {
             return;
         }
 
-        if (zoneWeights.isEmpty()) {
+        if (accumulator.zoneWeights().isEmpty()) {
             throw BusinessException.builder()
                     .message("Missing FR aggregation data for RES group " + normalizedGroup + ", cluster " + cluster)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
-        zoneWeights.forEach((zone, weight) ->
-                validateZoneAggregation(normalizedGroup, cluster, zone, weight, techWeightsByZone, seriesByZoneAndTech));
+        accumulator.zoneWeights().forEach((zone, weight) ->
+                validateZoneAggregation(normalizedGroup, cluster, zone, weight, accumulator));
     }
 
     private void validateZoneAggregation(
@@ -270,11 +333,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String cluster,
             String zone,
             Double zoneWeight,
-            Map<String, Map<String, Double>> techWeightsByZone,
-            Map<String, Map<String, String>> seriesByZoneAndTech
+            FrAggregationAccumulator accumulator
     ) {
         if (zoneWeight != null && zoneWeight > 0d) {
-            Map<String, Double> techWeights = techWeightsByZone.get(zone);
+            Map<String, Double> techWeights = accumulator.techWeightsByZone().get(zone);
 
             // A zone with zoneWeight > 0 must have technology distribution rows.
             if (techWeights == null || techWeights.isEmpty()) {
@@ -288,7 +350,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             }
 
             if (log.isDebugEnabled()) {
-                Map<String, String> techSeries = seriesByZoneAndTech.get(zone);
+                Map<String, String> techSeries = accumulator.seriesByZoneAndTech().get(zone);
                 log.debug("Validated FR tech rows for zone {} in RES group {}, cluster {}: techCount={}, techSum={}, seriesCount={}",
                         zone,
                         normalizedGroup,
@@ -317,7 +379,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return candidates;
     }
 
-    private List<ResSeriesRef> createArrowSeriesForResLoad(StudyEntity studyEntity) {
+    private List<ResSeriesRef> collectResLoadSeriesRefs(StudyEntity studyEntity) {
         List<TrajectoryEntity> resLoadTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.RES_LOAD.name().equals(t.getType()))
@@ -391,34 +453,24 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private void createSeriesFromFile(Path file, Path trajectoryRoot, SeriesScanContext scanContext, List<ResSeriesRef> result) {
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
-            if (scanContext.fromOthersArea() && ResDomainRules.FR_AREA.equalsIgnoreCase(parsedKey.area())) return;
             if (!scanContext.fromOthersArea() && scanContext.linkedArea() != null && !scanContext.linkedArea().isBlank() && !scanContext.linkedArea().equalsIgnoreCase(parsedKey.area())) {
                 return;
             }
             if (scanContext.linkedTech() != null && !scanContext.linkedTech().isBlank() && !toKey(scanContext.linkedTech()).equalsIgnoreCase(parsedKey.group())) {
                 return;
             }
-            String outputDir = antaresDataManagerProperties.getResTsOutputDirectory();
-            try {
-                String arrowName = nasFileService.readAndSaveMatrixToNas(file, outputDir, null, true);
-                result.add(new ResSeriesRef(
-                        scanContext.trajectoryFileName(),
-                        toKey(rel.replace('\\', '/')),
-                        arrowName,
-                        parsedKey.area(),
-                        parsedKey.group(),
-                        parsedKey.cluster(),
-                        parsedKey.zone(),
-                        parsedKey.technology(),
-                        scanContext.fromTechnoTrajectory(),
-                        scanContext.fromOthersArea()
-                ));
-            } catch (IOException e) {
-                throw TechnicalException.builder()
-                        .message("Could not generate RES arrow file from " + file)
-                        .cause(e)
-                        .build();
-            }
+            result.add(new ResSeriesRef(
+                    scanContext.trajectoryFileName(),
+                    toKey(rel.replace('\\', '/')),
+                    file,
+                    parsedKey.area(),
+                    parsedKey.group(),
+                    parsedKey.cluster(),
+                    parsedKey.zone(),
+                    parsedKey.technology(),
+                    scanContext.fromTechnoTrajectory(),
+                    scanContext.fromOthersArea()
+            ));
         });
     }
 

@@ -105,7 +105,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .reduce(this::merge)
                 .orElse(null);
           Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
-          
+
+           validateNoDuplicateRows(aggregated, trajectoryToUse);
+
            // Construire la trajectoire complète AVANT la validation
            TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, referencePath, TrajectoryType.RES_CAPACITY, aggregated);
 
@@ -284,6 +286,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                       .build();
           }
 
+          validateNoDuplicateRows(result, trajectoryToUse);
+
           // Construire la trajectoire complète AVANT la validation
           TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, filePath, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, result);
           
@@ -346,6 +350,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                      .httpStatus(HttpStatus.BAD_REQUEST)
                      .build();
          }
+
+         validateNoDuplicateRows(result, trajectoryToUse);
 
          // Construire la trajectoire complète AVANT la validation
          TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, filePath, TrajectoryType.RES_ZONAL_DISTRIBUTION, result);
@@ -720,6 +726,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .build();
 
         if (isOffshoreTechnology) {
+            validatePecdZoneRange(col2, context.getTrajectoryToUse());
             entity.setPecdZone(col2);
         } else {
             entity.setCategory(col4);
@@ -730,8 +737,116 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         result.getChecksumBuilder()
                 .append(area).append("|")
                 .append(group).append("|")
-                .append(cluster).append("|")
-                .append(capacityByYear).append("|");
+                .append(cluster).append("|");
+        if (isOffshoreTechnology) {
+            result.getChecksumBuilder().append(col2).append("|");
+        }
+        result.getChecksumBuilder().append(capacityByYear).append("|");
+    }
+
+    private void validateNoDuplicateRows(ResRowProcessingResult result, String trajectoryToUse) {
+        switch (result) {
+            case ResRowProcessingCapacityResult cap -> validateNoDuplicateCapacityRows(cap, trajectoryToUse);
+            case ResRowProcessingZonalDistributionResult zonal -> validateNoDuplicateZonalRows(zonal, trajectoryToUse);
+            case ResRowProcessingTechnologyDistributionResult tech -> validateNoDuplicateTechnologyDistributionRows(tech, trajectoryToUse);
+        }
+    }
+
+    /**
+     * Onshore RES groups (solar_pv, wind_onshore, solar_thermo) have no zone breakdown,
+     * so a row is uniquely identified by area/group/cluster. wind_offshore is split by
+     * PECD zone instead, so the zone replaces the area in the uniqueness key.
+     */
+    private void validateNoDuplicateCapacityRows(ResRowProcessingCapacityResult cap, String trajectoryToUse) {
+        Set<String> seenCombos = new HashSet<>();
+        for (ResClusterCapacityEntity entity : cap.entities()) {
+            checkNotDuplicate(entity, seenCombos, trajectoryToUse);
+        }
+    }
+
+    private void checkNotDuplicate(ResClusterCapacityEntity entity, Set<String> seenCombos, String trajectoryToUse) {
+        boolean isOffshore = entity.getPecdZone() != null;
+        String fieldName = isOffshore ? "PECD zone" : "area";
+        String fieldValue = isOffshore ? entity.getPecdZone() : entity.getArea();
+
+        String key = buildComboKey(fieldValue, entity.getGroupe(), entity.getCluster());
+        if (!seenCombos.add(key)) {
+            throw BusinessException.builder()
+                    .message("Duplicate row detected in RES capacity trajectory {0} for {1} {2}, group {3}, cluster {4}."
+                            + " Only one row is allowed per {1}/group/cluster combination for the selected horizon.")
+                    .errorMessageArguments(List.of(trajectoryToUse, fieldName, fieldValue, entity.getGroupe(), entity.getCluster()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void validateNoDuplicateZonalRows(ResRowProcessingZonalDistributionResult zonal, String trajectoryToUse) {
+        Set<String> seenCombos = new HashSet<>();
+        for (ResZonalDistributionEntity entity : zonal.entities()) {
+            String key = buildComboKey(entity.getArea(), entity.getPecdZone(), entity.getGroupe());
+            if (!seenCombos.add(key)) {
+                throw BusinessException.builder()
+                        .message("Duplicate row detected in RES zonal distribution trajectory {0} for area {1}, PECD zone {2}, group {3}."
+                                + " Only one row is allowed per area/PECD zone/group for the selected horizon.")
+                        .errorMessageArguments(List.of(trajectoryToUse, entity.getArea(), entity.getPecdZone(), entity.getGroupe()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        }
+    }
+
+    private void validateNoDuplicateTechnologyDistributionRows(ResRowProcessingTechnologyDistributionResult tech, String trajectoryToUse) {
+        Set<String> seenCombos = new HashSet<>();
+        for (ResTechnologyDistributionEntity entity : tech.entities()) {
+            String key = buildComboKey(entity.getArea(), entity.getPecdZone(), entity.getGroupe(),
+                    entity.getCluster(), entity.getPecdTechnology());
+            if (!seenCombos.add(key)) {
+                throw BusinessException.builder()
+                        .message("Duplicate row detected in RES technology distribution trajectory {0} for area {1}, PECD zone {2},"
+                                + " group {3}, cluster {4}, technology {5}. Only one row is allowed per"
+                                + " area/PECD zone/group/cluster/technology for the selected horizon.")
+                        .errorMessageArguments(List.of(trajectoryToUse, entity.getArea(), entity.getPecdZone(),
+                                entity.getGroupe(), entity.getCluster(), entity.getPecdTechnology()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        }
+    }
+
+    private String buildComboKey(String... parts) {
+        StringBuilder key = new StringBuilder();
+        for (String part : parts) {
+            key.append(Objects.toString(part, "").trim().toUpperCase(Locale.ROOT)).append("|");
+        }
+        return key.toString();
+    }
+
+    /**
+     * PECD Zones for FR: from 01 to 26
+     */
+    private void validatePecdZoneRange(String pecdZone, String trajectoryToUse) {
+        if (!isValidFrPecdZone(pecdZone)) {
+            String allowedAreas = String.join(", ", ResDomainRules.ZONAL_AREAS);
+            throw BusinessException.builder()
+                    .message("Invalid PECD zone {0} in RES trajectory {1}. Expected a zone numbered 01 to 26 for: {2}.")
+                    .errorMessageArguments(List.of(Objects.toString(pecdZone, ""), trajectoryToUse, allowedAreas))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private boolean isValidFrPecdZone(String pecdZone) {
+        if (pecdZone == null) return false;
+        String normalized = pecdZone.trim().toUpperCase(Locale.ROOT);
+        String baseArea = ResDomainRules.extractBaseArea(normalized);
+        if (!ResDomainRules.ZONAL_AREAS.contains(baseArea) || normalized.equals(baseArea)) return false;
+
+        try {
+            int zoneIndex = Integer.parseInt(normalized.substring(baseArea.length()));
+            return zoneIndex >= 1 && zoneIndex <= 26;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private void processResTechnoDistributionCapacityRow(
@@ -772,6 +887,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         result.addTechnologies(context.getTechnology());
 
         validateEmptyRequiredColumns(context, requiredColumns, group, cluster, area, pecdZone, pecdTechno);
+        validatePecdZoneRange(pecdZone, context.getTrajectoryToUse());
 
         String combo = LITERAL_STRING.formatted(pecdZone, group, cluster);
 
@@ -820,6 +936,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
 
         validateEmptyRequiredColumns(context, requiredColumns, area, pecdZone, group);
+        validatePecdZoneRange(pecdZone, context.getTrajectoryToUse());
 
         String combo = LITERAL_STRING.formatted(area, pecdZone, group);
 
