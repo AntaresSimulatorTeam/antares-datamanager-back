@@ -331,7 +331,7 @@ class HydroFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals("Missing folder {0} in hydro series trajectory {1}", exception.getMessage());
+        assertEquals("Missing folder {0} in Hydro Series trajectory {1}", exception.getMessage());
 
         verify(trajectoryService).normalizeAndValidateDirectory(
                 TrajectoryType.HYDRO_SERIES,
@@ -865,6 +865,54 @@ class HydroFileProcessorServiceImplTest {
                         List.of("FR", "BE")
                 )
         );
+    }
+
+    @Test
+    void validateMaxPowerFile_doesNotThrowWhenPspColumnsAreValid() throws Exception {
+        Path dir = tempDir.resolve("maxpower_psp_ok");
+        Files.createDirectories(dir);
+        Path filePath = CreateExcelTestUtil.createExcelFile(dir, FILE_NAME_MAX_POWER, HORIZON,
+                List.of("areas", "FR_generating", "FR_pumping"),
+                List.of(List.of(100, 200)));
+
+        assertDoesNotThrow(() ->
+                service.validateMaxPowerFile(
+                        TrajectoryType.HYDRO_PSP_SERIES,
+                        filePath,
+                        TRAJ,
+                        HORIZON,
+                        AREA_FR,
+                        List.of(AREA_FR),
+                        List.of()
+                )
+        );
+    }
+
+    @Test
+    void validateMaxPowerFile_throwsWhenPspColumnHasStraySpaceBeforeSuffix() throws Exception {
+        Path dir = tempDir.resolve("maxpower_psp_space");
+        Files.createDirectories(dir);
+        Path filePath = CreateExcelTestUtil.createExcelFile(dir, FILE_NAME_MAX_POWER, HORIZON,
+                List.of("areas", "FR_ generating"),
+                List.of(List.of(100)));
+
+        List<String> studyAreas = List.of(AREA_FR);
+        List<String> areasInHydroSeriesModFiles = List.of();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.validateMaxPowerFile(
+                        TrajectoryType.HYDRO_PSP_SERIES,
+                        filePath,
+                        TRAJ,
+                        HORIZON,
+                        AREA_FR,
+                        studyAreas,
+                        areasInHydroSeriesModFiles
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertTrue(exception.getErrorMessageArguments().contains("FR_ generating"));
     }
 
     // -------------------------------------------------------------------------
