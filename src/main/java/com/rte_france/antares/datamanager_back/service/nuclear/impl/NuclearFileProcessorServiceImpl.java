@@ -471,6 +471,13 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                 antaresDataManagerProperties.getNuclearSmrDirectory(), TrajectoryType.NUCLEAR_FR_TS_SMR);
     }
 
+    @Transactional
+    @Override
+    public TrajectoryEntity processNuclearTalonFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
+        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+                antaresDataManagerProperties.getNuclearTalonDirectory(), TrajectoryType.NUCLEAR_FR_TALON);
+    }
+
     /**
      * Generic method to process nuclear time series (EPR/SMR) files
      */
