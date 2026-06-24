@@ -186,7 +186,7 @@ public class ResFileProcessorServiceImplTest {
                 Row dataRow = sheet.createRow(1);
                 dataRow.createCell(0).setCellValue(true);
                 dataRow.createCell(1).setCellValue(areaFile);
-                dataRow.createCell(2).setCellValue("PECD_Zone_Value");
+                dataRow.createCell(2).setCellValue("FR01");
                 dataRow.createCell(3).setCellValue("wind_offshore");
                 dataRow.createCell(4).setCellValue("wind_offshore");
                 dataRow.createCell(5).setCellValue(200.0);
@@ -450,6 +450,47 @@ public class ResFileProcessorServiceImplTest {
             ))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Duplicate row detected");
+        }
+
+        @Test
+        void shouldThrowWhenPecdZoneOutOfRangeForWindOffshore(@TempDir Path tempRoot) throws Exception {
+            // FR27
+            Path frDir = tempRoot.resolve(AREA_FR);
+            Files.createDirectories(frDir);
+            Path nestedDir = frDir.resolve(BP_23_REF);
+            Files.createDirectories(nestedDir);
+
+            Path file = nestedDir.resolve("installedRES_wind_offshore_BP23_Aref.xlsx");
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet1");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("ToUse");
+                header.createCell(1).setCellValue("Area");
+                header.createCell(2).setCellValue("PECD_Zone");
+                header.createCell(3).setCellValue("Group");
+                header.createCell(4).setCellValue("Cluster");
+                header.createCell(5).setCellValue("2030");
+
+                Row dataRow = sheet.createRow(1);
+                dataRow.createCell(0).setCellValue(true);
+                dataRow.createCell(1).setCellValue(AREA_FR);
+                dataRow.createCell(2).setCellValue("FR27");
+                dataRow.createCell(3).setCellValue("wind_offshore");
+                dataRow.createCell(4).setCellValue("wind_offshore");
+                dataRow.createCell(5).setCellValue(200.0);
+                wb.write(out);
+            }
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            assertThatThrownBy(() -> resFileProcessorServiceImpl.processInstalledResFile(
+                    BP_23_REF, HORIZON_2029_2030, STUDY_ID, AREA_FR, WIND_OFFSHORE_LABEL, false
+            ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Invalid PECD zone");
         }
 
         @Test
@@ -1564,7 +1605,7 @@ public class ResFileProcessorServiceImplTest {
                     dataRow.createCell(0).setCellValue(technology);
                     dataRow.createCell(1).setCellValue(technology);
                     dataRow.createCell(2).setCellValue(currentArea);
-                    dataRow.createCell(3).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(3).setCellValue("FR" + String.format("%02d", i + 1));
                     dataRow.createCell(4).setCellValue("SP199_HH200");
                     if (value instanceof Number n) {
                         dataRow.createCell(5).setCellValue(n.doubleValue());
@@ -1731,6 +1772,80 @@ public class ResFileProcessorServiceImplTest {
             assertEquals("solar_pv", result.getTechnology());
             assertEquals(1, result.getResTechnologyDistributionCapacityEntities().size());
             verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
+        @Test
+        void shouldThrowWhenDuplicateAreaZoneGroupClusterTechnologyRows(@TempDir Path tempRoot) throws Exception {
+            // Two rows for the same area/PECD zone/group/cluster/technology combo
+            Path file = tempRoot.resolve("repartition_techno_BP23_Aref.xlsx");
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet0");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Group");
+                header.createCell(1).setCellValue("Cluster");
+                header.createCell(2).setCellValue("Area");
+                header.createCell(3).setCellValue("PECD_Zone");
+                header.createCell(4).setCellValue("Techno_PECD");
+                header.createCell(5).setCellValue("2030");
+
+                for (int i = 1; i <= 2; i++) {
+                    Row dataRow = sheet.createRow(i);
+                    dataRow.createCell(0).setCellValue("solar_pv");
+                    dataRow.createCell(1).setCellValue("solar_pv");
+                    dataRow.createCell(2).setCellValue(AREA_FR);
+                    dataRow.createCell(3).setCellValue("FR01");
+                    dataRow.createCell(4).setCellValue("SP199_HH200");
+                    dataRow.createCell(5).setCellValue(100.0);
+                }
+                wb.write(out);
+            }
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            assertThatThrownBy(() -> resFileProcessorServiceImpl.processTechnologyDistributionResFile(
+                    "repartition_techno_BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
+            ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Duplicate row detected");
+        }
+
+        @Test
+        void shouldThrowWhenPecdZoneOutOfRangeForTechnologyDistribution(@TempDir Path tempRoot) throws Exception {
+            // FR27
+            Path file = tempRoot.resolve("repartition_techno_BP23_Aref.xlsx");
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet0");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Group");
+                header.createCell(1).setCellValue("Cluster");
+                header.createCell(2).setCellValue("Area");
+                header.createCell(3).setCellValue("PECD_Zone");
+                header.createCell(4).setCellValue("Techno_PECD");
+                header.createCell(5).setCellValue("2030");
+
+                Row dataRow = sheet.createRow(1);
+                dataRow.createCell(0).setCellValue("solar_pv");
+                dataRow.createCell(1).setCellValue("solar_pv");
+                dataRow.createCell(2).setCellValue(AREA_FR);
+                dataRow.createCell(3).setCellValue("FR27");
+                dataRow.createCell(4).setCellValue("SP199_HH200");
+                dataRow.createCell(5).setCellValue(100.0);
+                wb.write(out);
+            }
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            assertThatThrownBy(() -> resFileProcessorServiceImpl.processTechnologyDistributionResFile(
+                    "repartition_techno_BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
+            ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Invalid PECD zone");
         }
 
         @Test
@@ -2142,7 +2257,7 @@ public class ResFileProcessorServiceImplTest {
                     Row dataRow = sheet0.createRow(i + 1);  // Commence à ligne 1
                     var value = isNumericValues ? (100.0 + (i * 10)) : "truc";
                     dataRow.createCell(0).setCellValue(currentArea);
-                    dataRow.createCell(1).setCellValue(currentArea+"0"+i);
+                    dataRow.createCell(1).setCellValue("FR" + String.format("%02d", i + 1));
                     dataRow.createCell(2).setCellValue("wind offshore");
                     if (value instanceof Number n) {
                         dataRow.createCell(3).setCellValue(n.doubleValue());
@@ -2243,6 +2358,72 @@ public class ResFileProcessorServiceImplTest {
             assertEquals(ZONAL_REPARTITION_FILE_NAME, result.getFileName());
             assertEquals(1, result.getResZonalDistributionCapacityEntities().size());
             verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+        }
+
+        @Test
+        void shouldThrowWhenDuplicateAreaZoneGroupRows(@TempDir Path tempRoot) throws Exception {
+            // Two rows for the same area/PECD zone/group combo
+            Path file = tempRoot.resolve(ZONAL_REPARTITION_FILE_NAME + ".xlsx");
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet0");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Area");
+                header.createCell(1).setCellValue("PECD_zone");
+                header.createCell(2).setCellValue("Group");
+                header.createCell(3).setCellValue("2030");
+
+                for (int i = 1; i <= 2; i++) {
+                    Row dataRow = sheet.createRow(i);
+                    dataRow.createCell(0).setCellValue(AREA_FR);
+                    dataRow.createCell(1).setCellValue("FR01");
+                    dataRow.createCell(2).setCellValue("wind offshore");
+                    dataRow.createCell(3).setCellValue(100.0);
+                }
+                wb.write(out);
+            }
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            assertThatThrownBy(() -> resFileProcessorServiceImpl.processZonalDistributionResFile(
+                    ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
+            ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Duplicate row detected");
+        }
+
+        @Test
+        void shouldThrowWhenPecdZoneOutOfRange(@TempDir Path tempRoot) throws Exception {
+            // FR27
+            Path file = tempRoot.resolve(ZONAL_REPARTITION_FILE_NAME + ".xlsx");
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet0");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Area");
+                header.createCell(1).setCellValue("PECD_zone");
+                header.createCell(2).setCellValue("Group");
+                header.createCell(3).setCellValue("2030");
+
+                Row dataRow = sheet.createRow(1);
+                dataRow.createCell(0).setCellValue(AREA_FR);
+                dataRow.createCell(1).setCellValue("FR27");
+                dataRow.createCell(2).setCellValue("wind offshore");
+                dataRow.createCell(3).setCellValue(100.0);
+                wb.write(out);
+            }
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            assertThatThrownBy(() -> resFileProcessorServiceImpl.processZonalDistributionResFile(
+                    ZONAL_REPARTITION_FILE_NAME, "2029-2030", 1, AREA_FR, null, false
+            ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Invalid PECD zone");
         }
 
         @Test
