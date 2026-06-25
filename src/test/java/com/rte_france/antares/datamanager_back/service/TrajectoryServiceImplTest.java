@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.*;
 import org.springframework.http.HttpStatus;
@@ -360,6 +361,36 @@ class TrajectoryServiceImplTest {
         TrajectoryEntity newTrajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name())
                 .warningMessages(new HashSet<>())
                 .areaConfigEntities(List.of(AreaConfigEntity.builder().area(AreaEntity.builder().name("are1").build()).build()))
+                .build();
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, type);
+
+        assertEquals(newTrajectory.getId(), result.getId());
+        verify(studyTrajectoryRepository, times(1)).delete(existingLink);
+        verify(studyTrajectoryRepository, times(1)).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = TrajectoryType.class, names = {
+            "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP",
+            "NUCLEAR_FR_TS_LONG_TERM", "NUCLEAR_FR_TS_SMR"
+    })
+    void linkTrajectoryToStudy_replacesExistingLinkForNuclearTypes(TrajectoryType type) throws IOException {
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name()).build();
+        StudyTrajectoryEntity existingLink = StudyTrajectoryEntity.builder().trajectory(trajectory).build();
+
+        StudyEntity study = StudyEntity.builder().id(studyId).build();
+        study.setStudyTrajectoryEntities(Set.of(existingLink));
+
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder().id(trajectoryId).type(type.name())
+                .warningMessages(new HashSet<>())
                 .build();
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
