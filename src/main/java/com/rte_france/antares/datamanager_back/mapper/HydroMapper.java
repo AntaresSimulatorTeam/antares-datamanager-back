@@ -6,8 +6,6 @@ import com.rte_france.antares.datamanager_back.repository.model.HydroParametersE
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import java.util.*;
-
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class HydroMapper {
 
