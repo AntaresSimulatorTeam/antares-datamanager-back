@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.HydroSeriesType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -479,6 +480,44 @@ class HydroGenerationAssemblerServiceImplTest {
         Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
 
         HydroGenerationDTO dto = result.get("FR").get(0);
+        assertNotNull(dto.getSeries());
+        assertArrayEquals(new String[]{"FR_mingen.arrow"}, dto.getSeries());
+    }
+
+    @Test
+    void assembleHydroProperties_setsSeriesOnDtoWhenNoTechnicalParametersTrajectoryExists(@TempDir Path tempDir) throws IOException {
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
+
+        Path fileDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj1").resolve("mingen");
+        Files.createDirectories(fileDir);
+        Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
+
+        Path fileReservoirDir = tempDir.resolve("trajectories").resolve("hydro_series").resolve("traj2").resolve("reservoir_levels");
+        Files.createDirectories(fileReservoirDir);
+        Files.createFile(fileReservoirDir.resolve("reservoir_levels_FR_2030.xlsx"));
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean())).thenReturn(matrix);
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_mingen"), eq("hydro_output")))
+                .thenReturn("FR_mingen.arrow");
+
+        HydroSeriesEntity hydroSeries1 = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
+        HydroSeriesEntity hydroSeries2 = HydroSeriesEntity.builder().tsName("reservoir_levels_FR_2030.xlsx").build();
+        TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_SERIES.name())
+                .area("FR")
+                .fileName("traj1")
+                .hydroSeriesEntities(List.of(hydroSeries1, hydroSeries2))
+                .build();
+                
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(seriesTrajectory))
+                .build();
+
+        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+
+        HydroGenerationDTO dto = result.get("FR").getFirst();
         assertNotNull(dto.getSeries());
         assertArrayEquals(new String[]{"FR_mingen.arrow"}, dto.getSeries());
     }
