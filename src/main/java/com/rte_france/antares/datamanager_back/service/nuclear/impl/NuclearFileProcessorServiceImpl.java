@@ -32,6 +32,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum;
 import static com.rte_france.antares.datamanager_back.util.Utils.getFileChecksum;
@@ -45,6 +47,9 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String PARAMETERS_FILE_PREFIX = "Parameters_modNuc_";
     private static final String PARAMETERS_FILE_SUFFIX = ".xlsx";
+    private static final Set<String> REQUIRED_MODULATION_TYPES = Set.of(
+            "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_weekly"
+    );
 
     private final TrajectoryRepository trajectoryRepository;
     private final NuclearModulationParameterRepository nuclearModulationParameterRepository;
@@ -275,9 +280,13 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                 }
             }
 
-            if (parameters.isEmpty()) {
+            Set<String> foundTypes = parameters.stream()
+                    .map(NuclearModulationParameterEntity::getType)
+                    .collect(Collectors.toSet());
+            if (!foundTypes.equals(REQUIRED_MODULATION_TYPES)) {
                 throw BusinessException.builder()
-                        .message("No valid modulation parameters found in file")
+                        .message("All three modulation rows {0} are required for modulation trajectory")
+                        .errorMessageArguments(List.of(REQUIRED_MODULATION_TYPES.toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -303,11 +312,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
      * Check if type is a valid modulation type
      */
     private boolean isValidModulationType(String type) {
-        return type != null && (
-                type.equals("nucFR_modul_hourly") ||
-                type.equals("nucFR_modul_daily") ||
-                type.equals("nucFR_modul_weekly")
-        );
+        return type != null && REQUIRED_MODULATION_TYPES.contains(type);
     }
 
     /**

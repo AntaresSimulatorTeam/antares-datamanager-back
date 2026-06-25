@@ -357,7 +357,7 @@ class NuclearFileProcessorServiceImplTest {
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assertEquals("No valid modulation parameters found in file", exception.getMessage());
+        assertEquals("All three modulation rows {0} are required for modulation trajectory", exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 

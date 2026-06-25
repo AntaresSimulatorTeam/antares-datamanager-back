@@ -600,7 +600,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,
                 TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
                 TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
-                TrajectoryType.DSR_CAPACITY_MODULATION
+                TrajectoryType.DSR_CAPACITY_MODULATION,
+                TrajectoryType.NUCLEAR_FR_MODULATION,
+                TrajectoryType.NUCLEAR_FR_TALON,
+                TrajectoryType.NUCLEAR_FR_TS_ERP,
+                TrajectoryType.NUCLEAR_FR_TS_LONG_TERM,
+                TrajectoryType.NUCLEAR_FR_TS_SMR
         );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();

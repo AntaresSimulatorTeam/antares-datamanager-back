@@ -575,7 +575,7 @@ class HydroGenerationAssemblerServiceImplTest {
                 .build();
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleHydroProperties(studyEntity));
-        assertEquals("Could not generate matrix for hydro series", ex.getMessage());
+        assertEquals("Could not generate matrix for Hydro Series", ex.getMessage());
     }
 
     @Test
