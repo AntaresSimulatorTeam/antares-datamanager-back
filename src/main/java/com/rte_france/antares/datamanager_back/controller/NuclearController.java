@@ -35,5 +35,48 @@ public class NuclearController {
 
         return new ResponseEntity<>(toTrajectoryDTO(nuclearFileProcessorService.processNuclearModulationFile(trajectoryToUse, horizon, studyId, area)), HttpStatus.CREATED);
     }
-}
 
+    @Operation(summary = "Import nuclear long-term trajectory to database")
+    @PostMapping("/nuclear-lt")
+    public ResponseEntity<TrajectoryDTO> uploadNuclearLongTermTrajectory(
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId,
+            @RequestParam("area") @Size(max = 40, message = "Area name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String area) throws IOException {
+
+        return new ResponseEntity<>(toTrajectoryDTO(nuclearFileProcessorService.processNuclearLongTermFile(trajectoryToUse, horizon, studyId, area)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Import nuclear EPR time series trajectory to database")
+    @PostMapping("/nuclear-ts-erp")
+    public ResponseEntity<TrajectoryDTO> uploadNuclearTsErpTrajectory(
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_.-]+$") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId,
+            @RequestParam(value = "area", required = false) @Size(max = 40, message = "Area name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]*$") String area) throws IOException {
+
+        return new ResponseEntity<>(toTrajectoryDTO(nuclearFileProcessorService.processNuclearTsErpFile(trajectoryToUse, horizon, studyId, area)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Import nuclear SMR time series trajectory to database")
+    @PostMapping("/nuclear-ts-smr")
+    public ResponseEntity<TrajectoryDTO> uploadNuclearTsSmrTrajectory(
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_.-]+$") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId,
+            @RequestParam(value = "area", required = false) @Size(max = 40, message = "Area name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]*$") String area) throws IOException {
+
+        return new ResponseEntity<>(toTrajectoryDTO(nuclearFileProcessorService.processNuclearTsSmrFile(trajectoryToUse, horizon, studyId, area)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Import nuclear Talon trajectory to database")
+    @PostMapping("/nuclear-talon")
+    public ResponseEntity<TrajectoryDTO> uploadNuclearTalonTrajectory(
+            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_.-]+$") String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId,
+            @RequestParam(value = "area", required = false) @Size(max = 40, message = "Area name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]*$") String area) throws IOException {
+
+        return new ResponseEntity<>(toTrajectoryDTO(nuclearFileProcessorService.processNuclearTalonFile(trajectoryToUse, horizon, studyId, area)), HttpStatus.CREATED);
+    }
+}
