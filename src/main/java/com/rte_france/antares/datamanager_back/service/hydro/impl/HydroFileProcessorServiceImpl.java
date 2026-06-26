@@ -122,13 +122,20 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         for (var area : areaList) {
             var filesName = processRequiredSeries(trajectoryFilePath, horizon, area, studyAreas, isPsp);
-            if (!checkHydroFileConsistency(filesName, area, horizon, missingModFiles)) hasOnlyRorFile = false;
-            filesNameFinal.addAll(filesName);
+            boolean isRorOnly = checkHydroFileConsistency(filesName, area, horizon, missingModFiles);
+            if (isRorOnly) {
+                filesName.stream()
+                        .filter(f -> f.startsWith(HYDRO_SERIES_INFLOWS_ROR + '_'))
+                        .forEach(filesNameFinal::add);
+            } else {
+                hasOnlyRorFile = false;
+                filesNameFinal.addAll(filesName);
+            }
         }
 
         String maxPowerFileName = null;
         if (!hasOnlyRorFile) {
-            validateModFiles(missingModFiles, trajectoryToUse);
+            validateModFiles(missingModFiles, trajectoryToUse, isPsp);
             List<String> areasInHydroSeriesModFiles = filesNameFinal.stream()
                     .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
                     .map(s -> s.split("_")[1])
@@ -141,7 +148,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         if (filesNameFinal.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Missing files in trajectory " + trajectoryType.name())
+                    .message("Missing files in " + HydroTypeHelper.getSeriesLabel(isPsp) + " trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -204,7 +211,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 }
                 case null ->
                         throw BusinessException.builder()
-                                .message("Could not process " + trajectoryType.name() + " trajectory")
+                                .message("Could not process " + HydroTypeHelper.getTechnicalParametersLabel(isPsp) + " trajectory")
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build();
             }
@@ -242,13 +249,14 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             List<String> studyAreas
     ) throws IOException {
 
-        Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath);
-        
+        boolean isPsp = HydroTypeHelper.isPsp(trajectoryType);
+        Path fileMaxPowerPath = findMaxPowerFile(trajectoryFilePath, isPsp);
+
         validateMaxPowerFile(trajectoryType, fileMaxPowerPath, trajectoryToUse, horizon, areaParam, studyAreas, areasInHydroSeriesModFiles);
         return fileMaxPowerPath.getFileName().toString();
     }
 
-    private Path findMaxPowerFile(Path trajectoryFilePath) throws BusinessException {
+    private Path findMaxPowerFile(Path trajectoryFilePath, boolean isPsp) throws BusinessException {
         String trajectoryToUse = trajectoryFilePath.getFileName().toString();
         try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
             List<Path> files = stream
@@ -258,7 +266,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             if (files.isEmpty()) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryToUse))
-                        .message("Missing maxpower file (maxpower_{0}) in Hydro Series trajectory {0}")
+                        .message("Missing maxpower file (maxpower_{0}) in " + HydroTypeHelper.getSeriesLabel(isPsp) + " trajectory {0}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -303,7 +311,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             String parametersLabel = isPsp ? "PSP_Virtual hydroParameters" : "hydroParameters";
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(allocationLabel, parametersLabel, trajectoryFilePath.getFileName().toString()))
-                    .message("Missing file {0} or {1} in trajectory Hydro Technical parameters trajectory {2}")
+                    .message("Missing file {0} or {1} in trajectory " + HydroTypeHelper.getTechnicalParametersLabel(isPsp) + " trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -357,31 +365,20 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return filesName;
     }
 
-    private boolean checkHydroFileConsistency(List<String> filesName, String area, String horizon, List<String> missingModFiles) throws BusinessException {
-        boolean hasMingen = false;
-        boolean hasReservoirLevels = false;
-        boolean hasMod = false;
+    private boolean checkHydroFileConsistency(List<String> filesName, String area, String horizon, List<String> missingModFiles) {
+        boolean hasMingen = filesName.stream().anyMatch(f -> f.startsWith(HYDRO_SERIES_MINGEN + '_' + area));
+        boolean hasReservoirLevels = filesName.stream().anyMatch(f -> f.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS + '_' + area));
+        boolean hasMod = filesName.stream().anyMatch(f -> f.startsWith(HYDRO_SERIES_INFLOWS_MOD + '_' + area));
 
-        for (String fileName : filesName) {
-            if (fileName.startsWith(HYDRO_SERIES_MINGEN+'_'+area)) {
-                hasMingen = true;
-            }
-            if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS+'_'+area)) {
-                hasReservoirLevels = true;
-            }
-            if (filesName.stream().anyMatch(name -> name.startsWith(HYDRO_SERIES_INFLOWS_MOD+'_'+area))) {
-                hasMod = true;
-            }
-            if (((hasMingen && !hasMod) || (hasReservoirLevels && !hasMod)) && !fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR+'_'+area)) {
-                String modFileName = HYDRO_SERIES_INFLOWS_MOD + "_" + area + "_" + horizon + ".csv";
-
-                if (!missingModFiles.contains(modFileName)) {
-                    missingModFiles.add(modFileName);
-                }
+        if ((hasMingen || hasReservoirLevels) && !hasMod) {
+            String modFileName = HYDRO_SERIES_INFLOWS_MOD + "_" + area + "_" + horizon + ".csv";
+            if (!missingModFiles.contains(modFileName)) {
+                missingModFiles.add(modFileName);
             }
         }
 
-        return !hasMingen && !hasMod && !hasReservoirLevels;
+        // true = only ror. if neither mingen nor reservoir_levels are present then we look at ror
+        return !hasMingen && !hasReservoirLevels;
     }
 
     private boolean isPathWithinDirectory(Path parentDirectoryRealPath, Path childRealPath) {
@@ -458,8 +455,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         // Validate that the file path is trusted and points to a regular file
         if (filePath == null || !Files.isRegularFile(filePath)) {
+            boolean isPsp = HydroTypeHelper.isPsp(trajectoryType);
             throw BusinessException.builder()
-                    .message("Missing maxpower file in trajectory " + trajectoryType.name())
+                    .message("Missing maxpower file in " + HydroTypeHelper.getSeriesLabel(isPsp) + " trajectory")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -828,11 +826,11 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         return true;
     }
     
-    public void validateModFiles(List<String> missingModFiles, String trajectoryToUse) {
+    public void validateModFiles(List<String> missingModFiles, String trajectoryToUse, boolean isPsp) {
         if (!missingModFiles.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(String.join(", ", missingModFiles), trajectoryToUse))
-                    .message("Missing MOD file ({0}) in trajectory Hydro Series trajectory {1}")
+                    .message("Missing mod file ({0}) in trajectory " + HydroTypeHelper.getSeriesLabel(isPsp) + " trajectory {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
