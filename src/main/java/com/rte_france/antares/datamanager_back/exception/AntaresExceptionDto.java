@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -8,7 +9,7 @@ import java.util.List;
 
 import static java.time.LocalDateTime.now;
 
-
+@Builder(toBuilder = true)
 @Getter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class AntaresExceptionDto {

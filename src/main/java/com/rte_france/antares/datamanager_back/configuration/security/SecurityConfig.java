@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.configuration;
+package com.rte_france.antares.datamanager_back.configuration.security;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

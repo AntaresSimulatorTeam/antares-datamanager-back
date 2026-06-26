@@ -1,8 +1,8 @@
 package com.rte_france.antares.datamanager_back;
 
-import com.rte_france.antares.datamanager_back.configuration.CorsConfig;
+import com.rte_france.antares.datamanager_back.configuration.security.CorsConfig;
 import com.rte_france.antares.datamanager_back.configuration.OpenApiConfig;
-import com.rte_france.antares.datamanager_back.configuration.SecurityConfig;
+import com.rte_france.antares.datamanager_back.configuration.security.SecurityConfig;
 import com.rte_france.antares.datamanager_back.exception.AntaresExceptionHandler;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

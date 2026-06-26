@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.configuration;
+package com.rte_france.antares.datamanager_back.configuration.security;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
