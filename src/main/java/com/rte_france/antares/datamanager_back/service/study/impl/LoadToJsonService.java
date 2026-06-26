@@ -97,7 +97,7 @@ public class LoadToJsonService {
         ).normalize();
 
         try {
-            String saved = nasFileService.readAndSaveMatrixToNas(inputTxtFilePath, outputLoadDir, null, true);
+            String saved = nasFileService.readAndSaveMatrixToNas(inputTxtFilePath, outputLoadDir, null, false);
             log.info("Matrix saved to NAS for input {} -> {}", inputTxtFilePath, saved);
             return saved;
         } catch (IOException e) {
