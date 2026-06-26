@@ -1,22 +1,20 @@
 package com.rte_france.antares.datamanager_back.exception;
 
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
 
 @AutoConfiguration
 @RestControllerAdvice
@@ -24,66 +22,45 @@ import java.text.MessageFormat;
 @Order(1)
 public class AntaresExceptionHandler extends ResponseEntityExceptionHandler {
 
-
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<AntaresExceptionDto> businessExceptionHandler(BusinessException ex) {
-        BusinessException businessException = ex;
-        if (!CollectionUtils.isEmpty(ex.getErrorMessageArguments())) {
-            String formatMessageWithArguments = MessageFormat.format(ex.getMessage(), ex.getErrorMessageArguments().toArray());
-            businessException = new BusinessException(ex.getAntaresErrorCode(), formatMessageWithArguments, ex.getErrorMessageArguments(), ex.getHttpStatus());
-        }
-
-        log.error("BusinessException: code={}, message={}, args={}",
-                businessException.getAntaresErrorCode(),
-                businessException.getMessage(),
-                businessException.getErrorMessageArguments());
+        BusinessException processedException = formatExceptionMessage(ex);
+        logException("BusinessException", processedException.getAntaresErrorCode(), processedException.getMessage(), null);
 
         return ResponseEntity
-                .status(businessException.getHttpStatus())
+                .status(processedException.getHttpStatus())
                 .body(new AntaresExceptionDto(
-                        businessException.getMessage(),
-                        businessException.getAntaresErrorCode(),
-                        businessException.getErrorMessageArguments(),
-                        businessException.getDate(),
+                        processedException.getMessage(),
+                        processedException.getAntaresErrorCode(),
+                        processedException.getErrorMessageArguments(),
+                        processedException.getDate(),
                         AntaresErrorType.BUSINESS.name()
                 ));
     }
 
-
     @ExceptionHandler(TechnicalException.class)
     public ResponseEntity<AntaresExceptionDto> technicalExceptionHandler(TechnicalException ex) {
-        TechnicalException technicalException = ex;
-        if (!CollectionUtils.isEmpty(ex.getErrorMessageArguments()) && !StringUtils.isEmpty(ex.getMessage())) {
-            String formatMessageWithArguments = MessageFormat.format(ex.getMessage(), ex.getErrorMessageArguments());
-            technicalException = new TechnicalException(ex.getAntaresErrorCode(), formatMessageWithArguments, ex.getErrorMessageArguments(), ex.getCause());
-        }
-        log.error("TechnicalException attrapée : {}", ex.getMessage(), ex);
-        if (ex.getCause() != null) {
-            log.error("Cause profonde : {}", ex.getCause().toString(), ex.getCause());
-        }
-        log.debug(technicalException.toString(), technicalException);
-        AntaresExceptionDto antaresExceptionDto = new AntaresExceptionDto(technicalException.getMessage(), technicalException.getAntaresErrorCode(), technicalException.getErrorMessageArguments(), technicalException.getDate(), AntaresErrorType.TECHNICAL.name());
+        TechnicalException processedException = formatTechnicalExceptionMessage(ex);
+        logException("TechnicalException", processedException.getAntaresErrorCode(),
+                processedException.getMessage(), processedException.getCause());
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(antaresExceptionDto);
+                .body(new AntaresExceptionDto(
+                        processedException.getMessage(),
+                        processedException.getAntaresErrorCode(),
+                        processedException.getErrorMessageArguments(),
+                        processedException.getDate(),
+                        AntaresErrorType.TECHNICAL.name()
+                ));
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<AntaresExceptionDto> runtimeExceptionHandler(RuntimeException ex) {
-        log.error(ex.getMessage(), ex);
-
-        if (ex.getCause() != null) {
-            log.error("Cause profonde : {}", ex.getCause().toString(), ex.getCause());
-        }        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new AntaresExceptionDto(ex));
-    }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<AntaresExceptionDto> handleConstraintViolation(ConstraintViolationException ex) {
 
         String message = ex.getConstraintViolations().stream()
-                .map(v -> v.getMessage())
+                .map(ConstraintViolation::getMessage)
                 .findFirst()
                 .orElse("Validation failed");
 
@@ -94,8 +71,46 @@ public class AntaresExceptionHandler extends ResponseEntityExceptionHandler {
 
         return businessExceptionHandler(businessException);
     }
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<AntaresExceptionDto> runtimeExceptionHandler(RuntimeException ex) {
+        logException("RuntimeException", null, ex.getMessage(), ex.getCause());
 
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(AntaresExceptionDto.builder()
+                        .antaresErrorMessage("Une erreur technique s'est produite !")
+                        .antaresErrorCode(AntaresErrorCode.SERVER_ERROR)
+                        .date(LocalDateTime.now())
+                        .type(AntaresErrorType.TECHNICAL.name())
+                        .build());
+    }
 
+    private BusinessException formatExceptionMessage(BusinessException ex) {
+        if (CollectionUtils.isEmpty(ex.getErrorMessageArguments())) {
+            return ex;
+        }
+        String formattedMessage = MessageFormat.format(ex.getMessage(), ex.getErrorMessageArguments().toArray());
+        return new BusinessException(ex.getAntaresErrorCode(), formattedMessage,
+                ex.getErrorMessageArguments(), ex.getHttpStatus());
+    }
 
+    private TechnicalException formatTechnicalExceptionMessage(TechnicalException ex) {
+        if (CollectionUtils.isEmpty(ex.getErrorMessageArguments()) || StringUtils.isEmpty(ex.getMessage())) {
+            return ex;
+        }
+        String formattedMessage = MessageFormat.format(ex.getMessage(), ex.getErrorMessageArguments().toArray());
+        return new TechnicalException(ex.getAntaresErrorCode(), formattedMessage,
+                ex.getErrorMessageArguments(), ex.getCause());
+    }
 
+    private void logException(String exceptionType, Object errorCode, String message, Throwable cause) {
+        if (errorCode != null) {
+            log.error("{}: code={}, message={}", exceptionType, errorCode, message);
+        } else {
+            log.error("{}: {}", exceptionType, message);
+        }
+        if (cause != null) {
+            log.error("Root cause: {}", cause.toString(), cause);
+        }
+    }
 }
