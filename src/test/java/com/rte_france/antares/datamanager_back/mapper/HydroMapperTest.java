@@ -22,13 +22,13 @@ class HydroMapperTest {
     void mapToHydroGenerationDTO_shouldMapAllFields() {
         HydroParametersEntity entity = HydroParametersEntity.builder()
                 .followLoad(true)
-                .interDailyBreakdown(1)
-                .interDailyModulation(2)
-                .interMonthlyBreakdown(3)
+                .interDailyBreakdown(new BigDecimal("1"))
+                .interDailyModulation(new BigDecimal("2"))
+                .interMonthlyBreakdown(new BigDecimal("3"))
                 .reservoir(true)
                 .reservoirCapacity(new BigDecimal("5000"))
-                .pumpingEfficiency(90)
-                .initializeReservoirDate(7)
+                .pumpingEfficiency(new BigDecimal("90"))
+                .initializeReservoirDate(new BigDecimal("7"))
                 .useWater(false)
                 .build();
 
@@ -36,13 +36,13 @@ class HydroMapperTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getProperties().getFollowLoadModulation()).isTrue();
-        assertThat(result.getProperties().getInterDailyBreakdown()).isEqualTo(1);
-        assertThat(result.getProperties().getInterDailyModulation()).isEqualTo(2);
-        assertThat(result.getProperties().getInterMonthlyBreakdown()).isEqualTo(3);
+        assertThat(result.getProperties().getInterDailyBreakdown()).isEqualByComparingTo(new BigDecimal("1"));
+        assertThat(result.getProperties().getInterDailyModulation()).isEqualByComparingTo(new BigDecimal("2"));
+        assertThat(result.getProperties().getInterMonthlyBreakdown()).isEqualByComparingTo(new BigDecimal("3"));
         assertThat(result.getProperties().getReservoirManagement()).isTrue();
         assertThat(result.getProperties().getReservoirCapacity()).isEqualTo(5000);
-        assertThat(result.getProperties().getPumpingEfficiency()).isEqualTo(90);
-        assertThat(result.getProperties().getInitializeReservoirDate()).isEqualTo(7);
+        assertThat(result.getProperties().getPumpingEfficiency()).isEqualByComparingTo(new BigDecimal("90"));
+        assertThat(result.getProperties().getInitializeReservoirDate()).isEqualByComparingTo(new BigDecimal("7"));
         assertThat(result.getProperties().getUseWater()).isFalse();
     }
 

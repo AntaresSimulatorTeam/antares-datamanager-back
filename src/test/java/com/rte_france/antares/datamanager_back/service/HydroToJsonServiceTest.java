@@ -9,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +69,7 @@ class HydroToJsonServiceTest {
         String[] series = {"file1.arrow", "file2.arrow"};
         Map<String, Double> allocation = Map.of("BE", 0.5, "DE", 0.5);
         HydroPropertiesGenerationDTO properties = HydroPropertiesGenerationDTO.builder().followLoadModulation(true)
-                .interDailyBreakdown(1).build();
+                .interDailyBreakdown(new BigDecimal("1")).build();
         HydroGenerationDTO dto = HydroGenerationDTO.builder()
                 .properties(properties)
                 .series(series)
@@ -113,11 +114,11 @@ class HydroToJsonServiceTest {
     void buildHydroDataMap_multipleDtosAreAllReturned() {
         String[] series = {"file.arrow"};
         Map<String, Double> allocation = Map.of("BE", 1.0);
-        HydroPropertiesGenerationDTO properties1 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(1).build();
+        HydroPropertiesGenerationDTO properties1 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(new BigDecimal("1")).build();
         HydroGenerationDTO dto1 = HydroGenerationDTO.builder().properties(properties1).series(series).allocation(allocation).build();
-        HydroPropertiesGenerationDTO properties2 = HydroPropertiesGenerationDTO.builder().interDailyModulation(2).build();
+        HydroPropertiesGenerationDTO properties2 = HydroPropertiesGenerationDTO.builder().interDailyModulation(new BigDecimal("2")).build();
         HydroGenerationDTO dto2 = HydroGenerationDTO.builder().properties(properties2).series(series).allocation(allocation).build();
-        HydroPropertiesGenerationDTO properties3 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(3).build();
+        HydroPropertiesGenerationDTO properties3 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(new BigDecimal("3")).build();
         HydroGenerationDTO dto3 = HydroGenerationDTO.builder().properties(properties3).series(series).allocation(allocation).build();
         List<HydroGenerationDTO> dtos = List.of(dto1, dto2, dto3);
         Map<String, List<HydroGenerationDTO>> hydroProps = Map.of("FR", dtos);
@@ -126,7 +127,7 @@ class HydroToJsonServiceTest {
 
         @SuppressWarnings("unchecked")
         HydroPropertiesGenerationDTO returnedDtos = (HydroPropertiesGenerationDTO) result.get("properties");
-        assertEquals(1, returnedDtos.getInterDailyBreakdown());
+        assertEquals(new BigDecimal("1"), returnedDtos.getInterDailyBreakdown());
         assertArrayEquals(series, (String[]) result.get("series"));
         assertEquals(allocation, result.get("allocation"));
     }
@@ -143,9 +144,9 @@ class HydroToJsonServiceTest {
 
     @Test
     void buildHydroDataMap_multipleAreasInMapReturnsOnlyRequestedArea() {
-        HydroPropertiesGenerationDTO properties1 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(1).build();
+        HydroPropertiesGenerationDTO properties1 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(new BigDecimal("1")).build();
         HydroGenerationDTO dtoFR = HydroGenerationDTO.builder().properties(properties1).build();
-        HydroPropertiesGenerationDTO properties2 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(2).build();
+        HydroPropertiesGenerationDTO properties2 = HydroPropertiesGenerationDTO.builder().interDailyBreakdown(new BigDecimal("2")).build();
         HydroGenerationDTO dtoBE = HydroGenerationDTO.builder().properties(properties2).build();
         Map<String, List<HydroGenerationDTO>> hydroProps = Map.of(
                 "FR", List.of(dtoFR),

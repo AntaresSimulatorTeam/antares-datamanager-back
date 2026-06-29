@@ -28,19 +28,19 @@ public class HydroParametersEntity {
     private String node;
 
     @Column(name = "inter_daily_breakdown")
-    private Integer interDailyBreakdown;
+    private BigDecimal interDailyBreakdown;
 
     @Column(name = "inter_daily_modulation")
-    private Integer interDailyModulation;
+    private BigDecimal interDailyModulation;
 
     @Column(name = "inter_monthly_breakdown")
-    private Integer interMonthlyBreakdown;
+    private BigDecimal interMonthlyBreakdown;
 
     @Column(name = "initialize_reservoir_date")
-    private Integer initializeReservoirDate;
+    private BigDecimal initializeReservoirDate;
 
     @Column(name = "pumping_efficiency")
-    private Integer pumpingEfficiency;
+    private BigDecimal pumpingEfficiency;
 
     @Column(name = "reservoir")
     private Boolean reservoir;

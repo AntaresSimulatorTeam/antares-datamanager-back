@@ -686,15 +686,15 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS, true, isPsp, numericValues);
         validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS, false, isPsp, booleanValues);
 
-        BigDecimal reservoirCapacityValue = BigDecimal.valueOf(Long.parseLong(reservoirCapacity));
+        BigDecimal reservoirCapacityValue = parseDecimal(reservoirCapacity);
 
         HydroParametersEntity entity = HydroParametersEntity.builder()
                 .node(area)
-                .interDailyBreakdown(Integer.parseInt(interDailyBreakdown))
-                .interDailyModulation(Integer.valueOf(interDailyModulation))
-                .interMonthlyBreakdown(Integer.valueOf(interMonthlyBreakdown))
-                .initializeReservoirDate(Integer.valueOf(initializeReservoirDate))
-                .pumpingEfficiency(Integer.valueOf(pumpingEfficiency))
+                .interDailyBreakdown(parseDecimal(interDailyBreakdown))
+                .interDailyModulation(parseDecimal(interDailyModulation))
+                .interMonthlyBreakdown(parseDecimal(interMonthlyBreakdown))
+                .initializeReservoirDate(parseDecimal(initializeReservoirDate))
+                .pumpingEfficiency(parseDecimal(pumpingEfficiency))
                 .reservoir(reservoir)
                 .reservoirCapacity(reservoirCapacityValue)
                 .followLoad(followLoad)
@@ -766,9 +766,23 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             return true;
         }
         return switch (values[i]) {
-            case String s -> isNumeric ? !isInteger(s) : !isBooleanStringValue(s);
+            case String s -> isNumeric ? !isDecimal(s) : !isBooleanStringValue(s);
             default -> false;
         };
+    }
+
+    public static boolean isDecimal(String s) {
+        if (s == null) return false;
+        try {
+            new BigDecimal(s.replace(",", "."));
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private static BigDecimal parseDecimal(String s) {
+        return new BigDecimal(s.replace(",", "."));
     }
 
     private String getColumnsLabel(TrajectoryType trajectoryType, boolean isNumeric) {

@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -736,8 +737,8 @@ class HydroFileProcessorServiceImplTest {
 
         var entity = ((HydroParametersRowProcessingResult) result).entities().getFirst();
         assertEquals("FR", entity.getNode());
-        assertEquals(2, entity.getInterDailyBreakdown());
-        assertEquals(3, entity.getInterDailyModulation());
+        assertEquals(new BigDecimal("2"), entity.getInterDailyBreakdown());
+        assertEquals(new BigDecimal("3"), entity.getInterDailyModulation());
         assertEquals(Boolean.TRUE, entity.getReservoir());
         assertEquals(Boolean.FALSE, entity.getFollowLoad());
     }
