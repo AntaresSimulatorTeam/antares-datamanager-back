@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
@@ -16,13 +18,13 @@ public class HydroPropertiesGenerationDTO {
     private Boolean followLoadModulation;
 
     @JsonProperty("inter_daily_breakdown")
-    private Integer interDailyBreakdown;
+    private BigDecimal interDailyBreakdown;
 
     @JsonProperty("inter_daily_modulation")
-    private Integer interDailyModulation;
+    private BigDecimal interDailyModulation;
 
     @JsonProperty("inter_monthly_breakdown")
-    private Integer interMonthlyBreakdown;
+    private BigDecimal interMonthlyBreakdown;
 
     @JsonProperty("reservoir")
     private Boolean reservoirManagement;
@@ -31,10 +33,10 @@ public class HydroPropertiesGenerationDTO {
     private Integer reservoirCapacity;
 
     @JsonProperty("pumping_efficiency")
-    private Integer pumpingEfficiency;
+    private BigDecimal pumpingEfficiency;
 
     @JsonProperty("initialize_reservoir_date")
-    private Integer initializeReservoirDate;
+    private BigDecimal initializeReservoirDate;
 
     @JsonProperty("use_water")
     private Boolean useWater;

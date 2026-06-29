@@ -60,13 +60,13 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroParametersEntity hp1 = HydroParametersEntity.builder()
                 .node("FR")
                 .followLoad(true)
-                .interDailyBreakdown(1)
+                .interDailyBreakdown(new BigDecimal("1"))
                 .reservoirCapacity(new BigDecimal(1000))
                 .build();
         HydroParametersEntity hp2 = HydroParametersEntity.builder()
                 .node("BE")
                 .followLoad(false)
-                .interDailyBreakdown(2)
+                .interDailyBreakdown(new BigDecimal("2"))
                 .reservoirCapacity(new BigDecimal(2000))
                 .build();
 
@@ -351,12 +351,12 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroParametersEntity hp1 = HydroParametersEntity.builder()
                 .node("FR")
                 .followLoad(true)
-                .interDailyBreakdown(1)
+                .interDailyBreakdown(new BigDecimal("1"))
                 .build();
         HydroParametersEntity hp2 = HydroParametersEntity.builder()
                 .node("FR")
                 .followLoad(false)
-                .interDailyBreakdown(2)
+                .interDailyBreakdown(new BigDecimal("2"))
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -380,13 +380,13 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroParametersEntity hp = HydroParametersEntity.builder()
                 .node("FR")
                 .followLoad(true)
-                .interDailyBreakdown(1)
-                .interDailyModulation(2)
-                .interMonthlyBreakdown(3)
+                .interDailyBreakdown(new BigDecimal("1"))
+                .interDailyModulation(new BigDecimal("2"))
+                .interMonthlyBreakdown(new BigDecimal("3"))
                 .reservoir(true)
                 .reservoirCapacity(new BigDecimal(5000))
-                .pumpingEfficiency(90)
-                .initializeReservoirDate(7)
+                .pumpingEfficiency(new BigDecimal("90"))
+                .initializeReservoirDate(new BigDecimal("7"))
                 .useWater(false)
                 .build();
 
@@ -403,13 +403,13 @@ class HydroGenerationAssemblerServiceImplTest {
 
         HydroGenerationDTO dto = result.get("FR").get(0);
         assertEquals(Boolean.TRUE, dto.getProperties().getFollowLoadModulation());
-        assertEquals(1, dto.getProperties().getInterDailyBreakdown());
-        assertEquals(2, dto.getProperties().getInterDailyModulation());
-        assertEquals(3, dto.getProperties().getInterMonthlyBreakdown());
+        assertEquals(new BigDecimal("1"), dto.getProperties().getInterDailyBreakdown());
+        assertEquals(new BigDecimal("2"), dto.getProperties().getInterDailyModulation());
+        assertEquals(new BigDecimal("3"), dto.getProperties().getInterMonthlyBreakdown());
         assertEquals(Boolean.TRUE, dto.getProperties().getReservoirManagement());
         assertEquals(5000, dto.getProperties().getReservoirCapacity());
-        assertEquals(90, dto.getProperties().getPumpingEfficiency());
-        assertEquals(7, dto.getProperties().getInitializeReservoirDate());
+        assertEquals(new BigDecimal("90"), dto.getProperties().getPumpingEfficiency());
+        assertEquals(new BigDecimal("7"), dto.getProperties().getInitializeReservoirDate());
         assertEquals(Boolean.FALSE, dto.getProperties().getUseWater());
     }
 
