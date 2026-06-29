@@ -40,7 +40,7 @@ class HydroMapperTest {
         assertThat(result.getProperties().getInterDailyModulation()).isEqualByComparingTo(new BigDecimal("2"));
         assertThat(result.getProperties().getInterMonthlyBreakdown()).isEqualByComparingTo(new BigDecimal("3"));
         assertThat(result.getProperties().getReservoirManagement()).isTrue();
-        assertThat(result.getProperties().getReservoirCapacity()).isEqualTo(5000);
+        assertThat(result.getProperties().getReservoirCapacity()).isEqualByComparingTo(new BigDecimal("5000"));
         assertThat(result.getProperties().getPumpingEfficiency()).isEqualByComparingTo(new BigDecimal("90"));
         assertThat(result.getProperties().getInitializeReservoirDate()).isEqualByComparingTo(new BigDecimal("7"));
         assertThat(result.getProperties().getUseWater()).isFalse();
@@ -60,14 +60,14 @@ class HydroMapperTest {
     }
 
     @Test
-    void mapToHydroGenerationDTO_shouldTruncateReservoirCapacityDecimal() {
+    void mapToHydroGenerationDTO_shouldMapReservoirCapacityDecimal() {
         HydroParametersEntity entity = HydroParametersEntity.builder()
                 .reservoirCapacity(new BigDecimal("1999.99"))
                 .build();
 
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(entity);
 
-        assertThat(result.getProperties().getReservoirCapacity()).isEqualTo(1999);
+        assertThat(result.getProperties().getReservoirCapacity()).isEqualByComparingTo(new BigDecimal("1999.99"));
     }
 
     @Test

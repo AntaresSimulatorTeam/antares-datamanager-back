@@ -18,7 +18,7 @@ public class HydroMapper {
                     .interDailyModulation(entity.getInterDailyModulation())
                     .interMonthlyBreakdown(entity.getInterMonthlyBreakdown())
                     .reservoirManagement(entity.getReservoir())
-                    .reservoirCapacity(entity.getReservoirCapacity() != null ? entity.getReservoirCapacity().intValue() : null)
+                    .reservoirCapacity(entity.getReservoirCapacity())
                     .pumpingEfficiency(entity.getPumpingEfficiency())
                     .initializeReservoirDate(entity.getInitializeReservoirDate())
                     .useWater(entity.getUseWater())

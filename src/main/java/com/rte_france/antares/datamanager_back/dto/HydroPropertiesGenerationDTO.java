@@ -30,7 +30,7 @@ public class HydroPropertiesGenerationDTO {
     private Boolean reservoirManagement;
 
     @JsonProperty("reservoir_capacity")
-    private Integer reservoirCapacity;
+    private BigDecimal reservoirCapacity;
 
     @JsonProperty("pumping_efficiency")
     private BigDecimal pumpingEfficiency;

@@ -89,12 +89,12 @@ class HydroGenerationAssemblerServiceImplTest {
         List<HydroGenerationDTO> frProps = result.get("FR");
         assertEquals(1, frProps.size());
         assertEquals(Boolean.TRUE, frProps.getFirst().getProperties().getFollowLoadModulation());
-        assertEquals(1000, frProps.getFirst().getProperties().getReservoirCapacity());
+        assertEquals(new BigDecimal("1000"), frProps.getFirst().getProperties().getReservoirCapacity());
 
         List<HydroGenerationDTO> beProps = result.get("BE");
         assertEquals(1, beProps.size());
         assertEquals(Boolean.FALSE, beProps.getFirst().getProperties().getFollowLoadModulation());
-        assertEquals(2000, beProps.getFirst().getProperties().getReservoirCapacity());
+        assertEquals(new BigDecimal("2000"), beProps.getFirst().getProperties().getReservoirCapacity());
     }
 
     @Test
@@ -407,7 +407,7 @@ class HydroGenerationAssemblerServiceImplTest {
         assertEquals(new BigDecimal("2"), dto.getProperties().getInterDailyModulation());
         assertEquals(new BigDecimal("3"), dto.getProperties().getInterMonthlyBreakdown());
         assertEquals(Boolean.TRUE, dto.getProperties().getReservoirManagement());
-        assertEquals(5000, dto.getProperties().getReservoirCapacity());
+        assertEquals(new BigDecimal("5000"), dto.getProperties().getReservoirCapacity());
         assertEquals(new BigDecimal("90"), dto.getProperties().getPumpingEfficiency());
         assertEquals(new BigDecimal("7"), dto.getProperties().getInitializeReservoirDate());
         assertEquals(Boolean.FALSE, dto.getProperties().getUseWater());
@@ -862,7 +862,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
 
         assertEquals(1, result.size());
-        assertEquals(3000, result.get("FR").get(0).getProperties().getReservoirCapacity());
+        assertEquals(new BigDecimal("3000"), result.get("FR").get(0).getProperties().getReservoirCapacity());
     }
 
     @Test
