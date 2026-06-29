@@ -539,7 +539,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing mod file ({0}) in trajectory Hydro Series trajectory {1}"));
+        assertTrue(exception.getMessage().contains("Missing mod file ({0}) in Hydro Series trajectory {1}"));
     }
 
     @Test
@@ -564,7 +564,7 @@ class HydroFileProcessorServiceImplTest {
                 service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, AREA_FR, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("Missing mod file ({0}) in trajectory Hydro Series trajectory {1}"));
+        assertTrue(exception.getMessage().contains("Missing mod file ({0}) in Hydro Series trajectory {1}"));
     }
 
     // -------------------------------------------------------------------------
