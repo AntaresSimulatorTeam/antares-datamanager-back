@@ -126,7 +126,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             boolean isRorOnly = checkHydroFileConsistency(filesName, area, horizon, missingModFiles);
             if (isRorOnly) {
                 filesName.stream()
-                        .filter(f -> f.startsWith(HYDRO_SERIES_INFLOWS_ROR + '_'))
+                        .filter(f -> startsWithIgnoreCase(f, HYDRO_SERIES_INFLOWS_ROR + '_'))
                         .forEach(filesNameFinal::add);
             } else {
                 hasOnlyRorFile = false;
@@ -138,8 +138,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         if (!hasOnlyRorFile) {
             validateModFiles(missingModFiles, trajectoryToUse, isPsp);
             List<String> areasInHydroSeriesModFiles = filesNameFinal.stream()
-                    .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
-                    .map(s -> s.split("_")[1])
+                    .filter(file -> startsWithIgnoreCase(file, HYDRO_SERIES_INFLOWS_MOD))
+                    .map(s -> s.split("_")[1].toUpperCase(Locale.ROOT))
                     .toList();
             maxPowerFileName = processMaxPowerFile(trajectoryType, trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, studyAreas);
             if (studyId != null) {
@@ -261,7 +261,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String trajectoryToUse = trajectoryFilePath.getFileName().toString();
         try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
             List<Path> files = stream
-                .filter(p -> p.getFileName().toString().startsWith(HYDRO_SERIES_PREFIX_MAX_POWER+trajectoryToUse))
+                .filter(p -> startsWithIgnoreCase(p.getFileName().toString(), HYDRO_SERIES_PREFIX_MAX_POWER + trajectoryToUse))
                 .toList();
 
             if (files.isEmpty()) {
@@ -291,8 +291,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                         ? HYDRO_TECHNICAL_PREFIX_ALLOCATION
                         : HYDRO_TECHNICAL_PREFIX_PARAMETERS;
 
+                String expectedPrefix = prefix + trajectoryFilePath.getFileName().toString();
                 Path match = allFiles.stream()
-                        .filter(p -> p.getFileName().toString().startsWith(prefix+trajectoryFilePath.getFileName().toString()))
+                        .filter(p -> startsWithIgnoreCase(p.getFileName().toString(), expectedPrefix))
                         .findFirst()
                         .orElse(null);
 
@@ -352,7 +353,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-            
+
             List<Path> pathFiles = findSeriesFiles(realSeriesDirectoryPath, horizon, areaParam, config, studyAreas);
             if (pathFiles.isEmpty()) {
                 continue;
@@ -367,12 +368,12 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     }
 
     private boolean checkHydroFileConsistency(List<String> filesName, String area, String horizon, List<String> missingModFiles) {
-        boolean hasMingen = filesName.stream().anyMatch(f -> f.startsWith(HYDRO_SERIES_MINGEN + '_' + area));
-        boolean hasReservoirLevels = filesName.stream().anyMatch(f -> f.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS + '_' + area));
-        boolean hasMod = filesName.stream().anyMatch(f -> f.startsWith(HYDRO_SERIES_INFLOWS_MOD + '_' + area));
+        boolean hasMingen = filesName.stream().anyMatch(f -> startsWithIgnoreCase(f, HYDRO_SERIES_MINGEN + '_' + area));
+        boolean hasReservoirLevels = filesName.stream().anyMatch(f -> startsWithIgnoreCase(f, HYDRO_SERIES_RESERVOIR_LEVELS + '_' + area));
+        boolean hasMod = filesName.stream().anyMatch(f -> startsWithIgnoreCase(f, HYDRO_SERIES_INFLOWS_MOD + '_' + area));
 
         if ((hasMingen || hasReservoirLevels) && !hasMod) {
-            String modFileName = HYDRO_SERIES_INFLOWS_MOD + "_" + area + "_" + horizon + ".csv";
+            String modFileName = HYDRO_SERIES_INFLOWS_MOD + "_" + area.toLowerCase(Locale.ROOT) + "_" + horizon + ".csv";
             if (!missingModFiles.contains(modFileName)) {
                 missingModFiles.add(modFileName);
             }
@@ -416,22 +417,22 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String prefix = String.join("_", Arrays.copyOf(parts, parts.length - 2));
 
         boolean areaMatches = Objects.equals(areaParam, OTHERS_AREA)
-                ? studyAreas.contains(area)
-                : areaParam.equals(area);
+                ? studyAreas.stream().anyMatch(sa -> sa.equalsIgnoreCase(area))
+                : areaParam.equalsIgnoreCase(area);
 
-        return prefixes.contains(prefix)
+        return prefixes.stream().anyMatch(p -> p.equalsIgnoreCase(prefix))
                 && areaMatches
                 && horizon.equals(horizonFile);
     }
     
     private String getFiletype(String fileName) {
-        if (fileName.startsWith(HYDRO_SERIES_INFLOWS_MOD) || fileName.startsWith(HYDRO_SERIES_INFLOWS_ROR)) {
+        if (startsWithIgnoreCase(fileName, HYDRO_SERIES_INFLOWS_MOD) || startsWithIgnoreCase(fileName, HYDRO_SERIES_INFLOWS_ROR)) {
             return HydroSeriesType.INFLOWS.name();
         }
-        if (fileName.startsWith(HYDRO_SERIES_MINGEN)) {
+        if (startsWithIgnoreCase(fileName, HYDRO_SERIES_MINGEN)) {
             return HydroSeriesType.MINGEN.name();
         }
-        if (fileName.startsWith(HYDRO_SERIES_RESERVOIR_LEVELS)) {
+        if (startsWithIgnoreCase(fileName, HYDRO_SERIES_RESERVOIR_LEVELS)) {
             return HydroSeriesType.RESERVOIR_LEVELS.name();
         }
         return null;

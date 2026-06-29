@@ -35,10 +35,10 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
         TrajectoryEntity tpTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, targetTpType);
             if (tpTrajectory != null) {
                 List<String> areasInHydroAllocationEntities = getAreasInHydroAllocationAreas(tpTrajectory.getId());
-                boolean isHydroAllocationTrajectoryHasAreas = areasInHydroAllocationEntities.containsAll(areasInHydroSeriesFiles);
+                boolean isHydroAllocationTrajectoryHasAreas = containsAllIgnoreCase(areasInHydroAllocationEntities, areasInHydroSeriesFiles);
                 if (isHydroAllocationTrajectoryHasAreas) {
                     List<String> areasInHydroParametersEntities = getAreasInHydroParametersAreas(tpTrajectory.getId());
-                    boolean isHydroParametersTrajectoryHasAreas = areasInHydroParametersEntities.containsAll(areasInHydroSeriesFiles);
+                    boolean isHydroParametersTrajectoryHasAreas = containsAllIgnoreCase(areasInHydroParametersEntities, areasInHydroSeriesFiles);
                     if (!isHydroParametersTrajectoryHasAreas) {
                         String label = HydroTypeHelper.getFileLabel("hydroParameters", isPsp);
                         throw BusinessException.builder()
@@ -63,7 +63,7 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
         TrajectoryEntity seriesTrajectory = trajectoryRepository.findLatestByStudyIdAndAreaAndType(studyId, areaParam, targetSeriesType);
         if (seriesTrajectory != null) {
             List<String> areasModInHydroSeriesTrajectory = getAreasInHydroSeriesModFiles(seriesTrajectory.getId());
-            boolean isHydroSeriesTrajectoryHasTPAreas = areasTPFiles.containsAll(areasModInHydroSeriesTrajectory);
+            boolean isHydroSeriesTrajectoryHasTPAreas = containsAllIgnoreCase(areasTPFiles, areasModInHydroSeriesTrajectory);
 
             if (!isHydroSeriesTrajectoryHasTPAreas) {
                 String childLabel = Objects.equals(childTrajectoryType, TrajectoryType.HYDRO_ALLOCATION.name()) ? "hydroAllocation" : "hydroParameters";
@@ -81,9 +81,14 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
         List<HydroSeriesEntity> hydroSeriesEntities = hydroSeriesRepository.findHydroSeriesEntitiesByTrajectoryId(trajectoryId);
         return hydroSeriesEntities.stream()
                 .map(HydroSeriesEntity::getTsName)
-                .filter(file -> file.startsWith(HYDRO_SERIES_INFLOWS_MOD))
-                .map(s -> s.split("_")[1])
+                .filter(file -> file.toLowerCase(Locale.ROOT).startsWith(HYDRO_SERIES_INFLOWS_MOD))
+                .map(s -> s.split("_")[1].toUpperCase(Locale.ROOT))
                 .toList();
+    }
+
+    private boolean containsAllIgnoreCase(List<String> container, List<String> elements) {
+        return elements.stream()
+                .allMatch(e -> container.stream().anyMatch(c -> c.equalsIgnoreCase(e)));
     }
 
     public List<String> getAreasInHydroAllocationAreas(Integer trajectoryId) {
