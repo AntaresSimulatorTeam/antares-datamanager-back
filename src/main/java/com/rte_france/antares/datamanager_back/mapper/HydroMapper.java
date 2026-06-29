@@ -10,26 +10,26 @@ import lombok.NoArgsConstructor;
 public class HydroMapper {
 
     public static HydroGenerationDTO mapToHydroGenerationDTO(HydroParametersEntity entity) {
-        if (entity == null) {
-            return null;
+        HydroPropertiesGenerationDTO properties = null;
+        if (entity != null) {
+            properties = HydroPropertiesGenerationDTO.builder()
+                    .followLoadModulation(entity.getFollowLoad())
+                    .interDailyBreakdown(entity.getInterDailyBreakdown())
+                    .interDailyModulation(entity.getInterDailyModulation())
+                    .interMonthlyBreakdown(entity.getInterMonthlyBreakdown())
+                    .reservoirManagement(entity.getReservoir())
+                    .reservoirCapacity(entity.getReservoirCapacity() != null ? entity.getReservoirCapacity().intValue() : null)
+                    .pumpingEfficiency(entity.getPumpingEfficiency())
+                    .initializeReservoirDate(entity.getInitializeReservoirDate())
+                    .useWater(entity.getUseWater())
+                    .build();
         }
-
-        HydroPropertiesGenerationDTO properties = HydroPropertiesGenerationDTO.builder()
-                .followLoadModulation(entity.getFollowLoad())
-                .interDailyBreakdown(entity.getInterDailyBreakdown())
-                .interDailyModulation(entity.getInterDailyModulation())
-                .interMonthlyBreakdown(entity.getInterMonthlyBreakdown())
-                .reservoirManagement(entity.getReservoir())
-                .reservoirCapacity(entity.getReservoirCapacity() != null ? entity.getReservoirCapacity().intValue() : null)
-                .pumpingEfficiency(entity.getPumpingEfficiency())
-                .initializeReservoirDate(entity.getInitializeReservoirDate())
-                .useWater(entity.getUseWater())
-                .build();
-        
         return  HydroGenerationDTO.builder()
                 .properties(properties)
                 .allocation(null)
                 .series(null)
-                .build();       
+                .build();
+        
+              
     }
 }

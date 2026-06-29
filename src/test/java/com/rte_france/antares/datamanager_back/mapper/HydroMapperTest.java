@@ -14,7 +14,8 @@ class HydroMapperTest {
     void mapToHydroGenerationDTO_shouldReturnNullWhenEntityIsNull() {
         HydroGenerationDTO result = HydroMapper.mapToHydroGenerationDTO(null);
 
-        assertThat(result).isNull();
+        assertThat(result).isNotNull();
+        assertThat(result.getProperties()).isNull();
     }
 
     @Test
