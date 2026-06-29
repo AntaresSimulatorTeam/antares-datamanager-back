@@ -661,7 +661,7 @@ class HydroFileProcessorServiceImplTest {
     }
 
     @Test
-    void processHydroTechnicalParametersFile_throwsWithPspLabelWhenSelectedAreaMissingFromAllocation() throws Exception {
+    void processHydroTechnicalParametersFile_throwsWithPspLabelWhenSelectedAreaMissingFromParameters() throws Exception {
         Path base = tempDir.resolve("hydro_tech_psp_area_mismatch");
         Path traj = base.resolve(TRAJ);
         Files.createDirectories(traj);
@@ -688,7 +688,7 @@ class HydroFileProcessorServiceImplTest {
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         String formattedMessage = java.text.MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray());
         assertTrue(formattedMessage.contains("Selected area"));
-        assertTrue(formattedMessage.contains("PSP_Virtual hydroAllocation TechnicalParameters"));
+        assertTrue(formattedMessage.contains("PSP_Virtual hydroParameters TechnicalParameters"));
         verify(trajectoryRepository, never()).save(any());
     }
 

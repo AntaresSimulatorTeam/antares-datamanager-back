@@ -554,10 +554,12 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
             HydroTechnicalParametersRowProcessingResult result = processRows(sheet, context, ctx);
 
-            try {
-                validateAreas(ctx.studyAreas(), ctx.areaParam(), result.fileAreas(), ctx.trajectoryToUse(), ctx.trajectoryType());
-            } catch (BusinessException e) {
-                throw applyPspLabel(e, label, isPsp);
+            if (ctx.trajectoryType() != TrajectoryType.HYDRO_ALLOCATION) {
+                try {
+                    validateAreas(ctx.studyAreas(), ctx.areaParam(), result.fileAreas(), ctx.trajectoryToUse(), ctx.trajectoryType());
+                } catch (BusinessException e) {
+                    throw applyPspLabel(e, label, isPsp);
+                }
             }
 
             return result;
