@@ -994,7 +994,7 @@ public class Utils {
     }
 
     public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
+        if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && fileAreas.stream().noneMatch(fa -> fa.equalsIgnoreCase(areaParam))) {
             throwTrajectoryValidationException(
                     trajectoryType.name(),
                     "Selected area {0} is not present in the 'node' column of {1} trajectory {2}",
@@ -1007,8 +1007,11 @@ public class Utils {
     }
 
     public static void validateSelectedOthersAreaPresence(List<String> areasToCompare, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        List<String> missingAreas = new ArrayList<>(areasToCompare);
-        missingAreas.removeAll(fileAreas);
+        Set<String> fileAreasLookup = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        fileAreasLookup.addAll(fileAreas);
+        List<String> missingAreas = areasToCompare.stream()
+                .filter(a -> !fileAreasLookup.contains(a))
+                .toList();
 
         if (!missingAreas.isEmpty()) {
             throwTrajectoryValidationException(
