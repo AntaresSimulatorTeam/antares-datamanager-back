@@ -116,3 +116,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V54-drop-hvdc-column-in-links-add-to-scenario.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V55-alter-hydro-parameters-decimal-columns.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V56-create_table_adqp.sql
