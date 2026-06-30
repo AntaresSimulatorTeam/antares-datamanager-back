@@ -108,8 +108,10 @@ public class Utils {
     }
 
     public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) throws IOException {
-        String areaPattern = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : area.toLowerCase();
-        Pattern pattern = Pattern.compile("load_(" + Pattern.quote(areaPattern) + ")_(\\d{4}-\\d{4})\\.txt");
+        String areaRegex = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : Pattern.quote(area.toLowerCase());
+
+        Pattern pattern = Pattern.compile("load_(" + areaRegex + ")_(\\d{4}-\\d{4})\\.txt");
+
         List<String> loadsFileNames = new ArrayList<>();
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.txt")) {
