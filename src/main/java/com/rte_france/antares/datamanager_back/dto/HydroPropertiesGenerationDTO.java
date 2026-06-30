@@ -36,7 +36,7 @@ public class HydroPropertiesGenerationDTO {
     private BigDecimal pumpingEfficiency;
 
     @JsonProperty("initialize_reservoir_date")
-    private BigDecimal initializeReservoirDate;
+    private Integer initializeReservoirDate;
 
     @JsonProperty("use_water")
     private Boolean useWater;
