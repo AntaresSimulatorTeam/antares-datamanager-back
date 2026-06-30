@@ -386,7 +386,7 @@ class HydroGenerationAssemblerServiceImplTest {
                 .reservoir(true)
                 .reservoirCapacity(new BigDecimal(5000))
                 .pumpingEfficiency(new BigDecimal("90"))
-                .initializeReservoirDate(new BigDecimal("7"))
+                .initializeReservoirDate(7)
                 .useWater(false)
                 .build();
 
@@ -409,7 +409,7 @@ class HydroGenerationAssemblerServiceImplTest {
         assertEquals(Boolean.TRUE, dto.getProperties().getReservoirManagement());
         assertEquals(new BigDecimal("5000"), dto.getProperties().getReservoirCapacity());
         assertEquals(new BigDecimal("90"), dto.getProperties().getPumpingEfficiency());
-        assertEquals(new BigDecimal("7"), dto.getProperties().getInitializeReservoirDate());
+        assertEquals(7, dto.getProperties().getInitializeReservoirDate());
         assertEquals(Boolean.FALSE, dto.getProperties().getUseWater());
     }
 

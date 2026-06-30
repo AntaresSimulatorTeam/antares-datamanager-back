@@ -37,7 +37,7 @@ public class HydroParametersEntity {
     private BigDecimal interMonthlyBreakdown;
 
     @Column(name = "initialize_reservoir_date")
-    private BigDecimal initializeReservoirDate;
+    private Integer initializeReservoirDate;
 
     @Column(name = "pumping_efficiency")
     private BigDecimal pumpingEfficiency;

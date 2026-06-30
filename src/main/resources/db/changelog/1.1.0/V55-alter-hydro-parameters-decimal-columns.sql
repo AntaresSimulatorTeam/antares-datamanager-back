@@ -4,5 +4,4 @@
 ALTER TABLE hydro_parameters ALTER COLUMN inter_daily_breakdown     TYPE NUMERIC;
 ALTER TABLE hydro_parameters ALTER COLUMN inter_daily_modulation    TYPE NUMERIC;
 ALTER TABLE hydro_parameters ALTER COLUMN inter_monthly_breakdown   TYPE NUMERIC;
-ALTER TABLE hydro_parameters ALTER COLUMN initialize_reservoir_date TYPE NUMERIC;
 ALTER TABLE hydro_parameters ALTER COLUMN pumping_efficiency        TYPE NUMERIC;

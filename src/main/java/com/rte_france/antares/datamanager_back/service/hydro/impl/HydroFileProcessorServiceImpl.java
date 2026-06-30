@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -74,8 +75,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     protected static final String USE_WATER_COLUMN = "use.water";
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_COLUMNS = {
             NODE_COLUMN, INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN,PUMPING_EFFICIENCY_COLUMN, RESERVOIR_COLUMN, RESERVOIR_CAPACITY_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
+    protected static final String[] REQUIRED_HYDRO_PARAMETERS_INTEGER_COLUMNS = {INITIALIZE_RESERVOIR_DATE_COLUMN};
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS = {
-            INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN, PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
+            INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
     protected static final String[] REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS = {RESERVOIR_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
 
     public record TechnicalParametersProcessingContext(
@@ -683,11 +685,12 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         if (!shouldProcessArea(context, area)) return;
 
-        Object[] numericValues = new Object[] { interDailyBreakdown, interDailyModulation, interMonthlyBreakdown, initializeReservoirDate, pumpingEfficiency, reservoirCapacity };
+        Object[] numericValues = new Object[] { interDailyBreakdown, interDailyModulation, interMonthlyBreakdown, pumpingEfficiency, reservoirCapacity };
         Object[] booleanValues = new Object[] { reservoir, followLoad, useWater };
 
         validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS, true, isPsp, numericValues);
         validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS, false, isPsp, booleanValues);
+        validateIntegerColumns(context, REQUIRED_HYDRO_PARAMETERS_INTEGER_COLUMNS, isPsp, initializeReservoirDate);
 
         BigDecimal reservoirCapacityValue = parseDecimal(reservoirCapacity);
 
@@ -696,7 +699,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                 .interDailyBreakdown(parseDecimal(interDailyBreakdown))
                 .interDailyModulation(parseDecimal(interDailyModulation))
                 .interMonthlyBreakdown(parseDecimal(interMonthlyBreakdown))
-                .initializeReservoirDate(parseDecimal(initializeReservoirDate))
+                .initializeReservoirDate(Integer.valueOf(initializeReservoirDate))
                 .pumpingEfficiency(parseDecimal(pumpingEfficiency))
                 .reservoir(reservoir)
                 .reservoirCapacity(reservoirCapacityValue)
@@ -744,18 +747,24 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             boolean isPsp,
             Object... values
     ) {
+        Predicate<String> validator = isNumeric ? HydroFileProcessorServiceImpl::isDecimal : this::isBooleanStringValue;
+        String columnsLabel = getColumnsLabel(context.getTrajectoryType(), isNumeric);
+        String valuesLabel = isNumeric ? "filled and of numeric type" : "boolean values";
+        validateColumns(context, requiredColumns, columnsLabel, validator, valuesLabel, isPsp, values);
+    }
+
+    private void validateIntegerColumns(ResRowProcessingContext context, String[] requiredColumns, boolean isPsp, Object... values) {
+        String columnsLabel = String.join(", ", requiredColumns);
+        validateColumns(context, requiredColumns, columnsLabel, HydroFileProcessorServiceImpl::isInteger, "an integer", isPsp, values);
+    }
+
+    private void validateColumns(ResRowProcessingContext context, String[] requiredColumns, String columnsLabel, Predicate<String> validator, String valuesLabel, boolean isPsp, Object... values) {
         List<String> missing = new ArrayList<>();
-
         for (int i = 0; i < requiredColumns.length; i++) {
-            if (isValueInvalid(values, i, isNumeric)) {
-                missing.add(requiredColumns[i]);
-            }
+            if (isValueInvalid(values, i, validator)) missing.add(requiredColumns[i]);
         }
-
         if (!missing.isEmpty()) {
-            String columnsLabel = getColumnsLabel(context.getTrajectoryType(), isNumeric);
             String typeLabel = getTypeLabel(context.getTrajectoryType(), isPsp);
-            String valuesLabel = isNumeric ? "filled and of numeric type" : "boolean values";
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(columnsLabel, typeLabel, context.getTrajectoryToUse(), valuesLabel))
                     .message("{0} in the {1} trajectory {2} must be {3}")
@@ -764,12 +773,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         }
     }
 
-    private boolean isValueInvalid(Object[] values, int i, boolean isNumeric) {
-        if (i >= values.length || values[i] == null) {
-            return true;
-        }
+    private boolean isValueInvalid(Object[] values, int i, Predicate<String> validator) {
+        if (i >= values.length || values[i] == null) return true;
         return switch (values[i]) {
-            case String s -> isNumeric ? !isDecimal(s) : !isBooleanStringValue(s);
+            case String s -> !validator.test(s);
             default -> false;
         };
     }
@@ -792,7 +799,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         if (trajectoryType == TrajectoryType.HYDRO_ALLOCATION) {
             return "Allocation column";
         }
-        return isNumeric ? "Column(s) 2 to 6 and 8" : "Column(s) 7, 9 and 10";
+        return isNumeric ? "Column(s) 2 to 4, 6 and 8" : "Column(s) 7, 9 and 10";
     }
 
     private String getTypeLabel(TrajectoryType trajectoryType, boolean isPsp) {
