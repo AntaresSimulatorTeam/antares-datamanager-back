@@ -1013,7 +1013,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private boolean isRelevantNuclearDirectory(Path path) {
         return !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_EPR_FOLDER) && !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_SMR_FOLDER);
-    } 
+    }
 
     public boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
         return Files.isDirectory(path) &&
@@ -1028,7 +1028,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.HYDRO_PSP_SERIES
                         || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
-                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path));
+                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM)
+                        || trajectoryType == TrajectoryType.ADEQUACY_PATCH;
     }
 
     /**

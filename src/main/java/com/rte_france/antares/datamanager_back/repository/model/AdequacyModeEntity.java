@@ -3,7 +3,7 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 @Entity
 @Table(name = "adequacy_patch_mode")
-public class AdqpModeEntity {
+public class AdequacyModeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "adqp_mode_seq_gen")
