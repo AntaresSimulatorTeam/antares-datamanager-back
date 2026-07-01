@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "adequacy_patch_settings")
-public class AdqpSettingsEntity {
+public class AdequacySettingsEntity {
 
 
     @Id

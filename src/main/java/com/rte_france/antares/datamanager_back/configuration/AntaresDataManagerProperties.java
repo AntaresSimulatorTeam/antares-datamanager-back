@@ -117,4 +117,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.nuclear.smr.directory}")
     public String nuclearSmrDirectory;
+
+    @Value("${antares.datamanager.adequacy.directory}")
+    public String adequacyDirectory;
 }
