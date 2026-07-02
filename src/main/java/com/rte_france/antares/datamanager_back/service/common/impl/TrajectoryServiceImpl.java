@@ -1012,7 +1012,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private boolean isRelevantNuclearDirectory(Path path) {
-        return !path.getFileName().toString().toLowerCase().startsWith(NUCLEAR_EPR_FOLDER) && !path.getFileName().toString().toLowerCase().startsWith(NUCLEAR_SMR_FOLDER);
+        return !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_EPR_FOLDER) && !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_SMR_FOLDER);
     } 
 
     public boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
