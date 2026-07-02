@@ -1672,6 +1672,14 @@ class TrajectoryServiceImplTest {
         Files.createDirectory(dir2);
         Files.createFile(dir2.resolve(".placeholder"));
 
+        Path dir3 = nuclearDir.resolve("EPR");
+        Files.createDirectory(dir3);
+        Files.createFile(dir3.resolve(".epr_placeholder"));
+
+        Path dir4 = nuclearDir.resolve("SMR");
+        Files.createDirectory(dir4);
+        Files.createFile(dir4.resolve(".smr_placeholder"));
+
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn(nuclearDir.toString());
 
         // When
