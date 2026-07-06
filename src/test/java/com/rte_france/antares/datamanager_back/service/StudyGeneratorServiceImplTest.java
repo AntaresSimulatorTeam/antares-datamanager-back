@@ -17,6 +17,8 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -122,6 +124,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private HydroGenerationAssemblerService hydroGenerationAssemblerService;
+
+    @Mock
+    private NuclearBindingConstraintAssemblerService nuclearBindingConstraintAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -745,6 +750,70 @@ class StudyGeneratorServiceImplTest {
 
         assertTrue(exception.getMessage().contains("bad payload"));
         assertFalse(exception.getMessage().contains("{\"detail\""));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeYNucModulationArea_whenNuclearModulationTrajectoryPresent() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var nuclearModTraj = TrajectoryEntity.builder().type("NUCLEAR_FR_MODULATION").fileName("default_nuc").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, nuclearModTraj)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
+        var peakRef = ThermalClusterRef.builder().name("Nuclear_peak1").build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto,
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", peakRef), dto
+        ));
+        when(nuclearBindingConstraintAssemblerService.assembleBindingConstraints(any(), any()))
+                .thenReturn(new NuclearBindingConstraintGenerationDTO("scenarised200", 200,
+                        List.of("fr_nuclear_cp0"), List.of("fr_nuclear_peak1"),
+                        List.of("y_nuc_modulation_nuclear_cp0"), List.of()));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("nuclear_binding_constraints");
+
+        Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        assertThat(areas).containsKey("y_nuc_modulation");
+
+        Map<String, Object> yNucArea = mapper.convertValue(areas.get("y_nuc_modulation"), new TypeReference<>() {});
+        assertThat(yNucArea).containsKeys("nuclear", "misc");
+        assertThat(yNucArea).doesNotContainKeys("thermals", "loads", "hydro", "res", "sts", "dsr");
+
+        Map<String, Object> misc = mapper.convertValue(yNucArea.get("misc"), new TypeReference<>() {});
+        assertThat(misc).containsEntry("psp", -999999);
+
+        Map<String, Object> nuclear = mapper.convertValue(yNucArea.get("nuclear"), new TypeReference<>() {});
+        Map<String, Object> clusters = mapper.convertValue(nuclear.get("clusters"), new TypeReference<>() {});
+        assertThat(clusters).containsKey("y_nuc_modulation_nuclear_cp0");
+        assertThat(clusters).doesNotContainKey("y_nuc_modulation_nuclear_peak1");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldNotIncludeYNucModulationArea_whenNoNuclearModulationTrajectory() throws Exception {
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+
+        assertThat(studyMap).doesNotContainKey("nuclear_binding_constraints");
+        assertThat(areas).doesNotContainKey("y_nuc_modulation");
     }
 
     @Test
