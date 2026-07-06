@@ -11,12 +11,14 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +60,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final MiscGenerationAssemblerService miscPropertiesAssemblerService;
     private final ResGenerationAssemblerService resGenerationAssemblerService;
     private final HydroGenerationAssemblerService hydroGenerationAssemblerService;
+    private final NuclearBindingConstraintAssemblerService nuclearBindingConstraintAssemblerService;
 
     private static final String PROPERTIES = "properties";
 
@@ -101,18 +104,22 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             Map<String, Object> areasMap = new TreeMap<>();
             Map<String, Object> linksMap = new TreeMap<>();
+            Optional<TrajectoryEntity> nuclearModulationTraj = Optional.empty();
 
             if (trajectories == null || trajectories.isEmpty()) {
                 throw BusinessException.builder()
                         .message("No trajectories found for study id=" + studyId + "; cannot build areas/links")
                         .build();
-            } else {
-                for (TrajectoryEntity trajectory : trajectories) {
+            }
+
+            // Get thermal cluster generation DTOs for all trajectories in the study
+            var thermalClusterProps = thermalPropertiesAssemblerService.assembleForTrajectories(study);
+            for (TrajectoryEntity trajectory : trajectories) {
                     var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
                     log.info("Processing trajectory fileName={} type={} area={}", trajectory.getFileName(), trajectory.getType(), trajectory.getArea());
 
                     switch (trajectoryType) {
-                        case AREA -> buildAreasDataMap(study, trajectory, areasMap);
+                        case AREA -> buildAreasDataMap(study, trajectory, areasMap, thermalClusterProps);
                         case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
                         case LOAD ->
                                 log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
@@ -132,12 +139,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 log.warn("HYDRO trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                         case HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS ->
                                 log.warn("HYDRO PSP trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
+                        case NUCLEAR_FR_MODULATION -> nuclearModulationTraj = Optional.of(trajectory);
+                        case NUCLEAR_FR_TALON, NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
+                                log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                         default -> {
                             log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                             throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
                         }
                     }
-                }
             }
 
             Map<String, Object> innerGeneratorMap = new TreeMap<>();
@@ -148,6 +157,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             innerGeneratorMap.put("nb_years", 1);
             innerGeneratorMap.put("areas", areasMap);
             innerGeneratorMap.put("links", linksMap);
+            nuclearModulationTraj.ifPresent(traj -> {
+                innerGeneratorMap.put("nuclear_binding_constraints",
+                        nuclearBindingConstraintAssemblerService.assembleBindingConstraints(
+                                traj, extractFrNuclearClusterNames(thermalClusterProps)));
+                areasMap.put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps));
+            });
 
             jsonForGenerator.put(study.getName(), innerGeneratorMap);
             log.info("Generation JSON assembled for study {} : {} areas, {} links", study.getName(), areasMap.size(), linksMap.size());
@@ -160,7 +175,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
-    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap) throws BusinessException {
+    private void buildAreasDataMap(StudyEntity studyEntity, TrajectoryEntity trajectory, Map<String, Object> areasMap,
+                                   Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) throws BusinessException {
         log.info("Construction des areas data pour trajectory={} area={}", trajectory.getFileName(), trajectory.getArea());
 
         List<AreaDTO> areaDTOs = trajectory.getAreaConfigEntities().stream()
@@ -170,10 +186,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         // Get LOAD files by area from all study trajectories
         Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Number of zones LOAD found: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
-
-        // Get thermal cluster generation DTOs for all trajectories in the study
-        var areaClusterRefThermalClusterGenerationDtoMap = thermalPropertiesAssemblerService.assembleForTrajectories(studyEntity);
-        log.info("Thermal cluster props found: {}", areaClusterRefThermalClusterGenerationDtoMap != null ? areaClusterRefThermalClusterGenerationDtoMap.size() : 0);
+        
+        log.info("Thermal cluster props found: {}", thermalClusterProps != null ? thermalClusterProps.size() : 0);
 
         var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);
         log.info("STS cluster props {} entries", areaStsClusterGenerationDtoMap != null ? areaStsClusterGenerationDtoMap.size() : 0);
@@ -193,7 +207,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         AreasGenerationContextDTO context = AreasGenerationContextDTO.builder()
                 .arrowLoadFilesByArea(listArrowLoadFilesByArea)
-                .clusterPropsByArea(Optional.ofNullable(areaClusterRefThermalClusterGenerationDtoMap)
+                .clusterPropsByArea(Optional.ofNullable(thermalClusterProps)
                         .orElse(Collections.emptyMap())
                         .entrySet()
                         .stream()
@@ -223,6 +237,34 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         log.info("Areas data with {} entries", areasDataMap.size());
     }
 
+    private List<String> extractFrNuclearClusterNames(Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
+        return thermalClusterProps.keySet().stream()
+                .filter(key -> "fr".equalsIgnoreCase(key.area())
+                        && key.thermalClusterRef().getName().toLowerCase(Locale.ROOT).contains("nuclear"))
+                .map(key -> key.thermalClusterRef().getName())
+                .distinct()
+                .toList();
+    }
+
+    private Map<String, Object> buildYNucModulationAreaMap(Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
+        Map<String, ThermalClusterGenerationDto> nonPeakNuclearClusters = thermalClusterProps.entrySet().stream()
+                .filter(e -> {
+                    String name = e.getKey().thermalClusterRef().getName().toLowerCase(Locale.ROOT);
+                    return "fr".equalsIgnoreCase(e.getKey().area()) && name.contains("nuclear") && !name.contains("peak");
+                })
+                .collect(Collectors.toMap(
+                        e -> "y_nuc_modulation_" + e.getKey().thermalClusterRef().getName().toLowerCase(Locale.ROOT),
+                        Map.Entry::getValue,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        Map<String, Object> areaMap = new LinkedHashMap<>();
+        areaMap.put("nuclear", Map.of("clusters", thermalToJsonService.thermalsMapGenerator(nonPeakNuclearClusters)));
+        areaMap.put("misc", Map.of("psp", -999_999));
+        return areaMap;
+    }
+
     private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, AreasGenerationContextDTO context) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
         // This is a placeholder for the actual AreaUI and AreaProperties classes
@@ -235,7 +277,21 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
         areaMap.put(PROPERTIES, areaProperties);
 
-        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(context.getClusterPropsByArea().get(areaDTO.getName()));
+        Map<String, ThermalClusterGenerationDto> allClusters = context.getClusterPropsByArea().get(areaDTO.getName());
+        Map<String, ThermalClusterGenerationDto> nonNuclearClusters = new LinkedHashMap<>();
+        Map<String, ThermalClusterGenerationDto> nuclearClusters = new LinkedHashMap<>();
+        if (allClusters != null) {
+            allClusters.forEach((key, dto) -> {
+                if (key.toLowerCase(Locale.ROOT).contains("nuclear")) {
+                    nuclearClusters.put(key, dto);
+                } else {
+                    nonNuclearClusters.put(key, dto);
+                }
+            });
+        }
+
+        Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(nonNuclearClusters);
+        Map<String, Object> nuclearClustersMap = thermalToJsonService.thermalsMapGenerator(nuclearClusters);
         Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), context.getStsClusterProps());
         Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), context.getDsrClusterProps());
         Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), context.getMiscProps());
@@ -245,6 +301,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         List<String> arrowLoadFiles = context.getArrowLoadFilesByArea().get(areaDTO.getName());
         areaMap.put("loads", arrowLoadFiles != null && !arrowLoadFiles.isEmpty() ? arrowLoadFiles : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
+        areaMap.put("nuclear", Map.of("clusters", nuclearClustersMap));
         areaMap.put("sts", stsMap);
         areaMap.put("dsr", dsrMap);
         areaMap.put("misc", miscMap);
