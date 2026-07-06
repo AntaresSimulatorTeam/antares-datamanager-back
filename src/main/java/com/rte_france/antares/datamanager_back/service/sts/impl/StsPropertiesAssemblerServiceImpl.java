@@ -53,6 +53,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
                         .map(StStorageEntity::getArea)
                         .filter(Objects::nonNull)
+                        .map(String::toUpperCase)
                 )
                 .collect(Collectors.toSet());
 
@@ -97,8 +98,9 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         sts -> {
                             StsGenerationDTO dto = StStorageMapper.mapToStsGenerationDTO(sts);
                             dto.setStsTsList(this.createMatrixStsTsFiles(sts, horizon, matrixCache, bytesCache));
+                            String clusterKey = sts.getArea().toUpperCase(Locale.ROOT) + "_" + sts.getName();
                             dto.setStsConstraintsSeriesList(
-                                    constraintsByArea.getOrDefault(sts.getArea(), List.of()));
+                                    constraintsByArea.getOrDefault(clusterKey, List.of()));
                             dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
                             return dto;
                         },
@@ -112,8 +114,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Set<String> allAreas,
             String horizon
     ) {
-        Map<String, LinkedHashSet<String>> uniqueByArea = new ConcurrentHashMap<>();
-        allAreas.forEach(area -> uniqueByArea.put(area, new LinkedHashSet<>()));
+        Map<String, Map<String, LinkedHashSet<String>>> uniqueByAreaAndCluster = new ConcurrentHashMap<>();
+        allAreas.forEach(area -> uniqueByAreaAndCluster.put(area, new ConcurrentHashMap<>()));
         Map<ConstraintSeriesKey, String> savedSeriesByKey = new ConcurrentHashMap<>();
 
         // Group contexts by file path to read each xlsx only once
@@ -144,11 +146,12 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
 
             for (StorageConstraintsContext ctx : value) {
-                writeConstraintsForContext(ctx, file, allAreas, columnsIndexByArea, outputDir, uniqueByArea, savedSeriesByKey);
+                writeConstraintsForContext(ctx, file, allAreas, columnsIndexByArea, outputDir, uniqueByAreaAndCluster, savedSeriesByKey);
             }
         });
 
-        return uniqueByArea.entrySet().stream()
+        return uniqueByAreaAndCluster.values().stream()
+                .flatMap(m -> m.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> new ArrayList<>(entry.getValue())));
     }
 
@@ -158,7 +161,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Set<String> allAreas,
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea,
             String outputDir,
-            Map<String, LinkedHashSet<String>> result,
+            Map<String, Map<String, LinkedHashSet<String>>> result,
             Map<ConstraintSeriesKey, String> savedSeriesByKey
     ) {
         Set<String> targetAreas = resolveTargetAreas(ctx.area(), allAreas);
@@ -185,7 +188,10 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         }
                     });
 
-                    result.computeIfAbsent(area, ignored -> new LinkedHashSet<>()).add(savedFile);
+                    String clusterKey = area + "_" + ctx.storage().getName();
+                    result.computeIfAbsent(area, ignored -> new ConcurrentHashMap<>())
+                            .computeIfAbsent(clusterKey, ignored -> new LinkedHashSet<>())
+                            .add(savedFile);
                 }
             }
         }
@@ -195,7 +201,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     }
 
     private Set<String> resolveTargetAreas(String contextArea, Set<String> allAreas) {
-        return "OTHERS".equalsIgnoreCase(contextArea) ? allAreas : Set.of(contextArea);
+        String upperContextArea = contextArea != null ? contextArea.toUpperCase(Locale.ROOT) : "";
+        return "OTHERS".equals(upperContextArea) ? allAreas : Set.of(upperContextArea);
     }
 
     private Set<String> toLowerCaseSet(Set<String> values) {
@@ -222,7 +229,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             String clusterName = column.name() != null ? column.name().trim() : "";
             if (!clusterName.isEmpty()) {
                 String lower = clusterName.toLowerCase(Locale.ROOT);
-                findAreaBySuffix(lower, suffixToArea).ifPresent(area -> index.get(area).putIfAbsent(
+                findAreaBySuffix(lower, suffixToArea).ifPresent(area -> index.get(area.toUpperCase(Locale.ROOT)).putIfAbsent(
                         lower,
                         new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn(clusterName, column.values())))
                 ));
@@ -361,7 +368,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
                         .filter(s -> s.getConstraintsPath() != null)
                         .map(storage -> {
-                            Path file = basePath.resolve(storage.getConstraintsPath());
+                            Path file = basePath.resolve(storage.getConstraintsPath()).normalize();
                             Set<String> params = Optional.ofNullable(storage.getParameters())
                                     .orElse(List.of())
                                     .stream()
