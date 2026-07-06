@@ -175,8 +175,8 @@ class HydroCoherenceCheckServiceImplTest {
                 service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertTrue(ex.getMessage().contains("hydroAllocation"));
-        assertTrue(ex.getMessage().contains(TRAJ_NAME));
+        assertTrue(ex.getErrorMessageArguments().contains("hydroAllocation"));
+        assertTrue(ex.getErrorMessageArguments().contains(TRAJ_NAME));
     }
 
     @Test
@@ -194,8 +194,8 @@ class HydroCoherenceCheckServiceImplTest {
                 service.checkHydroSeriesTrajectoriesConsistency(STUDY_ID, List.of("FR"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_SERIES.name()));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertTrue(ex.getMessage().contains("hydroParameters"));
-        assertTrue(ex.getMessage().contains(TRAJ_NAME));
+        assertTrue(ex.getErrorMessageArguments().contains("hydroParameters"));
+        assertTrue(ex.getErrorMessageArguments().contains(TRAJ_NAME));
     }
 
     @Test
@@ -254,7 +254,7 @@ class HydroCoherenceCheckServiceImplTest {
                         STUDY_ID, List.of("BE"), AREA, TRAJ_NAME, TrajectoryType.HYDRO_ALLOCATION.name(), TrajectoryType.HYDRO_SERIES.name()));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
-        assertTrue(ex.getMessage().contains(TRAJ_NAME));
+        assertTrue(ex.getErrorMessageArguments().contains(TRAJ_NAME));
     }
 
     @Test
