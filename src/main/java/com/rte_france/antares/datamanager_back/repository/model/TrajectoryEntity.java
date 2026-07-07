@@ -135,6 +135,12 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<NuclearModulationParameterEntity> nuclearModulationParameterEntities;
 
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<AdequacyModeEntity> adequacyModeEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity> adequacySettingsEntities;
+
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",
             joinColumns = @JoinColumn(name = "trajectory_id"),

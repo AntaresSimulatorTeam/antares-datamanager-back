@@ -423,8 +423,30 @@ public class Utils {
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
+
+            case ADEQUACY_PATCH -> computeAdequacyPatchChecksum(path.toString());
             default -> computeSheetChecksum(path.toString(), horizon);
         };
+    }
+
+    private static String computeAdequacyPatchChecksum(String filePath) throws IOException {
+        try (InputStream in = Files.newInputStream(Path.of(filePath));
+             Workbook wb = WorkbookFactory.create(in)) {
+
+            StringBuilder sb = new StringBuilder();
+
+            Sheet settingsSheet = wb.getSheet("settings");
+            if (settingsSheet != null) {
+                sb.append(hashWholeSheet(settingsSheet));
+            }
+
+            Sheet perimetreSheet = wb.getSheet("perimetre");
+            if (perimetreSheet != null) {
+                sb.append(hashWholeSheet(perimetreSheet));
+            }
+
+            return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
+        }
     }
 
     private static String canonicalRow(Row row) {
