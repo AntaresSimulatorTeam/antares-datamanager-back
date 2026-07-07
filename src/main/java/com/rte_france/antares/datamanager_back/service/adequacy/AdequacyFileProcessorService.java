@@ -8,4 +8,5 @@ import java.nio.file.Path;
 public interface AdequacyFileProcessorService {
 
     TrajectoryEntity processAdequacyFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear) throws IOException;
+
 }

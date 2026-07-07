@@ -3,7 +3,7 @@
 CREATE TABLE adequacy_patch_mode
 (
     id                INTEGER,
-    area              VARCHAR(20),
+    area              VARCHAR(100) NOT NULL,
     mode              VARCHAR(40),
     trajectory_id     INTEGER,
     PRIMARY KEY (id)
