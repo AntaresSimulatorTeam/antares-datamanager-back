@@ -46,7 +46,7 @@ import javax.xml.parsers.ParserConfigurationException;
  * Utility class for reading time series data from text or Excel and producing a matrix
  */
 public final class TimeSeriesReader {
-  private static final int ROW_COUNT = 8760;
+  private static final int MAX_ROWS_PER_YEAR = 8784;
   private static final String COLUMN_PREFIX = "Column";
 
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
@@ -95,7 +95,7 @@ public final class TimeSeriesReader {
       }
 
       var columnCount = headerValues.length;
-      var actualRows = Math.min(ROW_COUNT, hasHeader ? allLines.size() - 1 : allLines.size());
+      var actualRows = Math.min(MAX_ROWS_PER_YEAR, hasHeader ? allLines.size() - 1 : allLines.size());
       var data = new double[columnCount][actualRows];
 
       fillDataList(iterator, data, separator);
@@ -322,7 +322,7 @@ public final class TimeSeriesReader {
         } else {
           for (int i = 0; i < colCount; i++) headerNames.add(COLUMN_PREFIX + i);
         }
-        for (int i = 0; i < headerNames.size(); i++) columnData.add(new ArrayList<>(ROW_COUNT));
+        for (int i = 0; i < headerNames.size(); i++) columnData.add(new ArrayList<>(MAX_ROWS_PER_YEAR));
         headerProcessed = true;
         if (!hasHeader) {
           addCurrentRowToData();
@@ -331,7 +331,7 @@ public final class TimeSeriesReader {
         return;
       }
 
-      if (dataRowIndex >= ROW_COUNT) return;
+      if (dataRowIndex >= MAX_ROWS_PER_YEAR) return;
       addCurrentRowToData();
       dataRowIndex++;
     }
@@ -397,7 +397,7 @@ public final class TimeSeriesReader {
         return;
       }
 
-      if (dataRowIndex >= ROW_COUNT) {
+      if (dataRowIndex >= MAX_ROWS_PER_YEAR) {
         return;
       }
 
@@ -432,7 +432,7 @@ public final class TimeSeriesReader {
         }
         if (requiredLower.contains(header.toLowerCase(Locale.ROOT))) {
           selectedHeaders.put(entry.getKey(), header);
-          dataByColumnIndex.put(entry.getKey(), new ArrayList<>(ROW_COUNT));
+          dataByColumnIndex.put(entry.getKey(), new ArrayList<>(MAX_ROWS_PER_YEAR));
         }
       }
     }
