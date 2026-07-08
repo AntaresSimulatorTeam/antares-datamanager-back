@@ -21,12 +21,8 @@ public class AdequacySettingsEntity {
     @Column(name = "include_adq_patch")
     private Boolean includeAdqPatch;
 
-    @Column(name = "set_to_null_ntc_from_physical_out_to_physical_in_for_first_step")
-    private Boolean setToNullNtcFromPhysicalOutToPhysicalInForFirstStep;
-
     @Column(name = "price_taking_order")
-    @Enumerated(EnumType.STRING)
-    private PriceTakingOrderEnum priceTakingOrder;
+    private String priceTakingOrder;
 
     @Column(name = "include_hurdle_cost_csr")
     private Boolean includeHurdleCostCsr;
@@ -46,11 +42,18 @@ public class AdequacySettingsEntity {
     @Column(name = "enable_first_step")
     private Boolean enableFirstStep;
 
-    @Column(name = "set_to_null_ntc_between_physical_out_for_first_step")
-    private Boolean setToNullNtcBetweenPhysicalOutForFirstStep;
+
 
     @Column(name = "redispatch")
     private Boolean redispatch;
+
+
+    @Column(name = "ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")
+    private Boolean ntcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch;
+
+    @Column(name = "ntc_between_physical_areas_out_adequacy_patch")
+    private Boolean ntcBetweenPhysicalAreasOutAdequacyPatch;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id")

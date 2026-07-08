@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
-import com.rte_france.antares.datamanager_back.repository.model.settings.PriceTakingOrderEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -19,10 +18,7 @@ public class AdequacySettingsToJsonService {
             AdequacySettingsEntity settings = settingsOptional.get();
             Map<String, Object> adqMap = new LinkedHashMap<>();
             addIfNotNull(adqMap, "include_adq_patch", settings.getIncludeAdqPatch());
-            addIfNotNull(adqMap, "set_to_null_ntc_from_physical_out_to_physical_in_for_first_step", settings.getSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep());
-            if (settings.getPriceTakingOrder() != null) {
-                adqMap.put("price_taking_order", settings.getPriceTakingOrder() == PriceTakingOrderEnum.DENS ? 0 : 1);
-            }
+            addIfNotNull(adqMap, "price_taking_order", settings.getPriceTakingOrder());
             addIfNotNull(adqMap, "include_hurdle_cost_csr", settings.getIncludeHurdleCostCsr());
             addIfNotNull(adqMap, "check_csr_cost_function", settings.getCheckCsrCostFunction());
             if (settings.getThresholdInitiateCurtailmentSharingRule() != null) {
@@ -35,8 +31,9 @@ public class AdequacySettingsToJsonService {
                 adqMap.put("threshold_csr_variable_bounds_relaxation", settings.getThresholdCsrVariableBoundsRelaxation().doubleValue());
             }
             addIfNotNull(adqMap, "enable_first_step", settings.getEnableFirstStep());
-            addIfNotNull(adqMap, "set_to_null_ntc_between_physical_out_for_first_step", settings.getSetToNullNtcBetweenPhysicalOutForFirstStep());
             addIfNotNull(adqMap, "redispatch", settings.getRedispatch());
+            addIfNotNull(adqMap, "ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch", settings.getNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch());
+            addIfNotNull(adqMap, "ntc_between_physical_areas_out_adequacy_patch", settings.getNtcBetweenPhysicalAreasOutAdequacyPatch());
 
             settingsMap.put("adequacy", adqMap);
         } else {
