@@ -271,7 +271,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         List<String> saved = new ArrayList<>();
         for (StsTsFile stsTsFile : StsTsFile.requiredFiles()) {
             Path inputPath = stsTsFile.resolve(tsDir);
-            TimeSeriesMatrix matrix = getRequiredSeriesMatrix(inputPath, horizon, matrixCache);
+            TimeSeriesMatrix matrix = getRequiredSeriesMatrix(inputPath, horizon, matrixCache, stsEntity.getGroupe());
             saved.add(saveSeriesMatrix(inputPath, matrix, outputDir, bytesCache));
         }
 
@@ -281,7 +281,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     private TimeSeriesMatrix getRequiredSeriesMatrix(
             Path inputPath,
             String horizon,
-            ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache
+            ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache,
+            String technology
     ) {
         if (!Files.exists(inputPath)) {
             throw BusinessException.builder()
@@ -293,7 +294,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
         return matrixCache.computeIfAbsent(inputPath, path -> {
             try {
-                return nasFileService.readMatrix(path, horizon);
+                return nasFileService.readMatrix(path, horizon, technology, TrajectoryType.STS.name());
             } catch (BusinessException e) {
                 String seriesPath = extractSeriesDisplayPath(path);
                 throw BusinessException.builder()

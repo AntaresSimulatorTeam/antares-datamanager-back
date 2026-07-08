@@ -168,7 +168,7 @@ class NasFileServiceTest {
     Files.writeString(txtFile, "col\n1.0\n2.0\n");
     when(timeSeriesReader.readFromTxt(eq(txtFile), anyBoolean())).thenReturn(timeSeriesMatrix);
 
-    TimeSeriesMatrix result = nasFileService.readMatrix(txtFile, null);
+    TimeSeriesMatrix result = nasFileService.readMatrix(txtFile, null, null, null);
 
     assertNotNull(result);
     assertEquals(timeSeriesMatrix, result);
@@ -181,7 +181,7 @@ class NasFileServiceTest {
     Files.writeString(xlsxFile, "dummy");
     when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenReturn(timeSeriesMatrix);
 
-    TimeSeriesMatrix result = nasFileService.readMatrix(xlsxFile, "2030");
+    TimeSeriesMatrix result = nasFileService.readMatrix(xlsxFile, "2030", null, null);
 
     assertNotNull(result);
     assertEquals(timeSeriesMatrix, result);
@@ -193,12 +193,12 @@ class NasFileServiceTest {
     Path unsupportedFile = tempDir.resolve("series.json");
     Files.writeString(unsupportedFile, "{}");
 
-    assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(unsupportedFile, null));
+    assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(unsupportedFile, null, null, null));
   }
 
   @Test
   void readMatrix_nullInputPath_throwsNullPointerException() {
-    assertThrows(NullPointerException.class, () -> nasFileService.readMatrix(null, null));
+    assertThrows(NullPointerException.class, () -> nasFileService.readMatrix(null, null, null, null));
   }
 
   @Test
@@ -290,7 +290,7 @@ class NasFileServiceTest {
 
     BusinessException ex = assertThrows(
             BusinessException.class,
-            () -> nasFileService.readMatrix(input, "2030")
+            () -> nasFileService.readMatrix(input, "2030", null, null)
     );
 
     assertSame(businessEx, ex);
@@ -313,8 +313,8 @@ class NasFileServiceTest {
     Files.writeString(txtFile, "col\n1\n");
     when(timeSeriesReader.readFromTxt(eq(txtFile), anyBoolean())).thenThrow(new IllegalStateException("reader failed"));
 
-    TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null));
-    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null, "battery", "STS"));
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from STS battery file"));
   }
 
   // ── saveFile ──────────────────────────────────────────────────────────────
@@ -395,7 +395,7 @@ class NasFileServiceTest {
     Files.writeString(csvFile, "col\n1.0\n");
     when(timeSeriesReader.readFromTxt(eq(csvFile), anyBoolean())).thenReturn(timeSeriesMatrix);
 
-    TimeSeriesMatrix result = nasFileService.readMatrix(csvFile, null);
+    TimeSeriesMatrix result = nasFileService.readMatrix(csvFile, null, null, null);
 
     assertEquals(timeSeriesMatrix, result);
     verify(timeSeriesReader).readFromTxt(csvFile, true);
@@ -408,9 +408,9 @@ class NasFileServiceTest {
     when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
 
     TechnicalException ex = assertThrows(TechnicalException.class,
-            () -> nasFileService.readMatrix(xlsxFile, "2030"));
+            () -> nasFileService.readMatrix(xlsxFile, "2030", "technology", "STS"));
 
-    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from STS technology file"));
     assertTrue(ex.getMessage().contains("data.xlsx"));
     assertTrue(ex.getMessage().contains("horizon: 2030"));
   }

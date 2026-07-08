@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.common.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.AntaresException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
@@ -154,8 +155,8 @@ public class NasFileService {
      * @param sheetName Optional sheet name / horizon (for Excel files)
      * @return The parsed TimeSeriesMatrix
      */
-    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName) {
-        return readMatrix(inputPath, sheetName, true);
+    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, String technology, String trajectoryType) {
+        return readMatrix(inputPath, sheetName, true, technology, trajectoryType);
     }
 
     /**
@@ -166,7 +167,7 @@ public class NasFileService {
      * @param hasHeader True if the file has a header row (for text/csv files)
      * @return The parsed TimeSeriesMatrix
      */
-    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, boolean hasHeader) {
+    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, boolean hasHeader, String technology, String trajectoryType) {
         Objects.requireNonNull(inputPath, "inputPath must not be null");
         var name = inputPath.getFileName().toString().toLowerCase();
         try {
@@ -183,7 +184,7 @@ public class NasFileService {
             String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
                     ? ", horizon: " + sheetName : "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
+                    .message("Failed to read time series matrix from "+ trajectoryType +" "+ technology +" file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
         }
