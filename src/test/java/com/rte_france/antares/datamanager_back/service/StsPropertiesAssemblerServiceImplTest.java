@@ -281,7 +281,7 @@ class StsPropertiesAssemblerServiceImplTest {
         for (StsTsFile file : StsTsFile.values()) {
             Files.createFile(file.resolve(tempDir));
         }
-        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenReturn(mock(TimeSeriesMatrix.class));
         when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.csv");
 
         // when
@@ -332,7 +332,7 @@ class StsPropertiesAssemblerServiceImplTest {
             Files.createFile(file.resolve(tempDir));
         }
 
-        when(nasFileService.readMatrix(any(Path.class), any()))
+        when(nasFileService.readMatrix(any(Path.class), any(), any(), any()))
                 .thenThrow(new RuntimeException("NAS error"));
 
         // when / then
@@ -362,7 +362,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
 
-        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenThrow(originalEx);
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenThrow(originalEx);
 
         // when / then
         assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon))
@@ -627,7 +627,7 @@ class StsPropertiesAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
-        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenReturn(mock(TimeSeriesMatrix.class));
         when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.arrow");
 
         StStorageEntity first = StStorageEntity.builder()
@@ -656,7 +656,7 @@ class StsPropertiesAssemblerServiceImplTest {
         Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
 
         assertEquals(2, result.size());
-        verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon));
+        verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon), any(), any());
     }
 
     @Test
