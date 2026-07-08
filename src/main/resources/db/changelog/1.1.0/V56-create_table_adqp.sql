@@ -31,7 +31,6 @@ CREATE TABLE adequacy_patch_settings
     threshold_initiate_curtailment_sharing_rule NUMERIC,
     threshold_display_local_matching_rule_violations NUMERIC,
     threshold_csr_variable_bounds_relaxation NUMERIC,
-    threshold_csr_variable_bounds_relaxation_for_first_step NUMERIC,
     enable_first_step BOOLEAN,
     set_to_null_ntc_between_physical_out_for_first_step BOOLEAN,
     redispatch BOOLEAN,
