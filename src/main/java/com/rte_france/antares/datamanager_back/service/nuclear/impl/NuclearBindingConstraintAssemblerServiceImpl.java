@@ -12,16 +12,10 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingCon
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -146,17 +140,8 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
         }
     }
 
-    /* TODO: this opens the file a second time. we could pass the column number the first time but it would need
-        NasFileService refactors
-     */
     private int countTsColumns(String trajectoryName) throws IOException {
-        Path weeklyPath = buildTsFilePath(trajectoryName, TS_WEEKLY);
-        try (InputStream is = Files.newInputStream(weeklyPath);
-             Workbook wb = WorkbookFactory.create(is)) {
-            Sheet sheet = wb.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
-            return headerRow != null ? headerRow.getLastCellNum() : 0;
-        }
+        return nasFileService.countXlsxColumns(buildTsFilePath(trajectoryName, TS_WEEKLY));
     }
 
     private List<NuclearConstraintItemDTO> buildConstraints(Map<String, BigDecimal> coeffs, TsArrowFiles arrowFiles) {
