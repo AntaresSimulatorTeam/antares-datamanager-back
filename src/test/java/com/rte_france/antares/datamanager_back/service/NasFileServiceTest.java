@@ -316,7 +316,7 @@ class NasFileServiceTest {
     Files.writeString(txtFile, "col\n1\n");
     when(timeSeriesReader.readFromTxt(eq(txtFile), anyBoolean())).thenThrow(new IllegalStateException("reader failed"));
 
-    TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null, "battery", "STS"));
+    TechnicalException ex = assertThrows(TechnicalException.class, () -> nasFileService.readMatrix(txtFile, null, "STS", "battery"));
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from STS battery file"));
   }
 
