@@ -43,9 +43,6 @@ public class AdequacySettingsEntity {
     @Column(name = "threshold_csr_variable_bounds_relaxation")
     private Integer thresholdCsrVariableBoundsRelaxation;
 
-    @Column(name = "threshold_csr_variable_bounds_relaxation_for_first_step")
-    private Integer thresholdCsrVariableBoundsRelaxationForFirstStep;
-
     @Column(name = "enable_first_step")
     private Boolean enableFirstStep;
 

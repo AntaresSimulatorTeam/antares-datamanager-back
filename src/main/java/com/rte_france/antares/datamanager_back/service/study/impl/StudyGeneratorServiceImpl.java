@@ -9,6 +9,9 @@ import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
+
+import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
@@ -38,6 +41,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final NasFileService nasFileService;
 
+    private final AdequacySettingsToJsonService adequacySettingsToJsonService;
     private final LoadToJsonService loadToJsonService;
     private final LinksToJsonService linksToJsonService;
     private final StsToJsonService stsToJsonService;
@@ -52,6 +56,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
+    private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
     private final DsrGenerationAssemblerService dsrPropertiesAssemblerService;
@@ -67,19 +72,16 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
         String sid = studyId != null ? String.valueOf(studyId) : "null";
         MDC.put("studyId", sid);
-        log.info("Début de la génération du JSON pour l'étude id={}", studyId);
         Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGeneration(studyId);
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             String generatorJson = objectMapper.writeValueAsString(jsonStudyDataForGeneration);
             String studyJsonDir = antaresDataManagerProperties.getStudyJsonOutputDirectory();
-            log.info("Sauvegarde du JSON de génération pour l'étude {} dans {}", studyId, studyJsonDir);
             nasFileService.saveFile(studyId + ".json", generatorJson.getBytes(), studyJsonDir);
-            log.info("JSON pour l'étude {} sauvegardé avec succès", studyId);
         } catch (IOException e) {
-            log.error("Erreur lors de la génération/sauvegarde du JSON pour l'étude {} : {}", studyId, e.getMessage());
+            log.error("Error when generating study {} : {}", studyId, e.getMessage());
             throw TechnicalException.builder()
-                    .message("Erreur lors de la génération du fichier JSON : " + e)
+                    .message("Error when generating JSON file : " + e)
                     .cause(e)
                     .build();
         } finally {
@@ -114,6 +116,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     switch (trajectoryType) {
                         case AREA -> buildAreasDataMap(study, trajectory, areasMap);
                         case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
+                        case ADEQUACY_PATCH -> {
+                        }
                         case LOAD ->
                                 log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                         case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
@@ -142,7 +146,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             Map<String, Object> innerGeneratorMap = new TreeMap<>();
             innerGeneratorMap.put("version", "9.3");
-            innerGeneratorMap.put("settings", "will be refactored so we'll put nothing for the moment");
+
+            Optional<AdequacySettingsEntity> settings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
+            Map<String, Object> adequacySettingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(settings);
+            innerGeneratorMap.put("settings", Objects.requireNonNullElse(adequacySettingsMap, "settings work on going"));
+
             // TODO: get input for random generation flag and number of years, maybe also move them somewhere else
             innerGeneratorMap.put("enable_random_ts", true);
             innerGeneratorMap.put("nb_years", 1);
@@ -190,6 +198,26 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
         log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
 
+        // Adequacy mode configuration
+        Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(studyEntity);
+
+        // Validate that all areas in the study have an adequacy configuration
+        TrajectoryEntity adequacyTrajectory = studyEntity.getTrajectories().stream()
+                .filter(t -> TrajectoryType.ADEQUACY_PATCH.name().equals(t.getType()))
+                .findFirst()
+                .orElse(null);
+
+        if (adequacyTrajectory != null) {
+            for (AreaDTO areaDTO : areaDTOs) {
+                if (!adequacyModeByArea.containsKey(areaDTO.getName())) {
+                    throw BusinessException.builder()
+                            .message("Area: {0} is not present in the list of areas for adequacy configuration , trajectory : {1}")
+                            .errorMessageArguments(List.of(areaDTO.getName(), adequacyTrajectory.getFileName()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+        }
 
         AreasGenerationContextDTO context = AreasGenerationContextDTO.builder()
                 .arrowLoadFilesByArea(listArrowLoadFilesByArea)
@@ -211,6 +239,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .miscProps(areaMiscGenerationDtoMap)
                 .resProps(areaResGenerationMap)
                 .hydroProps(areaHydroGenerationMap)
+                .adequacyModeByArea(adequacyModeByArea)
                 .build();
 
         Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
@@ -233,6 +262,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> areaProperties = new HashMap<>();
         areaProperties.put("energy_cost_unsupplied", areaDTO.getUnsuppliedEnergyCost());
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
+        areaProperties.put("adequacy_patch_mode", context.getAdequacyModeByArea().get(areaDTO.getName()));
         areaMap.put(PROPERTIES, areaProperties);
 
         Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(context.getClusterPropsByArea().get(areaDTO.getName()));
@@ -257,7 +287,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     @ExecutionTime
     public void callGenerateStudyService(Integer studyId) {
-        log.info("Appel du service de génération pour l'étude id={}", studyId);
+        log.info("Calling generation service for study id={}", studyId);
         String url = antaresDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
 
         try {
