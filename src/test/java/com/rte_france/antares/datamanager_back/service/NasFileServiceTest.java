@@ -402,7 +402,7 @@ class NasFileServiceTest {
   }
 
   @Test
-  void readMatrix_xlsxFailure_includesHorizonInfoInMessage() throws Exception {
+  void readMatrix_xlsxFailure_includesHorizonInfoAndTypeAndTechnologyInMessage() throws Exception {
     Path xlsxFile = tempDir.resolve("data.xlsx");
     Files.writeString(xlsxFile, "dummy");
     when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
@@ -411,6 +411,34 @@ class NasFileServiceTest {
             () -> nasFileService.readMatrix(xlsxFile, "2030", "technology", "STS"));
 
     assertTrue(ex.getMessage().contains("Failed to read time series matrix from STS technology file"));
+    assertTrue(ex.getMessage().contains("data.xlsx"));
+    assertTrue(ex.getMessage().contains("horizon: 2030"));
+  }
+
+  @Test
+  void readMatrix_xlsxFailure_includesOnlyHorizonInfoWhenNoTypeInMessage() throws Exception {
+    Path xlsxFile = tempDir.resolve("data.xlsx");
+    Files.writeString(xlsxFile, "dummy");
+    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
+
+    TechnicalException ex = assertThrows(TechnicalException.class,
+            () -> nasFileService.readMatrix(xlsxFile, "2030", "technology", null));
+
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains("data.xlsx"));
+    assertTrue(ex.getMessage().contains("horizon: 2030"));
+  }
+
+  @Test
+  void readMatrix_xlsxFailure_includesOnlyHorizonInfoWhenNoTechnologyInMessage() throws Exception {
+    Path xlsxFile = tempDir.resolve("data.xlsx");
+    Files.writeString(xlsxFile, "dummy");
+    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
+
+    TechnicalException ex = assertThrows(TechnicalException.class,
+            () -> nasFileService.readMatrix(xlsxFile, "2030", null, "STS"));
+
+    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
     assertTrue(ex.getMessage().contains("data.xlsx"));
     assertTrue(ex.getMessage().contains("horizon: 2030"));
   }

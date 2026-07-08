@@ -185,9 +185,9 @@ public class NasFileService {
                     ? ", horizon: " + sheetName : "";
             String trajectoryTypeInfo = trajectoryType != null && !trajectoryType.isBlank() ? trajectoryType : "";
             String technologyInfo = technology != null && !technology.isBlank() ? technology : "";
-            String extraInfo = trajectoryType != null && !trajectoryType.isBlank() && technology != null && !technology.isBlank() ? trajectoryTypeInfo + " " + technologyInfo : "";
+            String extraInfo = trajectoryType != null && !trajectoryType.isBlank() && technology != null && !technology.isBlank() ? trajectoryTypeInfo + " " + technologyInfo + " ": "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from "+ extraInfo +" file: " + inputPath.getFileName() + horizonInfo)
+                    .message("Failed to read time series matrix from "+ extraInfo +"file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
         }
