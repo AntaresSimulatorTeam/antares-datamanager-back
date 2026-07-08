@@ -24,7 +24,6 @@ CREATE TABLE adequacy_patch_settings
 (
     id                INTEGER,
     include_adq_patch BOOLEAN,
-    set_to_null_ntc_from_physical_out_to_physical_in_for_first_step BOOLEAN,
     price_taking_order VARCHAR(20),
     include_hurdle_cost_csr BOOLEAN,
     check_csr_cost_function BOOLEAN,
@@ -32,8 +31,9 @@ CREATE TABLE adequacy_patch_settings
     threshold_display_local_matching_rule_violations NUMERIC,
     threshold_csr_variable_bounds_relaxation NUMERIC,
     enable_first_step BOOLEAN,
-    set_to_null_ntc_between_physical_out_for_first_step BOOLEAN,
     redispatch BOOLEAN,
+    ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch BOOLEAN,
+    ntc_between_physical_areas_out_adequacy_patch BOOLEAN,
     trajectory_id     INTEGER,
     PRIMARY KEY (id)
 

@@ -11,7 +11,6 @@ import com.rte_france.antares.datamanager_back.repository.model.AdequacyModeEnti
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
-import com.rte_france.antares.datamanager_back.repository.model.settings.PriceTakingOrderEnum;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -45,19 +44,19 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
 
     static {
         settingsSetters.put("include_adq_patch", (e, v) -> e.setIncludeAdqPatch((Boolean) v));
-        settingsSetters.put("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step",
-                (e, v) -> e.setSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep((Boolean) v));
         settingsSetters.put("price_taking_order",
-                (e, v) -> e.setPriceTakingOrder(PriceTakingOrderEnum.valueOf(v.toString())));
+                (e, v) -> e.setPriceTakingOrder(v.toString()));
         settingsSetters.put("include_hurdle_cost_csr", (e, v) -> e.setIncludeHurdleCostCsr((Boolean) v));
         settingsSetters.put("check_csr_cost_function", (e, v) -> e.setCheckCsrCostFunction((Boolean) v));
         settingsSetters.put("threshold_initiate_curtailment_sharing_rule", (e, v) -> e.setThresholdInitiateCurtailmentSharingRule(castToInteger(v)));
         settingsSetters.put("threshold_display_local_matching_rule_violations", (e, v) -> e.setThresholdDisplayLocalMatchingRuleViolations(castToInteger(v)));
         settingsSetters.put("threshold_csr_variable_bounds_relaxation", (e, v) -> e.setThresholdCsrVariableBoundsRelaxation(castToInteger(v)));
         settingsSetters.put("enable_first_step", (e, v) -> e.setEnableFirstStep((Boolean) v));
-        settingsSetters.put("set_to_null_ntc_between_physical_out_for_first_step",
-                (e, v) -> e.setSetToNullNtcBetweenPhysicalOutForFirstStep((Boolean) v));
         settingsSetters.put("redispatch", (e, v) -> e.setRedispatch((Boolean) v));
+        settingsSetters.put("ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch",
+                (e, v) -> e.setNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch((Boolean) v));
+        settingsSetters.put("ntc_between_physical_areas_out_adequacy_patch",
+                (e, v) -> e.setNtcBetweenPhysicalAreasOutAdequacyPatch((Boolean) v));
     }
 
     private static Integer castToInteger(Object v) {
