@@ -10,6 +10,9 @@ import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSerie
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -401,44 +404,26 @@ class NasFileServiceTest {
     verify(timeSeriesReader).readFromTxt(csvFile, true);
   }
 
-  @Test
-  void readMatrix_xlsxFailure_includesHorizonInfoAndTypeAndTechnologyInMessage() throws Exception {
+  @ParameterizedTest
+  @CsvSource({
+          "STS, technology",
+          "STS,",
+          ", technology"
+  })
+  void readMatrix_xlsxFailure_includesHorizonInfoAndTypeAndTechnologyInMessage(String type, String technology) throws Exception {
     Path xlsxFile = tempDir.resolve("data.xlsx");
     Files.writeString(xlsxFile, "dummy");
     when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
 
     TechnicalException ex = assertThrows(TechnicalException.class,
-            () -> nasFileService.readMatrix(xlsxFile, "2030", "technology", "STS"));
+            () -> nasFileService.readMatrix(xlsxFile, "2030", type, technology));
 
-    assertTrue(ex.getMessage().contains("Failed to read time series matrix from STS technology file"));
-    assertTrue(ex.getMessage().contains("data.xlsx"));
-    assertTrue(ex.getMessage().contains("horizon: 2030"));
-  }
+    String expectedPart =
+            "Failed to read time series matrix from "
+                    + (type != null && technology != null ? type + " " + technology + " " : "")
+                    + "file";
 
-  @Test
-  void readMatrix_xlsxFailure_includesOnlyHorizonInfoWhenNoTypeInMessage() throws Exception {
-    Path xlsxFile = tempDir.resolve("data.xlsx");
-    Files.writeString(xlsxFile, "dummy");
-    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
-
-    TechnicalException ex = assertThrows(TechnicalException.class,
-            () -> nasFileService.readMatrix(xlsxFile, "2030", "technology", null));
-
-    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
-    assertTrue(ex.getMessage().contains("data.xlsx"));
-    assertTrue(ex.getMessage().contains("horizon: 2030"));
-  }
-
-  @Test
-  void readMatrix_xlsxFailure_includesOnlyHorizonInfoWhenNoTechnologyInMessage() throws Exception {
-    Path xlsxFile = tempDir.resolve("data.xlsx");
-    Files.writeString(xlsxFile, "dummy");
-    when(timeSeriesReader.readFromXlsx(xlsxFile, "2030", true)).thenThrow(new IOException("corrupt"));
-
-    TechnicalException ex = assertThrows(TechnicalException.class,
-            () -> nasFileService.readMatrix(xlsxFile, "2030", null, "STS"));
-
-    assertTrue(ex.getMessage().contains("Failed to read time series matrix from file"));
+    assertTrue(ex.getMessage().contains(expectedPart));
     assertTrue(ex.getMessage().contains("data.xlsx"));
     assertTrue(ex.getMessage().contains("horizon: 2030"));
   }
