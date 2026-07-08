@@ -183,8 +183,11 @@ public class NasFileService {
         } catch (Exception e) {
             String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
                     ? ", horizon: " + sheetName : "";
+            String trajectoryTypeInfo = trajectoryType != null && !trajectoryType.isBlank() ? trajectoryType : "";
+            String technologyInfo = technology != null && !technology.isBlank() ? technology : "";
+            String extraInfo = trajectoryType != null && !trajectoryType.isBlank() && technology != null && !technology.isBlank() ? trajectoryTypeInfo + " " + technologyInfo : "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from "+ trajectoryType +" "+ technology +" file: " + inputPath.getFileName() + horizonInfo)
+                    .message("Failed to read time series matrix from "+ extraInfo +" file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
         }
