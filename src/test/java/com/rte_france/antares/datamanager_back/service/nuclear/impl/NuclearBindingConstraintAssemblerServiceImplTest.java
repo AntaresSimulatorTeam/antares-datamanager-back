@@ -70,6 +70,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
 
         when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean()))
                 .thenReturn("arrow_hourly.arrow", "arrow_daily.arrow", "arrow_weekly.arrow");
+        when(nasFileService.countXlsxColumns(any(Path.class))).thenReturn(NB_COLUMNS);
     }
 
     @AfterEach
