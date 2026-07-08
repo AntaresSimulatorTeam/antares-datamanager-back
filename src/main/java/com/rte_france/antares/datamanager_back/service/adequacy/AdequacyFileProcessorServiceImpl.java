@@ -54,7 +54,6 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         settingsSetters.put("threshold_initiate_curtailment_sharing_rule", (e, v) -> e.setThresholdInitiateCurtailmentSharingRule(castToInteger(v)));
         settingsSetters.put("threshold_display_local_matching_rule_violations", (e, v) -> e.setThresholdDisplayLocalMatchingRuleViolations(castToInteger(v)));
         settingsSetters.put("threshold_csr_variable_bounds_relaxation", (e, v) -> e.setThresholdCsrVariableBoundsRelaxation(castToInteger(v)));
-        settingsSetters.put("threshold_csr_variable_bounds_relaxation_for_first_step", (e, v) -> e.setThresholdCsrVariableBoundsRelaxationForFirstStep(castToInteger(v)));
         settingsSetters.put("enable_first_step", (e, v) -> e.setEnableFirstStep((Boolean) v));
         settingsSetters.put("set_to_null_ntc_between_physical_out_for_first_step",
                 (e, v) -> e.setSetToNullNtcBetweenPhysicalOutForFirstStep((Boolean) v));
