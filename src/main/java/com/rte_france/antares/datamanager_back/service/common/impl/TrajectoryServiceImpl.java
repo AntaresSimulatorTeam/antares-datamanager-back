@@ -1116,6 +1116,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();
             case NUCLEAR_FR_TS_LONG_TERM -> antaresDataManagerProperties.getNuclearLtDirectory();
             case NUCLEAR_FR_TS_SMR -> antaresDataManagerProperties.getNuclearSmrDirectory();
+            case ADEQUACY_PATCH -> antaresDataManagerProperties.getAdequacyDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
