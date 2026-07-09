@@ -27,13 +27,11 @@ CREATE TABLE adequacy_patch_settings
     price_taking_order VARCHAR(20),
     include_hurdle_cost_csr BOOLEAN,
     check_csr_cost_function BOOLEAN,
-    threshold_initiate_curtailment_sharing_rule NUMERIC,
-    threshold_display_local_matching_rule_violations NUMERIC,
-    threshold_csr_variable_bounds_relaxation NUMERIC,
-    enable_first_step BOOLEAN,
+    threshold_initiate_curtailment_sharing_rule INTEGER,
+    threshold_display_local_matching_rule_violations INTEGER,
+    threshold_csr_variable_bounds_relaxation INTEGER,
     redispatch BOOLEAN,
-    ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch BOOLEAN,
-    ntc_between_physical_areas_out_adequacy_patch BOOLEAN,
+    set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch BOOLEAN,
     trajectory_id     INTEGER,
     PRIMARY KEY (id)
 
