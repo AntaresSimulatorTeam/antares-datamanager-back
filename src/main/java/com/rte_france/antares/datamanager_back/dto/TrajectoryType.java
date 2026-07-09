@@ -31,5 +31,6 @@ public enum TrajectoryType {
     NUCLEAR_FR_TS_LONG_TERM,
     NUCLEAR_FR_TS_SMR,
     ADEQUACY_PATCH,
+    FLOWBASED,
     UNKNOWN
 }
