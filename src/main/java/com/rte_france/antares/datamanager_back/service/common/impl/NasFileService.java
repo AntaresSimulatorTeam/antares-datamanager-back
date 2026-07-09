@@ -154,8 +154,8 @@ public class NasFileService {
      * @param sheetName Optional sheet name / horizon (for Excel files)
      * @return The parsed TimeSeriesMatrix
      */
-    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName) {
-        return readMatrix(inputPath, sheetName, true);
+    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, String trajectoryType, String technology) {
+        return readMatrix(inputPath, sheetName, true, trajectoryType, technology);
     }
 
     /**
@@ -166,7 +166,7 @@ public class NasFileService {
      * @param hasHeader True if the file has a header row (for text/csv files)
      * @return The parsed TimeSeriesMatrix
      */
-    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, boolean hasHeader) {
+    public TimeSeriesMatrix readMatrix(Path inputPath, String sheetName, boolean hasHeader, String trajectoryType, String technology) {
         Objects.requireNonNull(inputPath, "inputPath must not be null");
         var name = inputPath.getFileName().toString().toLowerCase();
         try {
@@ -182,8 +182,11 @@ public class NasFileService {
         } catch (Exception e) {
             String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
                     ? ", horizon: " + sheetName : "";
+            String trajectoryTypeInfo = trajectoryType != null && !trajectoryType.isBlank() ? trajectoryType : "";
+            String technologyInfo = technology != null && !technology.isBlank() ? technology : "";
+            String extraInfo = trajectoryType != null && !trajectoryType.isBlank() && technology != null && !technology.isBlank() ? trajectoryTypeInfo + " " + technologyInfo + " ": "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from file: " + inputPath.getFileName() + horizonInfo)
+                    .message("Failed to read time series matrix from "+ extraInfo +"file: " + inputPath.getFileName() + horizonInfo)
                     .cause(e)
                     .build();
         }

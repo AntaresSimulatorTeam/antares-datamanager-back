@@ -26,8 +26,8 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
     private final HydroSeriesRepository hydroSeriesRepository;
 
     protected static final String HYDRO_SERIES_INFLOWS_MOD = "mod";
-    private static final String TRAJECTORY_LABEL = " trajectory ";
-    
+    private static final String MISSING_AREAS_MESSAGE = "Missing areas in {0} file in {1} trajectory {2}";
+
     @Override
     public void checkHydroSeriesTrajectoriesConsistency(Integer studyId, List<String> areasInHydroSeriesFiles, String areaParam, String trajectoryToUse, String seriesTrajectoryType) {
         String targetTpType = getAssociatedTechnicalType(seriesTrajectoryType);
@@ -40,16 +40,16 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
                     List<String> areasInHydroParametersEntities = getAreasInHydroParametersAreas(tpTrajectory.getId());
                     boolean isHydroParametersTrajectoryHasAreas = containsAllIgnoreCase(areasInHydroParametersEntities, areasInHydroSeriesFiles);
                     if (!isHydroParametersTrajectoryHasAreas) {
-                        String label = HydroTypeHelper.getFileLabel("hydroParameters", isPsp);
                         throw BusinessException.builder()
-                                .message("Missing areas " + label + " in " + HydroTypeHelper.getTechnicalParametersLabel(isPsp) + TRAJECTORY_LABEL + trajectoryToUse)
+                                .errorMessageArguments(List.of("hydroParameters", HydroTypeHelper.getTechnicalParametersLabel(isPsp), trajectoryToUse))
+                                .message(MISSING_AREAS_MESSAGE)
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build();
                     }
                 } else {
-                    String label = HydroTypeHelper.getFileLabel("hydroAllocation", isPsp);
                     throw BusinessException.builder()
-                            .message("Missing areas " + label + " in " + HydroTypeHelper.getTechnicalParametersLabel(isPsp) + TRAJECTORY_LABEL + trajectoryToUse)
+                            .errorMessageArguments(List.of("hydroAllocation", HydroTypeHelper.getTechnicalParametersLabel(isPsp), trajectoryToUse))
+                            .message(MISSING_AREAS_MESSAGE)
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
@@ -67,10 +67,9 @@ public class HydroCoherenceCheckServiceImpl implements HydroCoherenceCheckServic
 
             if (!isHydroSeriesTrajectoryHasTPAreas) {
                 String childLabel = Objects.equals(childTrajectoryType, TrajectoryType.HYDRO_ALLOCATION.name()) ? "hydroAllocation" : "hydroParameters";
-                String label = HydroTypeHelper.getFileLabel(childLabel, isPsp);
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(label))
-                        .message("Missing areas {0} in " + HydroTypeHelper.getTechnicalParametersLabel(isPsp) + TRAJECTORY_LABEL + trajectoryToUse)
+                        .errorMessageArguments(List.of(childLabel, HydroTypeHelper.getTechnicalParametersLabel(isPsp), trajectoryToUse))
+                        .message(MISSING_AREAS_MESSAGE)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

@@ -281,7 +281,7 @@ class StsPropertiesAssemblerServiceImplTest {
         for (StsTsFile file : StsTsFile.values()) {
             Files.createFile(file.resolve(tempDir));
         }
-        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenReturn(mock(TimeSeriesMatrix.class));
         when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.csv");
 
         // when
@@ -332,7 +332,7 @@ class StsPropertiesAssemblerServiceImplTest {
             Files.createFile(file.resolve(tempDir));
         }
 
-        when(nasFileService.readMatrix(any(Path.class), any()))
+        when(nasFileService.readMatrix(any(Path.class), any(), any(), any()))
                 .thenThrow(new RuntimeException("NAS error"));
 
         // when / then
@@ -362,7 +362,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
 
-        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenThrow(originalEx);
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenThrow(originalEx);
 
         // when / then
         assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, horizon))
@@ -627,7 +627,7 @@ class StsPropertiesAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
-        when(nasFileService.readMatrix(any(Path.class), eq(horizon))).thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenReturn(mock(TimeSeriesMatrix.class));
         when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.arrow");
 
         StStorageEntity first = StStorageEntity.builder()
@@ -656,7 +656,7 @@ class StsPropertiesAssemblerServiceImplTest {
         Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
 
         assertEquals(2, result.size());
-        verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon));
+        verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon), any(), any());
     }
 
     @Test
@@ -935,5 +935,80 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(List.of("night_min_v2g_FR.csv.uuid.arrow"), result.get("FR_ve_lourds").getStsConstraintsSeriesList());
         assertEquals(List.of("night_min_v2g_FR.csv.uuid.arrow"), result.get("FR_v1g").getStsConstraintsSeriesList());
         verify(nasFileService, times(1)).saveMatrixBytesToNas(any(), eq("night_min_v2g_FR.csv"), eq("/output"));
+    }
+
+    @Test
+    void assembleStsProperties_ShouldAssignDifferentConstraintsToDifferentClustersInSameArea() throws Exception {
+        Path stsDir = tempDir.resolve("trajectories").resolve("sts");
+        Files.createDirectories(stsDir);
+        Path constraintsFile = stsDir.resolve("Multiple-constraints.xlsx");
+        Files.createFile(constraintsFile);
+
+        StConstraintsParameterEntity paramFr1 = StConstraintsParameterEntity.builder()
+                .name("daily_min_fr_1_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StConstraintsParameterEntity paramFr2 = StConstraintsParameterEntity.builder()
+                .name("daily_min_fr_2_fr")
+                .zone("FR")
+                .variable("injection")
+                .operator(">")
+                .enabled(true)
+                .build();
+
+        StStorageEntity storage1 = StStorageEntity.builder()
+                .id(201)
+                .area("FR")
+                .name("cluster_1")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Multiple-constraints.xlsx")
+                .parameters(List.of(paramFr1))
+                .build();
+
+        StStorageEntity storage2 = StStorageEntity.builder()
+                .id(202)
+                .area("FR")
+                .name("cluster_2")
+                .injection(BigDecimal.ONE)
+                .constraintsFlag(true)
+                .constraintsPath("Multiple-constraints.xlsx")
+                .parameters(List.of(paramFr2))
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS.name())
+                .area("FR")
+                .stStorageEntities(List.of(storage1, storage2))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("daily_min_fr_1_FR", new double[]{10.0}),
+                new TimeSeriesMatrixColumn("daily_min_fr_2_FR", new double[]{20.0})
+        ));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(eq(constraintsFile), eq("2029-2030"), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("daily_min_fr_1_FR.csv"), eq("/output")))
+                .thenReturn("file1.arrow");
+        when(nasFileService.saveMatrixBytesToNas(any(), eq("daily_min_fr_2_FR.csv"), eq("/output")))
+                .thenReturn("file2.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsProperties(study);
+
+        assertEquals(2, result.size());
+        assertThat(result.get("FR_cluster_1").getStsConstraintsSeriesList()).containsExactly("file1.arrow");
+        assertThat(result.get("FR_cluster_2").getStsConstraintsSeriesList()).containsExactly("file2.arrow");
     }
 }

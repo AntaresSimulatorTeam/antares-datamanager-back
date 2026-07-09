@@ -439,7 +439,7 @@ class NuclearFileProcessorServiceImplTest {
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assertEquals("Nuclear modulation trajectory {0} with the same checksum already exists", exception.getMessage());
+        assertEquals("File already processed with same content: {0}", exception.getMessage());
         assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
     }
 
@@ -768,7 +768,7 @@ class NuclearFileProcessorServiceImplTest {
                 "ts_epr_2030.xlsx", horizon, studyId, area);
 
         assertNotNull(result);
-        assertEquals("ts_epr_2030.xlsx", result.getFileName());
+        assertEquals("2030.xlsx", result.getFileName());
         assertEquals(horizon, result.getHorizon());
         assertEquals(TrajectoryType.NUCLEAR_FR_TS_ERP.name(), result.getType());
         assertEquals(1, result.getVersion());
@@ -816,7 +816,7 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getNuclearEprDirectory()).thenReturn("specific_nuclear/TS_dispo/EPR");
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                "ts_epr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_ERP.name()))
+                "2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_ERP.name()))
                 .thenReturn(Optional.of(existingTrajectory));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -824,7 +824,7 @@ class NuclearFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("with the same checksum already exists"));
+        assertTrue(exception.getMessage().contains("File already processed with same content"));
     }
 
     // ========== Tests for processNuclearTsSmrFile (nuclear-ts-smr) ==========
@@ -854,7 +854,7 @@ class NuclearFileProcessorServiceImplTest {
                 "ts_smr_2030.xlsx", horizon, studyId, area);
 
         assertNotNull(result);
-        assertEquals("ts_smr_2030.xlsx", result.getFileName());
+        assertEquals("2030.xlsx", result.getFileName());
         assertEquals(horizon, result.getHorizon());
         assertEquals(TrajectoryType.NUCLEAR_FR_TS_SMR.name(), result.getType());
         assertEquals(1, result.getVersion());
@@ -902,7 +902,7 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                "ts_smr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
+                "2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
                 .thenReturn(Optional.of(existingTrajectory));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -910,7 +910,7 @@ class NuclearFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("with the same checksum already exists"));
+        assertTrue(exception.getMessage().contains("File already processed with same content"));
     }
 
     @Test
@@ -935,7 +935,7 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                "ts_smr_2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
+                "2030.xlsx", horizon, TrajectoryType.NUCLEAR_FR_TS_SMR.name()))
                 .thenReturn(Optional.of(existingTrajectory));
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> {
@@ -1052,7 +1052,7 @@ class NuclearFileProcessorServiceImplTest {
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getHttpStatus());
-        assertTrue(exception.getMessage().contains("with the same checksum already exists"));
+        assertTrue(exception.getMessage().contains("File already processed with same content"));
     }
 
     @Test

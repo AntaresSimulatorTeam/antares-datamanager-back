@@ -128,6 +128,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String NUCLEAR_TALON_PREFIX = "talon_nuc_";
     private static final String NUCLEAR_EPR_PREFIX = "ts_epr_";
     private static final String NUCLEAR_SMR_PREFIX = "ts_smr_";
+    private static final String NUCLEAR_EPR_FOLDER = "epr";
+    private static final String NUCLEAR_SMR_FOLDER = "smr";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -1009,6 +1011,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return Files.isRegularFile(path) && isValidTrajectoryFile(path, trajectoryType);
     }
 
+    private boolean isRelevantNuclearDirectory(Path path) {
+        return !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_EPR_FOLDER) && !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_SMR_FOLDER);
+    } 
+
     public boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
         return Files.isDirectory(path) &&
                 !isDirectoryEmpty(path) &&
@@ -1022,7 +1028,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.HYDRO_PSP_SERIES
                         || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
-                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM);
+                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path));
     }
 
     /**

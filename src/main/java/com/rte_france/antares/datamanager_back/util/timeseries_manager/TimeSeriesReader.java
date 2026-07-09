@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.xml.parsers.ParserConfigurationException;
 
 /**
@@ -61,7 +62,19 @@ public final class TimeSeriesReader {
   public TimeSeriesMatrix readFromTxt(Path filePath, boolean hasHeader) throws IOException {
     Objects.requireNonNull(filePath);
 
-    try (var lines = Files.lines(filePath)) {
+    Path parent = filePath.getParent();
+    String filename = filePath.getFileName().toString();
+
+    Path actualPath;
+
+    try (Stream<Path> files = Files.list(parent)) {
+      actualPath = files
+              .filter(p -> p.getFileName().toString().equalsIgnoreCase(filename))
+              .findFirst()
+              .orElseThrow(() -> new IOException(filename));
+    }
+
+    try (var lines = Files.lines(actualPath)) {
       var allLines = lines.toList();
       if (allLines.isEmpty()) {
         throw TechnicalException.builder().message("File is empty").build();

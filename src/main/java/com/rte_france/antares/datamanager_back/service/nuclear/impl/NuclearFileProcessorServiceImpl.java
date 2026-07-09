@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.EmptyFileException;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -33,6 +34,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum;
@@ -46,6 +48,9 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String PARAMETERS_FILE_PREFIX = "Parameters_modNuc_";
+    private static final String TALON_FILE_PREFIX = "TALON_NUC_";
+    private static final String TS_EPR_FILE_PREFIX = "TS_EPR_";
+    private static final String TS_SMR_FILE_PREFIX = "TS_SMR_";
     private static final String PARAMETERS_FILE_SUFFIX = ".xlsx";
     private static final Set<String> REQUIRED_MODULATION_TYPES = Set.of(
             "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_weekly"
@@ -124,7 +129,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("Nuclear modulation trajectory {0} with the same checksum already exists")
+                        .message("File already processed with same content: {0}")
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
@@ -172,7 +177,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         String[] modulationTypes = {"daily", "hourly", "weekly"};
         
         for (String modulationType : modulationTypes) {
-            String fileName = trajectoryToUse + "_" + modulationType + ".xlsx";
+            String fileName = trajectoryToUse + "_" + modulationType + PARAMETERS_FILE_SUFFIX;
             Path filePath = tsModulationDir.resolve(fileName);
             
             // Check if file exists
@@ -396,7 +401,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         }
 
         // Build simulation file path: Simu_<horizon>.xlsx
-        String simulationFileName = "Simu_" + horizon + ".xlsx";
+        String simulationFileName = "Simu_" + horizon + PARAMETERS_FILE_SUFFIX;
         Path simulationFilePath = trajectoryFolder.resolve(simulationFileName);
 
         // Check simulation file exists
@@ -425,7 +430,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("Nuclear long-term trajectory {0} with the same checksum already exists")
+                        .message("File already processed with same content: {0}")
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
@@ -502,7 +507,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         
         // If trajectoryToUse doesn't have an extension, add .xlsx
-        String fileName = trajectoryToUse.endsWith(".xlsx") ? trajectoryToUse : trajectoryToUse + ".xlsx";
+        String fileName = trajectoryToUse.endsWith(PARAMETERS_FILE_SUFFIX) ? trajectoryToUse : trajectoryToUse + PARAMETERS_FILE_SUFFIX;
         
         Path filePath = basePath
                 .resolve(directoryPath)
@@ -527,15 +532,15 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
         // Check if trajectory already exists with this checksum
         var existingTrajectory = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                trajectoryToUse,
+                trajectory.getFileName(),
                 horizon,
                 trajectoryType.name());
 
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("Nuclear {0} trajectory {1} with the same checksum already exists")
-                        .errorMessageArguments(List.of(trajectoryType.name(), trajectoryToUse))
+                        .message("File already processed with same content: {0}")
+                        .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
             } else {
@@ -559,12 +564,13 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
      */
     private TrajectoryEntity buildNuclearTsTrajectory(
             String fileName, Path filePath, String horizon, String checksum, String area, TrajectoryType trajectoryType) throws IOException {
-
+        
+        String trajectoryFileName = getFileName(fileName, trajectoryType);
         String createdBy = userService.getCurrentUserDetails() != null ? 
                 userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         return TrajectoryEntity.builder()
-                .fileName(fileName)
+                .fileName(trajectoryFileName)
                 .fileSize(Files.size(filePath))
                 .checksum(checksum)
                 .type(trajectoryType.name())
@@ -577,6 +583,22 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                 .createdBy(createdBy)
                 .hasTimeSeries(true)
                 .build();
+    }
+
+    private String getFileName(String fileName, TrajectoryType type) {
+        String prefix = switch (type) {
+            case NUCLEAR_FR_TS_SMR -> TS_SMR_FILE_PREFIX;
+            case NUCLEAR_FR_TS_ERP -> TS_EPR_FILE_PREFIX;
+            case NUCLEAR_FR_TALON -> TALON_FILE_PREFIX;
+            default -> StringUtils.EMPTY;
+        };
+
+        Pattern pattern = Pattern.compile(
+                "^" + Pattern.quote(prefix),
+                Pattern.CASE_INSENSITIVE
+        );
+
+        return pattern.matcher(fileName).replaceFirst("");
     }
 
     /**

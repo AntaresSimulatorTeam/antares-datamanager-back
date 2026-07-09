@@ -312,10 +312,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         }
 
         if (result.values().stream().anyMatch(Objects::isNull)) {
-            String allocationLabel = isPsp ? "PSP_Virtual hydroAllocation" : "hydroAllocation";
-            String parametersLabel = isPsp ? "PSP_Virtual hydroParameters" : "hydroParameters";
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(allocationLabel, parametersLabel, HydroTypeHelper.getTechnicalParametersLabel(isPsp), trajectoryFilePath.getFileName().toString()))
+                    .errorMessageArguments(List.of("hydroAllocation", "hydroParameters", HydroTypeHelper.getTechnicalParametersLabel(isPsp), trajectoryFilePath.getFileName().toString()))
                     .message("Missing file {0} or {1} in {2} trajectory {3}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
