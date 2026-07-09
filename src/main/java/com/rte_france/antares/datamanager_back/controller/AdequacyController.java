@@ -33,7 +33,7 @@ public class AdequacyController {
 
     @Operation(summary = "import adequacy patch trajectory to database ")
     @PostMapping("/adequacy-patch")
-    public ResponseEntity<TrajectoryDTO> uploadDsrClusterTrajectory(@RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+    public ResponseEntity<TrajectoryDTO> uploadAdequacyTrajectory(@RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
                                                                     @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
                                                                     @RequestParam("studyId") Integer studyId,
                                                                     @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
