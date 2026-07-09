@@ -107,7 +107,10 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
             return trajectoryRepository.save(trajectory);
 
         } catch (IOException e) {
-            throw TechnicalException.builder().message("Could not process adequacy file: " + e.getMessage()).build();
+            throw TechnicalException.builder()
+                    .message("Could not process adequacy file: " + e.getMessage())
+                    .cause(e)
+                    .build();
         }
     }
 
