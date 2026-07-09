@@ -275,7 +275,7 @@ class NuclearFileProcessorServiceImplTest {
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assertEquals("Sheet {0} not found in parameters file", exception.getMessage());
+        assertEquals("Sheet {0} not found in parameters modulation Nuclear file", exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 

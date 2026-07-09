@@ -106,8 +106,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         validateTimeSeriesFiles(trajectoryFolder, trajectoryToUse, horizon);
         
         // Read parameters and extract modulation values
-        List<NuclearModulationParameterEntity> modulationParameters = readNuclearModulationParameters(
-                parametersFilePath, trajectoryToUse, horizonYear);
+        List<NuclearModulationParameterEntity> modulationParameters = readNuclearModulationParameters(parametersFilePath, trajectoryToUse, horizonYear);
 
         // Calculate checksum for the entire directory
         String checksum = calculateDirectoryChecksum(trajectoryFolder);
@@ -204,7 +203,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
             Sheet sheet = workbook.getSheet(trajectoryName);
             if (sheet == null) {
                 throw BusinessException.builder()
-                        .message("Sheet {0} not found in parameters file")
+                        .message("Sheet {0} not found in parameters modulation Nuclear file")
                         .errorMessageArguments(List.of(trajectoryName))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -240,7 +239,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
             if (horizonColumnIndex == -1) {
                 throw BusinessException.builder()
-                        .message("Horizon {0} not found in parameters file")
+                        .message("Horizon {0} not found in parameters modulation Nuclear file")
                         .errorMessageArguments(List.of(horizonYear))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -269,6 +268,15 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                         log.warn("Skipping invalid value for type {}: {}", type, valueObj);
                         continue;
                     }
+                }
+
+                // Validate coefficient value is between 0 and 1
+                if (value < 0 || value > 1) {
+                    throw BusinessException.builder()
+                            .message("Coefficient value must be between 0 and 1 for type {0}, got {1}")
+                            .errorMessageArguments(List.of(type, String.valueOf(value)))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
                 }
 
                 // Only keep the three modulation types
