@@ -17,41 +17,41 @@ public class SettingsOptimizationParametersEntity {
     @SequenceGenerator(name = "settings_optimization_parameters_seq_gen", sequenceName = "settings_optimization_parameters_sequence", allocationSize = 1)
     private Integer id;
 
-    @Column(name = "simplex_range")
-    private String simplexRange;
+    @Column(name = "binding_constraints")
+    private Boolean bindingConstraints;
+
+    @Column(name = "hurdle_costs")
+    private Boolean hurdleCosts;
 
     @Column(name = "transmission_capacities")
     private String transmissionCapacities;
 
-    @Column(name = "include_constraints")
-    private Boolean includeConstraints;
+    @Column(name = "thermal_clusters_min_stable_power")
+    private Boolean thermalClustersMinStablePower;
 
-    @Column(name = "include_hurdlecosts")
-    private Boolean includeHurdlecosts;
+    @Column(name = "thermal_clusters_min_ud_time")
+    private Boolean thermalClustersMinUdTime;
 
-    @Column(name = "include_tc_minstablepower")
-    private Boolean includeTcMinstablepower;
+    @Column(name = "day_ahead_reserve")
+    private Boolean dayAheadReserve;
 
-    @Column(name = "include_tc_min_ud_time")
-    private Boolean includeTcMinUdTime;
+    @Column(name = "primary_reserve")
+    private Boolean primaryReserve;
 
-    @Column(name = "include_dayahead")
-    private Boolean includeDayahead;
+    @Column(name = "strategic_reserve")
+    private Boolean strategicReserve;
 
-    @Column(name = "include_strategicreserve")
-    private Boolean includeStrategicreserve;
+    @Column(name = "spinning_reserve")
+    private Boolean spinningReserve;
 
-    @Column(name = "include_spinningreserve")
-    private Boolean includeSpinningreserve;
+    @Column(name = "export_mps")
+    private String exportMps;
 
-    @Column(name = "include_primaryreserve")
-    private Boolean includePrimaryreserve;
+    @Column(name = "unfeasible_problem_behavior")
+    private String unfeasibleProblemBehavior;
 
-    @Column(name = "include_exportmps")
-    private String includeExportmps;
-
-    @Column(name = "include_unfeasible_problem_behavior")
-    private String includeUnfeasibleProblemBehavior;
+    @Column(name = "simplex_optimization_range")
+    private String simplexOptimizationRange;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id")
