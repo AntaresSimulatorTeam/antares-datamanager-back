@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.repository.model.settings.Adequac
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,10 +34,8 @@ class AdequacySettingsToJsonServiceTest {
                 .thresholdInitiateCurtailmentSharingRule(10)
                 .thresholdDisplayLocalMatchingRuleViolations(20)
                 .thresholdCsrVariableBoundsRelaxation(30)
-                .enableFirstStep(true)
                 .redispatch(true)
-                .ntcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch(true)
-                .ntcBetweenPhysicalAreasOutAdequacyPatch(false)
+                .setToNullNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch(true)
                 .build();
 
         Map<String, Object> result = adequacySettingsToJsonService.buildAdequacySettingsMap(Optional.of(settings));
@@ -53,10 +50,9 @@ class AdequacySettingsToJsonServiceTest {
         assertThat(adequacy.get("threshold_initiate_curtailment_sharing_rule")).isEqualTo(10.0);
         assertThat(adequacy.get("threshold_display_local_matching_rule_violations")).isEqualTo(20.0);
         assertThat(adequacy.get("threshold_csr_variable_bounds_relaxation")).isEqualTo(30.0);
-        assertThat(adequacy.get("enable_first_step")).isEqualTo(true);
         assertThat(adequacy.get("redispatch")).isEqualTo(true);
-        assertThat(adequacy.get("ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")).isEqualTo(true);
-        assertThat(adequacy.get("ntc_between_physical_areas_out_adequacy_patch")).isEqualTo(false);
+        assertThat(adequacy.get("set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")).isEqualTo(true);
+        assertThat(adequacy).doesNotContainKey("ntc_between_physical_areas_out_adequacy_patch");
     }
 
     @Test

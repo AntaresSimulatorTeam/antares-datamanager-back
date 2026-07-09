@@ -39,21 +39,11 @@ public class AdequacySettingsEntity {
     @Column(name = "threshold_csr_variable_bounds_relaxation")
     private Integer thresholdCsrVariableBoundsRelaxation;
 
-    @Column(name = "enable_first_step")
-    private Boolean enableFirstStep;
-
-
-
     @Column(name = "redispatch")
     private Boolean redispatch;
 
-
-    @Column(name = "ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")
-    private Boolean ntcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch;
-
-    @Column(name = "ntc_between_physical_areas_out_adequacy_patch")
-    private Boolean ntcBetweenPhysicalAreasOutAdequacyPatch;
-
+    @Column(name = "set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")
+    private Boolean setToNullNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id")

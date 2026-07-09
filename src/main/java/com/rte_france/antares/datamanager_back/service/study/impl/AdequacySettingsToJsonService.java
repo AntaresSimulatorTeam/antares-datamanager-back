@@ -30,10 +30,8 @@ public class AdequacySettingsToJsonService {
             if (settings.getThresholdCsrVariableBoundsRelaxation() != null) {
                 adqMap.put("threshold_csr_variable_bounds_relaxation", settings.getThresholdCsrVariableBoundsRelaxation().doubleValue());
             }
-            addIfNotNull(adqMap, "enable_first_step", settings.getEnableFirstStep());
             addIfNotNull(adqMap, "redispatch", settings.getRedispatch());
-            addIfNotNull(adqMap, "ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch", settings.getNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch());
-            addIfNotNull(adqMap, "ntc_between_physical_areas_out_adequacy_patch", settings.getNtcBetweenPhysicalAreasOutAdequacyPatch());
+            addIfNotNull(adqMap, "set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch", settings.getSetToNullNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch());
 
             settingsMap.put("adequacy", adqMap);
         } else {
