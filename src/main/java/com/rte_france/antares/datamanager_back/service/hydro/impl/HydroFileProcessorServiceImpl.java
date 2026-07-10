@@ -650,7 +650,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         HydroAllocationEntity entity = HydroAllocationEntity.builder()
                 .hydro(area)
                 .load(load)
-                .allocation(Integer.parseInt(allocation))
+                .allocation(parseDecimal(allocation))
                 .build();
 
         result.addEntity(entity);
