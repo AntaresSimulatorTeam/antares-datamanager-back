@@ -49,13 +49,14 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     public Map<String, List<HydroGenerationDTO>> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
         Map<String, List<String>> generatedFilesArrowNameByArea = createArrowSeriesForHydroSeries(studyEntity);
         Map<String, List<HydroGenerationDTO>> hydroGenerationDTO = new HashMap<>();
-        Set<String> areasWithSpecificHydroProperties = getAreasWithSpecificHydroProperties(studyEntity, TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name());
 
         List<TrajectoryEntity> hydroTechnicalTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(t.getType()) ||
                         TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name().equals(t.getType()))
                 .toList();
+
+        Set<String> areasWithSpecificHydroProperties = getAreasWithSpecificHydroProperties(hydroTechnicalTrajectories);
         
         hydroTechnicalTrajectories.stream()
                         .flatMap(trajectory -> filterHydroParametersEntities(trajectory, areasWithSpecificHydroProperties))
@@ -101,10 +102,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return hydroGenerationDTO;
     }
 
-    private Set<String> getAreasWithSpecificHydroProperties(StudyEntity studyEntity, String type) {
-        return studyEntity.getTrajectories().stream()
-                .filter(Objects::nonNull)
-                .filter(t -> type.equals(t.getType()))
+    private Set<String> getAreasWithSpecificHydroProperties(List<TrajectoryEntity> hydroTechnicalTrajectories) {
+        return hydroTechnicalTrajectories.stream()
                 .filter(t -> t.getArea() != null && !OTHER_AREA.equalsIgnoreCase(t.getArea()))
                 .map(t -> t.getArea().toUpperCase())
                 .collect(Collectors.toSet());
