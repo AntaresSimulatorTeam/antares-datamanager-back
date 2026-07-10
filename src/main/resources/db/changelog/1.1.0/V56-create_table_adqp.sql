@@ -31,7 +31,7 @@ CREATE TABLE adequacy_patch_settings
     threshold_display_local_matching_rule_violations INTEGER,
     threshold_csr_variable_bounds_relaxation INTEGER,
     redispatch BOOLEAN,
-    set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch BOOLEAN,
+    set_to_null_ntc_from_physical_out_to_physical_in_for_first_step BOOLEAN,
     trajectory_id     INTEGER,
     PRIMARY KEY (id)
 

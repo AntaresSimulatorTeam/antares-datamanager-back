@@ -42,8 +42,8 @@ public class AdequacySettingsEntity {
     @Column(name = "redispatch")
     private Boolean redispatch;
 
-    @Column(name = "set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")
-    private Boolean setToNullNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch;
+    @Column(name = "set_to_null_ntc_from_physical_out_to_physical_in_for_first_step")
+    private Boolean setToNullNtcFromPhysicalOutToPhysicalInForFirstStep;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id")
