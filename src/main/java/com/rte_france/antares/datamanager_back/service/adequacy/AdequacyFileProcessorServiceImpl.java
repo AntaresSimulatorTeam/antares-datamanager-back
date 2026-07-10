@@ -52,8 +52,8 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         settingsSetters.put("threshold_display_local_matching_rule_violations", (e, v) -> e.setThresholdDisplayLocalMatchingRuleViolations(castToInteger(v)));
         settingsSetters.put("threshold_csr_variable_bounds_relaxation", (e, v) -> e.setThresholdCsrVariableBoundsRelaxation(castToInteger(v)));
         settingsSetters.put("redispatch", (e, v) -> e.setRedispatch((Boolean) v));
-        settingsSetters.put("set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch",
-                (e, v) -> e.setSetToNullNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch((Boolean) v));
+        settingsSetters.put("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step",
+                (e, v) -> e.setSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep((Boolean) v));
     }
 
     private static Integer castToInteger(Object v) {
