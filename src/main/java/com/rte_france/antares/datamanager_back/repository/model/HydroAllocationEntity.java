@@ -3,6 +3,8 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity(name = "HydroAllocation")
 @Table(name = "hydro_allocation")
 @Getter
@@ -29,5 +31,5 @@ public class HydroAllocationEntity {
     private String load;
 
     @Column(name = "allocation")
-    private Integer allocation;
+    private BigDecimal allocation;
 }

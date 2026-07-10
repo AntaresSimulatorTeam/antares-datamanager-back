@@ -124,12 +124,12 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroAllocationEntity ha1 = HydroAllocationEntity.builder()
                 .hydro("FR")
                 .load("AT")
-                .allocation(1)
+                .allocation(BigDecimal.valueOf(1))
                 .build();
         HydroAllocationEntity ha2 = HydroAllocationEntity.builder()
                 .hydro("FR")
                 .load("DE")
-                .allocation(2)
+                .allocation(BigDecimal.valueOf(2))
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -257,7 +257,7 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroAllocationEntity ha = HydroAllocationEntity.builder()
                 .hydro("ES")
                 .load("FR")
-                .allocation(5)
+                .allocation(BigDecimal.valueOf(5))
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -289,12 +289,12 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroAllocationEntity haWithLoad = HydroAllocationEntity.builder()
                 .hydro("FR")
                 .load("DE")
-                .allocation(3)
+                .allocation(BigDecimal.valueOf(3))
                 .build();
         HydroAllocationEntity haNullLoad = HydroAllocationEntity.builder()
                 .hydro("FR")
                 .load(null)
-                .allocation(5)
+                .allocation(BigDecimal.valueOf(5))
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -325,7 +325,7 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroAllocationEntity haNullHydro = HydroAllocationEntity.builder()
                 .hydro(null)
                 .load("DE")
-                .allocation(5)
+                .allocation(BigDecimal.valueOf(5))
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -422,7 +422,7 @@ class HydroGenerationAssemblerServiceImplTest {
         HydroAllocationEntity ha = HydroAllocationEntity.builder()
                 .hydro("fr")
                 .load("de")
-                .allocation(10)
+                .allocation(BigDecimal.valueOf(10))
                 .build();
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()

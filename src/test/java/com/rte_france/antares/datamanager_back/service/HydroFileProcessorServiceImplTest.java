@@ -716,7 +716,7 @@ class HydroFileProcessorServiceImplTest {
         var entity = ((HydroAllocationRowProcessingResult) result).entities().getFirst();
         assertEquals("FR", entity.getHydro());
         assertEquals("FR_LOAD", entity.getLoad());
-        assertEquals(100, entity.getAllocation());
+        assertEquals(0, BigDecimal.valueOf(100).compareTo(entity.getAllocation()));
     }
 
     @Test
