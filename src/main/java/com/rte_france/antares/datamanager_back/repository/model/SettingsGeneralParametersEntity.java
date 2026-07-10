@@ -20,35 +20,29 @@ public class SettingsGeneralParametersEntity {
     @Column(name = "mode")
     private String mode;
 
-    @Column(name = "first_day")
-    private Integer firstDay;
-
-    @Column(name = "last_day")
-    private Integer lastDay;
-
     @Column(name = "horizon")
     private String horizon;
-
-    @Column(name = "first_month")
-    private String firstMonth;
-
-    @Column(name = "first_week_day")
-    private String firstWeekDay;
-
-    @Column(name = "first_january")
-    private String firstJanuary;
-
-    @Column(name = "leap_year")
-    private Boolean leapYear;
 
     @Column(name = "nb_years")
     private Integer nbYears;
 
-    @Column(name = "building_mode")
-    private String buildingMode;
+    @Column(name = "simulation_start")
+    private Integer simulationStart;
 
-    @Column(name = "selection_mode")
-    private Boolean selectionMode;
+    @Column(name = "simulation_end")
+    private Integer simulationEnd;
+
+    @Column(name = "january_first")
+    private String januaryFirst;
+
+    @Column(name = "first_month_in_year")
+    private String firstMonthInYear;
+
+    @Column(name = "first_week_day")
+    private String firstWeekDay;
+
+    @Column(name = "leap_year")
+    private Boolean leapYear;
 
     @Column(name = "year_by_year")
     private Boolean yearByYear;
@@ -56,8 +50,11 @@ public class SettingsGeneralParametersEntity {
     @Column(name = "simulation_synthesis")
     private Boolean simulationSynthesis;
 
-    @Column(name = "mc_scenario")
-    private Boolean mcScenario;
+    @Column(name = "building_mode")
+    private String buildingMode;
+
+    @Column(name = "user_playlist")
+    private Boolean userPlaylist;
 
     @Column(name = "thematic_trimming")
     private Boolean thematicTrimming;
@@ -67,6 +64,9 @@ public class SettingsGeneralParametersEntity {
 
     @Column(name = "nb_timeseries_thermal")
     private Integer nbTimeseriesThermal;
+
+    @Column(name = "store_new_set")
+    private Boolean storeNewSet;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id")
