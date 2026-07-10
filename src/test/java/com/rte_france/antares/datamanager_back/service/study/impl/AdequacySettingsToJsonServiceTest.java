@@ -35,7 +35,7 @@ class AdequacySettingsToJsonServiceTest {
                 .thresholdDisplayLocalMatchingRuleViolations(20)
                 .thresholdCsrVariableBoundsRelaxation(30)
                 .redispatch(true)
-                .setToNullNtcFromPhysicalAreasOutToPhysicalAreasInAdequacyPatch(true)
+                .setToNullNtcFromPhysicalOutToPhysicalInForFirstStep(true)
                 .build();
 
         Map<String, Object> result = adequacySettingsToJsonService.buildAdequacySettingsMap(Optional.of(settings));
@@ -51,7 +51,7 @@ class AdequacySettingsToJsonServiceTest {
         assertThat(adequacy.get("threshold_display_local_matching_rule_violations")).isEqualTo(20.0);
         assertThat(adequacy.get("threshold_csr_variable_bounds_relaxation")).isEqualTo(30.0);
         assertThat(adequacy.get("redispatch")).isEqualTo(true);
-        assertThat(adequacy.get("set_to_null_ntc_from_physical_areas_out_to_physical_areas_in_adequacy_patch")).isEqualTo(true);
+        assertThat(adequacy.get("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step")).isEqualTo(true);
         assertThat(adequacy).doesNotContainKey("ntc_between_physical_areas_out_adequacy_patch");
     }
 
