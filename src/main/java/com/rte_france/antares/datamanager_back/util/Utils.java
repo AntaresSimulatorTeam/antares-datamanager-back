@@ -1246,7 +1246,8 @@ public class Utils {
         if (allRowsEmpty) {
             String label = getErrorMessageLabelFromType(trajectoryType.name());
             throw BusinessException.builder()
-                    .message("No data found in "+ label +" trajectory "+ trajectoryName )
+                    .message("No data found in {0} trajectory {1}")
+                    .errorMessageArguments(List.of(label, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
