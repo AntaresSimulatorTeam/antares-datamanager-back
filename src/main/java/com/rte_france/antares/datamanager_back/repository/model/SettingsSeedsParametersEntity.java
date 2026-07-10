@@ -17,20 +17,8 @@ public class SettingsSeedsParametersEntity {
     @SequenceGenerator(name = "settings_seeds_parameters_seq_gen", sequenceName = "settings_seeds_parameters_sequence", allocationSize = 1)
     private Integer id;
 
-    @Column(name = "seed_tsgen_wind")
-    private Integer seedTsgenWind;
-
-    @Column(name = "seed_tsgen_load")
-    private Integer seedTsgenLoad;
-
-    @Column(name = "seed_tsgen_hydro")
-    private Integer seedTsgenHydro;
-
     @Column(name = "seed_tsgen_thermal")
     private Integer seedTsgenThermal;
-
-    @Column(name = "seed_tsgen_solar")
-    private Integer seedTsgenSolar;
 
     @Column(name = "seed_tsnumbers")
     private Integer seedTsnumbers;
