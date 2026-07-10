@@ -1028,8 +1028,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.HYDRO_PSP_SERIES
                         || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
-                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path))
-                        || trajectoryType == TrajectoryType.ADEQUACY_PATCH;
+                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path));
     }
 
     /**
