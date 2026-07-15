@@ -117,10 +117,7 @@ public final class TimeSeriesReader {
    */
   public TimeSeriesMatrix readFromXlsx(Path xlsxPath, String horizon, boolean hasHeader) throws IOException {
     Objects.requireNonNull(xlsxPath);
-
-    if (!Files.exists(xlsxPath)) {
-      throw TechnicalException.builder().message("File not found: " + xlsxPath).build();
-    }
+    requireFileExists(xlsxPath);
     try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
       XSSFReader reader = new XSSFReader(pkg);
       StylesTable styles = reader.getStylesTable();
@@ -158,9 +155,7 @@ public final class TimeSeriesReader {
       return new TimeSeriesMatrix(List.of());
     }
 
-    if (!Files.exists(xlsxPath)) {
-      throw TechnicalException.builder().message("File not found: " + xlsxPath).build();
-    }
+    requireFileExists(xlsxPath);
 
     try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
       XSSFReader reader = new XSSFReader(pkg);
@@ -188,9 +183,7 @@ public final class TimeSeriesReader {
 
   public int countXlsxColumns(Path xlsxPath) throws IOException {
     Objects.requireNonNull(xlsxPath);
-    if (!Files.exists(xlsxPath)) {
-      throw TechnicalException.builder().message("File not found: " + xlsxPath).build();
-    }
+    requireFileExists(xlsxPath);
     try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
       XSSFReader xssfReader = new XSSFReader(pkg);
       StylesTable styles = xssfReader.getStylesTable();
@@ -205,6 +198,15 @@ public final class TimeSeriesReader {
       }
     } catch (OpenXML4JException | SAXException | ParserConfigurationException e) {
       throw new IOException(e);
+    }
+  }
+
+  private static void requireFileExists(Path xlsxPath) {
+    if (!Files.exists(xlsxPath)) {
+      throw TechnicalException.builder()
+          .errorMessageArguments(List.of(xlsxPath.toString()))
+          .message("File not found: {0}")
+          .build();
     }
   }
 
@@ -283,8 +285,6 @@ public final class TimeSeriesReader {
       }
     }
 
-    @Override public void endSheet() {}
-
     int getColumnCount() { return columnCount; }
   }
 
@@ -312,28 +312,33 @@ public final class TimeSeriesReader {
       if (!currentRowHasCells) return;
 
       if (!headerProcessed) {
-        int colCount = currentRowValues.isEmpty() ? 0
-            : currentRowValues.keySet().stream().mapToInt(i -> i).max().orElse(-1) + 1;
-        if (hasHeader) {
-          for (int i = 0; i < colCount; i++) {
-            String v = currentRowValues.get(i);
-            headerNames.add(v != null && !v.trim().isEmpty() ? v.trim() : COLUMN_PREFIX + i);
-          }
-        } else {
-          for (int i = 0; i < colCount; i++) headerNames.add(COLUMN_PREFIX + i);
-        }
-        for (int i = 0; i < headerNames.size(); i++) columnData.add(new ArrayList<>(MAX_ROWS_PER_YEAR));
-        headerProcessed = true;
-        if (!hasHeader) {
-          addCurrentRowToData();
-          dataRowIndex++;
-        }
+        processHeaderRow();
         return;
       }
 
       if (dataRowIndex >= MAX_ROWS_PER_YEAR) return;
       addCurrentRowToData();
       dataRowIndex++;
+    }
+
+    private void processHeaderRow() {
+      int colCount = currentRowValues.isEmpty() ? 0
+          : currentRowValues.keySet().stream().mapToInt(i -> i).max().orElse(-1) + 1;
+      for (int i = 0; i < colCount; i++) {
+        headerNames.add(resolveHeaderName(i));
+      }
+      for (int i = 0; i < headerNames.size(); i++) columnData.add(new ArrayList<>(MAX_ROWS_PER_YEAR));
+      headerProcessed = true;
+      if (!hasHeader) {
+        addCurrentRowToData();
+        dataRowIndex++;
+      }
+    }
+
+    private String resolveHeaderName(int i) {
+      if (!hasHeader) return COLUMN_PREFIX + i;
+      String v = currentRowValues.get(i);
+      return v != null && !v.trim().isEmpty() ? v.trim() : COLUMN_PREFIX + i;
     }
 
     private void addCurrentRowToData() {
@@ -348,9 +353,6 @@ public final class TimeSeriesReader {
       currentRowValues.put(colIndex, formattedValue);
       currentRowHasCells = true;
     }
-
-    @Override
-    public void endSheet() {}
 
     private TimeSeriesMatrix toMatrix() {
       if (!headerProcessed)
@@ -417,11 +419,6 @@ public final class TimeSeriesReader {
       int colIndex = new CellReference(cellReference).getCol();
       currentRowValues.put(colIndex, formattedValue);
       currentRowHasCells = true;
-    }
-
-    @Override
-    public void endSheet() {
-      // No-op
     }
 
     private void initializeSelectedHeaders() {

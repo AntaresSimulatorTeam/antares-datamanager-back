@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.nuclear.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.NuclearConstraintItemDTO;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -30,6 +31,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -121,6 +123,18 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         assertThat(weekly.type()).isEqualTo("weekly");
         assertThat(weekly.includesPeak()).isFalse();
         assertThat(weekly.coeff()).isEqualByComparingTo(new BigDecimal("0.93"));
+    }
+
+    @Test
+    void assembleBindingConstraints_shouldThrowTechnicalExceptionWhenDuplicateCoefficientTypeExists() {
+        TrajectoryEntity modulationTraj = modulationTrajectory();
+        when(nuclearModulationParameterRepository.findByTrajectoryId(modulationTraj.getId())).thenReturn(List.of(
+                modParam("nucFR_modul_hourly", new BigDecimal("1.00")),
+                modParam("nucFR_modul_hourly", new BigDecimal("0.50"))
+        ));
+
+        assertThatThrownBy(() -> assembler.assembleBindingConstraints(modulationTraj, List.of()))
+                .isInstanceOf(TechnicalException.class);
     }
 
     private TrajectoryEntity modulationTrajectory() {

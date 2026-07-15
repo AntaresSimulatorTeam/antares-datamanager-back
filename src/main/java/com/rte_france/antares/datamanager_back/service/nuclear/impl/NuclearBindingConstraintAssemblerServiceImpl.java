@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.NuclearModulatio
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNames;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,6 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -45,14 +45,14 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private final AntaresDataManagerProperties properties;
     private final PathSecurityUtil pathSecurityUtil;
 
-    private record NuclearClusterNames(List<String> standard, List<String> peak, List<String> yNucModulation) {}
+    private record ClusterNameGroups(List<String> standard, List<String> peak, List<String> yNucModulation) {}
 
     private record TsArrowFiles(String hourly, String daily, String weekly) {}
 
     @Override
     public NuclearBindingConstraintGenerationDTO assembleBindingConstraints(TrajectoryEntity modulationTrajectory, List<String> frNuclearClusterNames) {
         Map<String, BigDecimal> coeffs = loadCoefficients(modulationTrajectory.getId());
-        NuclearClusterNames clusterNames = buildClusterNames(frNuclearClusterNames);
+        ClusterNameGroups clusterNames = buildClusterNames(frNuclearClusterNames);
 
         try {
             TsArrowFiles arrowFiles = convertTsFiles(modulationTrajectory.getFileName());
@@ -80,17 +80,24 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private Map<String, BigDecimal> loadCoefficients(Integer trajectoryId) {
         return nuclearModulationParameterRepository.findByTrajectoryId(trajectoryId)
                 .stream()
-                .collect(Collectors.toMap(NuclearModulationParameterEntity::getType, NuclearModulationParameterEntity::getValue));
+                .collect(Collectors.toMap(
+                        NuclearModulationParameterEntity::getType,
+                        NuclearModulationParameterEntity::getValue,
+                        (a, b) -> {
+                            throw TechnicalException.builder()
+                                    .message("Duplicate nuclear modulation coefficient found for trajectory " + trajectoryId)
+                                    .build();
+                        }));
     }
 
-    private NuclearClusterNames buildClusterNames(List<String> frNuclearClusterNames) {
+    private ClusterNameGroups buildClusterNames(List<String> frNuclearClusterNames) {
         List<String> standard = new ArrayList<>();
         List<String> peak = new ArrayList<>();
         List<String> yNuc = new ArrayList<>();
 
         for (String name : frNuclearClusterNames) {
-            String lower = name.toLowerCase(Locale.ROOT);
-            if (lower.contains("peak")) {
+            String lower = NuclearClusterNames.normalize(name);
+            if (NuclearClusterNames.isPeak(name)) {
                 peak.add("fr_" + lower);
             } else {
                 standard.add("fr_" + lower);
@@ -98,7 +105,7 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
             }
         }
 
-        return new NuclearClusterNames(standard, peak, yNuc);
+        return new ClusterNameGroups(standard, peak, yNuc);
     }
 
     private TsArrowFiles convertTsFiles(String trajectoryName) throws IOException {
@@ -109,31 +116,36 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     }
 
     private String convertSingleTsFile(String trajectoryName, String tsType) throws IOException {
-        Path tsPath = buildTsFilePath(trajectoryName, tsType);
-        validateTsPath(trajectoryName, tsType);
+        Path relativePath = buildTsRelativePath(trajectoryName, tsType);
+        validateTsPath(relativePath);
+        Path tsPath = resolveNasPath(relativePath);
         return nasFileService.readAndSaveMatrixToNas(tsPath, properties.getNuclearModulationTsOutputDirectory(), null, false);
     }
 
-    private Path buildTsFilePath(String trajectoryName, String tsType) {
-        return Path.of(properties.getNasDirectory())
-                .resolve(properties.getTrajectoryFilePath())
-                .resolve(properties.getNuclearModulationDirectory())
+    private Path buildTsRelativePath(String trajectoryName, String tsType) {
+        return Path.of(properties.getNuclearModulationDirectory())
                 .resolve(trajectoryName)
                 .resolve(TS_MODULATION_SUBDIR)
-                .resolve(trajectoryName + "_" + tsType + ".xlsx")
+                .resolve(trajectoryName + "_" + tsType + ".xlsx");
+    }
+
+    private Path buildTsFilePath(String trajectoryName, String tsType) {
+        return resolveNasPath(buildTsRelativePath(trajectoryName, tsType));
+    }
+
+    private Path resolveNasPath(Path relativePath) {
+        return Path.of(properties.getNasDirectory())
+                .resolve(properties.getTrajectoryFilePath())
+                .resolve(relativePath)
                 .normalize();
     }
 
-    private void validateTsPath(String trajectoryName, String tsType) {
-        String relativePath = properties.getNuclearModulationDirectory()
-                + "/" + trajectoryName
-                + "/" + TS_MODULATION_SUBDIR
-                + "/" + trajectoryName + "_" + tsType + ".xlsx";
+    private void validateTsPath(Path relativePath) {
         try {
-            pathSecurityUtil.validatePathFromBaseDir(relativePath, AntaresDataManagerProperties::getTrajectoryFilePath);
+            pathSecurityUtil.validatePathFromBaseDir(relativePath.toString(), AntaresDataManagerProperties::getTrajectoryFilePath);
         } catch (IOException e) {
             throw TechnicalException.builder()
-                    .errorMessageArguments(List.of(relativePath))
+                    .errorMessageArguments(List.of(relativePath.toString()))
                     .message("Invalid nuclear TS modulation path: {0}")
                     .cause(e)
                     .build();
