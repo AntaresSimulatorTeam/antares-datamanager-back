@@ -789,16 +789,13 @@ class StudyGeneratorServiceImplTest {
         assertThat(areas).containsKey("y_nuc_modulation");
 
         Map<String, Object> yNucArea = mapper.convertValue(areas.get("y_nuc_modulation"), new TypeReference<>() {});
-        assertThat(yNucArea).containsKeys("nuclear", "misc");
-        assertThat(yNucArea).doesNotContainKeys("thermals", "loads", "hydro", "res", "sts", "dsr");
-
-        Map<String, Object> misc = mapper.convertValue(yNucArea.get("misc"), new TypeReference<>() {});
-        assertThat(misc).containsEntry("psp", -999999);
+        assertThat(yNucArea).containsKey("nuclear")
+                .doesNotContainKeys("thermals", "loads", "hydro", "res", "sts", "dsr", "misc");
 
         Map<String, Object> nuclear = mapper.convertValue(yNucArea.get("nuclear"), new TypeReference<>() {});
         Map<String, Object> clusters = mapper.convertValue(nuclear.get("clusters"), new TypeReference<>() {});
-        assertThat(clusters).containsKey("y_nuc_modulation_nuclear_cp0");
-        assertThat(clusters).doesNotContainKey("y_nuc_modulation_nuclear_peak1");
+        assertThat(clusters).containsKey("y_nuc_modulation_nuclear_cp0")
+                .doesNotContainKey("y_nuc_modulation_nuclear_peak1");
     }
 
     @Test
