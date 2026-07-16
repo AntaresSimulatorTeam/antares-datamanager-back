@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.NuclearModulationParam
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -48,7 +49,6 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String PARAMETERS_FILE_PREFIX = "Parameters_modNuc_";
-    private static final String TALON_FILE_PREFIX = "TALON_NUC_";
     private static final String TS_EPR_FILE_PREFIX = "TS_EPR_";
     private static final String TS_SMR_FILE_PREFIX = "TS_SMR_";
     private static final String PARAMETERS_FILE_SUFFIX = ".xlsx";
@@ -589,7 +589,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         String prefix = switch (type) {
             case NUCLEAR_FR_TS_SMR -> TS_SMR_FILE_PREFIX;
             case NUCLEAR_FR_TS_ERP -> TS_EPR_FILE_PREFIX;
-            case NUCLEAR_FR_TALON -> TALON_FILE_PREFIX;
+            case NUCLEAR_FR_TALON -> NuclearFilePrefixes.TALON_FILE_PREFIX;
             default -> StringUtils.EMPTY;
         };
 

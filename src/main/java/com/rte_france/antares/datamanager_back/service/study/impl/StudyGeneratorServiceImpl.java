@@ -126,13 +126,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private record TrajectoryDispatchResult(Map<String, Object> areasMap, Map<String, Object> linksMap,
-                                             Optional<TrajectoryEntity> nuclearModulationTrajectory) {}
+                                             Optional<TrajectoryEntity> nuclearModulationTrajectory,
+                                             Optional<TrajectoryEntity> nuclearTalonTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> areasMap = new TreeMap<>();
         Map<String, Object> linksMap = new TreeMap<>();
         Optional<TrajectoryEntity> nuclearModulationTraj = Optional.empty();
+        Optional<TrajectoryEntity> nuclearTalonTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -160,7 +162,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS ->
                         log.warn("HYDRO PSP trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                 case NUCLEAR_FR_MODULATION -> nuclearModulationTraj = Optional.of(trajectory);
-                case NUCLEAR_FR_TALON, NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
+                case NUCLEAR_FR_TALON -> nuclearTalonTraj = Optional.of(trajectory);
+                case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
@@ -169,7 +172,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj);
     }
 
     private Map<String, Object> buildInnerGeneratorMap(TrajectoryDispatchResult dispatchResult,
@@ -183,13 +186,29 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("nb_years", 1);
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
+
+        Map<String, Object> bindingConstraints = buildBindingConstraintsMap(dispatchResult, thermalClusterProps, areasMap);
+        if (!bindingConstraints.isEmpty()) {
+            innerGeneratorMap.put("binding_constraints", bindingConstraints);
+        }
+        return innerGeneratorMap;
+    }
+
+    private Map<String, Object> buildBindingConstraintsMap(TrajectoryDispatchResult dispatchResult,
+                                                             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
+                                                             Map<String, Object> areasMap) {
+        Map<String, Object> bindingConstraints = new LinkedHashMap<>();
         dispatchResult.nuclearModulationTrajectory().ifPresent(traj -> {
-            innerGeneratorMap.put("nuclear_binding_constraints",
-                    nuclearBindingConstraintAssemblerService.assembleBindingConstraints(
+            bindingConstraints.put("nuclear_modulation",
+                    nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(
                             traj, extractFrNuclearClusterNames(thermalClusterProps)));
             areasMap.put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps));
         });
-        return innerGeneratorMap;
+        dispatchResult.nuclearTalonTrajectory().ifPresent(traj ->
+                bindingConstraints.put("nuclear_talon",
+                        nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(
+                                traj, extractFrNuclearClusterNames(thermalClusterProps))));
+        return bindingConstraints;
     }
 
 
