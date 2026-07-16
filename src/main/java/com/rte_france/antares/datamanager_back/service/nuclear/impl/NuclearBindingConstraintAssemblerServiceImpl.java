@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +44,10 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private static final String CONSTRAINT_WEEKLY = "nuc_modulation_weekly";
     private static final String CONSTRAINT_GROUP_NAME = "scenarised";
     private static final String XLSX_SUFFIX = ".xlsx";
+    private static final List<String> TALON_PREFIX_CANDIDATES = List.of(
+            NuclearFilePrefixes.TALON_FILE_PREFIX,
+            NuclearFilePrefixes.TALON_FILE_PREFIX.toLowerCase(Locale.ROOT)
+    );
 
     private final NuclearModulationParameterRepository nuclearModulationParameterRepository;
     private final NasFileService nasFileService;
@@ -176,12 +181,19 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
         );
     }
 
-    private Path buildTalonRelativePath(String storedFileName) {
-        return Path.of(properties.getNuclearTalonDirectory()).resolve(buildTalonFileName(storedFileName));
+    private Path buildTalonRelativePath(String storedFileName) throws IOException {
+        Path talonDirectory = Path.of(properties.getNuclearTalonDirectory());
+        for (String prefix : TALON_PREFIX_CANDIDATES) {
+            Path candidate = talonDirectory.resolve(buildTalonFileName(prefix, storedFileName));
+            if (Files.exists(resolveNasPath(candidate))) {
+                return candidate;
+            }
+        }
+        throw new IOException("Nuclear talon file not found for: " + storedFileName);
     }
 
-    private String buildTalonFileName(String storedFileName) {
-        String prefixed = NuclearFilePrefixes.TALON_FILE_PREFIX + storedFileName;
+    private String buildTalonFileName(String prefix, String storedFileName) {
+        String prefixed = prefix + storedFileName;
         return prefixed.toLowerCase(Locale.ROOT).endsWith(XLSX_SUFFIX) ? prefixed : prefixed + XLSX_SUFFIX;
     }
 
