@@ -263,7 +263,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         }
 
         @Test
-        void assembleTalonBindingConstraint_shouldReconstructPhysicalFileNameWithPrefixReAdded() throws IOException {
+        void assembleTalonBindingConstraint_shouldFindFileWithUppercasePrefixCandidate() throws IOException {
             assembler.assembleTalonBindingConstraint(talonTrajectory(STORED_FILE_NAME), List.of());
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
@@ -271,6 +271,28 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
 
             assertThat(pathCaptor.getValue().toString())
                     .endsWith(Path.of("specific_nuclear", "Talon_nuc", "TALON_NUC_" + STORED_FILE_NAME + ".xlsx").toString());
+        }
+
+        @Test
+        void assembleTalonBindingConstraint_shouldFindFileWithLowercasePrefixCandidate() throws IOException {
+            String storedName = "case_test_talon";
+            Path talonDir = tempDir.resolve("INPUT").resolve("specific_nuclear/Talon_nuc");
+            createTalonXlsx(talonDir.resolve("talon_nuc_" + storedName + ".xlsx"), NB_COLUMNS);
+
+            assembler.assembleTalonBindingConstraint(talonTrajectory(storedName), List.of());
+
+            ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
+            verify(nasFileService, atLeastOnce()).countXlsxColumns(pathCaptor.capture());
+
+            assertThat(pathCaptor.getValue().toString()).endsWith("talon_nuc_" + storedName + ".xlsx");
+        }
+
+        @Test
+        void assembleTalonBindingConstraint_shouldThrowTechnicalExceptionWhenNeitherPrefixCandidateExists() {
+            TrajectoryEntity trajectory = talonTrajectory("no_such_talon_file");
+
+            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(trajectory, List.of()))
+                    .isInstanceOf(TechnicalException.class);
         }
 
         @Test
