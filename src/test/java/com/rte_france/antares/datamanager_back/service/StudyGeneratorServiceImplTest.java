@@ -18,6 +18,7 @@ import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemble
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
@@ -772,7 +773,7 @@ class StudyGeneratorServiceImplTest {
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto,
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", peakRef), dto
         ));
-        when(nuclearBindingConstraintAssemblerService.assembleBindingConstraints(any(), any()))
+        when(nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(any(), any()))
                 .thenReturn(new NuclearBindingConstraintGenerationDTO("scenarised200", 200,
                         List.of("fr_nuclear_cp0"), List.of("fr_nuclear_peak1"),
                         List.of("y_nuc_modulation_nuclear_cp0"), List.of()));
@@ -783,7 +784,8 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
         Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
 
-        assertThat(studyMap).containsKey("nuclear_binding_constraints");
+        Map<String, Object> bindingConstraints = mapper.convertValue(studyMap.get("binding_constraints"), new TypeReference<>() {});
+        assertThat(bindingConstraints).containsKey("nuclear_modulation");
 
         Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
         assertThat(areas).containsKey("y_nuc_modulation");
@@ -809,8 +811,61 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
         Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
 
-        assertThat(studyMap).doesNotContainKey("nuclear_binding_constraints");
+        assertThat(studyMap).doesNotContainKey("binding_constraints");
         assertThat(areas).doesNotContainKey("y_nuc_modulation");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeTalonBindingConstraint_whenNuclearTalonTrajectoryPresent() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var nuclearTalonTraj = TrajectoryEntity.builder().type("NUCLEAR_FR_TALON").fileName("default_talon").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, nuclearTalonTraj)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto
+        ));
+        when(nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(any(), any()))
+                .thenReturn(new NuclearTalonBindingConstraintGenerationDTO("scenarised200", 200,
+                        List.of("fr_nuclear_cp0"), "talon_arrow.arrow"));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        Map<String, Object> bindingConstraints = mapper.convertValue(studyMap.get("binding_constraints"), new TypeReference<>() {});
+        assertThat(bindingConstraints).containsKey("nuclear_talon");
+
+        Map<String, Object> talon = mapper.convertValue(bindingConstraints.get("nuclear_talon"), new TypeReference<>() {});
+        assertThat(talon)
+                .containsEntry("group", "scenarised200")
+                .containsEntry("series", "talon_arrow.arrow");
+
+        Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        assertThat(areas).doesNotContainKey("y_nuc_modulation");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldNotIncludeTalonBindingConstraint_whenNoNuclearTalonTrajectory() throws Exception {
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).doesNotContainKey("binding_constraints");
     }
 
     @Test

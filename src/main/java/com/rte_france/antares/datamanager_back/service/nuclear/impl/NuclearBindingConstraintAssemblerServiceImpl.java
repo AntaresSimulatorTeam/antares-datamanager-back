@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.nuclear.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.NuclearConstraintItemDTO;
+import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
@@ -10,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNames;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFilePrefixes;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -39,6 +42,7 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private static final String CONSTRAINT_DAILY = "nuc_modulation_daily";
     private static final String CONSTRAINT_WEEKLY = "nuc_modulation_weekly";
     private static final String CONSTRAINT_GROUP_NAME = "scenarised";
+    private static final String XLSX_SUFFIX = ".xlsx";
 
     private final NuclearModulationParameterRepository nuclearModulationParameterRepository;
     private final NasFileService nasFileService;
@@ -50,13 +54,13 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private record TsArrowFiles(String hourly, String daily, String weekly) {}
 
     @Override
-    public NuclearBindingConstraintGenerationDTO assembleBindingConstraints(TrajectoryEntity modulationTrajectory, List<String> frNuclearClusterNames) {
+    public NuclearBindingConstraintGenerationDTO assembleModulationBindingConstraints(TrajectoryEntity modulationTrajectory, List<String> frNuclearClusterNames) {
         Map<String, BigDecimal> coeffs = loadCoefficients(modulationTrajectory.getId());
         ClusterNameGroups clusterNames = buildClusterNames(frNuclearClusterNames);
 
         try {
             TsArrowFiles arrowFiles = convertTsFiles(modulationTrajectory.getFileName());
-            int nbColumns = countTsColumns(modulationTrajectory.getFileName());
+            int nbColumns = countModulationTsColumns(modulationTrajectory.getFileName());
             String group = CONSTRAINT_GROUP_NAME + nbColumns;
 
             List<NuclearConstraintItemDTO> constraints = buildConstraints(coeffs, arrowFiles);
@@ -72,6 +76,28 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
             throw TechnicalException.builder()
                     .errorMessageArguments(List.of(modulationTrajectory.getFileName()))
                     .message("Failed to assemble nuclear binding constraints for trajectory: {0}")
+                    .cause(e)
+                    .build();
+        }
+    }
+
+    @Override
+    public NuclearTalonBindingConstraintGenerationDTO assembleTalonBindingConstraint(TrajectoryEntity talonTrajectory, List<String> frNuclearClusterNames) {
+        List<String> standardClusters = buildStandardClusterNames(frNuclearClusterNames);
+
+        try {
+            Path relativePath = buildTalonRelativePath(talonTrajectory.getFileName());
+            Path talonPath = resolveValidatedNasPath(relativePath, "Invalid nuclear talon path: {0}");
+
+            int nbColumns = nasFileService.countXlsxColumns(talonPath);
+            String arrowFile = nasFileService.readAndSaveMatrixToNas(talonPath, properties.getNuclearTalonTsOutputDirectory(), null, false);
+            String group = CONSTRAINT_GROUP_NAME + nbColumns;
+
+            return new NuclearTalonBindingConstraintGenerationDTO(group, nbColumns, standardClusters, arrowFile);
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .errorMessageArguments(List.of(talonTrajectory.getFileName()))
+                    .message("Failed to assemble nuclear talon binding constraint for trajectory: {0}")
                     .cause(e)
                     .build();
         }
@@ -108,6 +134,14 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
         return new ClusterNameGroups(standard, peak, yNuc);
     }
 
+    private List<String> buildStandardClusterNames(List<String> frNuclearClusterNames) {
+        return frNuclearClusterNames.stream()
+                .filter(name -> !NuclearClusterNames.isPeak(name))
+                .map(name -> "fr_" + NuclearClusterNames.normalize(name))
+                .distinct()
+                .toList();
+    }
+
     private TsArrowFiles convertTsFiles(String trajectoryName) throws IOException {
         String hourlyArrow = convertSingleTsFile(trajectoryName, TS_HOURLY);
         String dailyArrow = convertSingleTsFile(trajectoryName, TS_DAILY);
@@ -117,8 +151,7 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
 
     private String convertSingleTsFile(String trajectoryName, String tsType) throws IOException {
         Path relativePath = buildTsRelativePath(trajectoryName, tsType);
-        validateTsPath(relativePath);
-        Path tsPath = resolveNasPath(relativePath);
+        Path tsPath = resolveValidatedNasPath(relativePath, "Invalid nuclear TS modulation path: {0}");
         return nasFileService.readAndSaveMatrixToNas(tsPath, properties.getNuclearModulationTsOutputDirectory(), null, false);
     }
 
@@ -126,11 +159,30 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
         return Path.of(properties.getNuclearModulationDirectory())
                 .resolve(trajectoryName)
                 .resolve(TS_MODULATION_SUBDIR)
-                .resolve(trajectoryName + "_" + tsType + ".xlsx");
+                .resolve(trajectoryName + "_" + tsType + XLSX_SUFFIX);
     }
 
-    private Path buildTsFilePath(String trajectoryName, String tsType) {
-        return resolveNasPath(buildTsRelativePath(trajectoryName, tsType));
+    private int countModulationTsColumns(String trajectoryName) throws IOException {
+        Path weeklyRelativePath = buildTsRelativePath(trajectoryName, TS_WEEKLY);
+        Path weeklyPath = resolveValidatedNasPath(weeklyRelativePath, "Invalid nuclear TS modulation path: {0}");
+        return nasFileService.countXlsxColumns(weeklyPath);
+    }
+
+    private List<NuclearConstraintItemDTO> buildConstraints(Map<String, BigDecimal> coeffs, TsArrowFiles arrowFiles) {
+        return List.of(
+                new NuclearConstraintItemDTO(CONSTRAINT_LIMIT, TS_HOURLY, coeffs.getOrDefault(COEFF_HOURLY, BigDecimal.ONE), true,  arrowFiles.hourly()),
+                new NuclearConstraintItemDTO(CONSTRAINT_DAILY, TS_DAILY,  coeffs.getOrDefault(COEFF_DAILY,  BigDecimal.ONE), false, arrowFiles.daily()),
+                new NuclearConstraintItemDTO(CONSTRAINT_WEEKLY, TS_WEEKLY, coeffs.getOrDefault(COEFF_WEEKLY, BigDecimal.ONE), false, arrowFiles.weekly())
+        );
+    }
+
+    private Path buildTalonRelativePath(String storedFileName) {
+        return Path.of(properties.getNuclearTalonDirectory()).resolve(buildTalonFileName(storedFileName));
+    }
+
+    private String buildTalonFileName(String storedFileName) {
+        String prefixed = NuclearFilePrefixes.TALON_FILE_PREFIX + storedFileName;
+        return prefixed.toLowerCase(Locale.ROOT).endsWith(XLSX_SUFFIX) ? prefixed : prefixed + XLSX_SUFFIX;
     }
 
     private Path resolveNasPath(Path relativePath) {
@@ -140,27 +192,16 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
                 .normalize();
     }
 
-    private void validateTsPath(Path relativePath) {
+    private Path resolveValidatedNasPath(Path relativePath, String invalidPathMessage) {
         try {
             pathSecurityUtil.validatePathFromBaseDir(relativePath.toString(), AntaresDataManagerProperties::getTrajectoryFilePath);
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .errorMessageArguments(List.of(relativePath.toString()))
-                    .message("Invalid nuclear TS modulation path: {0}")
+                    .message(invalidPathMessage)
                     .cause(e)
                     .build();
         }
-    }
-
-    private int countTsColumns(String trajectoryName) throws IOException {
-        return nasFileService.countXlsxColumns(buildTsFilePath(trajectoryName, TS_WEEKLY));
-    }
-
-    private List<NuclearConstraintItemDTO> buildConstraints(Map<String, BigDecimal> coeffs, TsArrowFiles arrowFiles) {
-        return List.of(
-                new NuclearConstraintItemDTO(CONSTRAINT_LIMIT, TS_HOURLY, coeffs.getOrDefault(COEFF_HOURLY, BigDecimal.ONE), true,  arrowFiles.hourly()),
-                new NuclearConstraintItemDTO(CONSTRAINT_DAILY, TS_DAILY,  coeffs.getOrDefault(COEFF_DAILY,  BigDecimal.ONE), false, arrowFiles.daily()),
-                new NuclearConstraintItemDTO(CONSTRAINT_WEEKLY, TS_WEEKLY, coeffs.getOrDefault(COEFF_WEEKLY, BigDecimal.ONE), false, arrowFiles.weekly())
-        );
+        return resolveNasPath(relativePath);
     }
 }

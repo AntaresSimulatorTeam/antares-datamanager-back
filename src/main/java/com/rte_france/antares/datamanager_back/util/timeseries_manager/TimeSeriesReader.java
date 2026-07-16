@@ -112,7 +112,8 @@ public final class TimeSeriesReader {
 
   /**
    * Reads a time series matrix from the specified sheet of an Excel file (.xlsx).
-   * Each column in the sheet is interpreted as a series, and up to 8760 rows are read.
+   * Each column in the sheet is interpreted as a series, and up to 8784 rows are read
+   * (366 days x 24 hours, for leap years -> regular years only use 8760).
    * Non-numeric and blank cells are treated as 0.0; string numbers with comma are supported.
    */
   public TimeSeriesMatrix readFromXlsx(Path xlsxPath, String horizon, boolean hasHeader) throws IOException {

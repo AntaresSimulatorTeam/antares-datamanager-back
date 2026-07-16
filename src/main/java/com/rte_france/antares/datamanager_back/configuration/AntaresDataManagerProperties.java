@@ -123,4 +123,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.nuclear.modulation.ts.output.directory}")
     public String nuclearModulationTsOutputDirectory;
+
+    @Value("${antares.datamanager.nuclear.talon.ts.output.directory}")
+    public String nuclearTalonTsOutputDirectory;
 }
