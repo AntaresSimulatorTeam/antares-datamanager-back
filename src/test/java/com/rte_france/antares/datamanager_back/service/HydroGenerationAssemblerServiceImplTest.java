@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroGenerationAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -870,21 +871,29 @@ class HydroGenerationAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
 
-        Path fileDir = tempDir.resolve("trajectories").resolve("psp_series").resolve("traj_psp");
-        Files.createDirectories(fileDir);
-        Files.createFile(fileDir.resolve("maxpower_2030.xlsx"));
+        Path pspDir = tempDir.resolve("trajectories").resolve("psp_series").resolve("traj_psp");
+        Files.createDirectories(pspDir.resolve("mingen"));
+        Files.createFile(pspDir.resolve("maxpower_2030.xlsx"));
+        Files.createFile(pspDir.resolve("mingen").resolve("mingen_FR_2030.xlsx"));
 
-        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of());
-        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), any(), any())).thenReturn(matrix);
-        when(nasFileService.saveMatrixToNas(any(), eq("FR_psp_maxpower"), eq("hydro_output")))
-                .thenReturn("FR_psp_maxpower.arrow");
+        // PSP area has mingen -> maxpower must contain FR_generating and FR_pumping
+        TimeSeriesMatrix maxpowerMatrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("FR_generating", new double[0]),
+                new TimeSeriesMatrixColumn("FR_pumping", new double[0])
+        ));
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), any(), any())).thenReturn(maxpowerMatrix);
+        when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean(), any(), any())).thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.saveMatrixToNas(any(), eq("FR_psp_maxpower"), eq("hydro_output"))).thenReturn("FR_psp_maxpower.arrow");
+        when(nasFileService.saveMatrixToNas(any(), eq("FR_psp_mingen"), eq("hydro_output"))).thenReturn("FR_psp_mingen.arrow");
 
-        HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("maxpower_2030.xlsx").build();
         TrajectoryEntity seriesTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.HYDRO_PSP_SERIES.name())
                 .area("FR")
                 .fileName("traj_psp")
-                .hydroSeriesEntities(List.of(hydroSeries))
+                .hydroSeriesEntities(List.of(
+                        HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build(),
+                        HydroSeriesEntity.builder().tsName("maxpower_2030.xlsx").build()
+                ))
                 .build();
 
         HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").build();
@@ -899,11 +908,13 @@ class HydroGenerationAssemblerServiceImplTest {
 
         Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
 
-        // check that we get both generating and pumping columns for PSP
         verify(timeSeriesReader).readSelectedColumnsFromXlsx(any(), any(), eq(Set.of("FR_generating", "FR_pumping")));
-
         assertNotNull(result.get("FR").get(0).getSeries());
-        assertArrayEquals(new String[]{"FR_psp_maxpower.arrow"}, result.get("FR").get(0).getSeries());
+        assertTrue(List.of(result.get("FR").get(0).getSeries()).contains("FR_psp_maxpower.arrow"));
+        
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), any(), any()))
+                .thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("FR_generating", new double[0]))));
+        assertThrows(BusinessException.class, () -> service.assembleHydroProperties(studyEntity));
     }
 
     @Test
