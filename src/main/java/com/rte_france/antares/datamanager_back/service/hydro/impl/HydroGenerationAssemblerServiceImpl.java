@@ -34,6 +34,9 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
 
+    private static final String PSP_GENERATING_SUFFIX = "_generating";
+    private static final String PSP_PUMPING_SUFFIX = "_pumping";
+
     private record TrajectoryFileContext(Path path, TrajectoryType type) {}
 
     public HydroGenerationAssemblerServiceImpl(
@@ -252,43 +255,64 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     }
 
     private void processSeriesByArea(StudyEntity studyEntity, String area, List<TrajectoryFileContext> hydroSeriesContexts, List<String> generatedFilesArrow) throws BusinessException {
+        boolean skipRorMaxpower = isRorOnlyArea(hydroSeriesContexts);
+        String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
+        String horizon = studyEntity.getHorizon();
+
         hydroSeriesContexts.forEach(context -> {
-            String outputFileName;
-            TimeSeriesMatrix matrix;
-            Path path = context.path();
-            TrajectoryType type = context.type();
-            String fileName = path.getFileName().toString();
-            boolean isPsp = HydroTypeHelper.isPsp(type);
+            boolean isPsp = HydroTypeHelper.isPsp(context.type());
+            String fileName = context.path().getFileName().toString();
             String pspMarker = isPsp ? "_psp" : "";
-            String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
 
             if (fileName.startsWith("maxpower")) {
-                try {
-                    Set<String> columnsToRead = isPsp
-                            ? Set.of(area + "_generating", area + "_pumping")
-                            : Collections.singleton(area);
-
-                    matrix = timeSeriesReader.readSelectedColumnsFromXlsx(path, studyEntity.getHorizon(), columnsToRead);
-                    outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_maxpower", outputDir);
-                } catch (IOException e) {
-                    throw BusinessException.builder()
-                            .message("Could not generate matrix for maxpower")
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
+                if (isPsp && skipRorMaxpower) return;
+                generatedFilesArrow.add(generateMaxpowerArrow(context.path(), area, isPsp, pspMarker, outputDir, horizon));
             } else {
-                try {
-                    matrix = nasFileService.readMatrix(path, studyEntity.getHorizon(), false, "", "");
-                    outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_" + getHydroSeriesType(fileName), outputDir);
-                } catch (IOException e) {
-                    throw BusinessException.builder()
-                            .message("Could not generate matrix for " + HydroTypeHelper.getSeriesLabel(isPsp))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
+                generatedFilesArrow.add(generateSeriesArrow(context.path(), area, isPsp, pspMarker, outputDir, horizon, fileName));
             }
-            generatedFilesArrow.add(outputFileName);
         });
+    }
+
+    private String generateMaxpowerArrow(Path path, String area, boolean isPsp, String pspMarker, String outputDir, String horizon) {
+        try {
+            Set<String> columnsToRead = isPsp
+                    ? Set.of(area + PSP_GENERATING_SUFFIX, area + PSP_PUMPING_SUFFIX)
+                    : Collections.singleton(area);
+            TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromXlsx(path, horizon, columnsToRead);
+            if (isPsp) {
+                validatePspMaxpowerColumns(matrix, area);
+            }
+            return nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_maxpower", outputDir);
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message("Could not generate matrix for maxpower")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void validatePspMaxpowerColumns(TimeSeriesMatrix matrix, String area) {
+        boolean hasGenerating = matrix.columns().stream().anyMatch(c -> c.name().equalsIgnoreCase(area + PSP_GENERATING_SUFFIX));
+        boolean hasPumping    = matrix.columns().stream().anyMatch(c -> c.name().equalsIgnoreCase(area + PSP_PUMPING_SUFFIX));
+        if (!hasGenerating || !hasPumping) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(area + PSP_GENERATING_SUFFIX, area + PSP_PUMPING_SUFFIX, area))
+                    .message("PSP maxpower file must contain columns {0} and {1} for area {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private String generateSeriesArrow(Path path, String area, boolean isPsp, String pspMarker, String outputDir, String horizon, String fileName) {
+        try {
+            TimeSeriesMatrix matrix = nasFileService.readMatrix(path, horizon, false, "", "");
+            return nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_" + getHydroSeriesType(fileName), outputDir);
+        } catch (IOException e) {
+            throw BusinessException.builder()
+                    .message("Could not generate matrix for " + HydroTypeHelper.getSeriesLabel(isPsp))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     private Set<String> nonOtherAreas(Set<String> areas, Set<String> listAreas) {
@@ -381,6 +405,12 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return resolveHydroSeriesSubDirectory(tsName)
                 .map(subDirectory -> trajectoryDir.resolve(subDirectory).resolve(tsName))
                 .orElseGet(() -> trajectoryDir.resolve(tsName));
+    }
+
+    private boolean isRorOnlyArea(List<TrajectoryFileContext> contexts) {
+        return contexts.stream()
+                .filter(ctx -> !isMaxpowerFile(ctx.path().getFileName().toString()))
+                .allMatch(ctx -> ctx.path().getFileName().toString().toLowerCase(Locale.ROOT).startsWith(HYDRO_SERIES_INFLOWS_ROR + "_"));
     }
 
     private Optional<String> resolveHydroSeriesSubDirectory(String fileName) {
