@@ -127,4 +127,6 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
     TrajectoryEntity findLatestByStudyIdAndAreaAndType(@Param("studyId") Integer studyId,
                                                              @Param("area") String area,
                                                              @Param("type") String type);
+
+    Optional<TrajectoryEntity> findFirstByFileNameAndTypeAndHorizonAndAreaIgnoreCaseOrderByVersionDesc(String fileName, String type, String horizon, String area);
 }
