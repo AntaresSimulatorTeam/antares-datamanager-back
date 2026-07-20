@@ -57,7 +57,6 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
     private NuclearBindingConstraintAssemblerServiceImpl assembler;
 
     private static final String HORIZON = "2026-2027";
-    private static final String HORIZON_YEAR = "2027";
     private final StudyEntity study = StudyEntity.builder().horizon(HORIZON).build();
 
     private Path tempDir;
