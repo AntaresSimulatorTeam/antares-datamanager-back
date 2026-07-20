@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraint
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -55,6 +56,10 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
     @InjectMocks
     private NuclearBindingConstraintAssemblerServiceImpl assembler;
 
+    private static final String HORIZON = "2026-2027";
+    private static final String HORIZON_YEAR = "2027";
+    private final StudyEntity study = StudyEntity.builder().horizon(HORIZON).build();
+
     private Path tempDir;
 
     @BeforeEach
@@ -90,7 +95,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
 
             when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean()))
                     .thenReturn("arrow_hourly.arrow", "arrow_daily.arrow", "arrow_weekly.arrow");
-            when(nasFileService.countXlsxColumns(any(Path.class))).thenReturn(NB_COLUMNS);
+            when(nasFileService.countXlsxColumns(any(Path.class), any())).thenReturn(NB_COLUMNS);
         }
 
         @Test
@@ -98,7 +103,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             TrajectoryEntity modulationTraj = modulationTrajectory();
             mockCoefficients(modulationTraj.getId());
 
-            NuclearBindingConstraintGenerationDTO result = assembler.assembleModulationBindingConstraints(modulationTraj, List.of());
+            NuclearBindingConstraintGenerationDTO result = assembler.assembleModulationBindingConstraints(study, modulationTraj, List.of());
 
             assertThat(result.frStandardClusters()).isEmpty();
             assertThat(result.frPeakClusters()).isEmpty();
@@ -111,7 +116,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             mockCoefficients(modulationTraj.getId());
 
             List<String> frNuclearClusterNames = List.of("Nuclear_cp0", "Nuclear_epr", "Nuclear_peak1");
-            NuclearBindingConstraintGenerationDTO dto = assembler.assembleModulationBindingConstraints(modulationTraj, frNuclearClusterNames);
+            NuclearBindingConstraintGenerationDTO dto = assembler.assembleModulationBindingConstraints(study, modulationTraj, frNuclearClusterNames);
 
             assertThat(dto.group()).isEqualTo("scenarised" + NB_COLUMNS);
             assertThat(dto.nbTsColumns()).isEqualTo(NB_COLUMNS);
@@ -146,7 +151,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
                     modParam("nucFR_modul_hourly", new BigDecimal("0.50"))
             ));
 
-            assertThatThrownBy(() -> assembler.assembleModulationBindingConstraints(modulationTraj, List.of()))
+            assertThatThrownBy(() -> assembler.assembleModulationBindingConstraints(study, modulationTraj, List.of()))
                     .isInstanceOf(TechnicalException.class);
         }
 
@@ -212,12 +217,12 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
 
             when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean()))
                     .thenReturn("talon_arrow.arrow");
-            when(nasFileService.countXlsxColumns(any(Path.class))).thenReturn(NB_COLUMNS);
+            when(nasFileService.countXlsxColumns(any(Path.class), any())).thenReturn(NB_COLUMNS);
         }
 
         @Test
         void assembleTalonBindingConstraint_shouldReturnEmptyStandardClustersWhenNoFrNuclearClusters() {
-            NuclearTalonBindingConstraintGenerationDTO result = assembler.assembleTalonBindingConstraint(talonTrajectory(STORED_FILE_NAME), List.of());
+            NuclearTalonBindingConstraintGenerationDTO result = assembler.assembleTalonBindingConstraint(study, talonTrajectory(STORED_FILE_NAME), List.of());
 
             assertThat(result.frStandardClusters()).isEmpty();
         }
@@ -226,7 +231,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         void assembleTalonBindingConstraint_happyPath_shouldBuildCorrectDto() {
             List<String> frNuclearClusterNames = List.of("Nuclear_cp0_cp1_cp2", "Nuclear_epr", "Nuclear_peak1");
 
-            NuclearTalonBindingConstraintGenerationDTO dto = assembler.assembleTalonBindingConstraint(talonTrajectory(STORED_FILE_NAME), frNuclearClusterNames);
+            NuclearTalonBindingConstraintGenerationDTO dto = assembler.assembleTalonBindingConstraint(study, talonTrajectory(STORED_FILE_NAME), frNuclearClusterNames);
 
             assertThat(dto.group()).isEqualTo("scenarised" + NB_COLUMNS);
             assertThat(dto.nbTsColumns()).isEqualTo(NB_COLUMNS);
@@ -238,17 +243,17 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         void assembleTalonBindingConstraint_shouldExcludeAllPeakClusters() {
             List<String> frNuclearClusterNames = List.of("Nuclear_peak1", "Nuclear_peak2");
 
-            NuclearTalonBindingConstraintGenerationDTO dto = assembler.assembleTalonBindingConstraint(talonTrajectory(STORED_FILE_NAME), frNuclearClusterNames);
+            NuclearTalonBindingConstraintGenerationDTO dto = assembler.assembleTalonBindingConstraint(study, talonTrajectory(STORED_FILE_NAME), frNuclearClusterNames);
 
             assertThat(dto.frStandardClusters()).isEmpty();
         }
 
         @Test
         void assembleTalonBindingConstraint_shouldThrowTechnicalExceptionWhenFileUnreadable() throws IOException {
-            when(nasFileService.countXlsxColumns(any(Path.class))).thenThrow(new IOException("boom"));
+            when(nasFileService.countXlsxColumns(any(Path.class), any())).thenThrow(new IOException("boom"));
             TrajectoryEntity trajectory = talonTrajectory(STORED_FILE_NAME);
 
-            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(trajectory, List.of()))
+            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(study, trajectory, List.of()))
                     .isInstanceOf(TechnicalException.class);
         }
 
@@ -258,16 +263,16 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
                     .when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
             TrajectoryEntity trajectory = talonTrajectory(STORED_FILE_NAME);
 
-            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(trajectory, List.of()))
+            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(study, trajectory, List.of()))
                     .isInstanceOf(TechnicalException.class);
         }
 
         @Test
         void assembleTalonBindingConstraint_shouldFindFileWithUppercasePrefixCandidate() throws IOException {
-            assembler.assembleTalonBindingConstraint(talonTrajectory(STORED_FILE_NAME), List.of());
+            assembler.assembleTalonBindingConstraint(study, talonTrajectory(STORED_FILE_NAME), List.of());
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
-            verify(nasFileService).countXlsxColumns(pathCaptor.capture());
+            verify(nasFileService).countXlsxColumns(pathCaptor.capture(), any());
 
             assertThat(pathCaptor.getValue().toString())
                     .endsWith(Path.of("specific_nuclear", "Talon_nuc", "TALON_NUC_" + STORED_FILE_NAME + ".xlsx").toString());
@@ -279,10 +284,10 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             Path talonDir = tempDir.resolve("INPUT").resolve("specific_nuclear/Talon_nuc");
             createTalonXlsx(talonDir.resolve("talon_nuc_" + storedName + ".xlsx"), NB_COLUMNS);
 
-            assembler.assembleTalonBindingConstraint(talonTrajectory(storedName), List.of());
+            assembler.assembleTalonBindingConstraint(study, talonTrajectory(storedName), List.of());
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
-            verify(nasFileService, atLeastOnce()).countXlsxColumns(pathCaptor.capture());
+            verify(nasFileService, atLeastOnce()).countXlsxColumns(pathCaptor.capture(), any());
 
             assertThat(pathCaptor.getValue().toString()).endsWith("talon_nuc_" + storedName + ".xlsx");
         }
@@ -291,7 +296,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         void assembleTalonBindingConstraint_shouldThrowTechnicalExceptionWhenNeitherPrefixCandidateExists() {
             TrajectoryEntity trajectory = talonTrajectory("no_such_talon_file");
 
-            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(trajectory, List.of()))
+            assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(study, trajectory, List.of()))
                     .isInstanceOf(TechnicalException.class);
         }
 
@@ -301,10 +306,10 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             Path talonDir = tempDir.resolve("INPUT").resolve("specific_nuclear/Talon_nuc");
             createTalonXlsx(talonDir.resolve("TALON_NUC_" + storedNameWithExtension), NB_COLUMNS);
 
-            assembler.assembleTalonBindingConstraint(talonTrajectory(storedNameWithExtension), List.of());
+            assembler.assembleTalonBindingConstraint(study, talonTrajectory(storedNameWithExtension), List.of());
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
-            verify(nasFileService, atLeastOnce()).countXlsxColumns(pathCaptor.capture());
+            verify(nasFileService, atLeastOnce()).countXlsxColumns(pathCaptor.capture(), any());
 
             String resolved = pathCaptor.getValue().toString();
             assertThat(resolved)

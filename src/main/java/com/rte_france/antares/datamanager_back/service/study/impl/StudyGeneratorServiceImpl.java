@@ -115,7 +115,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         var thermalClusterProps = thermalPropertiesAssemblerService.assembleForTrajectories(study);
         TrajectoryDispatchResult dispatchResult = dispatchTrajectories(study, trajectories, thermalClusterProps);
 
-        Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(dispatchResult, thermalClusterProps);
+        Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(study, dispatchResult, thermalClusterProps);
 
         Map<String, Object> jsonForGenerator = new TreeMap<>();
         jsonForGenerator.put(study.getName(), innerGeneratorMap);
@@ -175,7 +175,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj);
     }
 
-    private Map<String, Object> buildInnerGeneratorMap(TrajectoryDispatchResult dispatchResult,
+    private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                          Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> areasMap = dispatchResult.areasMap();
         Map<String, Object> innerGeneratorMap = new TreeMap<>();
@@ -187,27 +187,27 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
 
-        Map<String, Object> bindingConstraints = buildBindingConstraintsMap(dispatchResult, thermalClusterProps, areasMap);
+        Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps, areasMap);
         if (!bindingConstraints.isEmpty()) {
             innerGeneratorMap.put("binding_constraints", bindingConstraints);
         }
         return innerGeneratorMap;
     }
 
-    private Map<String, Object> buildBindingConstraintsMap(TrajectoryDispatchResult dispatchResult,
+    private Map<String, Object> buildBindingConstraintsMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                              Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
                                                              Map<String, Object> areasMap) {
         Map<String, Object> bindingConstraints = new LinkedHashMap<>();
         dispatchResult.nuclearModulationTrajectory().ifPresent(traj -> {
             bindingConstraints.put("nuclear_modulation",
                     nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(
-                            traj, extractFrNuclearClusterNames(thermalClusterProps)));
+                            study, traj, extractFrNuclearClusterNames(thermalClusterProps)));
             areasMap.put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps));
         });
         dispatchResult.nuclearTalonTrajectory().ifPresent(traj ->
                 bindingConstraints.put("nuclear_talon",
                         nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(
-                                traj, extractFrNuclearClusterNames(thermalClusterProps))));
+                                study, traj, extractFrNuclearClusterNames(thermalClusterProps))));
         return bindingConstraints;
     }
 
