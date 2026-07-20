@@ -182,14 +182,14 @@ public final class TimeSeriesReader {
     }
   }
 
-  public int countXlsxColumns(Path xlsxPath) throws IOException {
+  public int countXlsxColumns(Path xlsxPath, String horizon) throws IOException {
     Objects.requireNonNull(xlsxPath);
     requireFileExists(xlsxPath);
     try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
       XSSFReader xssfReader = new XSSFReader(pkg);
       StylesTable styles = xssfReader.getStylesTable();
       ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(pkg);
-      try (InputStream sheetInput = openSheetInputStream(xssfReader, null, xlsxPath)) {
+      try (InputStream sheetInput = openSheetInputStream(xssfReader, horizon, xlsxPath)) {
         ColumnCountingHandler handler = new ColumnCountingHandler();
         XMLReader parser = XMLHelper.newXMLReader();
         parser.setContentHandler(new XSSFSheetXMLHandler(

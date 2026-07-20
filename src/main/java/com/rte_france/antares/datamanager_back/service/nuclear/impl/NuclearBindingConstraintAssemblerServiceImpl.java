@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraint
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
@@ -59,13 +60,14 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private record TsArrowFiles(String hourly, String daily, String weekly) {}
 
     @Override
-    public NuclearBindingConstraintGenerationDTO assembleModulationBindingConstraints(TrajectoryEntity modulationTrajectory, List<String> frNuclearClusterNames) {
+    public NuclearBindingConstraintGenerationDTO assembleModulationBindingConstraints(StudyEntity studyEntity, TrajectoryEntity modulationTrajectory, List<String> frNuclearClusterNames) {
         Map<String, BigDecimal> coeffs = loadCoefficients(modulationTrajectory.getId());
         ClusterNameGroups clusterNames = buildClusterNames(frNuclearClusterNames);
+        String horizonYear = extractHorizonYear(studyEntity.getHorizon());
 
         try {
-            TsArrowFiles arrowFiles = convertTsFiles(modulationTrajectory.getFileName());
-            int nbColumns = countModulationTsColumns(modulationTrajectory.getFileName());
+            TsArrowFiles arrowFiles = convertTsFiles(modulationTrajectory.getFileName(), horizonYear);
+            int nbColumns = countModulationTsColumns(modulationTrajectory.getFileName(), horizonYear);
             String group = CONSTRAINT_GROUP_NAME + nbColumns;
 
             List<NuclearConstraintItemDTO> constraints = buildConstraints(coeffs, arrowFiles);
@@ -87,15 +89,16 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     }
 
     @Override
-    public NuclearTalonBindingConstraintGenerationDTO assembleTalonBindingConstraint(TrajectoryEntity talonTrajectory, List<String> frNuclearClusterNames) {
+    public NuclearTalonBindingConstraintGenerationDTO assembleTalonBindingConstraint(StudyEntity studyEntity, TrajectoryEntity talonTrajectory, List<String> frNuclearClusterNames) {
         List<String> standardClusters = buildStandardClusterNames(frNuclearClusterNames);
+        String horizonYear = extractHorizonYear(studyEntity.getHorizon());
 
         try {
             Path relativePath = buildTalonRelativePath(talonTrajectory.getFileName());
             Path talonPath = resolveValidatedNasPath(relativePath, "Invalid nuclear talon path: {0}");
 
-            int nbColumns = nasFileService.countXlsxColumns(talonPath);
-            String arrowFile = nasFileService.readAndSaveMatrixToNas(talonPath, properties.getNuclearTalonTsOutputDirectory(), null, false);
+            int nbColumns = nasFileService.countXlsxColumns(talonPath, horizonYear);
+            String arrowFile = nasFileService.readAndSaveMatrixToNas(talonPath, properties.getNuclearTalonTsOutputDirectory(), horizonYear, false);
             String group = CONSTRAINT_GROUP_NAME + nbColumns;
 
             return new NuclearTalonBindingConstraintGenerationDTO(group, nbColumns, standardClusters, arrowFile);
@@ -147,17 +150,17 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
                 .toList();
     }
 
-    private TsArrowFiles convertTsFiles(String trajectoryName) throws IOException {
-        String hourlyArrow = convertSingleTsFile(trajectoryName, TS_HOURLY);
-        String dailyArrow = convertSingleTsFile(trajectoryName, TS_DAILY);
-        String weeklyArrow = convertSingleTsFile(trajectoryName, TS_WEEKLY);
+    private TsArrowFiles convertTsFiles(String trajectoryName, String horizonYear) throws IOException {
+        String hourlyArrow = convertSingleTsFile(trajectoryName, TS_HOURLY, horizonYear);
+        String dailyArrow = convertSingleTsFile(trajectoryName, TS_DAILY, horizonYear);
+        String weeklyArrow = convertSingleTsFile(trajectoryName, TS_WEEKLY, horizonYear);
         return new TsArrowFiles(hourlyArrow, dailyArrow, weeklyArrow);
     }
 
-    private String convertSingleTsFile(String trajectoryName, String tsType) throws IOException {
+    private String convertSingleTsFile(String trajectoryName, String tsType, String horizonYear) throws IOException {
         Path relativePath = buildTsRelativePath(trajectoryName, tsType);
         Path tsPath = resolveValidatedNasPath(relativePath, "Invalid nuclear TS modulation path: {0}");
-        return nasFileService.readAndSaveMatrixToNas(tsPath, properties.getNuclearModulationTsOutputDirectory(), null, false);
+        return nasFileService.readAndSaveMatrixToNas(tsPath, properties.getNuclearModulationTsOutputDirectory(), horizonYear, false);
     }
 
     private Path buildTsRelativePath(String trajectoryName, String tsType) {
@@ -167,10 +170,14 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
                 .resolve(trajectoryName + "_" + tsType + XLSX_SUFFIX);
     }
 
-    private int countModulationTsColumns(String trajectoryName) throws IOException {
+    private int countModulationTsColumns(String trajectoryName, String horizonYear) throws IOException {
         Path weeklyRelativePath = buildTsRelativePath(trajectoryName, TS_WEEKLY);
         Path weeklyPath = resolveValidatedNasPath(weeklyRelativePath, "Invalid nuclear TS modulation path: {0}");
-        return nasFileService.countXlsxColumns(weeklyPath);
+        return nasFileService.countXlsxColumns(weeklyPath, horizonYear);
+    }
+
+    private String extractHorizonYear(String horizon) {
+        return horizon != null && horizon.contains("-") ? horizon.split("-")[1] : horizon;
     }
 
     private List<NuclearConstraintItemDTO> buildConstraints(Map<String, BigDecimal> coeffs, TsArrowFiles arrowFiles) {

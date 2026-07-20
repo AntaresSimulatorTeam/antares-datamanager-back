@@ -263,7 +263,7 @@ class TimeSeriesReaderTest {
             data.createCell(2).setCellValue(3.0);
             try (OutputStream os = Files.newOutputStream(file)) { wb.write(os); }
         }
-        assertEquals(3, timeSeriesReader.countXlsxColumns(file));
+        assertEquals(3, timeSeriesReader.countXlsxColumns(file, null));
     }
 
     @Test
@@ -273,13 +273,13 @@ class TimeSeriesReaderTest {
             wb.createSheet("Sheet1");
             try (OutputStream os = Files.newOutputStream(file)) { wb.write(os); }
         }
-        assertEquals(0, timeSeriesReader.countXlsxColumns(file));
+        assertEquals(0, timeSeriesReader.countXlsxColumns(file, null));
     }
 
     @Test
     void countXlsxColumns_shouldThrowWhenFileNotFound(@TempDir Path tempDir) {
         Path file = tempDir.resolve("notfound.xlsx");
-        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.countXlsxColumns(file));
+        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.countXlsxColumns(file, null));
         assertTrue(ex.getMessage().startsWith("File not found:"));
     }
 

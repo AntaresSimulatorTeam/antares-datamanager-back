@@ -192,8 +192,8 @@ public class NasFileService {
         }
     }
 
-    public int countXlsxColumns(Path xlsxPath) throws IOException {
-        return reader.countXlsxColumns(xlsxPath);
+    public int countXlsxColumns(Path xlsxPath, String sheetName) throws IOException {
+        return reader.countXlsxColumns(xlsxPath, sheetName);
     }
 
     /**

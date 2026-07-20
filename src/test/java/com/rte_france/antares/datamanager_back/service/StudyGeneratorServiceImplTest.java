@@ -773,7 +773,7 @@ class StudyGeneratorServiceImplTest {
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto,
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", peakRef), dto
         ));
-        when(nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(any(), any()))
+        when(nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(any(), any(), any()))
                 .thenReturn(new NuclearBindingConstraintGenerationDTO("scenarised200", 200,
                         List.of("fr_nuclear_cp0"), List.of("fr_nuclear_peak1"),
                         List.of("y_nuc_modulation_nuclear_cp0"), List.of()));
@@ -833,7 +833,7 @@ class StudyGeneratorServiceImplTest {
         when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto
         ));
-        when(nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(any(), any()))
+        when(nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(any(), any(), any()))
                 .thenReturn(new NuclearTalonBindingConstraintGenerationDTO("scenarised200", 200,
                         List.of("fr_nuclear_cp0"), "talon_arrow.arrow"));
 
