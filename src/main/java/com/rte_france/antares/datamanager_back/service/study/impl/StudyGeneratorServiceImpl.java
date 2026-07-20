@@ -187,7 +187,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         var areaResGenerationMap = resGenerationAssemblerService.assembleResProperties(studyEntity);
         log.info("RES generation {} entries", areaResGenerationMap != null ? areaResGenerationMap.size() : 0);
 
-        Map<String, List<HydroGenerationDTO>> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
         log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
 
 

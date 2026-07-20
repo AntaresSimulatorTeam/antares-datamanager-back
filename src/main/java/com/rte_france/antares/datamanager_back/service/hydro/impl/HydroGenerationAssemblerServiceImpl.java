@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -49,60 +50,68 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     }
     
     @Override
-    public Map<String, List<HydroGenerationDTO>> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
-        Map<String, List<String>> generatedFilesArrowNameByArea = createArrowSeriesForHydroSeries(studyEntity);
-        Map<String, List<HydroGenerationDTO>> hydroGenerationDTO = new HashMap<>();
+    public Map<String, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
+        Map<String, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();
+        Map<String, HydroGenerationDTO> pspDtoByArea = new HashMap<>();
 
-        List<TrajectoryEntity> hydroTechnicalTrajectories = studyEntity.getTrajectories().stream()
+        assembleParametersAndAllocation(getTechTrajectories(studyEntity, false), hydroDtoByArea);
+        assembleParametersAndAllocation(getTechTrajectories(studyEntity, true), pspDtoByArea);
+
+        setSeriesOnDtos(createArrowSeriesForType(studyEntity, false), hydroDtoByArea);
+        setSeriesOnDtos(createArrowSeriesForType(studyEntity, true), pspDtoByArea);
+
+        Set<String> allAreas = new HashSet<>(hydroDtoByArea.keySet());
+        allAreas.addAll(pspDtoByArea.keySet());
+
+        Map<String, HydroAreaGenerationDTO> result = new HashMap<>();
+        allAreas.forEach(area -> result.put(area, new HydroAreaGenerationDTO(hydroDtoByArea.get(area), pspDtoByArea.get(area))));
+        return result;
+    }
+
+    private List<TrajectoryEntity> getTechTrajectories(StudyEntity studyEntity, boolean isPsp) {
+        String type = isPsp
+                ? TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name()
+                : TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name();
+        return studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.HYDRO_TECHNICAL_PARAMETERS.name().equals(t.getType()) ||
-                        TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name().equals(t.getType()))
+                .filter(t -> type.equals(t.getType()))
                 .toList();
+    }
 
-        Set<String> areasWithSpecificHydroProperties = getAreasWithSpecificHydroProperties(hydroTechnicalTrajectories);
-        
-        hydroTechnicalTrajectories.stream()
-                        .flatMap(trajectory -> filterHydroParametersEntities(trajectory, areasWithSpecificHydroProperties))
-                        .filter(hydroParameter -> hydroParameter.getNode() != null)
-                        .forEach(hydroParameter -> {
-                            String node = hydroParameter.getNode().toUpperCase(Locale.ROOT);
-                            hydroGenerationDTO.computeIfAbsent(node, key -> new ArrayList<>())
-                                    .add(HydroMapper.mapToHydroGenerationDTO(hydroParameter));
-                        });
-        
-        hydroTechnicalTrajectories.stream()
-                        .flatMap(trajectory -> filterHydroAllocationEntities(trajectory, areasWithSpecificHydroProperties))
-                        .filter(hydroAllocation -> hydroAllocation.getHydro() != null && hydroAllocation.getLoad() != null)
-                        .forEach(hydroAllocation -> {
-                            String hydro = hydroAllocation.getHydro().toUpperCase(Locale.ROOT);
-                            String load = hydroAllocation.getLoad().toUpperCase(Locale.ROOT);
-                            Double allocation = hydroAllocation.getAllocation() != null
-                                    ? hydroAllocation.getAllocation().doubleValue()
-                                    : 0.0;
+    private void assembleParametersAndAllocation(List<TrajectoryEntity> techTrajectories, Map<String, HydroGenerationDTO> dtoByArea) {
+        if (techTrajectories.isEmpty()) return;
 
-                            List<HydroGenerationDTO> hydroDtos = hydroGenerationDTO.get(hydro);
-                            if (hydroDtos != null) {
-                                hydroDtos.forEach(dto -> {
-                                    if (dto.getAllocation() == null) {
-                                        dto.setAllocation(new HashMap<>());
-                                    }
-                                    dto.getAllocation().put(load, allocation);
-                                });
-                            }
-                        });
+        Set<String> areasWithSpecificParams = getAreasWithSpecificHydroProperties(techTrajectories);
 
-        generatedFilesArrowNameByArea.forEach((area, generatedFilesArrowNames) -> {
+        techTrajectories.stream()
+                .flatMap(t -> filterHydroParametersEntities(t, areasWithSpecificParams))
+                .filter(hp -> hp.getNode() != null)
+                .forEach(hp -> {
+                    String node = hp.getNode().toUpperCase(Locale.ROOT);
+                    dtoByArea.computeIfAbsent(node, k -> HydroMapper.mapToHydroGenerationDTO(hp));
+                });
+
+        techTrajectories.stream()
+                .flatMap(t -> filterHydroAllocationEntities(t, areasWithSpecificParams))
+                .filter(ha -> ha.getHydro() != null && ha.getLoad() != null)
+                .forEach(ha -> {
+                    String hydro = ha.getHydro().toUpperCase(Locale.ROOT);
+                    String load = ha.getLoad().toUpperCase(Locale.ROOT);
+                    Double allocation = ha.getAllocation() != null ? ha.getAllocation().doubleValue() : 0.0;
+                    HydroGenerationDTO dto = dtoByArea.get(hydro);
+                    if (dto != null) {
+                        if (dto.getAllocation() == null) dto.setAllocation(new HashMap<>());
+                        dto.getAllocation().put(load, allocation);
+                    }
+                });
+    }
+
+    private void setSeriesOnDtos(Map<String, List<String>> seriesByArea, Map<String, HydroGenerationDTO> dtoByArea) {
+        seriesByArea.forEach((area, series) -> {
             String normalizedArea = area.toUpperCase(Locale.ROOT);
-
-            if (hydroGenerationDTO.isEmpty() || !hydroGenerationDTO.containsKey(normalizedArea)) {
-                hydroGenerationDTO.computeIfAbsent(normalizedArea, key -> new ArrayList<>())
-                        .add(HydroMapper.mapToHydroGenerationDTO(null));
-            }
-            List<HydroGenerationDTO> hydroDtos = hydroGenerationDTO.get(normalizedArea);
-            hydroDtos.forEach(dto -> dto.setSeries(generatedFilesArrowNames.toArray(String[]::new)));
+            dtoByArea.computeIfAbsent(normalizedArea, k -> HydroMapper.mapToHydroGenerationDTO(null))
+                     .setSeries(series.toArray(String[]::new));
         });
-
-        return hydroGenerationDTO;
     }
 
     private Set<String> getAreasWithSpecificHydroProperties(List<TrajectoryEntity> hydroTechnicalTrajectories) {
@@ -168,26 +177,25 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return !areasWithSpecificCapacity.contains(entityArea);
     }
 
-    private Map<String, List<String>> createArrowSeriesForHydroSeries(StudyEntity studyEntity) throws BusinessException {
-        Map<String, List<TrajectoryFileContext>> hydroSeriesPathByArea = mapTsPathByArea(studyEntity);
+    private Map<String, List<String>> createArrowSeriesForType(StudyEntity studyEntity, boolean isPsp) throws BusinessException {
+        Map<String, List<TrajectoryFileContext>> seriesPathByArea = mapTsPathByArea(studyEntity, isPsp);
         Map<String, List<String>> generatedFilesByArea = new HashMap<>();
 
         Set<String> processedAreas = new HashSet<>();
         String otherArea = OTHER_AREA.toUpperCase(Locale.ROOT);
 
         // 1. Specific areas treatment
-        for (String area : nonOtherAreas(hydroSeriesPathByArea.keySet(), processedAreas)) {
-            List<TrajectoryFileContext> hydroSeriesContexts = hydroSeriesPathByArea.get(area);
-
-            if (hydroSeriesContexts != null && !hydroSeriesContexts.isEmpty()) {
+        for (String area : nonOtherAreas(seriesPathByArea.keySet(), processedAreas)) {
+            List<TrajectoryFileContext> contexts = seriesPathByArea.get(area);
+            if (contexts != null && !contexts.isEmpty()) {
                 List<String> generatedFilesArrow = new ArrayList<>();
-                processSeriesByArea(studyEntity, area, hydroSeriesContexts, generatedFilesArrow);
+                processSeriesByArea(studyEntity, area, contexts, generatedFilesArrow);
                 generatedFilesByArea.put(area, generatedFilesArrow);
             }
         }
 
         // 2. OTHER case
-        List<TrajectoryFileContext> othersTsPath = hydroSeriesPathByArea.get(otherArea);
+        List<TrajectoryFileContext> othersTsPath = seriesPathByArea.get(otherArea);
         if (processedAreas.contains(otherArea) && othersTsPath != null && !othersTsPath.isEmpty()) {
             Set<String> alreadyProcessedAreas = generatedFilesByArea.keySet().stream()
                     .filter(Objects::nonNull)
@@ -322,22 +330,19 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return result;
     }
 
-    private Map<String, List<TrajectoryFileContext>> mapTsPathByArea(StudyEntity study) {
+    private Map<String, List<TrajectoryFileContext>> mapTsPathByArea(StudyEntity study, boolean isPsp) {
         Path trajectoryFilePath = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
-        Path hydroSeriesDir = trajectoryFilePath.resolve(antaresDataManagerProperties.getHydroSeriesDirectory());
-        Path pspSeriesDir = trajectoryFilePath.resolve(antaresDataManagerProperties.getPspSeriesDirectory());
+        String targetType = isPsp ? TrajectoryType.HYDRO_PSP_SERIES.name() : TrajectoryType.HYDRO_SERIES.name();
+        Path seriesDir = trajectoryFilePath.resolve(isPsp
+                ? antaresDataManagerProperties.getPspSeriesDirectory()
+                : antaresDataManagerProperties.getHydroSeriesDirectory());
 
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
-                .filter(trajectory -> TrajectoryType.HYDRO_SERIES.name().equals(trajectory.getType()) ||
-                        TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType()))
+                .filter(trajectory -> targetType.equals(trajectory.getType()))
                 .filter(trajectory -> trajectory.getArea() != null)
-                .flatMap(trajectory -> {
-                    Path seriesDir = TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType())
-                            ? pspSeriesDir
-                            : hydroSeriesDir;
-                    return Optional.ofNullable(trajectory.getHydroSeriesEntities())
+                .flatMap(trajectory -> Optional.ofNullable(trajectory.getHydroSeriesEntities())
                         .orElseGet(Collections::emptyList)
                         .stream()
                         .filter(Objects::nonNull)
@@ -349,8 +354,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                                         resolveHydroSeriesPath(seriesDir, trajectory, hydroSeries),
                                         TrajectoryType.valueOf(trajectory.getType())
                                 )
-                        ));
-                })
+                        )))
                 .filter(entry -> Files.exists(entry.getValue().path()))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,

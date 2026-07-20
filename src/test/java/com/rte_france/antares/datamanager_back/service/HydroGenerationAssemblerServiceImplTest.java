@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -28,6 +29,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,7 +53,7 @@ class HydroGenerationAssemblerServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroSeriesDirectory()).thenReturn("hydro_series");
-        when(antaresDataManagerProperties.getPspSeriesDirectory()).thenReturn("psp_series");
+        lenient().when(antaresDataManagerProperties.getPspSeriesDirectory()).thenReturn("psp_series");
     }
 
     // --- Tests existants corrigés ---
@@ -80,22 +82,18 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertNotNull(result);
         assertEquals(2, result.size());
         assertTrue(result.containsKey("FR"));
         assertTrue(result.containsKey("BE"));
 
-        List<HydroGenerationDTO> frProps = result.get("FR");
-        assertEquals(1, frProps.size());
-        assertEquals(Boolean.TRUE, frProps.getFirst().getProperties().getFollowLoadModulation());
-        assertEquals(new BigDecimal("1000"), frProps.getFirst().getProperties().getReservoirCapacity());
+        assertEquals(Boolean.TRUE, result.get("FR").hydro().getProperties().getFollowLoadModulation());
+        assertEquals(new BigDecimal("1000"), result.get("FR").hydro().getProperties().getReservoirCapacity());
 
-        List<HydroGenerationDTO> beProps = result.get("BE");
-        assertEquals(1, beProps.size());
-        assertEquals(Boolean.FALSE, beProps.getFirst().getProperties().getFollowLoadModulation());
-        assertEquals(new BigDecimal("2000"), beProps.getFirst().getProperties().getReservoirCapacity());
+        assertEquals(Boolean.FALSE, result.get("BE").hydro().getProperties().getFollowLoadModulation());
+        assertEquals(new BigDecimal("2000"), result.get("BE").hydro().getProperties().getReservoirCapacity());
     }
 
     @Test
@@ -108,7 +106,7 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
@@ -143,13 +141,11 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertNotNull(result);
         assertTrue(result.containsKey("FR"));
-        List<HydroGenerationDTO> frDto = result.get("FR");
-        assertEquals(1, frDto.size());
-        Map<String, Double> allocation = frDto.get(0).getAllocation();
+        Map<String, Double> allocation = result.get("FR").hydro().getAllocation();
         assertNotNull(allocation);
         assertEquals(2, allocation.size());
         assertEquals(1.0, allocation.get("AT"));
@@ -164,7 +160,7 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of())
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
@@ -190,11 +186,12 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertEquals(1, result.size());
         assertTrue(result.containsKey("FR"));
         assertFalse(result.containsKey(null));
+        assertNotNull(result.get("FR").hydro());
     }
 
     @Test
@@ -213,7 +210,7 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertTrue(result.containsKey("FR"));
         assertFalse(result.containsKey("fr"));
@@ -241,9 +238,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        Map<String, Double> allocation = result.get("FR").get(0).getAllocation();
+        Map<String, Double> allocation = result.get("FR").hydro().getAllocation();
         assertNotNull(allocation);
         assertEquals(0.0, allocation.get("DE"));
     }
@@ -271,12 +268,11 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         // FR existe mais son DTO n'a pas d'allocation car l'allocation cible ES (absent)
-        List<HydroGenerationDTO> frDtos = result.get("FR");
-        assertEquals(1, frDtos.size());
-        assertNull(frDtos.get(0).getAllocation());
+        assertNotNull(result.get("FR").hydro());
+        assertNull(result.get("FR").hydro().getAllocation());
         // ES n'est pas dans le résultat
         assertFalse(result.containsKey("ES"));
     }
@@ -308,9 +304,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        Map<String, Double> allocation = result.get("FR").get(0).getAllocation();
+        Map<String, Double> allocation = result.get("FR").hydro().getAllocation();
         assertNotNull(allocation);
         assertEquals(1, allocation.size());
         assertEquals(3.0, allocation.get("DE"));
@@ -339,12 +335,11 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         // FR existe mais sans allocation car l'allocation a hydro null (filtrée)
-        List<HydroGenerationDTO> frDtos = result.get("FR");
-        assertEquals(1, frDtos.size());
-        assertNull(frDtos.get(0).getAllocation());
+        assertNotNull(result.get("FR").hydro());
+        assertNull(result.get("FR").hydro().getAllocation());
     }
 
     @Test
@@ -369,11 +364,12 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertEquals(1, result.size());
-        List<HydroGenerationDTO> frDtos = result.get("FR");
-        assertEquals(2, frDtos.size());
+        assertNotNull(result.get("FR").hydro());
+        // first parameter entity wins for properties
+        assertEquals(Boolean.TRUE, result.get("FR").hydro().getProperties().getFollowLoadModulation());
     }
 
     @Test
@@ -400,9 +396,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        HydroGenerationDTO dto = result.get("FR").get(0);
+        HydroGenerationDTO dto = result.get("FR").hydro();
         assertEquals(Boolean.TRUE, dto.getProperties().getFollowLoadModulation());
         assertEquals(new BigDecimal("1"), dto.getProperties().getInterDailyBreakdown());
         assertEquals(new BigDecimal("2"), dto.getProperties().getInterDailyModulation());
@@ -436,10 +432,10 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertTrue(result.containsKey("FR"));
-        Map<String, Double> allocation = result.get("FR").get(0).getAllocation();
+        Map<String, Double> allocation = result.get("FR").hydro().getAllocation();
         assertNotNull(allocation);
         assertTrue(allocation.containsKey("DE"));
         assertEquals(10.0, allocation.get("DE"));
@@ -477,9 +473,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        HydroGenerationDTO dto = result.get("FR").get(0);
+        HydroGenerationDTO dto = result.get("FR").hydro();
         assertNotNull(dto.getSeries());
         assertArrayEquals(new String[]{"FR_mingen.arrow"}, dto.getSeries());
     }
@@ -515,9 +511,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        HydroGenerationDTO dto = result.get("FR").getFirst();
+        HydroGenerationDTO dto = result.get("FR").hydro();
         assertNotNull(dto.getSeries());
         assertArrayEquals(new String[]{"FR_mingen.arrow"}, dto.getSeries());
     }
@@ -540,9 +536,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        assertNull(result.get("FR").get(0).getSeries());
+        assertNull(result.get("FR").hydro().getSeries());
     }
 
     @Test
@@ -608,9 +604,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        HydroGenerationDTO dto = result.get("FR").get(0);
+        HydroGenerationDTO dto = result.get("FR").hydro();
         assertNotNull(dto.getSeries());
         assertArrayEquals(new String[]{"FR_maxpower.arrow"}, dto.getSeries());
     }
@@ -676,9 +672,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        HydroGenerationDTO dto = result.get("FR").get(0);
+        HydroGenerationDTO dto = result.get("FR").hydro();
         assertNotNull(dto.getSeries());
         assertArrayEquals(new String[]{"FR_ror.arrow"}, dto.getSeries());
     }
@@ -712,9 +708,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        HydroGenerationDTO dto = result.get("FR").get(0);
+        HydroGenerationDTO dto = result.get("FR").hydro();
         assertNotNull(dto.getSeries());
         assertEquals(1, dto.getSeries().length);
     }
@@ -737,9 +733,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        assertNull(result.get("FR").get(0).getSeries());
+        assertNull(result.get("FR").hydro().getSeries());
     }
 
     @Test
@@ -760,9 +756,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        assertNull(result.get("FR").get(0).getSeries());
+        assertNull(result.get("FR").hydro().getSeries());
     }
 
     @Test
@@ -794,10 +790,10 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(othersTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertTrue(result.containsKey("DE"));
-        HydroGenerationDTO dto = result.get("DE").get(0);
+        HydroGenerationDTO dto = result.get("DE").hydro();
         assertNotNull(dto.getSeries());
         assertArrayEquals(new String[]{"DE_mingen.arrow"}, dto.getSeries());
     }
@@ -820,10 +816,10 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertNotNull(result.get("FR"));
-        assertNull(result.get("FR").get(0).getSeries());
+        assertNull(result.get("FR").hydro().getSeries());
     }
 
     @Test
@@ -839,7 +835,7 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectoryNullArea))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertTrue(result.isEmpty());
     }
@@ -860,10 +856,11 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(trajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         assertEquals(1, result.size());
-        assertEquals(new BigDecimal("3000"), result.get("FR").get(0).getProperties().getReservoirCapacity());
+        assertNull(result.get("FR").hydro());
+        assertEquals(new BigDecimal("3000"), result.get("FR").psp().getProperties().getReservoirCapacity());
     }
 
     @Test
@@ -906,11 +903,11 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
         verify(timeSeriesReader).readSelectedColumnsFromXlsx(any(), any(), eq(Set.of("FR_generating", "FR_pumping")));
-        assertNotNull(result.get("FR").get(0).getSeries());
-        assertTrue(List.of(result.get("FR").get(0).getSeries()).contains("FR_psp_maxpower.arrow"));
+        assertNotNull(result.get("FR").psp().getSeries());
+        assertTrue(List.of(result.get("FR").psp().getSeries()).contains("FR_psp_maxpower.arrow"));
         
         when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), any(), any()))
                 .thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("FR_generating", new double[0]))));
@@ -948,10 +945,10 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        assertNotNull(result.get("FR").get(0).getSeries());
-        assertArrayEquals(new String[]{"FR_psp_mingen.arrow"}, result.get("FR").get(0).getSeries());
+        assertNotNull(result.get("FR").psp().getSeries());
+        assertArrayEquals(new String[]{"FR_psp_mingen.arrow"}, result.get("FR").psp().getSeries());
     }
 
     @Test
@@ -984,9 +981,9 @@ class HydroGenerationAssemblerServiceImplTest {
                 .trajectories(Set.of(seriesTrajectory, techTrajectory))
                 .build();
 
-        Map<String, List<HydroGenerationDTO>> result = service.assembleHydroProperties(studyEntity);
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
 
-        assertNotNull(result.get("FR").get(0).getSeries());
-        assertArrayEquals(new String[]{"FR_maxpower.arrow"}, result.get("FR").get(0).getSeries());
+        assertNotNull(result.get("FR").hydro().getSeries());
+        assertArrayEquals(new String[]{"FR_maxpower.arrow"}, result.get("FR").hydro().getSeries());
     }
 }

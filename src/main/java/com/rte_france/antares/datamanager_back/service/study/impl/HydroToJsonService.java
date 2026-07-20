@@ -1,12 +1,12 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -16,7 +16,7 @@ public class HydroToJsonService {
     private static final String ALLOCATION = "allocation";
     private static final String PSP = "psp";
 
-    public Map<String, Object> buildHydroDataMap(String areaName, Map<String, List<HydroGenerationDTO>> hydroPropsByArea) {
+    public Map<String, Object> buildHydroDataMap(String areaName, Map<String, HydroAreaGenerationDTO> hydroPropsByArea) {
         if (hydroPropsByArea == null || hydroPropsByArea.isEmpty()) {
             log.info("hydroMapGenerator: missing Hydro data for area={}", areaName);
             return Collections.emptyMap();
@@ -27,37 +27,43 @@ public class HydroToJsonService {
             return Collections.emptyMap();
         }
 
-        List<HydroGenerationDTO> areaHydro = hydroPropsByArea.get(areaName.toUpperCase());
-        if (areaHydro == null || areaHydro.isEmpty()) {
+        HydroAreaGenerationDTO areaHydro = hydroPropsByArea.get(areaName.toUpperCase());
+        if (areaHydro == null || (areaHydro.hydro() == null && areaHydro.psp() == null)) {
             log.info("hydroMapGenerator: no Hydro found for area={}", areaName);
             return Collections.emptyMap();
         }
 
-        String[] series = areaHydro.stream()
-                .map(HydroGenerationDTO::getSeries)
-                .filter(s -> s != null && s.length > 0)
-                .findFirst()
-                .orElse(new String[0]);
-
-        boolean isPsp = Arrays.stream(series).anyMatch(s -> s.contains("_psp"));
-
-        Map<String, Double> allocation = areaHydro.stream()
-                .map(HydroGenerationDTO::getAllocation)
-                .filter(a -> a != null && !a.isEmpty())
-                .findFirst()
-                .orElse(Collections.emptyMap());
-
-        var areaHydroWithoutMetadata = areaHydro.stream()
-                .map(HydroGenerationDTO::getProperties)
-                .toList().getFirst();
-
         Map<String, Object> areaHydroMap = new LinkedHashMap<>();
-        areaHydroMap.put(PROPERTIES, areaHydroWithoutMetadata != null ? areaHydroWithoutMetadata : new HashMap<>());
-        areaHydroMap.put(SERIES, series);
-        areaHydroMap.put(ALLOCATION, allocation);
-        areaHydroMap.put(PSP, isPsp);
+        areaHydroMap.put(PROPERTIES, extractProperties(areaHydro.hydro()));
+        areaHydroMap.put(SERIES, extractSeries(areaHydro.hydro()));
+        areaHydroMap.put(ALLOCATION, extractAllocation(areaHydro.hydro()));
+        areaHydroMap.put(PSP, buildPspSubMap(areaHydro.psp()));
 
         return areaHydroMap;
+    }
+
+    private HydroPropertiesGenerationDTO extractProperties(HydroGenerationDTO dto) {
+        return dto != null ? dto.getProperties() : null;
+    }
+
+    private String[] extractSeries(HydroGenerationDTO dto) {
+        if (dto == null || dto.getSeries() == null || dto.getSeries().length == 0) return new String[0];
+        return dto.getSeries();
+    }
+
+    private Map<String, Double> extractAllocation(HydroGenerationDTO dto) {
+        if (dto == null || dto.getAllocation() == null || dto.getAllocation().isEmpty()) return Collections.emptyMap();
+        return dto.getAllocation();
+    }
+
+    private Map<String, Object> buildPspSubMap(HydroGenerationDTO pspDto) {
+        if (pspDto == null) return Collections.emptyMap();
+        Map<String, Object> pspMap = new LinkedHashMap<>();
+        pspMap.put(PROPERTIES, pspDto.getProperties());
+        pspMap.put(SERIES, pspDto.getSeries() != null ? pspDto.getSeries() : new String[0]);
+        pspMap.put(ALLOCATION, pspDto.getAllocation() != null && !pspDto.getAllocation().isEmpty()
+                ? pspDto.getAllocation() : Collections.emptyMap());
+        return pspMap;
     }
 }
 
