@@ -119,4 +119,4 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V56-alter-hydro-allocation-decimal-column.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V56-create_table_adqp.sql
+      file: classpath*:db/changelog/1.1.0/V57-create_table_adqp.sql
