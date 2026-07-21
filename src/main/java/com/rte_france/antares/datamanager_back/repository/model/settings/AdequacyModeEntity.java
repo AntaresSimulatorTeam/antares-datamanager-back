@@ -1,5 +1,6 @@
-package com.rte_france.antares.datamanager_back.repository.model;
+package com.rte_france.antares.datamanager_back.repository.model.settings;
 
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

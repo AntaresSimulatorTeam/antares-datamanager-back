@@ -17,7 +17,7 @@ public class AdequacySettingsEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "adequacy_patch_settings_seq_gen")
     @SequenceGenerator(name = "adequacy_patch_settings_seq_gen", sequenceName = "adequacy_patch_settings_sequence", allocationSize = 1)
-    private Long id;
+    private Integer id;
     @Column(name = "include_adq_patch")
     private Boolean includeAdqPatch;
 
