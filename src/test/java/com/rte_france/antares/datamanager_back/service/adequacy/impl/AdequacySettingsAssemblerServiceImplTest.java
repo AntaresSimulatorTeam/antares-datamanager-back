@@ -30,7 +30,7 @@ class AdequacySettingsAssemblerServiceImplTest {
 
     @Test
     void assembleAdequacySettings_shouldReturnSettings_whenTrajectoryExists() {
-        AdequacySettingsEntity settings = AdequacySettingsEntity.builder().id(1L).includeAdqPatch(true).build();
+        AdequacySettingsEntity settings = AdequacySettingsEntity.builder().id(1).includeAdqPatch(true).build();
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.ADEQUACY_PATCH.name())
                 .adequacySettingsEntities(Collections.singletonList(settings))
@@ -42,7 +42,7 @@ class AdequacySettingsAssemblerServiceImplTest {
         Optional<AdequacySettingsEntity> result = adequacySettingsAssemblerService.assembleAdequacySettings(study);
         
         assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(settings);
+        assertThat(result).contains(settings);
     }
 
     @Test
