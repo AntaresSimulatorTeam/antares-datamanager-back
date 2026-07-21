@@ -36,7 +36,6 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.SETTING
 public class SettingsImportService {
 
     private static final String UNKNOWN_USER = "UNKNOWN";
-    private static final String GENERAL_DATA_FILE_PREFIX = "general_data_";
     private static final String SETTINGS_FILE_SUFFIX = ".xlsx";
 
     // General Parameters Keys
@@ -70,7 +69,7 @@ public class SettingsImportService {
     private static final String KEY_SPINNING_RESERVE = "spinning reserve";
     private static final String KEY_PRIMARY_RESERVE = "primary reserve";
     private static final String KEY_EXPORT_MPS = "export mps";
-    private static final String KEY_UNFEASIBLE_PROBLEM_BEHAVIOR = "unfeasible problem behavior";
+    private static final String KEY_UNFEASIBLE_PROBLEM_BEHAVIOR = "Unfeasible problem behavios";
 
     // Advanced Parameters Keys
     private static final String KEY_HYDRO_HEURISTIC_POLICY = "hydro heuristic policy";
@@ -78,10 +77,12 @@ public class SettingsImportService {
     private static final String KEY_POWER_FLUCTUATIONS = "power fluctuations";
     private static final String KEY_SHEDDING_POLICY = "shedding policy";
     private static final String KEY_UNIT_COMMITMENT_MODE = "unit commitment mode";
-    private static final String KEY_NUMBER_OF_CORES_MODE = "number of cores mode";
-    private static final String KEY_RENEWABLE_GENERATION_MODELLING = "renewable generation modelling";
+    private static final String KEY_NUMBER_OF_CORES_MODE = "Simulation cores";
+    private static final String KEY_RENEWABLE_GENERATION_MODELLING = "renewable generation modeling";
     private static final String KEY_ACCURACY_ON_CORRELATION = "accuracy on correlation";
     private static final String KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE = "accurate shave peaks include short term storage";
+    private static final String KEY_INITIAL_RESERVOIR_LEVELS = "Initial reservoir levels 2";
+
 
     // Seeds Parameters Keys
     private static final String KEY_SEED_TS_GEN_THERMAL = "Thermal time-series generation";
@@ -350,6 +351,7 @@ public class SettingsImportService {
                 .renewableGenerationModelling(ParameterValueConverter.getStringValue(dataMap, KEY_RENEWABLE_GENERATION_MODELLING))
                 .accuracyOnCorrelation(ParameterValueConverter.getStringValue(dataMap, KEY_ACCURACY_ON_CORRELATION))
                 .accurateShavePeaksIncludeShortTermtorage(ParameterValueConverter.getBooleanValue(dataMap, KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE))
+                .initialReservoirLevels(ParameterValueConverter.getStringValue(dataMap, KEY_INITIAL_RESERVOIR_LEVELS))
                 .trajectory(trajectory)
                 .build();
 
@@ -400,7 +402,7 @@ public class SettingsImportService {
                 String key = baseKey;
                 int suffix = 2;
                 while (dataMap.containsKey(key)) {
-                    key = baseKey + "_" + suffix++;
+                    key = baseKey + "-" + suffix++;
                 }
                 if (!key.equals(baseKey)) {
                     log.warn("Duplicate key '{}' found in sheet '{}', stored as '{}'", baseKey, sheet.getSheetName(), key);

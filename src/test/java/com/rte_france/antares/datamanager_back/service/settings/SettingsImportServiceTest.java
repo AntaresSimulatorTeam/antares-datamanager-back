@@ -290,8 +290,8 @@ class SettingsImportServiceTest {
             
             assertEquals(3, result.size());
             assertEquals("Adequacy", result.get("mode"));
-            assertEquals("Economy", result.get("mode_2"));
-            assertEquals("Draft", result.get("mode_3"));
+            assertEquals("Economy", result.get("mode-2"));
+            assertEquals("Draft", result.get("mode-3"));
         } catch (Exception e) {
             fail("Could not invoke readParametersSheet method: " + e.getMessage());
         }
