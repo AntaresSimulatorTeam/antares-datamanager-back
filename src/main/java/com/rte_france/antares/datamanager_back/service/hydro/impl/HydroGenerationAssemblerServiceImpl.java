@@ -37,6 +37,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
     private static final String PSP_GENERATING_SUFFIX = "_generating";
     private static final String PSP_PUMPING_SUFFIX = "_pumping";
+    private static final String W_HYDRO_OPEN_PREFIX = "w_hydro_open_";
 
     private record TrajectoryFileContext(Path path, TrajectoryType type) {}
 
@@ -95,10 +96,10 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 .flatMap(t -> filterHydroAllocationEntities(t, areasWithSpecificParams))
                 .filter(ha -> ha.getHydro() != null && ha.getLoad() != null)
                 .forEach(ha -> {
-                    String hydro = ha.getHydro().toUpperCase(Locale.ROOT);
+                    String area = extractCanonicalArea(ha.getHydro());
                     String load = ha.getLoad().toUpperCase(Locale.ROOT);
                     Double allocation = ha.getAllocation() != null ? ha.getAllocation().doubleValue() : 0.0;
-                    HydroGenerationDTO dto = dtoByArea.get(hydro);
+                    HydroGenerationDTO dto = dtoByArea.get(area);
                     if (dto != null) {
                         if (dto.getAllocation() == null) dto.setAllocation(new HashMap<>());
                         dto.getAllocation().put(load, allocation);
@@ -141,7 +142,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 trajectory.getHydroAllocationEntities(),
                 trajectory,
                 areasWithSpecificParameters,
-                HydroAllocationEntity::getHydro
+                ha -> extractCanonicalArea(ha.getHydro())
         );
     }
 
@@ -175,6 +176,15 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 .orElse("");
 
         return !areasWithSpecificCapacity.contains(entityArea);
+    }
+
+    private String extractCanonicalArea(String hydroColumnValue) {
+        if (hydroColumnValue == null) return "";
+        String lower = hydroColumnValue.toLowerCase(Locale.ROOT);
+        if (lower.startsWith(W_HYDRO_OPEN_PREFIX)) {
+            return lower.substring(W_HYDRO_OPEN_PREFIX.length()).toUpperCase(Locale.ROOT);
+        }
+        return hydroColumnValue.toUpperCase(Locale.ROOT);
     }
 
     private Map<String, List<String>> createArrowSeriesForType(StudyEntity studyEntity, boolean isPsp) throws BusinessException {
