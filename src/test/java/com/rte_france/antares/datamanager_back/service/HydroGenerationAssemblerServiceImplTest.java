@@ -864,6 +864,38 @@ class HydroGenerationAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleHydroProperties_pspAllocation_virtualNodeHydroColumn_extractsAreaAndUsesLoadAsKey() {
+        HydroParametersEntity hp = HydroParametersEntity.builder()
+                .node("AT")
+                .build();
+
+        HydroAllocationEntity ha = HydroAllocationEntity.builder()
+                .hydro("w_hydro_open_at")
+                .load("FR")
+                .allocation(BigDecimal.valueOf(1))
+                .build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name())
+                .hydroParametersEntities(List.of(hp))
+                .hydroAllocationEntities(List.of(ha))
+                .build();
+
+        StudyEntity studyEntity = StudyEntity.builder()
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        Map<String, HydroAreaGenerationDTO> result = service.assembleHydroProperties(studyEntity);
+
+        assertTrue(result.containsKey("AT"));
+        Map<String, Double> allocation = result.get("AT").psp().getAllocation();
+        assertNotNull(allocation);
+        assertEquals(1, allocation.size());
+        assertTrue(allocation.containsKey("FR"));
+        assertEquals(1.0, allocation.get("FR"));
+    }
+
+    @Test
     void assembleHydroProperties_setsSeriesForMaxpowerFile_forPsp_readsSpecificColumnsAndAppendsMarker(@TempDir Path tempDir) throws IOException {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getHydroTsOutputDirectory()).thenReturn("hydro_output");
