@@ -21,7 +21,7 @@ class AdequacySettingsToJsonServiceTest {
     @Test
     void buildAdequacySettingsMap_shouldReturnNull_whenSettingsNotPresent() {
         Map<String, Object> result = adequacySettingsToJsonService.buildAdequacySettingsMap(Optional.empty());
-        assertThat(result).isNull();
+        assertThat(result).isEmpty();
     }
 
     @Test
