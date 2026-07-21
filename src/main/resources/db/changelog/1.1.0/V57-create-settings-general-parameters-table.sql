@@ -67,6 +67,7 @@ CREATE SEQUENCE settings_optimization_parameters_sequence
 CREATE TABLE settings_advanced_parameters
 (
     id                                              INTEGER,
+    initial_reservoir_levels                        VARCHAR(10),
     hydro_heuristic_policy                          VARCHAR(40),
     hydro_pricing_mode                              VARCHAR(10),
     power_fluctuations                              VARCHAR(40),
