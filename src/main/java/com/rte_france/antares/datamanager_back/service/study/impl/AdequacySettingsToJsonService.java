@@ -34,9 +34,7 @@ public class AdequacySettingsToJsonService {
             addIfNotNull(adqMap, "set_to_null_ntc_from_physical_out_to_physical_in_for_first_step", settings.getSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep());
 
             settingsMap.put("adequacy", adqMap);
-        } else {
-            return null;
-        }
+        } 
         return settingsMap;
     }
 

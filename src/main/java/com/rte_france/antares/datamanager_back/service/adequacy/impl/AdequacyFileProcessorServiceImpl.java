@@ -1,4 +1,4 @@
-package com.rte_france.antares.datamanager_back.service.adequacy;
+package com.rte_france.antares.datamanager_back.service.adequacy.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
@@ -7,10 +7,11 @@ import com.rte_france.antares.datamanager_back.repository.AdequacyModeRepository
 import com.rte_france.antares.datamanager_back.repository.AdequacySettingsRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AdequacyModeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
+import com.rte_france.antares.datamanager_back.service.adequacy.AdequacyFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -57,14 +58,14 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     }
 
     private static Integer castToInteger(Object v) {
-        if (v instanceof Number) {
-            return ((Number) v).intValue();
+        if (v instanceof Number number) {
+            return number.intValue();
         }
         return null;
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = IOException.class)
     public TrajectoryEntity processAdequacyFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear) throws IOException {
 
         Path path = trajectoryService.getTrajectoryFilePath(TrajectoryType.ADEQUACY_PATCH, trajectoryToUse, null);

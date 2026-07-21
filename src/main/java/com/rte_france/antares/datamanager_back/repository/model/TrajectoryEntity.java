@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;

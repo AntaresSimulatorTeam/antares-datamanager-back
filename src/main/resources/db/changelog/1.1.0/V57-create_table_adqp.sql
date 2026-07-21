@@ -1,5 +1,5 @@
 -- liquibase formatted sql
--- changeset vargas:110V056-1
+-- changeset vargas:110V057-1
 CREATE TABLE adequacy_patch_mode
 (
     id                INTEGER,
