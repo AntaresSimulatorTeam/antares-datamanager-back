@@ -39,24 +39,27 @@ public class SettingsController {
             @Pattern(regexp = "^[a-zA-Z0-9_-]+$") 
             @Parameter(description = "Name of the trajectory folder (e.g., BP23_A_ref_200MC)") 
             String trajectoryToUse,
+
             @RequestParam("horizon") 
             @Pattern(regexp = "^\\d{4}-\\d{4}$") 
             @Parameter(description = "Horizon in format YYYY-YYYY (e.g., 2028-2029)") 
             String horizon,
-            @RequestParam("studyId") 
+
+            @RequestParam(value="studyId", required = false)
             @Parameter(description = "Study ID") 
             Integer studyId,
-            @RequestParam("area") 
+
+            @RequestParam(value = "area", required = false)
             @Size(max = 40, message = "Area name cannot exceed 40 characters") 
             @Pattern(regexp = "^[a-zA-Z0-9_-]+$") 
-            @Parameter(description = "Area code (e.g., FR, DE, IT)") 
-            String area) throws IOException {
+            @Parameter(description = "Area code (e.g., FR, DE, IT)")
+            String area)
 
-        log.info("Importing trajectory settings for: trajectory={}, horizon={}, studyId={}, area={}", 
-                trajectoryToUse, horizon, studyId, area);
+            throws IOException {
 
-        return new ResponseEntity<>(toTrajectoryDTO(
-                trajectorySettingsImportService.importSettings(trajectoryToUse, horizon, studyId, area)
-        ), HttpStatus.CREATED);
+        log.info("Importing trajectory settings for: trajectory={}, horizon={}, studyId={}, area={}", trajectoryToUse, horizon, studyId, area);
+
+        return new ResponseEntity<>
+                (toTrajectoryDTO(trajectorySettingsImportService.importSettings(trajectoryToUse, horizon, studyId, area)), HttpStatus.CREATED);
     }
 }
