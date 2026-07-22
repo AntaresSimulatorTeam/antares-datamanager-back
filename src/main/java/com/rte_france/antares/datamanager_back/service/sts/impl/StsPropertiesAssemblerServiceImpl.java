@@ -298,7 +298,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             } catch (BusinessException e) {
                 String seriesPath = extractSeriesDisplayPath(path);
                 throw BusinessException.builder()
-                        .message(e.getMessage() + " for series in " + seriesPath)
+                        .message(e.getMessage() + " for series in " + seriesPath + " for STS " + technology)
                         .errorMessageArguments(e.getErrorMessageArguments())
                         .httpStatus(e.getHttpStatus())
                         .build();
