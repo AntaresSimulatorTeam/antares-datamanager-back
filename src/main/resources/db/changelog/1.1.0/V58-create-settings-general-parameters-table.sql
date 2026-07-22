@@ -1,5 +1,5 @@
 -- liquibase formatted sql
--- changeset metienne:110V056-1
+-- changeset metienne:110V058-1
 
 CREATE TABLE settings_general_parameters
 (
