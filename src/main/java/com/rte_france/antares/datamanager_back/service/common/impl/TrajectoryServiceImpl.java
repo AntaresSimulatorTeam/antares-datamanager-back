@@ -1078,6 +1078,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TALON -> isXlsx && fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> isXlsx && fileName.startsWith(NUCLEAR_EPR_PREFIX);
             case NUCLEAR_FR_TS_SMR -> isXlsx && fileName.startsWith(NUCLEAR_SMR_PREFIX);
+            case ADEQUACY_PATCH -> isXlsx;
             default -> isXlsx; // for all other types, only accept .xlsx files
         };
 
@@ -1115,6 +1116,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();
             case NUCLEAR_FR_TS_LONG_TERM -> antaresDataManagerProperties.getNuclearLtDirectory();
             case NUCLEAR_FR_TS_SMR -> antaresDataManagerProperties.getNuclearSmrDirectory();
+            case ADEQUACY_PATCH -> antaresDataManagerProperties.getAdequacyDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
