@@ -43,15 +43,17 @@ class AdequacySettingsToJsonServiceTest {
         assertThat(result).isNotNull().containsKey("adequacy");
         Map<String, Object> adequacy = (Map<String, Object>) result.get("adequacy");
 
-        assertThat(adequacy.get("include_adq_patch")).isEqualTo(true);
-        assertThat(adequacy.get("price_taking_order")).isEqualTo("DENS"); // Should be the string name
-        assertThat(adequacy.get("include_hurdle_cost_csr")).isEqualTo(true);
-        assertThat(adequacy.get("check_csr_cost_function")).isEqualTo(false);
-        assertThat(adequacy.get("threshold_initiate_curtailment_sharing_rule")).isEqualTo(10.0);
-        assertThat(adequacy.get("threshold_display_local_matching_rule_violations")).isEqualTo(20.0);
-        assertThat(adequacy.get("threshold_csr_variable_bounds_relaxation")).isEqualTo(30.0);
-        assertThat(adequacy.get("redispatch")).isEqualTo(true);
-        assertThat(adequacy.get("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step")).isEqualTo(true);
+        assertThat(adequacy)
+                    .containsEntry("include_adq_patch", true)
+                    .containsEntry("price_taking_order", "DENS")
+                    .containsEntry("include_hurdle_cost_csr", true)
+                    .containsEntry("check_csr_cost_function", false)
+                    .containsEntry("threshold_initiate_curtailment_sharing_rule", 10.0)
+                    .containsEntry("threshold_display_local_matching_rule_violations", 20.0)
+                    .containsEntry("threshold_csr_variable_bounds_relaxation", 30.0)
+                    .containsEntry("redispatch", true)
+                    .containsEntry("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step", true);
+
         assertThat(adequacy).doesNotContainKey("ntc_between_physical_areas_out_adequacy_patch");
     }
 
