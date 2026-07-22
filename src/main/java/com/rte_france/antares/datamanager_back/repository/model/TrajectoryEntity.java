@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
@@ -134,6 +135,12 @@ public class TrajectoryEntity {
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<NuclearModulationParameterEntity> nuclearModulationParameterEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<AdequacyModeEntity> adequacyModeEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity> adequacySettingsEntities;
 
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",

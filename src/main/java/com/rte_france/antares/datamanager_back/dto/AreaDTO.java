@@ -24,4 +24,7 @@ public class AreaDTO {
 
     @JsonProperty(value = "last_modified_date", access = JsonProperty.Access.WRITE_ONLY)
     LocalDateTime lastModifiedDate;
+
+    @JsonProperty("adequacy_patch_mode")
+    String adequacyPatchMode;
 }

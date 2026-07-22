@@ -13,6 +13,8 @@ import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
@@ -20,6 +22,8 @@ import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemb
 import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
+import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
+import com.rte_france.antares.datamanager_back.service.adequacy.impl.AdequacySettingsAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -85,6 +89,9 @@ class StudyGeneratorServiceImplTest {
     private StudyGeneratorServiceImpl studyGeneratorService;
 
     @Mock
+    private AdequacySettingsToJsonService adequacySettingsToJsonService;
+
+    @Mock
     private LoadToJsonService loadToJsonService;
 
     @Mock
@@ -107,6 +114,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private HydroToJsonService hydroToJsonService;
+
+    @Mock
+    private AdequacySettingsAssemblerService adequacySettingsAssemblerService;
 
     @Mock
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
@@ -167,9 +177,39 @@ class StudyGeneratorServiceImplTest {
         // Create TrajectoryEntity for areas
         TrajectoryEntity trajectoryEntityAreas = TrajectoryEntity.builder().type("AREA").areaConfigEntities(Collections.singletonList(areaConfigEntity)).build();
 
+        // Create Adequacy entities
+        AdequacyModeEntity adequacyModeEntityDe = AdequacyModeEntity.builder()
+                .area("DE")
+                .mode("adequacy_patch")
+                .build();
+        AdequacyModeEntity adequacyModeEntityAt = AdequacyModeEntity.builder()
+                .area("AT")
+                .mode("adequacy_patch")
+                .build();
+        AdequacyModeEntity adequacyModeEntityFr = AdequacyModeEntity.builder()
+                .area("FR")
+                .mode("adequacy_patch")
+                .build();
+
+        AdequacySettingsEntity adequacySettingsEntity = AdequacySettingsEntity.builder()
+                .includeAdqPatch(true)
+                .priceTakingOrder("DENS")
+                .thresholdInitiateCurtailmentSharingRule(0)
+                .thresholdDisplayLocalMatchingRuleViolations(0)
+                .thresholdCsrVariableBoundsRelaxation(0)
+                .build();
+
+        TrajectoryEntity trajectoryEntityAdequacy = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adequacy_trajectory.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeEntityDe, adequacyModeEntityAt, adequacyModeEntityFr))
+                .adequacySettingsEntities(Collections.singletonList(adequacySettingsEntity))
+                .build();
+
         // Add trajectories to set
         trajectoryEntityList.add(trajectoryEntityLinks);
         trajectoryEntityList.add(trajectoryEntityAreas);
+        trajectoryEntityList.add(trajectoryEntityAdequacy);
 
         // Create StudyEntity with trajectories
         StudyEntity studyEntity = StudyEntity.builder().name("studyTest").trajectories(trajectoryEntityList).build();
@@ -182,6 +222,16 @@ class StudyGeneratorServiceImplTest {
         lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(hydroGenerationAssemblerService.assembleHydroProperties(any())).thenReturn(Collections.emptyMap());
+
+        // Delegate Adequacy Settings assembler to real implementation by default
+        lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().assembleAdequacySettings(inv.getArgument(0)))
+                .when(adequacySettingsAssemblerService).assembleAdequacySettings(any());
+        lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().assembleAdequacyModeByArea(inv.getArgument(0)))
+                .when(adequacySettingsAssemblerService).assembleAdequacyModeByArea(any());
+
+        // Delegate Adequacy Settings transformation to real implementation by default
+        lenient().doAnswer(inv -> new AdequacySettingsToJsonService().buildAdequacySettingsMap(inv.getArgument(0)))
+                .when(adequacySettingsToJsonService).buildAdequacySettingsMap(any());
 
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
@@ -242,8 +292,12 @@ class StudyGeneratorServiceImplTest {
         assertTrue(studyMap.containsKey("areas"));
         assertTrue(studyMap.containsKey("links"));
         assertEquals("9.3", studyMap.get("version"));
-        assertEquals("will be refactored so we'll put nothing for the moment", studyMap.get("settings"));
+        assertNotNull(studyMap.get("settings"));
 
+        Map<String, Object> adequacySettings = objectMapper.convertValue(studyMap.get("settings"), new TypeReference<>() {});
+        Map<String, Object> adequacy = (Map<String, Object>) adequacySettings.get("adequacy");
+        assertNotNull(adequacy);
+        assertFalse(adequacy.containsKey("redispatch"), "redispatch should not be present in JSON if it is null in entity");
 
         Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {
         });
@@ -629,7 +683,7 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> sts = mapper.convertValue(de.get("sts"), new TypeReference<>() {});
         assertThat(sts)
                 .containsKey("DE_Storage1")
-                        .doesNotContainKey("FR_Ignore");
+                .doesNotContainKey("FR_Ignore");
 
         Map<String, Object> cluster = mapper.convertValue(sts.get("DE_Storage1"), new TypeReference<>() {});
         assertThat(cluster).containsKey("properties");
