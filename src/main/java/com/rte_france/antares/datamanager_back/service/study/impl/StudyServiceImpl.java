@@ -56,7 +56,6 @@ public class StudyServiceImpl implements StudyService {
     private static final  int HORIZON_UPPER_BOUND = 9999;
     private final UserService userService;
     private final TrajectoryServiceImpl trajectoryService;
-    private final LoadFileProcessorServiceImpl loadFileProcessorService;
 
     private static final String STUDY_NOT_FOUND = "Study with id {0} not found.";
     private static final String HORIZON_FORMAT = "%d-%s";
@@ -351,7 +350,7 @@ public class StudyServiceImpl implements StudyService {
                 .tags(studyDTO.getTags())
                 .warningMessages(new HashSet<>())
                 .trajectories(trajectories)
-                .hvdc(false)
+                .hvdc(studyDTO.getHvdc())
                 .build();
     }
 
