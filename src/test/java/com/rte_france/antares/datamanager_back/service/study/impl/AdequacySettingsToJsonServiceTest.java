@@ -52,9 +52,8 @@ class AdequacySettingsToJsonServiceTest {
                     .containsEntry("threshold_display_local_matching_rule_violations", 20.0)
                     .containsEntry("threshold_csr_variable_bounds_relaxation", 30.0)
                     .containsEntry("redispatch", true)
-                    .containsEntry("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step", true);
-
-        assertThat(adequacy).doesNotContainKey("ntc_between_physical_areas_out_adequacy_patch");
+                    .containsEntry("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step", true)
+                    .doesNotContainKey("ntc_between_physical_areas_out_adequacy_patch");
     }
 
     @Test
