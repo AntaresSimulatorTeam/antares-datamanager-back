@@ -165,7 +165,7 @@ public class SettingsImportService {
                 if (existingTrajectory.get().getChecksum().equals(combinedChecksum)) {
                     throw BusinessException.builder()
                             .message("Settings file already processed with same checksum: {0}")
-                            .errorMessageArguments(List.of(filePath.toString()))
+                            .errorMessageArguments(List.of(filePath.getFileName().toString()))
                             .httpStatus(HttpStatus.CONFLICT)
                             .build();
                 } else {
