@@ -223,6 +223,67 @@ class TimeSeriesReaderTest {
     }
 
     @Test
+    void readFromXlsx_noHeader_shouldReadAllRowsWithGeneratedColumnNames(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("noheader.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row r0 = s.createRow(0);
+            r0.createCell(0).setCellValue(1.0);
+            r0.createCell(1).setCellValue(2.0);
+            Row r1 = s.createRow(1);
+            r1.createCell(0).setCellValue(3.0);
+            r1.createCell(1).setCellValue(4.0);
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        var matrix = timeSeriesReader.readFromXlsx(file, "2030", false);
+        assertEquals(2, matrix.getRowCount());
+        assertEquals(2, matrix.columns().size());
+        assertEquals("Column0", matrix.columns().get(0).name());
+        assertEquals("Column1", matrix.columns().get(1).name());
+        assertEquals(1.0, matrix.columns().get(0).values()[0]);
+        assertEquals(3.0, matrix.columns().get(0).values()[1]);
+        assertEquals(2.0, matrix.columns().get(1).values()[0]);
+        assertEquals(4.0, matrix.columns().get(1).values()[1]);
+    }
+
+    @Test
+    void countXlsxColumns_shouldReturnColumnCountFromFirstRow(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("count.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("Sheet1");
+            Row header = s.createRow(0);
+            header.createCell(0).setCellValue("A");
+            header.createCell(1).setCellValue("B");
+            header.createCell(2).setCellValue("C");
+            Row data = s.createRow(1);
+            data.createCell(0).setCellValue(1.0);
+            data.createCell(1).setCellValue(2.0);
+            data.createCell(2).setCellValue(3.0);
+            try (OutputStream os = Files.newOutputStream(file)) { wb.write(os); }
+        }
+        assertEquals(3, timeSeriesReader.countXlsxColumns(file, null));
+    }
+
+    @Test
+    void countXlsxColumns_shouldReturnZeroForEmptySheet(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("empty_count.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            wb.createSheet("Sheet1");
+            try (OutputStream os = Files.newOutputStream(file)) { wb.write(os); }
+        }
+        assertEquals(0, timeSeriesReader.countXlsxColumns(file, null));
+    }
+
+    @Test
+    void countXlsxColumns_shouldThrowWhenFileNotFound(@TempDir Path tempDir) {
+        Path file = tempDir.resolve("notfound.xlsx");
+        var ex = assertThrows(TechnicalException.class, () -> timeSeriesReader.countXlsxColumns(file, null));
+        assertTrue(ex.getMessage().startsWith("File not found:"));
+    }
+
+    @Test
     void readSelectedColumnsFromXlsx_shouldOnlyReturnRequestedColumns(@TempDir Path tempDir) throws Exception {
         Path file = tempDir.resolve("selected.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {

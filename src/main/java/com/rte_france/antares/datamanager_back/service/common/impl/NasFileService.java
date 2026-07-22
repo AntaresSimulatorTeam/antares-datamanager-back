@@ -192,6 +192,10 @@ public class NasFileService {
         }
     }
 
+    public int countXlsxColumns(Path xlsxPath, String sheetName) throws IOException {
+        return reader.countXlsxColumns(xlsxPath, sheetName);
+    }
+
     /**
      * Saves pre-serialized Arrow bytes to NAS with a unique filename.
      * Use this when the same matrix is written multiple times to avoid re-serializing.

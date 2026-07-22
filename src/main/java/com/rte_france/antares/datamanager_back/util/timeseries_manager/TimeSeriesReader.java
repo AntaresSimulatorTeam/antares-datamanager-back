@@ -12,13 +12,7 @@ import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.util.XMLHelper;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
@@ -52,7 +46,7 @@ import javax.xml.parsers.ParserConfigurationException;
  * Utility class for reading time series data from text or Excel and producing a matrix
  */
 public final class TimeSeriesReader {
-  private static final int ROW_COUNT = 8760;
+  private static final int MAX_ROWS_PER_YEAR = 8784;
   private static final String COLUMN_PREFIX = "Column";
 
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
@@ -101,7 +95,7 @@ public final class TimeSeriesReader {
       }
 
       var columnCount = headerValues.length;
-      var actualRows = Math.min(ROW_COUNT, hasHeader ? allLines.size() - 1 : allLines.size());
+      var actualRows = Math.min(MAX_ROWS_PER_YEAR, hasHeader ? allLines.size() - 1 : allLines.size());
       var data = new double[columnCount][actualRows];
 
       fillDataList(iterator, data, separator);
@@ -118,63 +112,27 @@ public final class TimeSeriesReader {
 
   /**
    * Reads a time series matrix from the specified sheet of an Excel file (.xlsx).
-   * Each column in the sheet is interpreted as a series, and up to 8760 rows are read.
+   * Each column in the sheet is interpreted as a series, and up to 8784 rows are read
+   * (366 days x 24 hours, for leap years -> regular years only use 8760).
    * Non-numeric and blank cells are treated as 0.0; string numbers with comma are supported.
    */
   public TimeSeriesMatrix readFromXlsx(Path xlsxPath, String horizon, boolean hasHeader) throws IOException {
     Objects.requireNonNull(xlsxPath);
-
-    if (!Files.exists(xlsxPath)) {
-      throw TechnicalException.builder().message("File not found: " + xlsxPath).build();
-    }
-    try (InputStream in = Files.newInputStream(xlsxPath); Workbook wb = WorkbookFactory.create(in)) {
-      // Check if the workbook has sheets
-      if (wb.getNumberOfSheets() == 0) {
-        throw TechnicalException.builder().message("Excel file has no sheets").build();
+    requireFileExists(xlsxPath);
+    try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
+      XSSFReader reader = new XSSFReader(pkg);
+      StylesTable styles = reader.getStylesTable();
+      ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(pkg);
+      try (InputStream sheetInput = openSheetInputStream(reader, horizon, xlsxPath)) {
+        AllColumnsSheetHandler handler = new AllColumnsSheetHandler(hasHeader);
+        XMLReader parser = XMLHelper.newXMLReader();
+        parser.setContentHandler(new XSSFSheetXMLHandler(
+            styles, null, sharedStrings, handler, new DataFormatter(), false));
+        parser.parse(new InputSource(sheetInput));
+        return handler.toMatrix();
       }
-
-      // Determine the sheet to work with
-      Sheet sheet = getSheet(wb, horizon, xlsxPath);
-      if (sheet == null) {
-        throw TechnicalException.builder().message("Sheet not found").build();
-      }
-
-      // Find the first non-empty row
-      Row firstRow = findFirstNonEmptyRow(sheet);
-      if (firstRow == null) {
-        throw TechnicalException.builder().message("Excel sheet is empty").build();
-      }
-
-      // Determine column count and validate
-      int columnCount = Math.max(0, firstRow.getLastCellNum());
-      if (columnCount == 0) {
-        throw TechnicalException.builder().message("Excel sheet has no columns").build();
-      }
-
-      var columns = new ArrayList<TimeSeriesMatrixColumn>(columnCount);
-      
-      if (!hasHeader) {
-        sheet.removeRow(firstRow);
-        sheet.shiftRows(firstRow.getRowNum(), sheet.getLastRowNum(), -1);
-      }
-      int actualRowCount = Math.clamp(
-              (long) sheet.getLastRowNum() - firstRow.getRowNum(),
-              0,
-              ROW_COUNT
-      );
-      double[][] data = loadData(sheet, columnCount, actualRowCount);
-      // Create TimeSeriesMatrix
-      for (int c = 0; c < columnCount; c++) {
-        String columnName = getHeaderValue(firstRow.getCell(c));
-        columns.add(new TimeSeriesMatrixColumn(columnName != null ? columnName : COLUMN_PREFIX + c, data[c]));
-      }
-
-      return new TimeSeriesMatrix(columns);
-
-    } catch (IOException | RuntimeException e) {
-      throw e; // Re-throw IOException or RuntimeException
-    } catch (Exception e) {
-      throw new IOException(e); // Convert other exceptions into IOException
+    } catch (OpenXML4JException | SAXException | ParserConfigurationException e) {
+      throw new IOException(e);
     }
   }
 
@@ -198,9 +156,7 @@ public final class TimeSeriesReader {
       return new TimeSeriesMatrix(List.of());
     }
 
-    if (!Files.exists(xlsxPath)) {
-      throw TechnicalException.builder().message("File not found: " + xlsxPath).build();
-    }
+    requireFileExists(xlsxPath);
 
     try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
       XSSFReader reader = new XSSFReader(pkg);
@@ -223,6 +179,35 @@ public final class TimeSeriesReader {
       }
     } catch (OpenXML4JException | SAXException | ParserConfigurationException e) {
       throw new IOException(e);
+    }
+  }
+
+  public int countXlsxColumns(Path xlsxPath, String horizon) throws IOException {
+    Objects.requireNonNull(xlsxPath);
+    requireFileExists(xlsxPath);
+    try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
+      XSSFReader xssfReader = new XSSFReader(pkg);
+      StylesTable styles = xssfReader.getStylesTable();
+      ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(pkg);
+      try (InputStream sheetInput = openSheetInputStream(xssfReader, horizon, xlsxPath)) {
+        ColumnCountingHandler handler = new ColumnCountingHandler();
+        XMLReader parser = XMLHelper.newXMLReader();
+        parser.setContentHandler(new XSSFSheetXMLHandler(
+            styles, null, sharedStrings, handler, new DataFormatter(), false));
+        parser.parse(new InputSource(sheetInput));
+        return handler.getColumnCount();
+      }
+    } catch (OpenXML4JException | SAXException | ParserConfigurationException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private static void requireFileExists(Path xlsxPath) {
+    if (!Files.exists(xlsxPath)) {
+      throw TechnicalException.builder()
+          .errorMessageArguments(List.of(xlsxPath.toString()))
+          .message("File not found: {0}")
+          .build();
     }
   }
 
@@ -252,86 +237,6 @@ public final class TimeSeriesReader {
         .build();
   }
 
-  // Helper method to retrieve sheet based on horizon
-  private Sheet getSheet(Workbook wb, String horizon, Path xlsxPath) {
-    if (horizon != null && !horizon.isBlank()) {
-      Sheet sheet = wb.getSheet(horizon);
-      if (sheet == null) {
-        throw  BusinessException.builder()
-               .message("Horizon {0} does not exist in file: {1}")
-                .errorMessageArguments(List.of(horizon,xlsxPath.getFileName().toString()))
-                  .httpStatus(HttpStatus.BAD_REQUEST)
-                  .build();
-      }
-      return sheet;
-    } else {
-      return wb.getSheetAt(0);
-    }
-  }
-
-  // Helper method to find the first non-empty row
-  private Row findFirstNonEmptyRow(Sheet sheet) {
-    int firstRowNum = sheet.getFirstRowNum();
-    int lastRowNum = sheet.getLastRowNum();
-    for (int r = firstRowNum; r <= lastRowNum; r++) {
-      Row row = sheet.getRow(r);
-      if (row != null && row.getLastCellNum() > 0) {
-        return row;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Loads numeric data rows into a column-major matrix.
-   *
-   * @param sheet the sheet to read
-   * @param columnCount number of columns to load
-   * @param rowLimit total rows to load
-   * @return a matrix where each column contains up to the rowLimit values
-   */
-  private double[][] loadData(Sheet sheet, int columnCount, int rowLimit) {
-    double[][] data = new double[columnCount][rowLimit];
-    Row headerRow = findFirstNonEmptyRow(sheet);
-    int startRow = headerRow != null ? headerRow.getRowNum() + 1 : sheet.getFirstRowNum();
-    for (int r = startRow, rowIndex = 0; r <= sheet.getLastRowNum() && rowIndex < rowLimit; r++, rowIndex++) {
-      Row row = sheet.getRow(r);
-      for (int c = 0; c < columnCount; c++) {
-        data[c][rowIndex] = readNumericCell(row, c);
-      }
-    }
-    return data;
-  }
-
-  private static double readNumericCell(Row row, int columnIndex) {
-    if (row == null) return 0.0;
-    Cell cell = row.getCell(columnIndex);
-    if (cell == null) return 0.0;
-    CellType type = cell.getCellType();
-    return switch (type) {
-      case NUMERIC -> cell.getNumericCellValue();
-      case STRING -> parseStringNumber(cell.getStringCellValue());
-      case FORMULA -> switch (cell.getCachedFormulaResultType()) {
-        case NUMERIC -> cell.getNumericCellValue();
-        case STRING -> parseStringNumber(cell.getStringCellValue());
-        default -> 0.0;
-      };
-      default -> 0.0;
-    };
-  }
-
-  /**
-   * Extracts header value based on a cell type
-   */
-  private static String getHeaderValue(Cell cell) {
-    if (cell == null) return null;
-    return switch (cell.getCellType()) {
-      case STRING -> cell.getStringCellValue();
-      case NUMERIC -> String.valueOf(cell.getNumericCellValue());
-      default -> null;
-    };
-  }
-
   /**
    * Parses string to double, handling null/empty/format errors
    */
@@ -354,6 +259,113 @@ public final class TimeSeriesReader {
       for (var j = 0; j < values.length && j < data.length; j++) {
         data[j][rowIndex] = parseStringNumber(values[j]);
       }
+    }
+  }
+
+  private static final class ColumnCountingHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
+    private int currentMaxColIndex = -1;
+    private int columnCount = 0;
+    private boolean rowHasCells;
+    private boolean firstRowDone;
+
+    @Override public void startRow(int rowNum) { currentMaxColIndex = -1; rowHasCells = false; }
+
+    @Override
+    public void cell(String cellReference, String formattedValue, XSSFComment comment) {
+      if (cellReference == null || firstRowDone) return;
+      int col = new CellReference(cellReference).getCol();
+      if (col > currentMaxColIndex) currentMaxColIndex = col;
+      rowHasCells = true;
+    }
+
+    @Override
+    public void endRow(int rowNum) {
+      if (!firstRowDone && rowHasCells) {
+        columnCount = currentMaxColIndex + 1;
+        firstRowDone = true;
+      }
+    }
+
+    int getColumnCount() { return columnCount; }
+  }
+
+  private static final class AllColumnsSheetHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
+    private final boolean hasHeader;
+    private final List<String> headerNames = new ArrayList<>();
+    private final List<List<Double>> columnData = new ArrayList<>();
+    private final Map<Integer, String> currentRowValues = new HashMap<>();
+    private boolean currentRowHasCells;
+    private boolean headerProcessed;
+    private int dataRowIndex;
+
+    private AllColumnsSheetHandler(boolean hasHeader) {
+      this.hasHeader = hasHeader;
+    }
+
+    @Override
+    public void startRow(int rowNum) {
+      currentRowValues.clear();
+      currentRowHasCells = false;
+    }
+
+    @Override
+    public void endRow(int rowNum) {
+      if (!currentRowHasCells) return;
+
+      if (!headerProcessed) {
+        processHeaderRow();
+        return;
+      }
+
+      if (dataRowIndex >= MAX_ROWS_PER_YEAR) return;
+      addCurrentRowToData();
+      dataRowIndex++;
+    }
+
+    private void processHeaderRow() {
+      int colCount = currentRowValues.isEmpty() ? 0
+          : currentRowValues.keySet().stream().mapToInt(i -> i).max().orElse(-1) + 1;
+      for (int i = 0; i < colCount; i++) {
+        headerNames.add(resolveHeaderName(i));
+      }
+      for (int i = 0; i < headerNames.size(); i++) columnData.add(new ArrayList<>(MAX_ROWS_PER_YEAR));
+      headerProcessed = true;
+      if (!hasHeader) {
+        addCurrentRowToData();
+        dataRowIndex++;
+      }
+    }
+
+    private String resolveHeaderName(int i) {
+      if (!hasHeader) return COLUMN_PREFIX + i;
+      String v = currentRowValues.get(i);
+      return v != null && !v.trim().isEmpty() ? v.trim() : COLUMN_PREFIX + i;
+    }
+
+    private void addCurrentRowToData() {
+      for (int i = 0; i < columnData.size(); i++)
+        columnData.get(i).add(parseStringNumber(currentRowValues.get(i)));
+    }
+
+    @Override
+    public void cell(String cellReference, String formattedValue, XSSFComment comment) {
+      if (cellReference == null) return;
+      int colIndex = new CellReference(cellReference).getCol();
+      currentRowValues.put(colIndex, formattedValue);
+      currentRowHasCells = true;
+    }
+
+    private TimeSeriesMatrix toMatrix() {
+      if (!headerProcessed)
+        throw TechnicalException.builder().message("Excel sheet is empty").build();
+      var columns = new ArrayList<TimeSeriesMatrixColumn>(headerNames.size());
+      for (int i = 0; i < headerNames.size(); i++) {
+        List<Double> vals = columnData.get(i);
+        double[] arr = new double[vals.size()];
+        for (int j = 0; j < arr.length; j++) arr[j] = vals.get(j);
+        columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), arr));
+      }
+      return new TimeSeriesMatrix(columns);
     }
   }
 
@@ -388,7 +400,7 @@ public final class TimeSeriesReader {
         return;
       }
 
-      if (dataRowIndex >= ROW_COUNT) {
+      if (dataRowIndex >= MAX_ROWS_PER_YEAR) {
         return;
       }
 
@@ -410,11 +422,6 @@ public final class TimeSeriesReader {
       currentRowHasCells = true;
     }
 
-    @Override
-    public void endSheet() {
-      // No-op
-    }
-
     private void initializeSelectedHeaders() {
       for (Map.Entry<Integer, String> entry : currentRowValues.entrySet()) {
         String header = entry.getValue() != null ? entry.getValue().trim() : "";
@@ -423,7 +430,7 @@ public final class TimeSeriesReader {
         }
         if (requiredLower.contains(header.toLowerCase(Locale.ROOT))) {
           selectedHeaders.put(entry.getKey(), header);
-          dataByColumnIndex.put(entry.getKey(), new ArrayList<>(ROW_COUNT));
+          dataByColumnIndex.put(entry.getKey(), new ArrayList<>(MAX_ROWS_PER_YEAR));
         }
       }
     }
