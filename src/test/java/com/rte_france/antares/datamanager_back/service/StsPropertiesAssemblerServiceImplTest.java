@@ -348,6 +348,7 @@ class StsPropertiesAssemblerServiceImplTest {
         Files.createDirectories(seriesDir);
         StStorageEntity entity = new StStorageEntity();
         entity.setTsPath(seriesDir.toString());
+        entity.setGroupe("battery");
         String horizon = "2030";
 
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
@@ -370,7 +371,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-                    assertThat(be.getMessage()).isEqualTo("Horizon {0} does not exist in file: {1} for series in example_FR_AFL-Test/battery_2h/FR");
+                    assertThat(be.getMessage()).isEqualTo("Horizon {0} does not exist in file: {1} for series in example_FR_AFL-Test/battery_2h/FR for STS battery");
                     assertThat(be.getErrorMessageArguments()).hasSize(2);
                     assertThat(be.getErrorMessageArguments().getFirst()).isEqualTo(horizon);
                 });
