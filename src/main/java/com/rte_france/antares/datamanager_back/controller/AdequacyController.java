@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.service.adequacy1.AdequacyFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.adequacy.AdequacyFileProcessorService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
