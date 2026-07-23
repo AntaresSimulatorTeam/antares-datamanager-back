@@ -199,7 +199,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             SeriesLookup frLookup
     ) {
         var zoneWeights = calculateZoneWeights(normalizedGroup, zonalDistributions);
-        validateZonalCoefficientSum(normalizedGroup, cluster, zoneWeights);
+        if (installedPower > 0d) {
+            validateZonalCoefficientSum(normalizedGroup, cluster, zoneWeights);
+        }
 
         var accumulator = new FrAggregationAccumulator(zoneWeights, new LinkedHashMap<>(), new LinkedHashMap<>());
 
@@ -208,7 +210,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 .filter(entity -> cluster.equalsIgnoreCase(entity.getCluster()))
                 .forEach(entity -> processTechnologyEntity(entity, normalizedGroup, cluster, accumulator, frLookup));
 
-        validateTechnologyCoefficientSums(normalizedGroup, cluster, accumulator.techWeightsByZone());
+        if (installedPower > 0d) {
+            validateTechnologyCoefficientSums(normalizedGroup, cluster, accumulator.techWeightsByZone());
+        }
         validateFrAggregation(normalizedGroup, cluster, installedPower, accumulator);
 
         return new ResFrAggregationDto(accumulator.zoneWeights(), accumulator.techWeightsByZone(), accumulator.seriesByZoneAndTech());
@@ -230,10 +234,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void validateZonalCoefficientSum(String normalizedGroup, String cluster, Map<String, Double> zoneWeights) {
         double sum = zoneWeights.values().stream().mapToDouble(Double::doubleValue).sum();
-        if (sum > MAX_COEFF_SUM) {
+        if (Math.abs(sum - MAX_COEFF_SUM) > 1e-6) {
             throw BusinessException.builder()
                     .message("Invalid zonal distribution for RES group {0}, cluster {1}: PECD zone coeffs sum to {2},"
-                            + " but must not be over 100%. Check the zonal distribution file for this group/cluster and correct the zone percentages so they total at most 100%.")
+                            + " but must be equal to exactly 100%. Check the zonal distribution file for this group/cluster and correct the zone percentages so they total exactly 100%.")
                     .errorMessageArguments(List.of(normalizedGroup, cluster, formatAsPercentage(sum)))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -243,10 +247,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private void validateTechnologyCoefficientSums(String normalizedGroup, String cluster, Map<String, Map<String, Double>> techWeightsByZone) {
         techWeightsByZone.forEach((zone, techWeights) -> {
             double sum = techWeights.values().stream().mapToDouble(Double::doubleValue).sum();
-            if (sum > MAX_COEFF_SUM) {
+            if (Math.abs(sum - MAX_COEFF_SUM) > 1e-6) {
                 throw BusinessException.builder()
                         .message("Invalid technology distribution for RES group {0}, cluster {1}, zone {2}: technology coeffs sum to {3},"
-                                + " but must not be over 100%. Check the technology distribution file for this zone and correct the technology percentages so they total at most 100%.")
+                                + " but must be equal to exactly 100%. Check the technology distribution file for this zone and correct the technology percentages so they total exactly 100%.")
                         .errorMessageArguments(List.of(normalizedGroup, cluster, zone, formatAsPercentage(sum)))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
