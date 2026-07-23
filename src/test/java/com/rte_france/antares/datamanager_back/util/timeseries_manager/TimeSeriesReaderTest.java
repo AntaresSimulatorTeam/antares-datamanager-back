@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -362,5 +363,29 @@ class TimeSeriesReaderTest {
 
         assertEquals("Horizon {0} does not exist in file: {1}", ex.getMessage());
         assertEquals("2030", ex.getErrorMessageArguments().getFirst());
+    }
+
+    @Test
+    void listSheetNames_shouldReturnAllSheetNamesInOrder(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("multi-sheet.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            wb.createSheet("2029");
+            wb.createSheet("2030");
+            wb.createSheet("2031");
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+
+        var sheetNames = timeSeriesReader.listSheetNames(file);
+
+        assertEquals(List.of("2029", "2030", "2031"), sheetNames);
+    }
+
+    @Test
+    void listSheetNames_shouldThrowTechnicalExceptionWhenFileMissing(@TempDir Path tempDir) {
+        Path file = tempDir.resolve("does-not-exist.xlsx");
+
+        assertThrows(TechnicalException.class, () -> timeSeriesReader.listSheetNames(file));
     }
 }

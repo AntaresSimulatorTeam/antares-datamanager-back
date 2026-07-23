@@ -5,7 +5,10 @@ import com.rte_france.antares.datamanager_back.repository.model.ClusterDesignati
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ClusterDesignationRepository extends JpaRepository<ClusterDesignationEntity, ClusterDesignationKey> {
+    List<ClusterDesignationEntity> findByCluster_TypeCluster(String typeCluster);
 }
 

@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rte_france.antares.datamanager_back.dto.NuclearSMRMixageDTO;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import lombok.extern.slf4j.Slf4j;
@@ -21,12 +22,15 @@ public class ThermalToJsonService {
     private static final String DATA = "data";
     private static final String MATRIX_HASH = "matrix hash";
 
+    public String buildClusterKey(String area, String clusterName) {
+        return area.toUpperCase(Locale.ROOT) + "_" + clusterName;
+    }
 
     public  Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaClusterRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
         return areaRefProps.entrySet().stream()
                 .filter(e -> e.getKey().area().equalsIgnoreCase(areaName))
                 .collect(Collectors.toMap(
-                        e -> e.getKey().area().toUpperCase(Locale.ROOT) + "_" + e.getKey().thermalClusterRef().getName(),
+                        e -> buildClusterKey(e.getKey().area(), e.getKey().thermalClusterRef().getName()),
                         Map.Entry::getValue,
                         (a, b) -> a,
                         LinkedHashMap::new
@@ -34,6 +38,16 @@ public class ThermalToJsonService {
     }
 
     public Map<String, Object> thermalsMapGenerator(Map<String, ThermalClusterGenerationDto> clusterProps) {
+        return thermalsMapGenerator(clusterProps, Collections.emptyMap(), Collections.emptyMap());
+    }
+
+    /**
+     * @param seriesOverrides     final "series" value per cluster key, overriding the placeholder when present
+     * @param smrMixageOverrides  SMR only metadata (active unit count + seed) when present
+     */
+    public Map<String, Object> thermalsMapGenerator(Map<String, ThermalClusterGenerationDto> clusterProps,
+            Map<String, String> seriesOverrides,
+            Map<String, NuclearSMRMixageDTO> smrMixageOverrides) {
         if (clusterProps == null || clusterProps.isEmpty()) {
             log.info("thermalsMapGenerator: missing clusterProps");
             return Collections.emptyMap();
@@ -52,11 +66,16 @@ public class ThermalToJsonService {
 
             Map<String, Object> clusterData = new LinkedHashMap<>();
             clusterData.put(PROPERTIES, propertiesMap);
-            clusterData.put("series", MATRIX_HASH);
+            clusterData.put("series", seriesOverrides.getOrDefault(clusterName, MATRIX_HASH));
             clusterData.put("fuel_cost", MATRIX_HASH);
             clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put(DATA, dataMap);
             clusterData.put("modulation", dto.getParamModulationTsList());
+
+            NuclearSMRMixageDTO mixage = smrMixageOverrides.get(clusterName);
+            if (mixage != null) {
+                clusterData.put("smr_mixage", Map.of("unit_count", mixage.unitCount(), "seed", mixage.seed()));
+            }
 
             clusterMap.put(clusterName, clusterData);
             log.info("Ajout thermal cluster {} avec {} propriétés", clusterName, propertiesMap.size());

@@ -17,4 +17,6 @@ public class AreasGenerationContextDTO {
     private Map<String, Map<String, ResClusterGenerationDto>> resProps;
     private Map<String, HydroAreaGenerationDTO> hydroProps;
     private Map<String, String> adequacyModeByArea;
+    private Map<String, String> nuclearSeriesByClusterKey;
+    private Map<String, NuclearSMRMixageDTO> nuclearSmrMixageByClusterKey;
 }

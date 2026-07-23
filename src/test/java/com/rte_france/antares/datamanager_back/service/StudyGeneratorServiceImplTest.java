@@ -21,6 +21,8 @@ import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAsse
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraintGenerationDTO;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblerService;
+import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.adequacy.impl.AdequacySettingsAssemblerServiceImpl;
@@ -139,6 +141,9 @@ class StudyGeneratorServiceImplTest {
     @Mock
     private NuclearBindingConstraintAssemblerService nuclearBindingConstraintAssemblerService;
 
+    @Mock
+    private NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
+
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
     private StudyEntity studyEntity;
@@ -222,6 +227,9 @@ class StudyGeneratorServiceImplTest {
         lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(hydroGenerationAssemblerService.assembleHydroProperties(any())).thenReturn(Collections.emptyMap());
+        // Default nuclear availability result is empty to avoid NPE in tests not focused on it
+        lenient().when(nuclearAvailabilityAssemblerService.assembleAvailability(any(), anyMap()))
+                .thenReturn(new NuclearAvailabilityAssemblyResult(Map.of(), Map.of()));
 
         // Delegate Adequacy Settings assembler to real implementation by default
         lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().assembleAdequacySettings(inv.getArgument(0)))
@@ -247,6 +255,10 @@ class StudyGeneratorServiceImplTest {
                 .when(thermalToJsonService).getClusterPropsForArea(anyMap(), anyString());
         lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMapGenerator(inv.getArgument(0)))
                 .when(thermalToJsonService).thermalsMapGenerator(anyMap());
+        lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMapGenerator(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
+                .when(thermalToJsonService).thermalsMapGenerator(anyMap(), anyMap(), anyMap());
+        lenient().doAnswer(inv -> new ThermalToJsonService().buildClusterKey(inv.getArgument(0), inv.getArgument(1)))
+                .when(thermalToJsonService).buildClusterKey(anyString(), anyString());
 
         lenient().doAnswer(inv -> new DsrToJsonService().buildDsrDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(drsToJsonService).buildDsrDataMap(anyString(),anyMap());
@@ -920,6 +932,49 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
 
         assertThat(studyMap).doesNotContainKey("binding_constraints");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldApplyNuclearAvailabilitySeriesBeforeAreaJsonIsBuilt() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var ltTraj = TrajectoryEntity.builder().type("NUCLEAR_FR_TS_LONG_TERM").fileName("default_lt").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, ltTraj)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
+        var clusterKey = new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", nuclearRef);
+        Map<ThermalPropertiesAssemblerService.AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
+        props.put(clusterKey, dto);
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(props);
+
+        // Proves the availability result is computed and threaded through before area JSON is built.
+        when(nuclearAvailabilityAssemblerService.assembleAvailability(any(), anyMap()))
+                .thenReturn(new NuclearAvailabilityAssemblyResult(Map.of(clusterKey, "lt_availability.arrow"), Map.of()));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // The study passed to the assembler must be the one whose trajectories include the LT trajectory.
+        ArgumentCaptor<StudyEntity> studyCaptor = ArgumentCaptor.forClass(StudyEntity.class);
+        verify(nuclearAvailabilityAssemblerService).assembleAvailability(studyCaptor.capture(), anyMap());
+        assertThat(studyCaptor.getValue().getTrajectories()).contains(ltTraj);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        Map<String, Object> frArea = mapper.convertValue(areas.get("FR"), new TypeReference<>() {});
+        Map<String, Object> nuclear = mapper.convertValue(frArea.get("nuclear"), new TypeReference<>() {});
+        Map<String, Object> clusters = mapper.convertValue(nuclear.get("clusters"), new TypeReference<>() {});
+        Map<String, Object> cluster = mapper.convertValue(clusters.get("FR_Nuclear_cp0"), new TypeReference<>() {});
+
+        assertThat(cluster).containsEntry("series", "lt_availability.arrow");
     }
 
     @Test

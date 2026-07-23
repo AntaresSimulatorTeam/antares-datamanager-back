@@ -202,6 +202,27 @@ public final class TimeSeriesReader {
     }
   }
 
+  /**
+   * Lists the sheet names of an Excel file (.xlsx), in workbook order.
+   * Cheap because it doesnt parse row/cell content.
+   */
+  public List<String> listSheetNames(Path xlsxPath) throws IOException {
+    Objects.requireNonNull(xlsxPath);
+    requireFileExists(xlsxPath);
+    try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
+      XSSFReader.SheetIterator iterator = (XSSFReader.SheetIterator) new XSSFReader(pkg).getSheetsData();
+      List<String> names = new ArrayList<>();
+      while (iterator.hasNext()) {
+        try (InputStream sheetInput = iterator.next()) {
+          names.add(iterator.getSheetName());
+        }
+      }
+      return names;
+    } catch (OpenXML4JException e) {
+      throw new IOException(e);
+    }
+  }
+
   private static void requireFileExists(Path xlsxPath) {
     if (!Files.exists(xlsxPath)) {
       throw TechnicalException.builder()
