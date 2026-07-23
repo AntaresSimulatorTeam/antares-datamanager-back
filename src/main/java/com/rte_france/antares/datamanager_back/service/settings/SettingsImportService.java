@@ -193,7 +193,7 @@ public class SettingsImportService {
 
     public Map<String, String> calculateSheetChecksums(Workbook workbook) throws IOException {
         Map<String, String> sheetChecksums = new HashMap<>();
-        List<String> listOfSheet = List.of("General parameters", "Optimization preferences", "Advanced parameters");
+        List<String> listOfSheet = List.of("General", "Optimization", "Advanced parameters");
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             String sheetName = sheet.getSheetName();
@@ -268,7 +268,7 @@ public class SettingsImportService {
     }
 
     public void importGeneralParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
-        Sheet sheet = workbook.getSheet("General parameters");
+        Sheet sheet = workbook.getSheet("General");
         if (sheet == null) {
             log.warn("Sheet 'General parameters' not found");
             return;
@@ -299,13 +299,13 @@ public class SettingsImportService {
 
 
         generalParametersRepository.save(entity);
-        log.debug("General parameters imported successfully (checksum: {})", sheetChecksums.get("General parameters"));
+        log.debug("General parameters imported successfully (checksum: {})", sheetChecksums.get("General"));
     }
 
     public void importOptimizationParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
-        Sheet sheet = workbook.getSheet("Optimization preferences");
+        Sheet sheet = workbook.getSheet("Optimization");
         if (sheet == null) {
-            log.warn("Sheet 'Optimization preferences' not found");
+            log.warn("Sheet 'Optimization' not found");
             return;
         }
 
@@ -329,7 +329,7 @@ public class SettingsImportService {
                 .build();
 
         optimizationParametersRepository.save(entity);
-        log.debug("Optimization parameters imported successfully (checksum: {})", sheetChecksums.get("Optimization preferences"));
+        log.debug("Optimization parameters imported successfully (checksum: {})", sheetChecksums.get("Optimization"));
     }
 
     public void importAdvancedParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {

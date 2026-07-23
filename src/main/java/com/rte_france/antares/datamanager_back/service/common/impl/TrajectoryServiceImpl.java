@@ -130,6 +130,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String NUCLEAR_SMR_PREFIX = "ts_smr_";
     private static final String NUCLEAR_EPR_FOLDER = "epr";
     private static final String NUCLEAR_SMR_FOLDER = "smr";
+    private static final String SETTINGS_PREFIX = "general_data";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -548,6 +549,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TALON -> fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> fileName.startsWith(NUCLEAR_EPR_PREFIX);
             case NUCLEAR_FR_TS_SMR -> fileName.startsWith(NUCLEAR_SMR_PREFIX);
+            case SETTINGS -> fileName.startsWith(SETTINGS_PREFIX);
             default -> true;
         };
     }
@@ -1117,6 +1119,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TS_LONG_TERM -> antaresDataManagerProperties.getNuclearLtDirectory();
             case NUCLEAR_FR_TS_SMR -> antaresDataManagerProperties.getNuclearSmrDirectory();
             case ADEQUACY_PATCH -> antaresDataManagerProperties.getAdequacyDirectory();
+            case SETTINGS -> antaresDataManagerProperties.getTrajectorySettingsDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
