@@ -38,6 +38,10 @@ public class SettingsImportService {
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String SETTINGS_FILE_SUFFIX = ".xlsx";
 
+    public static final String GENERAL = "General";
+    public static final String OPTIMIZATION = "Optimization";
+    public static final String ADVANCED_PARAMETERS = "Advanced parameters";
+
     // General Parameters Keys
     private static final String KEY_MODE = "Mode";
     private static final String KEY_HORIZON = "Horizon";
@@ -193,7 +197,7 @@ public class SettingsImportService {
 
     public Map<String, String> calculateSheetChecksums(Workbook workbook) throws IOException {
         Map<String, String> sheetChecksums = new HashMap<>();
-        List<String> listOfSheet = List.of("General", "Optimization", "Advanced parameters");
+        List<String> listOfSheet = List.of(GENERAL, OPTIMIZATION, ADVANCED_PARAMETERS);
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             String sheetName = sheet.getSheetName();
@@ -268,7 +272,7 @@ public class SettingsImportService {
     }
 
     public void importGeneralParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
-        Sheet sheet = workbook.getSheet("General");
+        Sheet sheet = workbook.getSheet(GENERAL);
         if (sheet == null) {
             log.warn("Sheet 'General parameters' not found");
             return;
@@ -299,11 +303,11 @@ public class SettingsImportService {
 
 
         generalParametersRepository.save(entity);
-        log.debug("General parameters imported successfully (checksum: {})", sheetChecksums.get("General"));
+        log.debug("General parameters imported successfully (checksum: {})", sheetChecksums.get(GENERAL));
     }
 
     public void importOptimizationParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
-        Sheet sheet = workbook.getSheet("Optimization");
+        Sheet sheet = workbook.getSheet(OPTIMIZATION);
         if (sheet == null) {
             log.warn("Sheet 'Optimization' not found");
             return;
@@ -329,11 +333,11 @@ public class SettingsImportService {
                 .build();
 
         optimizationParametersRepository.save(entity);
-        log.debug("Optimization parameters imported successfully (checksum: {})", sheetChecksums.get("Optimization"));
+        log.debug("Optimization parameters imported successfully (checksum: {})", sheetChecksums.get(OPTIMIZATION));
     }
 
     public void importAdvancedParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
-        Sheet sheet = workbook.getSheet("Advanced parameters");
+        Sheet sheet = workbook.getSheet(ADVANCED_PARAMETERS);
         if (sheet == null) {
             log.warn("Sheet 'Advanced parameters' not found");
             return;
@@ -356,11 +360,11 @@ public class SettingsImportService {
                 .build();
 
         advancedParametersRepository.save(entity);
-        log.debug("Advanced parameters imported successfully (checksum: {})", sheetChecksums.get("Advanced parameters"));
+        log.debug("Advanced parameters imported successfully (checksum: {})", sheetChecksums.get(ADVANCED_PARAMETERS));
     }
 
     public void importSeedsParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
-        Sheet sheet = workbook.getSheet("Advanced parameters");
+        Sheet sheet = workbook.getSheet(ADVANCED_PARAMETERS);
         if (sheet == null) {
             log.warn("Sheet 'Advanced parameters' not found for seeds");
             return;
@@ -380,7 +384,7 @@ public class SettingsImportService {
                 .build();
 
         seedsParametersRepository.save(entity);
-        log.debug("Seeds parameters imported successfully (checksum: {})", sheetChecksums.get("Advanced parameters"));
+        log.debug("Seeds parameters imported successfully (checksum: {})", sheetChecksums.get(ADVANCED_PARAMETERS));
     }
 
     private Map<String, Object> readParametersSheet(Sheet sheet) {
