@@ -49,8 +49,6 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String PARAMETERS_FILE_PREFIX = "Parameters_modNuc_";
-    private static final String TS_EPR_FILE_PREFIX = "TS_EPR_";
-    private static final String TS_SMR_FILE_PREFIX = "TS_SMR_";
     private static final String PARAMETERS_FILE_SUFFIX = ".xlsx";
     private static final Set<String> REQUIRED_MODULATION_TYPES = Set.of(
             "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_weekly"
@@ -587,8 +585,8 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
     private String getFileName(String fileName, TrajectoryType type) {
         String prefix = switch (type) {
-            case NUCLEAR_FR_TS_SMR -> TS_SMR_FILE_PREFIX;
-            case NUCLEAR_FR_TS_ERP -> TS_EPR_FILE_PREFIX;
+            case NUCLEAR_FR_TS_SMR -> NuclearFilePrefixes.SMR_FILE_PREFIX;
+            case NUCLEAR_FR_TS_ERP -> NuclearFilePrefixes.EPR_FILE_PREFIX;
             case NUCLEAR_FR_TALON -> NuclearFilePrefixes.TALON_FILE_PREFIX;
             default -> StringUtils.EMPTY;
         };
