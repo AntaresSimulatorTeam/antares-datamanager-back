@@ -73,13 +73,13 @@ class SettingsImportServiceImportSettingsTest {
         Workbook workbook = new XSSFWorkbook();
         
         // Create General parameters sheet
-        var sheet1 = workbook.createSheet("General parameters");
+        var sheet1 = workbook.createSheet("General");
         var row1 = sheet1.createRow(0);
         row1.createCell(0).setCellValue("Mode");
         row1.createCell(1).setCellValue("Adequacy");
 
         // Create Optimization preferences sheet
-        var sheet2 = workbook.createSheet("Optimization preferences");
+        var sheet2 = workbook.createSheet("Optimization");
         var row2 = sheet2.createRow(0);
         row2.createCell(0).setCellValue("simplex optimization range");
         row2.createCell(1).setCellValue("week");

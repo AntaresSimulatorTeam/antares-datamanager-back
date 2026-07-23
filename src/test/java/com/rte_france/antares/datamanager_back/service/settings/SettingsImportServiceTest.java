@@ -405,7 +405,7 @@ class SettingsImportServiceTest {
     @Test
     void testImportGeneralParametersWithValidData() {
         org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
-        org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("General parameters");
+        org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("General");
 
         org.apache.poi.ss.usermodel.Row row1 = sheet.createRow(0);
         row1.createCell(0).setCellValue("Mode");
@@ -418,7 +418,7 @@ class SettingsImportServiceTest {
                 .build();
 
         java.util.Map<String, String> sheetChecksums = new java.util.HashMap<>();
-        sheetChecksums.put("General parameters", "checksum123");
+        sheetChecksums.put("General", "checksum123");
 
         java.lang.reflect.Method method = null;
         try {
@@ -471,7 +471,7 @@ class SettingsImportServiceTest {
     @Test
     void testImportOptimizationParametersWithValidData() {
         org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
-        org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Optimization preferences");
+        org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Optimization");
 
         org.apache.poi.ss.usermodel.Row row1 = sheet.createRow(0);
         row1.createCell(0).setCellValue("simplex optimization range");
@@ -484,7 +484,7 @@ class SettingsImportServiceTest {
                 .build();
 
         java.util.Map<String, String> sheetChecksums = new java.util.HashMap<>();
-        sheetChecksums.put("Optimization preferences", "checksum456");
+        sheetChecksums.put("Optimization", "checksum456");
 
         java.lang.reflect.Method method = null;
         try {
@@ -669,16 +669,16 @@ class SettingsImportServiceTest {
     @Test
     void testCalculateSheetChecksumsOnlyKnownSheets() throws IOException {
         org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
-        workbook.createSheet("General parameters").createRow(0).createCell(0).setCellValue("Mode");
-        workbook.createSheet("Optimization preferences").createRow(0).createCell(0).setCellValue("simplex");
+        workbook.createSheet("General").createRow(0).createCell(0).setCellValue("Mode");
+        workbook.createSheet("Optimization").createRow(0).createCell(0).setCellValue("simplex");
         workbook.createSheet("Advanced parameters").createRow(0).createCell(0).setCellValue("hydro");
         workbook.createSheet("Ignored sheet").createRow(0).createCell(0).setCellValue("ignored");
 
         java.util.Map<String, String> checksums = service.calculateSheetChecksums(workbook);
 
         assertEquals(3, checksums.size());
-        assertTrue(checksums.containsKey("General parameters"));
-        assertTrue(checksums.containsKey("Optimization preferences"));
+        assertTrue(checksums.containsKey("General"));
+        assertTrue(checksums.containsKey("Optimization"));
         assertTrue(checksums.containsKey("Advanced parameters"));
         assertFalse(checksums.containsKey("Ignored sheet"));
     }
