@@ -172,7 +172,7 @@ class ResGenerationAssemblerServiceImplTest {
             // Failure: Power > 0, but no zonal data
             StudyEntity studyNoZonal = createStudy(createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)));
             BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(studyNoZonal));
-            assertTrue(ex.getMessage().contains("aggregation data"));
+            assertTrue(ex.getMessage().contains("zonal distribution"));
         }
 
         @ParameterizedTest
@@ -190,7 +190,7 @@ class ResGenerationAssemblerServiceImplTest {
         void shouldFailOnMissingTechMapping() {
             StudyEntity study = createStudy(
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "solar pv", 100)),
-                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 10))
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "solar pv", "FR01", 100))
             );
             BusinessException ex = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
             assertTrue(ex.getMessage().contains("technology mapping"));
@@ -246,20 +246,28 @@ class ResGenerationAssemblerServiceImplTest {
         }
 
         @Test
-        void shouldCoverZeroWeightBranchesInFrLoop() {
+        void shouldCoverZeroWeightBranchesInFrLoop() throws IOException {
+            preparePhysicalFile(DEFAULT_TRAJECTORY, "wind_offshore/wind_offshore/wind_offshore_FR02_techb_2030_2031.csv");
+            when(nasFileService.readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean())).thenReturn("fr02_wind.arrow");
+
             StudyEntity study = createStudy(
+                    createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY),
                     createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("FR", "wind offshore", 1000)),
                     createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "wind offshore", "FR01", 0.0)),
+                    createTrajectory(TrajectoryType.RES_ZONAL_DISTRIBUTION, createZonal("FR", "wind offshore", "FR02", 100.0)),
                     createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
-                            createTech("FR", "wind offshore", "FR01", "techA", 100.0))
+                            createTech("FR", "wind offshore", "FR01", "techA", 100.0)),
+                    createTrajectory(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION,
+                            createTech("FR", "wind offshore", "FR02", "techb", 100.0))
             );
 
             var result = service.assembleResProperties(study);
             var dto = getGroupPayload(result, "FR", "wind_offshore");
 
-            // zone_weights contains FR01 with 0.0, but tech_weights_by_zone should be empty for that zone
+            // zone_weights contains FR01 with 0.0, so tech_weights_by_zone must exclude that zone (FR02 stays)
             assertNotNull(dto.frAggregation());
-            assertTrue(dto.frAggregation().techWeightsByZone().isEmpty());
+            assertFalse(dto.frAggregation().techWeightsByZone().containsKey("FR01"));
+            assertTrue(dto.frAggregation().techWeightsByZone().containsKey("FR02"));
         }
     }
 

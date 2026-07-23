@@ -865,13 +865,13 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         String pecdZone = getStringCell(row, 3);
         String pecdTechno = getStringCell(row, 4);
 
-        // Check if pecd_zone starts with default area
-        // Check if groupe is equal to technology
-        if (context.getAreaParam() != null) {
+        // (null areas are checked below to prevent introducing them to the list (NPE))
+        if (context.getAreaParam() != null && area != null) {
             result.addArea(area);
-            if ( area == null || !area.equalsIgnoreCase(context.getAreaParam())) return;
+            if (!area.equalsIgnoreCase(context.getAreaParam())) return;
         }
-        
+
+        // Check if groupe is equal to technology
         boolean hasTechnology = context.getTechnology() != null && !context.getTechnology().isBlank();
         if (!hasTechnology) {
             if (!technologies.contains(group)) {
@@ -884,6 +884,17 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         } else if (!context.getTechnology().equalsIgnoreCase(group)) {
             return;
         }
+
+        // (hasTechnology && group == context.getTechnology()) or, when no technology was
+        // speciifed, is at least one we know (!hasTechnology && technologies.contains(group))
+        if (area == null || area.isBlank()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(context.getTrajectoryToUse()))
+                    .message("Area column must be specified for all rows in RES technology distribution trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
         result.addTechnologies(context.getTechnology());
 
         validateEmptyRequiredColumns(context, requiredColumns, group, cluster, area, pecdZone, pecdTechno);

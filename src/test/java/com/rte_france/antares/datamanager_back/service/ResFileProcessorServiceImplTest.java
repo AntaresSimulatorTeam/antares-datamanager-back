@@ -1849,6 +1849,41 @@ public class ResFileProcessorServiceImplTest {
         }
 
         @Test
+        void shouldThrowWhenAreaColumnIsBlankForTechnologyDistribution(@TempDir Path tempRoot) throws Exception {
+            Path file = tempRoot.resolve("repartition_techno_BP23_Aref.xlsx");
+            try (var wb = new XSSFWorkbook(); var out = Files.newOutputStream(file)) {
+                Sheet sheet = wb.createSheet("Sheet0");
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Group");
+                header.createCell(1).setCellValue("Cluster");
+                header.createCell(2).setCellValue("Area");
+                header.createCell(3).setCellValue("PECD_Zone");
+                header.createCell(4).setCellValue("Techno_PECD");
+                header.createCell(5).setCellValue("2030");
+
+                Row dataRow = sheet.createRow(1);
+                dataRow.createCell(0).setCellValue("solar_pv");
+                dataRow.createCell(1).setCellValue("solar_pv");
+                // Area (column 2) left blank on purpose
+                dataRow.createCell(3).setCellValue("FR01");
+                dataRow.createCell(4).setCellValue("SP199_HH200");
+                dataRow.createCell(5).setCellValue(100.0);
+                wb.write(out);
+            }
+
+            when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
+            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                setName(AREA_FR);
+            }}));
+
+            assertThatThrownBy(() -> resFileProcessorServiceImpl.processTechnologyDistributionResFile(
+                    "repartition_techno_BP23_Aref", "2029-2030", 1, AREA_FR, "solar_pv", false
+            ))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Area column must be specified");
+        }
+
+        @Test
         void shouldCreateTrajectoryWithIncrementVersionWhenTrajectoryExists(@TempDir Path tempRoot) throws Exception {
             // Créer les fichiers mocks dans nestedDir
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_FR), "solar_pv", true);
