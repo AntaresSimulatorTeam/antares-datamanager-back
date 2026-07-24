@@ -46,7 +46,6 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private static final String FR_AREA = "fr";
     private static final String LT_SIMU_FILE_PREFIX = "Simu_";
     private static final String XLSX_SUFFIX = ".xlsx";
-    private static final String SMR_EXCLUDED_COLUMN = "TS_EPR_clim";
     private static final String SEED_SUFFIX = "seed-tsgen-thermal";
     private static final String CP0_CP1_CP2_DESIGNATION = "cp0_cp1_cp2";
     private static final int HOURS_PER_DAY = 24;
@@ -192,11 +191,10 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     }
 
     /**
-     * SMR availability is only prepared here, not fianlized: the column pool (without the
-     * "TS_EPR_clim" column, each column expanded x24 for hourly) is converted to a
-     * single shared Arrow file, and each matched cluster gets the active unit count and a composed
-     * seed string. The seeded "mixage des chroniques" that combines pool columns per active unit is
-     * left for the python generator
+     * SMR availability is only prepared here, not fianlized: the column pool (each column expanded
+     * x24 for hourly) is converted to a single shared Arrow file, and each matched cluster gets the
+     * active unit count and a composed seed string. The seeded "mixage des chroniques" that combines
+     * pool columns per active unit is left for the python generator
      */
     private void assembleSmrAvailability(TrajectoryEntity smrTrajectory, String horizonYear,
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -209,12 +207,12 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
 
         Map<AreaClusterRefKey, Integer> unitCountByCluster = requireUnitCounts(matchedClusters, thermalClusterProps);
 
-        List<TimeSeriesMatrixColumn> filteredColumns = readFilteredSmrPool(smrTrajectory, horizonYear);
-        if (filteredColumns.isEmpty()) {
+        List<TimeSeriesMatrixColumn> poolColumns = readSmrPool(smrTrajectory, horizonYear);
+        if (poolColumns.isEmpty()) {
             return;
         }
 
-        String arrowFile = writeSharedSmrPool(smrTrajectory, filteredColumns);
+        String arrowFile = writeSharedSmrPool(smrTrajectory, poolColumns);
         for (AreaClusterRefKey key : matchedClusters) {
             seriesByCluster.put(key, arrowFile);
             smrMixageByCluster.put(key, new NuclearSMRMixageDTO(unitCountByCluster.get(key), buildSeed(FR_AREA, key.thermalClusterRef().getName())));
@@ -230,7 +228,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         return unitCountByCluster;
     }
 
-    private List<TimeSeriesMatrixColumn> readFilteredSmrPool(TrajectoryEntity smrTrajectory, String horizonYear) {
+    private List<TimeSeriesMatrixColumn> readSmrPool(TrajectoryEntity smrTrajectory, String horizonYear) {
         try {
             Path relativePath = resolvePrefixedRelativePath(properties.getNuclearSmrDirectory(),
                     NuclearFilePrefixes.SMR_FILE_PREFIX, smrTrajectory.getFileName());
@@ -239,7 +237,6 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
             TimeSeriesMatrix pool = nasFileService.readMatrix(smrPath, horizonYear, true,
                     TrajectoryType.NUCLEAR_FR_TS_SMR.name(), "SMR");
             return pool.columns().stream()
-                    .filter(column -> !SMR_EXCLUDED_COLUMN.equalsIgnoreCase(column.name()))
                     .map(column -> new TimeSeriesMatrixColumn(column.name(), expandDailyToHourly(column.values())))
                     .toList();
         } catch (IOException e) {
@@ -251,9 +248,9 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         }
     }
 
-    private String writeSharedSmrPool(TrajectoryEntity smrTrajectory, List<TimeSeriesMatrixColumn> filteredColumns) {
+    private String writeSharedSmrPool(TrajectoryEntity smrTrajectory, List<TimeSeriesMatrixColumn> poolColumns) {
         try {
-            byte[] bytes = nasFileService.getWriter().writeToByteArray(new TimeSeriesMatrix(filteredColumns));
+            byte[] bytes = nasFileService.getWriter().writeToByteArray(new TimeSeriesMatrix(poolColumns));
             return nasFileService.saveMatrixBytesToNas(bytes,
                     smrTrajectory.getFileName() + "_smr", properties.getNuclearAvailabilityTsOutputDirectory());
         } catch (IOException e) {
