@@ -48,7 +48,21 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private static final String XLSX_SUFFIX = ".xlsx";
     private static final String SEED_SUFFIX = "seed-tsgen-thermal";
     private static final String CP0_CP1_CP2_DESIGNATION = "cp0_cp1_cp2";
+    private static final String N4_DESIGNATION = "n4";
     private static final int HOURS_PER_DAY = 24;
+
+    /**
+     * Explicit, not name-derived: which referential designation backs which LT cluster names.
+     * N4 and P4 cluster names share the "n4" designation (p4 is folded into n4
+     * in the referential).
+     */
+    private static final List<LtDesignationGroup> LT_DESIGNATION_GROUPS = List.of(
+            new LtDesignationGroup(N4_DESIGNATION, NuclearAvailabilityAssemblerServiceImpl::isN4OrP4Cluster),
+            new LtDesignationGroup(CP0_CP1_CP2_DESIGNATION, NuclearAvailabilityAssemblerServiceImpl::isDefaultLongTermCluster)
+    );
+
+    private record LtDesignationGroup(String designation, Predicate<String> clusterNameMatcher) {
+    }
 
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
@@ -69,11 +83,13 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         Map<AreaClusterRefKey, String> seriesByCluster = new LinkedHashMap<>();
         Map<AreaClusterRefKey, NuclearSMRMixageDTO> smrMixageByCluster = new LinkedHashMap<>();
 
-        ltTrajectory.ifPresent(traj -> {
-            String arrowFile = assembleLongTermSeries(traj, study.getHorizon());
-            collectMatchingClusters(thermalClusterProps, NuclearAvailabilityAssemblerServiceImpl::isLongTermCluster)
-                    .forEach(key -> seriesByCluster.put(key, arrowFile));
-        });
+        ltTrajectory.ifPresent(traj -> LT_DESIGNATION_GROUPS.forEach(group -> {
+            List<AreaClusterRefKey> matched = collectMatchingClusters(thermalClusterProps, group.clusterNameMatcher());
+            if (!matched.isEmpty()) {
+                String arrowFile = assembleLongTermSeries(traj, study.getHorizon(), group.designation());
+                matched.forEach(key -> seriesByCluster.put(key, arrowFile));
+            }
+        }));
 
         eprTrajectory.ifPresent(traj -> {
             String arrowFile = assembleEprSeries(traj, horizonYear);
@@ -92,11 +108,19 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
                 .findFirst();
     }
 
-    private static boolean isLongTermCluster(String clusterName) {
+    private static boolean isN4OrP4Cluster(String clusterName) {
+        return NuclearClusterNames.isNuclear(clusterName)
+                && !NuclearClusterNames.isPeak(clusterName)
+                && (NuclearClusterNames.isN4(clusterName) || NuclearClusterNames.isP4(clusterName));
+    }
+
+    private static boolean isDefaultLongTermCluster(String clusterName) {
         return NuclearClusterNames.isNuclear(clusterName)
                 && !NuclearClusterNames.isPeak(clusterName)
                 && !NuclearClusterNames.isEpr(clusterName)
-                && !NuclearClusterNames.isSmr(clusterName);
+                && !NuclearClusterNames.isSmr(clusterName)
+                && !NuclearClusterNames.isN4(clusterName)
+                && !NuclearClusterNames.isP4(clusterName);
     }
 
     private static List<AreaClusterRefKey> collectMatchingClusters(Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -106,14 +130,14 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
                 .toList();
     }
 
-    private String assembleLongTermSeries(TrajectoryEntity ltTrajectory, String horizon) {
+    private String assembleLongTermSeries(TrajectoryEntity ltTrajectory, String horizon, String designation) {
         Path relativePath = Path.of(properties.getNuclearLtDirectory())
                 .resolve(ltTrajectory.getFileName())
                 .resolve(LT_SIMU_FILE_PREFIX + horizon + XLSX_SUFFIX);
         Path ltPath = resolveValidatedNasPath(relativePath, "Invalid nuclear LT path: {0}");
 
         try {
-            Set<String> whitelist = loadCp0Cp1Cp2Whitelist();
+            Set<String> whitelist = loadWhitelist(designation);
             List<String> sheetNames = timeSeriesReader.listSheetNames(ltPath);
 
             List<TimeSeriesMatrixColumn> onglets = new ArrayList<>(sheetNames.size());
@@ -125,7 +149,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
 
             TimeSeriesMatrix combined = new TimeSeriesMatrix(onglets);
             byte[] bytes = nasFileService.getWriter().writeToByteArray(combined);
-            return nasFileService.saveMatrixBytesToNas(bytes, ltTrajectory.getFileName() + "_lt", properties.getNuclearAvailabilityTsOutputDirectory());
+            return nasFileService.saveMatrixBytesToNas(bytes, ltTrajectory.getFileName() + "_lt_" + designation, properties.getNuclearAvailabilityTsOutputDirectory());
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .errorMessageArguments(List.of(ltTrajectory.getFileName()))
@@ -135,10 +159,10 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         }
     }
 
-    private Set<String> loadCp0Cp1Cp2Whitelist() {
-        return clusterDesignationRepository.findByCluster_TypeCluster(CP0_CP1_CP2_DESIGNATION)
+    private Set<String> loadWhitelist(String designation) {
+        return clusterDesignationRepository.findByCluster_TypeCluster(designation)
                 .stream()
-                .map(designation -> designation.getId().getNomCluster())
+                .map(d -> d.getId().getNomCluster())
                 .collect(Collectors.toSet());
     }
 

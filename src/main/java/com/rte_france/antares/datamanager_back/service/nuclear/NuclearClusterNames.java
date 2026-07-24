@@ -8,6 +8,8 @@ public final class NuclearClusterNames {
     private static final String PEAK_MARKER = "peak";
     private static final String EPR_MARKER = "epr";
     private static final String SMR_MARKER = "smr";
+    private static final String N4_MARKER = "n4";
+    private static final String P4_MARKER = "p4";
 
     private NuclearClusterNames() {
     }
@@ -30,5 +32,13 @@ public final class NuclearClusterNames {
 
     public static boolean isSmr(String clusterName) {
         return normalize(clusterName).contains(SMR_MARKER);
+    }
+
+    public static boolean isN4(String clusterName) {
+        return normalize(clusterName).contains(N4_MARKER);
+    }
+
+    public static boolean isP4(String clusterName) {
+        return normalize(clusterName).contains(P4_MARKER);
     }
 }
