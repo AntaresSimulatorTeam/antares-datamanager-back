@@ -163,12 +163,25 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         return hourly;
     }
 
+    /**
+     * Each EPR column is already a complete, independent series (no sum needed like LT (one "SimuN" column for each MC scenario)
+     * but is still stored in 365 daily format, so it gets the same
+     * x24 hourly duplication, applied per column.
+     */
     private String assembleEprSeries(TrajectoryEntity eprTrajectory, String horizonYear) {
         try {
             Path relativePath = resolvePrefixedRelativePath(properties.getNuclearEprDirectory(),
                     NuclearFilePrefixes.EPR_FILE_PREFIX, eprTrajectory.getFileName());
             Path eprPath = resolveValidatedNasPath(relativePath, "Invalid nuclear EPR path: {0}");
-            return nasFileService.readAndSaveMatrixToNas(eprPath, properties.getNuclearAvailabilityTsOutputDirectory(), horizonYear, true);
+
+            TimeSeriesMatrix pool = nasFileService.readMatrix(eprPath, horizonYear, true,
+                    TrajectoryType.NUCLEAR_FR_TS_ERP.name(), "EPR");
+            List<TimeSeriesMatrixColumn> hourlyColumns = pool.columns().stream()
+                    .map(column -> new TimeSeriesMatrixColumn(column.name(), expandDailyToHourly(column.values())))
+                    .toList();
+
+            byte[] bytes = nasFileService.getWriter().writeToByteArray(new TimeSeriesMatrix(hourlyColumns));
+            return nasFileService.saveMatrixBytesToNas(bytes, eprTrajectory.getFileName() + "_epr", properties.getNuclearAvailabilityTsOutputDirectory());
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .errorMessageArguments(List.of(eprTrajectory.getFileName()))
@@ -179,11 +192,11 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     }
 
     /**
-     * SMR availability is only prepared here, not fianlized: the raw column pool (without the excluded
-     * "TS_EPR_clim" column) is converted to a single shared Arrow file, and each matched cluster gets
-     * the active unit count and a composed seed string. The seeded "mixage des
-     * chroniques" that combines pool columns per active unit is left for the python
-     * generator
+     * SMR availability is only prepared here, not fianlized: the column pool (without the
+     * "TS_EPR_clim" column, each column expanded x24 for hourly) is converted to a
+     * single shared Arrow file, and each matched cluster gets the active unit count and a composed
+     * seed string. The seeded "mixage des chroniques" that combines pool columns per active unit is
+     * left for the python generator
      */
     private void assembleSmrAvailability(TrajectoryEntity smrTrajectory, String horizonYear,
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -227,6 +240,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
                     TrajectoryType.NUCLEAR_FR_TS_SMR.name(), "SMR");
             return pool.columns().stream()
                     .filter(column -> !SMR_EXCLUDED_COLUMN.equalsIgnoreCase(column.name()))
+                    .map(column -> new TimeSeriesMatrixColumn(column.name(), expandDailyToHourly(column.values())))
                     .toList();
         } catch (IOException e) {
             throw TechnicalException.builder()

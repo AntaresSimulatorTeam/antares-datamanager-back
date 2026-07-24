@@ -181,6 +181,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
     class EprAvailability {
 
         private static final String STORED_NAME = "BP25_ref";
+        private TimeSeriesWriter capturingWriter;
 
         @BeforeEach
         void setUp() throws IOException {
@@ -191,8 +192,15 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             Files.createDirectories(eprDir);
             Files.createFile(eprDir.resolve("TS_EPR_" + STORED_NAME + ".xlsx"));
 
-            when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean()))
-                    .thenReturn("epr_arrow_file.arrow");
+            when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean(), anyString(), anyString())).thenReturn(new TimeSeriesMatrix(List.of(
+                    new TimeSeriesMatrixColumn("Simu1", new double[]{1.0, 2.0}),
+                    new TimeSeriesMatrixColumn("Simu2", new double[]{3.0, 4.0})
+            )));
+
+            capturingWriter = mock(TimeSeriesWriter.class);
+            when(capturingWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
+            when(nasFileService.getWriter()).thenReturn(capturingWriter);
+            when(nasFileService.saveMatrixBytesToNas(any(), anyString(), anyString())).thenReturn("epr_arrow_file.arrow");
         }
 
         private TrajectoryEntity eprTrajectory(String storedName) {
@@ -200,7 +208,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         }
 
         @Test
-        void shouldReadAndImportEprSeriesAsIs_thenApplyOnlyToEprClusters() throws IOException {
+        void shouldExpandEachColumnDailyToHourly_thenApplyOnlyToEprClusters() throws IOException {
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
             AreaClusterRefKey eprKey = key("fr", "Nuclear_epr");
             AreaClusterRefKey ltKey = key("fr", "Nuclear_cp0_cp1_cp2");
@@ -215,11 +223,23 @@ class NuclearAvailabilityAssemblerServiceImplTest {
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
             ArgumentCaptor<Boolean> hasHeaderCaptor = ArgumentCaptor.forClass(Boolean.class);
-            verify(nasFileService).readAndSaveMatrixToNas(pathCaptor.capture(), anyString(), eq("2030"), hasHeaderCaptor.capture());
+            verify(nasFileService).readMatrix(pathCaptor.capture(), eq("2030"), hasHeaderCaptor.capture(), anyString(), anyString());
 
             assertThat(pathCaptor.getValue().toString())
                     .endsWith(Path.of("specific_nuclear", "TS_dispo", "EPR", "TS_EPR_" + STORED_NAME + ".xlsx").toString());
             assertThat(hasHeaderCaptor.getValue()).isTrue();
+
+            ArgumentCaptor<TimeSeriesMatrix> writtenCaptor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
+            verify(capturingWriter).writeToByteArray(writtenCaptor.capture());
+            TimeSeriesMatrix written = writtenCaptor.getValue();
+
+            assertThat(written.columns()).hasSize(2);
+            assertThat(written.columns().get(0).name()).isEqualTo("Simu1");
+            assertThat(written.columns().get(0).values()).hasSize(48);
+            assertThat(written.columns().get(0).values()[0]).isEqualTo(1.0);
+            assertThat(written.columns().get(0).values()[23]).isEqualTo(1.0);
+            assertThat(written.columns().get(0).values()[24]).isEqualTo(2.0);
+            assertThat(written.columns().get(0).values()[47]).isEqualTo(2.0);
         }
 
         @Test
@@ -234,7 +254,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             assembler.assembleAvailability(studyWith(eprTrajectory(storedName)), props);
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
-            verify(nasFileService).readAndSaveMatrixToNas(pathCaptor.capture(), anyString(), any(), anyBoolean());
+            verify(nasFileService).readMatrix(pathCaptor.capture(), any(), anyBoolean(), anyString(), anyString());
             assertThat(pathCaptor.getValue().toString()).endsWith("ts_epr_" + storedName + ".xlsx");
         }
 
@@ -294,6 +314,13 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             // TS_EPR_clim must never reach the written pool
             assertThat(writtenPool.columns()).hasSize(2);
             assertThat(writtenPool.columns()).extracting(TimeSeriesMatrixColumn::name).containsExactly("col1", "col2");
+
+            // each retained column is expanded x24 daily-to-hourly, like LT/EPR
+            assertThat(writtenPool.columns().get(0).values()).hasSize(48);
+            assertThat(writtenPool.columns().get(0).values()[0]).isEqualTo(1.0);
+            assertThat(writtenPool.columns().get(0).values()[23]).isEqualTo(1.0);
+            assertThat(writtenPool.columns().get(0).values()[24]).isEqualTo(2.0);
+            assertThat(writtenPool.columns().get(0).values()[47]).isEqualTo(2.0);
 
             assertThat(result.seriesByCluster()).containsEntry(smrKey, "smr_arrow_file.arrow");
             assertThat(result.smrMixageByCluster()).containsKey(smrKey);
