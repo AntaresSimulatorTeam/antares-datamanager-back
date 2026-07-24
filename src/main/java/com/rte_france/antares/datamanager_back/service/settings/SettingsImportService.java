@@ -73,7 +73,7 @@ public class SettingsImportService {
     private static final String KEY_SPINNING_RESERVE = "spinning reserve";
     private static final String KEY_PRIMARY_RESERVE = "primary reserve";
     private static final String KEY_EXPORT_MPS = "export mps";
-    private static final String KEY_UNFEASIBLE_PROBLEM_BEHAVIOR = "Unfeasible problem behavios";
+    private static final String KEY_UNFEASIBLE_PROBLEM_BEHAVIOR = "Unfeasible problem behavior";
 
     // Advanced Parameters Keys
     private static final String KEY_HYDRO_HEURISTIC_POLICY = "hydro heuristic policy";
@@ -83,9 +83,7 @@ public class SettingsImportService {
     private static final String KEY_UNIT_COMMITMENT_MODE = "unit commitment mode";
     private static final String KEY_NUMBER_OF_CORES_MODE = "Simulation cores";
     private static final String KEY_RENEWABLE_GENERATION_MODELLING = "renewable generation modeling";
-    private static final String KEY_ACCURACY_ON_CORRELATION = "accuracy on correlation";
     private static final String KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE = "accurate shave peaks include short term storage";
-    private static final String KEY_INITIAL_RESERVOIR_LEVELS = "Initial reservoir levels 2";
 
 
     // Seeds Parameters Keys
@@ -353,9 +351,7 @@ public class SettingsImportService {
                 .unitCommitmentMode(ParameterValueConverter.getStringValue(dataMap, KEY_UNIT_COMMITMENT_MODE))
                 .numberOfCoresMode(ParameterValueConverter.getStringValue(dataMap, KEY_NUMBER_OF_CORES_MODE))
                 .renewableGenerationModelling(ParameterValueConverter.getStringValue(dataMap, KEY_RENEWABLE_GENERATION_MODELLING))
-                .accuracyOnCorrelation(ParameterValueConverter.getStringValue(dataMap, KEY_ACCURACY_ON_CORRELATION))
                 .accurateShavePeaksIncludeShortTermtorage(ParameterValueConverter.getBooleanValue(dataMap, KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE))
-                .initialReservoirLevels(ParameterValueConverter.getStringValue(dataMap, KEY_INITIAL_RESERVOIR_LEVELS))
                 .trajectory(trajectory)
                 .build();
 
