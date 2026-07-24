@@ -122,3 +122,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V57-create_table_adqp.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V58-create-settings-general-parameters-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V59-modify-settings-advanced-parameters-table.sql

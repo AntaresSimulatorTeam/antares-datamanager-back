@@ -118,7 +118,7 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.nuclear.smr.directory}")
     public String nuclearSmrDirectory;
 
-    @Value("${antares.datamanager.trajectory.settings.directory}")
+    @Value("${antares.datamanager.settings.directory}")
     public String trajectorySettingsDirectory;
 
     @Value("${antares.datamanager.nuclear.modulation.ts.output.directory}")
