@@ -294,11 +294,10 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         }
 
         @Test
-        void shouldExcludeTsEprClimColumn_andWriteOneSharedPassthroughFile() throws IOException {
+        void shouldWriteOneSharedPoolWithAllColumnsExpandedHourly() throws IOException {
             when(nasFileService.readMatrix(any(), any(), anyBoolean(), anyString(), anyString())).thenReturn(new TimeSeriesMatrix(List.of(
                     new TimeSeriesMatrixColumn("col1", new double[]{1.0, 2.0}),
-                    new TimeSeriesMatrixColumn("col2", new double[]{3.0, 4.0}),
-                    new TimeSeriesMatrixColumn("TS_EPR_clim", new double[]{99.0, 99.0})
+                    new TimeSeriesMatrixColumn("col2", new double[]{3.0, 4.0})
             )));
 
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
@@ -311,7 +310,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             verify(capturingWriter).writeToByteArray(captor.capture());
             TimeSeriesMatrix writtenPool = captor.getValue();
 
-            // TS_EPR_clim must never reach the written pool
+            // every column from the source pool is kept — no exclusion
             assertThat(writtenPool.columns()).hasSize(2);
             assertThat(writtenPool.columns()).extracting(TimeSeriesMatrixColumn::name).containsExactly("col1", "col2");
 
