@@ -36,9 +36,18 @@ class ClusterDesignationRepositoryTest {
         List<String> unitNames = result.stream().map(e -> e.getId().getNomCluster()).toList();
 
         assertThat(unitNames)
-                .contains("CHOO2N01", "CIVAUN01", "PALUEN01", "PENLYN01", "FLAMAN01", "FLAMAN02",
-                        "CATTEN01", "BVIL7N01", "GOLF5N01", "N.SE5N01", "SSAL7N01")
-                .doesNotContain("BLAYAN01", "FLAMAN03", "EPR01");
+                .containsExactlyInAnyOrder("CHOO2N01", "CHOO2N02", "CIVAUN01", "CIVAUN02");
+    }
+
+    @Test
+    void findByCluster_TypeCluster_returnsP4Designations() {
+        List<ClusterDesignationEntity> result = repository.findByCluster_TypeCluster("p4");
+
+        List<String> unitNames = result.stream().map(e -> e.getId().getNomCluster()).toList();
+
+        assertThat(unitNames)
+                .contains("PALUEN01", "PENLYN01", "FLAMAN01", "FLAMAN02", "CATTEN01", "BVIL7N01", "GOLF5N01", "N.SE5N01", "SSAL7N01")
+                .doesNotContain("BLAYAN01", "FLAMAN03", "EPR01", "CHOO2N01", "CIVAUN01");
     }
 
     @Test

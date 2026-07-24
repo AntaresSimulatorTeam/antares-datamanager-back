@@ -49,15 +49,15 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private static final String SEED_SUFFIX = "seed-tsgen-thermal";
     private static final String CP0_CP1_CP2_DESIGNATION = "cp0_cp1_cp2";
     private static final String N4_DESIGNATION = "n4";
+    private static final String P4_DESIGNATION = "p4";
     private static final int HOURS_PER_DAY = 24;
 
     /**
      * Explicit, not name-derived: which referential designation backs which LT cluster names.
-     * N4 and P4 cluster names share the "n4" designation (p4 is folded into n4
-     * in the referential).
      */
     private static final List<LtDesignationGroup> LT_DESIGNATION_GROUPS = List.of(
-            new LtDesignationGroup(N4_DESIGNATION, NuclearAvailabilityAssemblerServiceImpl::isN4OrP4Cluster),
+            new LtDesignationGroup(N4_DESIGNATION, NuclearClusterNames::isN4),
+            new LtDesignationGroup(P4_DESIGNATION, NuclearClusterNames::isP4),
             new LtDesignationGroup(CP0_CP1_CP2_DESIGNATION, NuclearAvailabilityAssemblerServiceImpl::isDefaultLongTermCluster)
     );
 
@@ -106,12 +106,6 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         return trajectories.stream()
                 .filter(t -> type.name().equals(t.getType()))
                 .findFirst();
-    }
-
-    private static boolean isN4OrP4Cluster(String clusterName) {
-        return NuclearClusterNames.isNuclear(clusterName)
-                && !NuclearClusterNames.isPeak(clusterName)
-                && (NuclearClusterNames.isN4(clusterName) || NuclearClusterNames.isP4(clusterName));
     }
 
     private static boolean isDefaultLongTermCluster(String clusterName) {
