@@ -46,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -103,6 +104,9 @@ class NuclearAvailabilityAssemblerServiceImplTest {
                     ClusterDesignationEntity.builder().id(ClusterDesignationKey.builder().clusterId(2).nomCluster("BLAYAN01").build()).build(),
                     ClusterDesignationEntity.builder().id(ClusterDesignationKey.builder().clusterId(2).nomCluster("BLAYAN02").build()).build()
             ));
+            when(clusterDesignationRepository.findByCluster_TypeCluster("n4")).thenReturn(List.of(
+                    ClusterDesignationEntity.builder().id(ClusterDesignationKey.builder().clusterId(3).nomCluster("CHOO2N01").build()).build()
+            ));
 
             when(timeSeriesReader.listSheetNames(any())).thenReturn(List.of("s1", "s2"));
             when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), eq("s1"), anySet())).thenReturn(new TimeSeriesMatrix(List.of(
@@ -117,7 +121,8 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             capturingWriter = mock(TimeSeriesWriter.class);
             when(capturingWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
             when(nasFileService.getWriter()).thenReturn(capturingWriter);
-            when(nasFileService.saveMatrixBytesToNas(any(), anyString(), anyString())).thenReturn("lt_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_n4"), anyString())).thenReturn("lt_n4_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_cp0_cp1_cp2"), anyString())).thenReturn("lt_cp0_cp1_cp2_arrow_file.arrow");
         }
 
         private TrajectoryEntity ltTrajectory() {
@@ -125,24 +130,28 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         }
 
         @Test
-        void shouldSumWhitelistedColumnsAndExpandDailyToHourly_thenApplyToAllNonPeakNonEprNonSmrClusters() {
+        void shouldRouteEachClusterToItsOwnDesignationGroupFile_thenApplyToAllNonPeakNonEprNonSmrClusters() {
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
             AreaClusterRefKey cp0Key = key("fr", "Nuclear_cp0_cp1_cp2");
             AreaClusterRefKey n4Key = key("fr", "Nuclear_n4");
+            AreaClusterRefKey p4Key = key("fr", "Nuclear_p4");
             AreaClusterRefKey eprKey = key("fr", "Nuclear_epr");
             AreaClusterRefKey smrKey = key("fr", "Nuclear_smr");
             AreaClusterRefKey peakKey = key("fr", "Nuclear_peak1");
             props.put(cp0Key, ThermalClusterGenerationDto.builder().build());
             props.put(n4Key, ThermalClusterGenerationDto.builder().build());
+            props.put(p4Key, ThermalClusterGenerationDto.builder().build());
             props.put(eprKey, ThermalClusterGenerationDto.builder().build());
             props.put(smrKey, ThermalClusterGenerationDto.builder().build());
             props.put(peakKey, ThermalClusterGenerationDto.builder().build());
 
             NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(ltTrajectory()), props);
 
+            // cp0_cp1_cp2 gets its own file; n4 and p4 share the same "n4" designation file
             assertThat(result.seriesByCluster())
-                    .containsEntry(cp0Key, "lt_arrow_file.arrow")
-                    .containsEntry(n4Key, "lt_arrow_file.arrow")
+                    .containsEntry(cp0Key, "lt_cp0_cp1_cp2_arrow_file.arrow")
+                    .containsEntry(n4Key, "lt_n4_arrow_file.arrow")
+                    .containsEntry(p4Key, "lt_n4_arrow_file.arrow")
                     .doesNotContainKey(eprKey)
                     .doesNotContainKey(smrKey)
                     .doesNotContainKey(peakKey);

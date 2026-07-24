@@ -124,3 +124,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V58-create-settings-general-parameters-table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V59-modify-settings-advanced-parameters-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V60-split-n4-cluster-designation-from-cp0-cp1-cp2.sql
