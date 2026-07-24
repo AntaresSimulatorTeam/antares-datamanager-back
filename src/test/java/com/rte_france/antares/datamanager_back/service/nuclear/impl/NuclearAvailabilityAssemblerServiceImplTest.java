@@ -107,6 +107,9 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             when(clusterDesignationRepository.findByCluster_TypeCluster("n4")).thenReturn(List.of(
                     ClusterDesignationEntity.builder().id(ClusterDesignationKey.builder().clusterId(3).nomCluster("CHOO2N01").build()).build()
             ));
+            when(clusterDesignationRepository.findByCluster_TypeCluster("p4")).thenReturn(List.of(
+                    ClusterDesignationEntity.builder().id(ClusterDesignationKey.builder().clusterId(4).nomCluster("PALUEN01").build()).build()
+            ));
 
             when(timeSeriesReader.listSheetNames(any())).thenReturn(List.of("s1", "s2"));
             when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), eq("s1"), anySet())).thenReturn(new TimeSeriesMatrix(List.of(
@@ -122,6 +125,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             when(capturingWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
             when(nasFileService.getWriter()).thenReturn(capturingWriter);
             when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_n4"), anyString())).thenReturn("lt_n4_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_p4"), anyString())).thenReturn("lt_p4_arrow_file.arrow");
             when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_cp0_cp1_cp2"), anyString())).thenReturn("lt_cp0_cp1_cp2_arrow_file.arrow");
         }
 
@@ -147,11 +151,11 @@ class NuclearAvailabilityAssemblerServiceImplTest {
 
             NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(ltTrajectory()), props);
 
-            // cp0_cp1_cp2 gets its own file; n4 and p4 share the same "n4" designation file
+            // cp0_cp1_cp2, n4, and p4 each get their own, distinct file
             assertThat(result.seriesByCluster())
                     .containsEntry(cp0Key, "lt_cp0_cp1_cp2_arrow_file.arrow")
                     .containsEntry(n4Key, "lt_n4_arrow_file.arrow")
-                    .containsEntry(p4Key, "lt_n4_arrow_file.arrow")
+                    .containsEntry(p4Key, "lt_p4_arrow_file.arrow")
                     .doesNotContainKey(eprKey)
                     .doesNotContainKey(smrKey)
                     .doesNotContainKey(peakKey);
