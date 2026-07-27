@@ -2,21 +2,21 @@ package com.rte_france.antares.datamanager_back.service.adequacy.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.AdequacyModeRepository;
-import com.rte_france.antares.datamanager_back.repository.AdequacySettingsRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacyFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroTypeHelper;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -40,13 +41,15 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     private final AdequacyModeRepository adequacyModeRepository;
     private final AdequacySettingsRepository adequacySettingsRepository;
     private final StudyRepository studyRepository;
+    private final AreaRepository areaRepository;
 
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
+    private static final String SHEET_SETTINGS = "settings";
+    private static final String SHEET_PERIMETER = "perimetre";
 
     static {
         settingsSetters.put("include_adq_patch", (e, v) -> e.setIncludeAdqPatch((Boolean) v));
-        settingsSetters.put("price_taking_order",
-                (e, v) -> e.setPriceTakingOrder(v.toString()));
+        settingsSetters.put("price_taking_order", (e, v) -> e.setPriceTakingOrder(v.toString()));
         settingsSetters.put("include_hurdle_cost_csr", (e, v) -> e.setIncludeHurdleCostCsr((Boolean) v));
         settingsSetters.put("check_csr_cost_function", (e, v) -> e.setCheckCsrCostFunction((Boolean) v));
         settingsSetters.put("threshold_initiate_curtailment_sharing_rule", (e, v) -> e.setThresholdInitiateCurtailmentSharingRule(castToInteger(v)));
@@ -71,6 +74,14 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         Path path = trajectoryService.getTrajectoryFilePath(TrajectoryType.ADEQUACY_PATCH, trajectoryToUse, null);
 
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.ADEQUACY_PATCH.name());
+        
+        if (fileName.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .message("Missing file default in AdequacyPatch trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.
                 findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, TrajectoryType.ADEQUACY_PATCH.name());
 
@@ -89,9 +100,45 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
 
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
+            
+            List<String> missingTabs = new ArrayList<>();
+            List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
+            List<AdequacyModeEntity> modes = buildAdequacyModeList(workbook, trajectory, missingTabs);
 
-            List<AdequacyModeEntity> modes = buildAdequacyModeList(workbook, trajectory);
-            List<AdequacySettingsEntity> settings = buildAdequacySettingsList(workbook, trajectory);
+            Set<String> fileAreasSet = modes.stream()
+                    .map(AdequacyModeEntity::getArea)
+                    .collect(Collectors.toSet());
+
+            List<String> missingAreas = studyAreas.stream()
+                    .filter(area -> !fileAreasSet.contains(area))
+                    .toList();
+                    
+            List<AdequacySettingsEntity> settings = buildAdequacySettingsList(workbook, trajectory, missingTabs);
+            
+            if (!missingTabs.isEmpty()) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(String.join(", ", missingTabs), trajectoryToUse))
+                        .message("Missing tab {0} in AdequacyPatch trajectory {1}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            
+            if (modes.isEmpty() || settings.isEmpty()) {
+                String dataMissing = settings.isEmpty() ? SHEET_SETTINGS : SHEET_PERIMETER;
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(dataMissing, trajectoryToUse))
+                        .message("No data in {0} tab in AdequacyPatch trajectory {1}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            if (!missingAreas.isEmpty()) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(String.join(", ", missingAreas), trajectoryToUse))
+                        .message("Missing area(s) {0} in AdequacyPatch trajectory {1}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
 
             trajectory.setAdequacyModeEntities(modes);
             trajectory.setAdequacySettingsEntities(settings);
@@ -115,9 +162,10 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         }
     }
 
-    private List<AdequacyModeEntity> buildAdequacyModeList(Workbook workbook, TrajectoryEntity trajectory) {
-        Sheet sheet = workbook.getSheet("perimetre");
+    private List<AdequacyModeEntity> buildAdequacyModeList(Workbook workbook, TrajectoryEntity trajectory, List<String> missingTabs) {
+        Sheet sheet = workbook.getSheet(SHEET_PERIMETER);
         if (sheet == null) {
+            missingTabs.add(SHEET_PERIMETER);
             return Collections.emptyList();
         }
         List<AdequacyModeEntity> modes = new ArrayList<>();
@@ -136,9 +184,10 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         return modes;
     }
 
-    private List<AdequacySettingsEntity> buildAdequacySettingsList(Workbook workbook, TrajectoryEntity trajectory) {
-        Sheet sheet = workbook.getSheet("settings");
+    private List<AdequacySettingsEntity> buildAdequacySettingsList(Workbook workbook, TrajectoryEntity trajectory, List<String> missingTabs) {
+        Sheet sheet = workbook.getSheet(SHEET_SETTINGS);
         if (sheet == null) {
+            missingTabs.add(SHEET_SETTINGS);
             return Collections.emptyList();
         }
         AdequacySettingsEntity settingsEntity = new AdequacySettingsEntity();

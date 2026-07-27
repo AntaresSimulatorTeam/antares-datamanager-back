@@ -2,11 +2,9 @@ package com.rte_france.antares.datamanager_back.service.adequacy.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.AdequacyModeRepository;
-import com.rte_france.antares.datamanager_back.repository.AdequacySettingsRepository;
-import com.rte_france.antares.datamanager_back.repository.StudyRepository;
-import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
@@ -25,10 +23,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -47,6 +48,8 @@ class AdequacyFileProcessorServiceImplTest {
     private AdequacySettingsRepository adequacySettingsRepository;
     @Mock
     private StudyRepository studyRepository;
+    @Mock
+    private AreaRepository areaRepository;
 
     @InjectMocks
     private AdequacyFileProcessorServiceImpl adequacyFileProcessorService;
@@ -85,6 +88,12 @@ class AdequacyFileProcessorServiceImplTest {
 
             workbook.write(fileOut);
         }
+
+        // default study areas
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                    setName("FR");
+                }}));
     }
 
     @Test
@@ -152,14 +161,13 @@ class AdequacyFileProcessorServiceImplTest {
 
         StudyEntity study = new StudyEntity();
         study.setTrajectories(new java.util.HashSet<>());
-        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
-        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        TrajectoryEntity result = adequacyFileProcessorService.processAdequacyFile("empty", horizon, studyId, true);
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> adequacyFileProcessorService.processAdequacyFile("empty", horizon, studyId, true)
+        );
 
-        // Then
-        assertThat(result.getAdequacyModeEntities()).isEmpty();
-        assertThat(result.getAdequacySettingsEntities()).isEmpty();
+        assertTrue(ex.getMessage().contains("Missing tab {0} in AdequacyPatch trajectory {1}"));
     }
 }
