@@ -102,12 +102,6 @@ class AdequacyFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        // default study areas
-        when(areaRepository.findAllByStudyId(anyInt()))
-                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                    setName("FR");
-                }}));
-
         StudyEntity study = new StudyEntity();
         study.setId(studyId);
         study.setTrajectories(new java.util.HashSet<>());
@@ -139,11 +133,6 @@ class AdequacyFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        // default study areas
-        when(areaRepository.findAllByStudyId(anyInt()))
-                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                    setName("FR");
-                }}));
         when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
 
         // When & Then
@@ -167,11 +156,6 @@ class AdequacyFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        // default study areas
-        when(areaRepository.findAllByStudyId(anyInt()))
-                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                    setName("FR");
-                }}));
 
         StudyEntity study = new StudyEntity();
         study.setTrajectories(new java.util.HashSet<>());
@@ -230,12 +214,6 @@ class AdequacyFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-
-        // default study areas
-        when(areaRepository.findAllByStudyId(anyInt()))
-                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
-                    setName("FR");
-                }}));
         
         // When
         BusinessException ex = assertThrows(
