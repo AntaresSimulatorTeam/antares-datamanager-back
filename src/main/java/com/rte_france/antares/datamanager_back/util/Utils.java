@@ -1293,4 +1293,24 @@ public class Utils {
                     .build();
         }
     }
+
+    public Path validateAndResolveTrajectoryPath(Path directoryPath, String trajectoryToUse) throws IOException, BusinessException {
+        Path realDirectoryPath = directoryPath.toRealPath();
+        Path trajectoryFilePath = realDirectoryPath.resolve(trajectoryToUse).normalize();
+
+        if (!trajectoryFilePath.startsWith(realDirectoryPath)) {
+            throw BusinessException.builder()
+                    .message("Invalid trajectory path: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        Path realTrajectoryFilePath = trajectoryFilePath.toRealPath();
+        if (!realTrajectoryFilePath.startsWith(realDirectoryPath)) {
+            throw BusinessException.builder()
+                    .message("Invalid trajectory path: " + trajectoryToUse)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return realTrajectoryFilePath;
+    }
 }

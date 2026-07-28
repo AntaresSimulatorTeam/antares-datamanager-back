@@ -1031,7 +1031,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.HYDRO_PSP_SERIES
                         || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
-                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path));
+                        || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path)
+                        || trajectoryType == TrajectoryType.ADEQUACY_PATCH);
     }
 
     /**
@@ -1605,7 +1606,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     public TrajectoryEntity buildDirectoryTrajectory(String type, String trajectoryToUse, Path trajectoryFilePath, String horizon, String area, String technology) throws IOException, BusinessException {
-        String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
+        String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
+                .map(UserInfoDto::getNni)
+                .orElse("UNKNOWN_USER");
         String checksum = calculateDirectoryChecksum(trajectoryFilePath);
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()

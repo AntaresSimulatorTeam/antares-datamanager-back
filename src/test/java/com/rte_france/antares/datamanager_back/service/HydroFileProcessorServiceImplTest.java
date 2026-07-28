@@ -130,12 +130,12 @@ class HydroFileProcessorServiceImplTest {
         CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
         CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -166,12 +166,12 @@ class HydroFileProcessorServiceImplTest {
         CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
         CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -204,12 +204,12 @@ class HydroFileProcessorServiceImplTest {
         CreateExcelTestUtil.createMockCsvFile(mingenDir, FILE_NAME_MINGEN);
         CreateExcelTestUtil.createMockCsvFile(reservoirLevels, FILE_NAME_RESERVOIR_LEVELS);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any()))
                 .thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -279,7 +279,7 @@ class HydroFileProcessorServiceImplTest {
         Path reservoirLevels = trajectoryPath.resolve("reservoir_levels");
         Files.createDirectories(reservoirLevels);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(
+        when(trajectoryService.normalizeAndValidateDirectory(
                 eq(TrajectoryType.HYDRO_SERIES),
                 eq("FR"),
                 isNull()
@@ -318,7 +318,7 @@ class HydroFileProcessorServiceImplTest {
         Path mingenDir = trajectoryPath.resolve("mingen");
         Files.createDirectories(mingenDir);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(
+        when(trajectoryService.normalizeAndValidateDirectory(
                 eq(TrajectoryType.HYDRO_SERIES),
                 eq("FR"),
                 isNull()
@@ -394,7 +394,7 @@ class HydroFileProcessorServiceImplTest {
                 isNull()
         )).thenReturn(trajectory);
 
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}, new AreaEntity() {{
             setName("AT");
@@ -589,10 +589,10 @@ class HydroFileProcessorServiceImplTest {
                         "reservoir", "reservoir.capacity", "follow.load", "use.water"),
                 List.of(List.of("FR", 1, 1, 1, 1, 1, true, 1000, false, true)));
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -608,7 +608,7 @@ class HydroFileProcessorServiceImplTest {
         Path base = tempDir.resolve("hydro_tech_traversal");
         Files.createDirectories(base);
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processHydroTechnicalParametersFile(TrajectoryType.HYDRO_TECHNICAL_PARAMETERS, "../outside", HORIZON, 1, AREA_FR, false));
@@ -627,8 +627,8 @@ class HydroFileProcessorServiceImplTest {
         CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_PARAMETERS, HORIZON,
                 List.of("node"), List.of());
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -649,8 +649,8 @@ class HydroFileProcessorServiceImplTest {
         CreateExcelTestUtil.createExcelFile(traj, FILE_NAME_ALLOCATION, HORIZON,
                 List.of("hydro"), List.of());
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -677,10 +677,10 @@ class HydroFileProcessorServiceImplTest {
                         "reservoir", "reservoir.capacity", "follow.load", "use.water"),
                 List.of(List.of("FR", 1, 1, 1, 1, 1, true, 1000, false, true)));
 
-        Mockito.when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
-        Mockito.when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+        when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        Mockito.when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 

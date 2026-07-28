@@ -56,17 +56,22 @@ class AdequacyFileProcessorServiceImplTest {
 
     @TempDir
     Path tempDir;
-
-    private Path excelFilePath;
+    
     private final String trajectoryToUse = "test_adequacy";
     private final String horizon = "2023-2024";
     private final Integer studyId = 1;
 
+    private Path base;
+    private Path traj;
+    private Path excelFilePath;
+
     @BeforeEach
     void setUp() throws IOException {
-        excelFilePath = tempDir.resolve("ADEQUACY_PATCH_test_adequacy.xlsx");
+        base = tempDir.resolve("adequacy_patch");
+        traj = base.resolve(trajectoryToUse);
+        Files.createDirectories(traj);
+        excelFilePath = traj.resolve("default.xlsx");
         // Create the parent directory if necessary (though tempDir should exist)
-        Files.createDirectories(excelFilePath.getParent());
 
         try (Workbook workbook = new XSSFWorkbook();
              FileOutputStream fileOut = new FileOutputStream(excelFilePath.toFile())) {
@@ -88,21 +93,20 @@ class AdequacyFileProcessorServiceImplTest {
 
             workbook.write(fileOut);
         }
+    }
+
+    @Test
+    void processAdequacyFile_shouldSuccessfullyProcessFile() throws IOException {
+        // Given
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
 
         // default study areas
         when(areaRepository.findAllByStudyId(anyInt()))
                 .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                     setName("FR");
                 }}));
-    }
-
-    @Test
-    void processAdequacyFile_shouldSuccessfullyProcessFile() throws IOException {
-        // Given
-        when(trajectoryService.getTrajectoryFilePath(eq(TrajectoryType.ADEQUACY_PATCH), eq(trajectoryToUse), any())).thenReturn(excelFilePath);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
-        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("test_user").build());
 
         StudyEntity study = new StudyEntity();
         study.setId(studyId);
@@ -116,9 +120,6 @@ class AdequacyFileProcessorServiceImplTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getFileName()).isEqualTo("ADEQUACY_PATCH_test_adequacy");
-        assertThat(result.getHorizon()).isEqualTo(horizon);
-        assertThat(result.getCreatedBy()).isEqualTo("test_user");
         assertThat(result.getAdequacyModeEntities()).hasSize(1);
         assertThat(result.getAdequacyModeEntities().get(0).getArea()).isEqualTo("FR");
         assertThat(result.getAdequacyModeEntities().get(0).getMode()).isEqualTo("Adequacy");
@@ -135,9 +136,14 @@ class AdequacyFileProcessorServiceImplTest {
     @Test
     void processAdequacyFile_shouldThrowException_whenStudyNotFound() throws IOException {
         // Given
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any())).thenReturn(excelFilePath);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        // default study areas
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                    setName("FR");
+                }}));
         when(studyRepository.findById(studyId)).thenReturn(Optional.empty());
 
         // When & Then
@@ -149,15 +155,23 @@ class AdequacyFileProcessorServiceImplTest {
     @Test
     void processAdequacyFile_shouldHandleMissingSheets() throws IOException {
         // Given
-        Path emptyExcelPath = tempDir.resolve("ADEQUACY_PATCH_empty.xlsx");
+        Path baseMissing = tempDir.resolve("adequacy_patch");
+        Path trajMissing = baseMissing.resolve(trajectoryToUse);
+        Files.createDirectories(trajMissing);
+        Path emptyExcelPath = trajMissing.resolve("default.xlsx");
         try (Workbook workbook = new XSSFWorkbook();
              FileOutputStream fileOut = new FileOutputStream(emptyExcelPath.toFile())) {
             workbook.write(fileOut);
         }
 
-        when(trajectoryService.getTrajectoryFilePath(any(), any(), any())).thenReturn(emptyExcelPath);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        // default study areas
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                    setName("FR");
+                }}));
 
         StudyEntity study = new StudyEntity();
         study.setTrajectories(new java.util.HashSet<>());
@@ -165,9 +179,70 @@ class AdequacyFileProcessorServiceImplTest {
         // When
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> adequacyFileProcessorService.processAdequacyFile("empty", horizon, studyId, true)
+                () -> adequacyFileProcessorService.processAdequacyFile(trajectoryToUse, horizon, studyId, true)
         );
 
         assertTrue(ex.getMessage().contains("Missing tab {0} in AdequacyPatch trajectory {1}"));
+    }
+
+    @Test
+    void processAdequacyFile_shouldHandleMissingDefaultFile() throws IOException {
+        // Given
+        Path baseEmpty = tempDir.resolve("adequacy_patch");
+        Path trajEmpty = baseEmpty.resolve("truc");
+        Files.createDirectories(trajEmpty);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(baseEmpty);
+
+        // When
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> adequacyFileProcessorService.processAdequacyFile("truc", horizon, studyId, true)
+        );
+
+        assertTrue(ex.getMessage().contains("Missing file default in AdequacyPatch trajectory {0}"));
+    }
+
+    @Test
+    void processAdequacyFile_shouldThrowException_whenDataNotFound() throws IOException {
+        Path baseNoData = tempDir.resolve("adequacy_patch");
+        Path trajNoData = baseNoData.resolve(trajectoryToUse);
+        Files.createDirectories(trajNoData);
+        Path noDataExcelPath = trajNoData.resolve("default.xlsx");
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fileOut = new FileOutputStream(noDataExcelPath.toFile())) {
+            Sheet sheetPerimetre = workbook.createSheet("perimetre");
+            Row headerPerimetre = sheetPerimetre.createRow(0);
+            headerPerimetre.createCell(0).setCellValue("Area");
+            headerPerimetre.createCell(1).setCellValue("Mode");
+
+            Sheet sheetSettings = workbook.createSheet("settings");
+            Row rowSetting1 = sheetSettings.createRow(0);
+            rowSetting1.createCell(0).setCellValue("include-adq-patch");
+            rowSetting1.createCell(1).setCellValue(true);
+            Row rowSetting2 = sheetSettings.createRow(1);
+            rowSetting2.createCell(0).setCellValue("price-taking-order");
+            rowSetting2.createCell(1).setCellValue("DENS");
+            workbook.write(fileOut);
+        }
+        
+        // Given
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+
+        // default study areas
+        when(areaRepository.findAllByStudyId(anyInt()))
+                .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+                    setName("FR");
+                }}));
+        
+        // When
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> adequacyFileProcessorService.processAdequacyFile(trajectoryToUse, horizon, studyId, true)
+        );
+
+        assertTrue(ex.getMessage().contains("No data in {0} tab in AdequacyPatch trajectory {1}"));
     }
 }

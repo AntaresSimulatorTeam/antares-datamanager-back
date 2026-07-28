@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.adequacy.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
@@ -11,8 +10,6 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacyFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.hydro.HydroTypeHelper;
-import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -27,6 +24,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -37,13 +35,13 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
 
     private final TrajectoryRepository trajectoryRepository;
     private final TrajectoryServiceImpl trajectoryService;
-    private final UserService userService;
     private final AdequacyModeRepository adequacyModeRepository;
     private final AdequacySettingsRepository adequacySettingsRepository;
     private final StudyRepository studyRepository;
     private final AreaRepository areaRepository;
 
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
+    private static final String FILE_NAME_DEFAULT = "default.xlsx";
     private static final String SHEET_SETTINGS = "settings";
     private static final String SHEET_PERIMETER = "perimetre";
 
@@ -70,47 +68,34 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     @Override
     @Transactional(rollbackFor = IOException.class)
     public TrajectoryEntity processAdequacyFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear) throws IOException {
+        Path directoryPath = trajectoryService.normalizeAndValidateDirectory(TrajectoryType.ADEQUACY_PATCH, null, null);
+        Path trajectoryFilePath = validateAndResolveTrajectoryPath(directoryPath, trajectoryToUse);
 
-        Path path = trajectoryService.getTrajectoryFilePath(TrajectoryType.ADEQUACY_PATCH, trajectoryToUse, null);
+        Path defaultFile = findDefaultFile(trajectoryFilePath, trajectoryToUse);
 
-        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.ADEQUACY_PATCH.name());
-        
-        if (fileName.isEmpty()) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(trajectoryToUse))
-                    .message("Missing file default in AdequacyPatch trajectory {0}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.
-                findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, TrajectoryType.ADEQUACY_PATCH.name());
+        TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(
+                TrajectoryType.ADEQUACY_PATCH.name(),
+                trajectoryToUse,
+                trajectoryFilePath,
+                horizon,
+                null,
+                null
+        );
 
-        String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
-                .map(UserInfoDto::getNni)
-                .orElse("UNKNOWN_USER");
-
-        int version = trajectoryEntity.map(TrajectoryEntity::getVersion).orElse(0);
-
-        if (trajectoryEntity.isPresent() && checkTrajectoryVersion(path, trajectoryEntity.get())) {
-            version = trajectoryEntity.get().getVersion();
-        }
-
-        TrajectoryEntity trajectory = buildTrajectory(path, version, horizon, createdBy,
-                TrajectoryType.ADEQUACY_PATCH, null, null, null);
-
-        try (InputStream inputStream = Files.newInputStream(path);
+        try (InputStream inputStream = Files.newInputStream(defaultFile);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             
             List<String> missingTabs = new ArrayList<>();
             List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
             List<AdequacyModeEntity> modes = buildAdequacyModeList(workbook, trajectory, missingTabs);
 
-            Set<String> fileAreasSet = modes.stream()
+            Set<String> normalizedFileAreas = modes.stream()
                     .map(AdequacyModeEntity::getArea)
+                    .map(String::toLowerCase)
                     .collect(Collectors.toSet());
 
             List<String> missingAreas = studyAreas.stream()
-                    .filter(area -> !fileAreasSet.contains(area))
+                    .filter(area -> !normalizedFileAreas.contains(area.toLowerCase()))
                     .toList();
                     
             List<AdequacySettingsEntity> settings = buildAdequacySettingsList(workbook, trajectory, missingTabs);
@@ -192,7 +177,8 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         }
         AdequacySettingsEntity settingsEntity = new AdequacySettingsEntity();
         settingsEntity.setTrajectory(trajectory);
-
+        boolean isSettingEmpty = true;
+        
         for (Row row : sheet) {
             if (isRowEmpty(row)) continue;
             String key = Objects.toString(getCellValue(row, 0), "").toLowerCase().replace("-", "_");
@@ -201,16 +187,40 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
             BiConsumer<AdequacySettingsEntity, Object> setter = settingsSetters.get(key);
             if (setter != null && value != null) {
                 try {
+                    isSettingEmpty = false;
                     setter.accept(settingsEntity, value);
                 } catch (Exception e) {
                     log.warn("Could not set setting {} with value {}: {}", key, value, e.getMessage());
                 }
             }
         }
-        return Collections.singletonList(settingsEntity);
+        if (isSettingEmpty) {
+            return Collections.emptyList();
+        } else {
+            return Collections.singletonList(settingsEntity);
+        }
     }
 
+    private Path findDefaultFile(Path trajectoryFilePath, String trajectoryToUse) throws BusinessException, IOException {
+        Path defaultFile;
 
+        try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
+            defaultFile = stream
+                    .filter(Files::isRegularFile)
+                    .filter(p -> FILE_NAME_DEFAULT.equalsIgnoreCase(
+                            p.getFileName().toString()))
+                    .findFirst()
+                    .orElseThrow(() ->
+                            BusinessException.builder()
+                                    .errorMessageArguments(List.of(trajectoryToUse))
+                                    .message("Missing file default in AdequacyPatch trajectory {0}")
+                                    .httpStatus(HttpStatus.BAD_REQUEST)
+                                    .build());
+        }
+        
+        return defaultFile;
+    }
+    
     private boolean isRowEmpty(Row row) {
         if (row == null) return true;
         Cell cell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
