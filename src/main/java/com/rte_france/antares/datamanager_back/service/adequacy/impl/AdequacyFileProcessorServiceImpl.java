@@ -86,17 +86,7 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
              Workbook workbook = WorkbookFactory.create(inputStream)) {
             
             List<String> missingTabs = new ArrayList<>();
-            List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
             List<AdequacyModeEntity> modes = buildAdequacyModeList(workbook, trajectory, missingTabs);
-
-            Set<String> normalizedFileAreas = modes.stream()
-                    .map(AdequacyModeEntity::getArea)
-                    .map(String::toLowerCase)
-                    .collect(Collectors.toSet());
-
-            List<String> missingAreas = studyAreas.stream()
-                    .filter(area -> !normalizedFileAreas.contains(area.toLowerCase()))
-                    .toList();
                     
             List<AdequacySettingsEntity> settings = buildAdequacySettingsList(workbook, trajectory, missingTabs);
             
@@ -113,14 +103,6 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(dataMissing, trajectoryToUse))
                         .message("No data in {0} tab in AdequacyPatch trajectory {1}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            if (!missingAreas.isEmpty()) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(String.join(", ", missingAreas), trajectoryToUse))
-                        .message("Missing area(s) {0} in AdequacyPatch trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
