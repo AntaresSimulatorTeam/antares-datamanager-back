@@ -69,6 +69,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final AdequacySettingsToJsonService adequacySettingsToJsonService;
     private final NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
+    private final SettingsToJsonService settingsToJsonService;
 
     private static final String PROPERTIES = "properties";
 
@@ -144,7 +145,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private record TrajectoryDispatchResult(Map<String, Object> areasMap, Map<String, Object> linksMap,
                                              Optional<TrajectoryEntity> nuclearModulationTrajectory,
-                                             Optional<TrajectoryEntity> nuclearTalonTrajectory) {}
+                                             Optional<TrajectoryEntity> nuclearTalonTrajectory,
+                                             Optional<TrajectoryEntity> settingsTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -153,6 +155,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> linksMap = new TreeMap<>();
         Optional<TrajectoryEntity> nuclearModulationTraj = Optional.empty();
         Optional<TrajectoryEntity> nuclearTalonTraj = Optional.empty();
+        Optional<TrajectoryEntity> settingsTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -161,6 +164,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             switch (trajectoryType) {
                 case AREA -> buildAreasDataMap(study, trajectory, areasMap, thermalClusterProps, nuclearAvailability);
                 case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
+                case SETTINGS -> settingsTraj = Optional.of(trajectory);
                 case ADEQUACY_PATCH -> log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                 case LOAD ->
                         log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
@@ -183,7 +187,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_MODULATION -> nuclearModulationTraj = Optional.of(trajectory);
                 case NUCLEAR_FR_TALON -> nuclearTalonTraj = Optional.of(trajectory);
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
-                        log.debug("NUCLEAR availability trajectory already assembled before dispatch: {}", trajectory.getFileName());
+                        log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -191,7 +195,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj);
     }
 
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
@@ -199,9 +203,18 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> areasMap = dispatchResult.areasMap();
         Map<String, Object> innerGeneratorMap = new TreeMap<>();
         innerGeneratorMap.put("version", "9.3");
-        Optional<AdequacySettingsEntity> settings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
-        Map<String, Object> adequacySettingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(settings);
-        innerGeneratorMap.put("settings", Objects.requireNonNullElse(adequacySettingsMap, "settings work on going"));
+
+        // Build settings from parameters (general, optimization, advanced, seeds) if settings trajectory is available
+        Map<String, Object> settingsMap;
+        if (dispatchResult.settingsTrajectory().isPresent()) {
+            settingsMap = settingsToJsonService.buildSettingsMap(dispatchResult.settingsTrajectory().get().getId());
+        } else {
+            // Fallback to adequacy settings if no dedicated settings trajectory
+            Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
+            settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
+        }
+
+        innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));
         // TODO: get input for random generation flag and number of years, maybe also move them somewhere else
         innerGeneratorMap.put("enable_random_ts", true);
         innerGeneratorMap.put("nb_years", 1);
