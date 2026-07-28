@@ -206,8 +206,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         // Build settings from parameters (general, optimization, advanced, seeds) if settings trajectory is available
         Map<String, Object> settingsMap;
-        if (dispatchResult.settingsTrajectory().isPresent()) {
-            settingsMap = settingsToJsonService.buildSettingsMap(dispatchResult.settingsTrajectory().get().getId());
+        Optional<TrajectoryEntity> settingsTrajectory = dispatchResult.settingsTrajectory();
+        if (settingsTrajectory.isPresent()) {
+            settingsMap = settingsToJsonService.buildSettingsMap(settingsTrajectory.get().getId());
         } else {
             // Fallback to adequacy settings if no dedicated settings trajectory
             Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
