@@ -20,6 +20,24 @@ CREATE SEQUENCE fb_links_weight_sequence
     NO MAXVALUE
     CACHE 1;
 
+CREATE TABLE fb_virtual_nodes
+(
+    id                                  INTEGER,
+    name                                VARCHAR(40),
+    trajectory_id                       INTEGER,
+    PRIMARY KEY (id)
+);
+
+ALTER TABLE fb_virtual_nodes
+    ADD CONSTRAINT "fb_virtual_nodes_FK1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id);
+
+CREATE SEQUENCE fb_virtual_nodes_sequence
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
 CREATE TABLE fb_link_capacity
 (
     id                                  INTEGER,
@@ -46,20 +64,6 @@ CREATE SEQUENCE fb_link_capacity_sequence
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
-
-CREATE TABLE fb_virtual_nodes
-(
-    id                                  INTEGER,
-    name                                VARCHAR(40),
-    trajectory_id                       INTEGER,
-    PRIMARY KEY (id)
-);
-
-insert into fb_virtual_nodes(id, name) values (1, 'zz_flowbased'),
-       (2, 'model_description_fb'),
-       (3, 'alegro1'),
-       (4, 'alegro2'),
-       (5, 'alegro3');
 
 CREATE TABLE fb_type_day
 (
