@@ -3882,7 +3882,7 @@ class TrajectoryServiceImplTest {
                 );
 
                 // THEN
-                assertEquals("UNKNOWN__USER", result.getCreatedBy());
+                assertEquals("UNKNOWN_USER", result.getCreatedBy());
             }
         }
 
