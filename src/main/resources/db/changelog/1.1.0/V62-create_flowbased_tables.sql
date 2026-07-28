@@ -42,14 +42,14 @@ CREATE TABLE fb_link_capacity
 (
     id                                  INTEGER,
     name                                VARCHAR(20),
-    winter_HP_direct_MW                 VARCHAR(10),
-    winter_HP_indirect_MW               VARCHAR(10),
-    winter_HC_direct_MW                 VARCHAR(10),
-    winter_HC_indirect_MW               VARCHAR(10),
-    summer_HP_direct_MW                 VARCHAR(10),
-    summer_HP_indirect_MW               VARCHAR(10),
-    summer_HC_direct_MW                 VARCHAR(10),
-    summer_HC_indirect_MW               VARCHAR(10),
+    winter_HP_direct_MW                 INTEGER,
+    winter_HP_indirect_MW               INTEGER,
+    winter_HC_direct_MW                 INTEGER,
+    winter_HC_indirect_MW               INTEGER,
+    summer_HP_direct_MW                 INTEGER,
+    summer_HP_indirect_MW               INTEGER,
+    summer_HC_direct_MW                 INTEGER,
+    summer_HC_indirect_MW               INTEGER,
     hurdles_cost                        BOOLEAN DEFAULT FALSE NOT NULL,
     trajectory_id                       INTEGER,
     PRIMARY KEY (id)
@@ -68,8 +68,9 @@ CREATE SEQUENCE fb_link_capacity_sequence
 CREATE TABLE fb_type_day
 (
     id                          INTEGER,
-    clustering                   VARCHAR(20),
-    class                       VARCHAR(20),
+    clustering                  VARCHAR(20),
+    id_type_day                 INTEGER NOT NULL,
+    class_day                   VARCHAR(20),
     trajectory_id               INTEGER,
     PRIMARY KEY (id)
 );
