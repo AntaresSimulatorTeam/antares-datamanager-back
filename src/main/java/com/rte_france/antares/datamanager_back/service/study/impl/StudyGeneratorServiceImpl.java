@@ -285,7 +285,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         if (adequacyTrajectory != null) {
             for (AreaDTO areaDTO : areaDTOs) {
-                if (!adequacyModeByArea.containsKey(areaDTO.getName())) {
+                boolean exists = adequacyModeByArea.keySet().stream()
+                    .anyMatch(key -> key.equalsIgnoreCase(areaDTO.getName()));
+                if (!exists) {
                     throw BusinessException.builder()
                             .message("Area: {0} is not present in the list of areas for adequacy configuration , trajectory : {1}")
                             .errorMessageArguments(List.of(areaDTO.getName(), adequacyTrajectory.getFileName()))
