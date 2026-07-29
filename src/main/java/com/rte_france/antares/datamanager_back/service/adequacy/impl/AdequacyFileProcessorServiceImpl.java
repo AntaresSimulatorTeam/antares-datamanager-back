@@ -37,7 +37,6 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     private final AdequacyModeRepository adequacyModeRepository;
     private final AdequacySettingsRepository adequacySettingsRepository;
     private final StudyRepository studyRepository;
-    private final AreaRepository areaRepository;
 
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
     private static final String FILE_NAME_DEFAULT = "default.xlsx";
