@@ -27,14 +27,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -51,6 +44,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private static final String N4_DESIGNATION = "n4";
     private static final String P4_DESIGNATION = "p4";
     private static final int HOURS_PER_DAY = 24;
+    private static final int MAX_ROWS_PER_YEAR = 365;
 
     /**
      * Explicit, not name-derived: which referential designation backs which LT cluster names.
@@ -137,8 +131,8 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
             List<TimeSeriesMatrixColumn> onglets = new ArrayList<>(sheetNames.size());
             for (String sheetName : sheetNames) {
                 TimeSeriesMatrix selected = timeSeriesReader.readSelectedColumnsFromXlsx(ltPath, sheetName, whitelist);
-                double[] hourly = expandDailyToHourly(sumColumnsRowWise(selected));
-                onglets.add(new TimeSeriesMatrixColumn(sheetName, hourly));
+                    double[] hourly = expandDailyToHourly(sumColumnsRowWise(selected));
+                    onglets.add(new TimeSeriesMatrixColumn(sheetName, hourly));
             }
 
             TimeSeriesMatrix combined = new TimeSeriesMatrix(onglets);
@@ -161,6 +155,9 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     }
 
     private static double[] sumColumnsRowWise(TimeSeriesMatrix matrix) {
+        if (matrix.columns().isEmpty()) {
+            return new double[MAX_ROWS_PER_YEAR];
+        }
         int rowCount = matrix.getRowCount();
         double[] sums = new double[rowCount];
         for (TimeSeriesMatrixColumn column : matrix.columns()) {
