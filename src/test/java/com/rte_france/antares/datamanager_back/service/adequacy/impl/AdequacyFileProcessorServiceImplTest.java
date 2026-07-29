@@ -7,7 +7,6 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,15 +38,11 @@ class AdequacyFileProcessorServiceImplTest {
     @Mock
     private TrajectoryServiceImpl trajectoryService;
     @Mock
-    private UserService userService;
-    @Mock
     private AdequacyModeRepository adequacyModeRepository;
     @Mock
     private AdequacySettingsRepository adequacySettingsRepository;
     @Mock
     private StudyRepository studyRepository;
-    @Mock
-    private AreaRepository areaRepository;
 
     @InjectMocks
     private AdequacyFileProcessorServiceImpl adequacyFileProcessorService;
