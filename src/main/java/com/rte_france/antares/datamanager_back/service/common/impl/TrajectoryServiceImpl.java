@@ -44,8 +44,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.RES_CAPACITY;
-import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER;
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.HYDRO_TYPES;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
@@ -504,13 +503,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @param trajectoryType the type of the trajectory
      * @return a list of FsTrajectoryDTO representing the trajectories
      */
-    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws TechnicalException, IOException {
+    public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws BusinessException, TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
         try (var stream = Files.list(directory.normalize())) {
             return stream
                     .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) ||
                             (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
                     .map(path -> getFsTrajectoryDTO(trajectoryType, path))
+                    .filter(Objects::nonNull)
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
                             FsTrajectoryDTO::getFileName,
@@ -991,8 +991,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build();
             }
         } else {
-            return createFsTrajectoryDTO(path, trajectoryType);
+            Path directoryPath = trajectoryType ==  FLOWBASED ? findFirstChildDirectory(path) : path;
+            if (directoryPath != null) {
+                return createFsTrajectoryDTO(directoryPath, trajectoryType);
+            }
         }
+        return null;
     }
 
 
@@ -1032,7 +1036,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path)
-                        || trajectoryType == TrajectoryType.ADEQUACY_PATCH);
+                        || trajectoryType == TrajectoryType.ADEQUACY_PATCH
+                        || trajectoryType == FLOWBASED);
     }
 
     /**
@@ -1059,7 +1064,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private FsTrajectoryDTO createFsTrajectoryDTO(Path path, TrajectoryType trajectoryType) {
         try {
             return FsTrajectoryDTO.builder()
-                    .fileName(path.getFileName().toString())
+                    .fileName(trajectoryType == FLOWBASED ? path.getParent().getFileName() + "_" + path.getFileName() : path.getFileName().toString())
                     .lastModifiedDate(Files.getLastModifiedTime(path)
                             .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
                     .type(trajectoryType.name())
@@ -1068,7 +1073,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             throw new UncheckedIOException(e);
         }
     }
-
+    
     /**
      * Checks if the file name matches the required prefix for the given TrajectoryType.
      */
@@ -1122,6 +1127,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TS_SMR -> antaresDataManagerProperties.getNuclearSmrDirectory();
             case ADEQUACY_PATCH -> antaresDataManagerProperties.getAdequacyDirectory();
             case SETTINGS -> antaresDataManagerProperties.getTrajectorySettingsDirectory();
+            case FLOWBASED -> antaresDataManagerProperties.getFlowbasedDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }

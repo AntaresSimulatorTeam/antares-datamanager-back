@@ -132,4 +132,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.adequacy.directory}")
     public String adequacyDirectory;
+
+    @Value("${antares.datamanager.flowbased.directory}")
+    public String flowbasedDirectory;
 }
