@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -729,6 +730,18 @@ public class Utils {
             return files
                     .filter(p -> p.getFileName().toString().equals(target.getFileName().toString()))
                     .findFirst();
+        }
+    }
+
+    public static Path findFirstChildDirectory(Path parent) {
+        try (Stream<Path> s = Files.list(parent)) {
+            Optional<Path> dir = s
+                    .filter(Files::isDirectory)
+                    .findFirst();
+
+            return dir.orElse(null);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
