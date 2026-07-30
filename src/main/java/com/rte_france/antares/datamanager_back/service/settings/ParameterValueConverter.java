@@ -21,7 +21,11 @@ public class ParameterValueConverter {
             return DEFAULT_STRING_VALUE;
         }
         try {
-            return value.toString().trim();
+            String result = value.toString().trim();
+            if ("none".equalsIgnoreCase(result)) {
+                return "None";
+            }
+            return result;
         } catch (Exception e) {
             log.warn("Could not convert value to string for key '{}': {}", key, value);
             return DEFAULT_STRING_VALUE;
