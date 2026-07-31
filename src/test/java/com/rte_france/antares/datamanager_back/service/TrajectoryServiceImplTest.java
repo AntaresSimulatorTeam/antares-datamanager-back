@@ -23,7 +23,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,7 +32,6 @@ import org.mockito.*;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -83,7 +81,6 @@ class TrajectoryServiceImplTest {
     private WarningRepository warningRepository;
     @Mock
     private UserService userService;
-    @Spy
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
     @Mock
@@ -1848,9 +1845,12 @@ class TrajectoryServiceImplTest {
         Files.createDirectories(traj1Dir);
         Files.createDirectories(traj2Dir);
         Files.createDirectories(traj3Dir);
+
+        when(antaresDataManagerProperties.getFlowbasedDirectory()).thenReturn(basePath.toString());
         
+        TrajectoryServiceImpl spyService = spy(trajectoryService);
         doReturn(basePath)
-                .when(trajectoryService)
+                .when(spyService)
                 .normalizeAndValidateDirectory(
                         eq(TrajectoryType.FLOWBASED),
                         any(),
