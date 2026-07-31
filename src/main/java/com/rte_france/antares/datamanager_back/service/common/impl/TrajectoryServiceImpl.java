@@ -130,7 +130,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String NUCLEAR_SMR_PREFIX = "ts_smr_";
     private static final String NUCLEAR_EPR_FOLDER = "epr";
     private static final String NUCLEAR_SMR_FOLDER = "smr";
-    private static final String SETTINGS_PREFIX = "general_data";
+    public static final String SETTINGS_PREFIX = "general_data_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional

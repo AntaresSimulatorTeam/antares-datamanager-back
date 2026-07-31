@@ -245,7 +245,7 @@ public class SettingsImportService {
         // file name without extension
 
         return TrajectoryEntity.builder()
-                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(filePath.getFileName().toString(), trajectoryToUse))// file name without extension
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(filePath.getFileName().toString(), SETTINGS.name()))// file name without extension
                 .fileSize(Files.size(filePath))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
