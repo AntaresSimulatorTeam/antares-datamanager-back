@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.SETTINGS;
+import static com.rte_france.antares.datamanager_back.util.Utils.getFileNameWithoutExtensionAndWithoutPrefix;
 
 @Slf4j
 @Service
@@ -45,7 +46,7 @@ public class SettingsImportService {
     // General Parameters Keys
     private static final String KEY_MODE = "Mode";
     private static final String KEY_HORIZON = "Horizon";
-    private static final String KEY_NUMBER_OF_MC_YEAR = "Number of MC year";
+    private static final String KEY_NUMBER_OF_MC_YEAR = "Number";
     private static final String KEY_FIRST_DAY = "First day";
     private static final String KEY_LAST_DAY = "Last day";
     private static final String KEY_1ST_JANUARY = "1st january";
@@ -94,6 +95,8 @@ public class SettingsImportService {
     private static final String KEY_SEED_THERMAL_COSTS = "Noise on thermal plants costs";
     private static final String KEY_SEED_HYDRO_COSTS = "Noise on virtual hydro costs";
     private static final String KEY_SEED_INITIAL_RESERVOIR_LEVELS = "Initial reservoir levels";
+    private static final String CUSTOM_VALUE = "custom";
+
 
     private final SettingsGeneralParametersRepository generalParametersRepository;
     private final SettingsOptimizationParametersRepository optimizationParametersRepository;
@@ -157,7 +160,7 @@ public class SettingsImportService {
 
             // Check if already processed
             Optional<TrajectoryEntity> existingTrajectory = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaIgnoreCaseOrderByVersionDesc(
-                    trajectoryToUse,
+                    getFileNameWithoutExtensionAndWithoutPrefix(filePath.getFileName().toString(), SETTINGS.name()),
                     SETTINGS.name(),
                     horizon,
                     area
@@ -238,9 +241,11 @@ public class SettingsImportService {
 
     private TrajectoryEntity buildSettingsTrajectory(String trajectoryToUse, Path filePath, String horizon, String area, String checksum) throws IOException {
         String createdBy = getCurrentUser();
-        
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .fileName(trajectoryToUse)
+
+        // file name without extension
+
+        return TrajectoryEntity.builder()
+                .fileName(getFileNameWithoutExtensionAndWithoutPrefix(filePath.getFileName().toString(), trajectoryToUse))// file name without extension
                 .fileSize(Files.size(filePath))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
@@ -253,8 +258,6 @@ public class SettingsImportService {
                 .type(SETTINGS.name())
                 .hasTimeSeries(false)
                 .build();
-        
-        return trajectory;
     }
 
     public String getCurrentUser() {
@@ -292,8 +295,8 @@ public class SettingsImportService {
                 .simulationSynthesis(ParameterValueConverter.getBooleanValue(dataMap, KEY_SYNTHESIS))
                 .buildingMode(ParameterValueConverter.getStringValue(dataMap, KEY_BUILDING_MODE))
                 .userPlaylist(ParameterValueConverter.getBooleanValue(dataMap, KEY_SELECTION_MODE))
-                .thematicTrimming(ParameterValueConverter.getBooleanValue(dataMap, KEY_THEMATIC_TRIMMING))
-                .geographicTrimming(ParameterValueConverter.getBooleanValue(dataMap, KEY_GEOGRAPHIC_TRIMMING))
+                .thematicTrimming(ParameterValueConverter.getStringValue(dataMap, KEY_THEMATIC_TRIMMING).equalsIgnoreCase(CUSTOM_VALUE))
+                .geographicTrimming(ParameterValueConverter.getStringValue(dataMap, KEY_GEOGRAPHIC_TRIMMING).equalsIgnoreCase(CUSTOM_VALUE))
                 .nbTimeseriesThermal(ParameterValueConverter.getIntValue(dataMap, KEY_NBTIMESERIESTHERMAL))
                 .storeNewSet(ParameterValueConverter.getBooleanValue(dataMap, KEY_STORENEWSET))
                 .trajectory(trajectory)
