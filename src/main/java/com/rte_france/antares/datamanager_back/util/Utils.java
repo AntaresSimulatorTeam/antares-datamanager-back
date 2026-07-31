@@ -258,7 +258,11 @@ public class Utils {
             prefix = RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.RES_ZONAL_DISTRIBUTION.toString())) {
             prefix = RES_ZONAL_DISTRIBUTION_PREFIX;
-        } else {
+        }  else if (Objects.equals(trajectoryType, TrajectoryType.SETTINGS.toString())) {
+            prefix = SETTINGS_PREFIX;
+        }
+
+        else {
             prefix = "";
         }
 
