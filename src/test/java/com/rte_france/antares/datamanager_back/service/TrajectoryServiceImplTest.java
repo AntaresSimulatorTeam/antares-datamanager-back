@@ -83,6 +83,7 @@ class TrajectoryServiceImplTest {
     private WarningRepository warningRepository;
     @Mock
     private UserService userService;
+    @Spy
     @InjectMocks
     private TrajectoryServiceImpl trajectoryService;
     @Mock
@@ -128,7 +129,7 @@ class TrajectoryServiceImplTest {
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTYpeIsAREA() throws IOException {
         Path path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
+        when(path.toString()).thenReturn("src/test/resources/area/testFile.xlsx");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getAreaDirectory()).thenReturn("/areas");
@@ -141,7 +142,7 @@ class TrajectoryServiceImplTest {
     @Test
     void processTrajectory_returnsEntityWhenTrajectoryTypeIsLINK() throws IOException {
         Path path = mock(Path.class);
-        Mockito.when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
+        when(path.toString()).thenReturn("src/test/resources/link/links_BP23_A_ref.xlsx");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getLinkDirectory()).thenReturn("/links");
@@ -1825,6 +1826,49 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void findTrajectoriesByType_shouldHandleFlowbasedCase(@TempDir Path tempDir) throws IOException {
+        // Given
+        String flowbasedDirectory = "flowbased";
+        Path basePath = tempDir.resolve(flowbasedDirectory);
+        
+        String trajName1 = "Porygon_CNEC_interne_2022";
+        Path traj1 = basePath.resolve(trajName1);
+        String yearDir1 = "2021";
+        Path traj1Dir = traj1.resolve(yearDir1);
+        
+        String trajName2 = "Porygon_CNEC_externe_2022";
+        Path traj2 = basePath.resolve(trajName2);
+        String yearDir2 = "2023";
+        Path traj2Dir = traj2.resolve(yearDir2);
+        
+        String trajName3 = "Porygon_BPPP_interne_2040";
+        Path traj3 = basePath.resolve(trajName3);
+        String yearDir3 = "2023";
+        Path traj3Dir = traj3.resolve(yearDir3);
+        Files.createDirectories(traj1Dir);
+        Files.createDirectories(traj2Dir);
+        Files.createDirectories(traj3Dir);
+        
+        doReturn(basePath)
+                .when(trajectoryService)
+                .normalizeAndValidateDirectory(
+                        eq(TrajectoryType.FLOWBASED),
+                        any(),
+                        any()
+                );
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.FLOWBASED, null, null, null);
+
+        // Then
+        assertEquals(3, result.size());
+        List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
+        assertTrue(fileNames.contains(trajName1+"_"+yearDir1));
+        assertTrue(fileNames.contains(trajName2+"_"+yearDir2));
+        assertTrue(fileNames.contains(trajName3+"_"+yearDir3));
+    }
+
+    @Test
     void processLoadTrajectory_throwsExceptionWhenAreaNotFound() {
         String area = "invalidArea";
         String trajectoryToUse = "testTrajectory";
@@ -2250,6 +2294,27 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNuclearSmrDirectory()).thenReturn("/nuclear/smr");
         String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.NUCLEAR_FR_TS_SMR, null, null);
         assertEquals("/nuclear/smr", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsAdequacyPatchDirectory_whenTypeIsAdequacyPatch() throws IOException {
+        when(antaresDataManagerProperties.getAdequacyDirectory()).thenReturn("/adequacy");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.ADEQUACY_PATCH, null, null);
+        assertEquals("/adequacy", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsSettingsDirectory_whenTypeIsAdequacyPatch() throws IOException {
+        when(antaresDataManagerProperties.getTrajectorySettingsDirectory()).thenReturn("/settings");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.SETTINGS, null, null);
+        assertEquals("/settings", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsFlowbasedDirectory_whenTypeIsFlowbased() throws IOException {
+        when(antaresDataManagerProperties.getFlowbasedDirectory()).thenReturn("/flowbased");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.FLOWBASED, null, null);
+        assertEquals("/flowbased", result);
     }
 
     @Test
