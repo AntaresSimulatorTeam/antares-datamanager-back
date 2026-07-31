@@ -10,7 +10,7 @@
   </parent>
   <groupId>com.rte_france.antares</groupId>
   <artifactId>antares-datamanager-back</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>1.10.1</version>
   <name>antares-datamanager-back</name>
   <description>pegase belongs to ANTARES project</description>
   <url/>
