@@ -54,13 +54,13 @@ public class SettingsImportService {
     private static final String KEY_WEEK = "Week";
     private static final String KEY_LEAP_YEAR = "Leap Year";
     private static final String KEY_YEAR_BY_YEAR = "Year-by-year";
-    private static final String KEY_SYNTHESIS = "Synthesis";
+    private static final String KEY_SYNTHESIS = "Simulation synthesis";
     private static final String KEY_BUILDING_MODE = "Building mode";
     private static final String KEY_SELECTION_MODE = "Selection mode";
     private static final String KEY_THEMATIC_TRIMMING = "Thematic trimming";
     private static final String KEY_GEOGRAPHIC_TRIMMING = "Geographic trimming";
     private static final String KEY_NBTIMESERIESTHERMAL = "Nbtimeseriesthermal";
-    private static final String KEY_STORENEWSET = "Storenewset";
+    private static final String KEY_STORENEWSET = "MC Scenario";
 
     // Optimization Parameters Keys
     private static final String KEY_SIMPLEX_OPTIMIZATION_RANGE = "simplex optimization range";
@@ -68,7 +68,7 @@ public class SettingsImportService {
     private static final String KEY_BINDING_CONSTRAINTS = "binding constraints";
     private static final String KEY_HURDLE_COSTS = "hurdle costs";
     private static final String KEY_THERMAL_CLUSTERS_MIN_STABLE_POWER = "thermal clusters min stable power";
-    private static final String KEY_THERMAL_CLUSTERS_MIN_UD_TIME = "thermal clusters min U/D time";
+    private static final String KEY_THERMAL_CLUSTERS_MIN_UD_TIME = "Thermal clusters min UD time";
     private static final String KEY_DAY_AHEAD_RESERVE = "day ahead reserve";
     private static final String KEY_STRATEGIC_RESERVE = "strategic reserve";
     private static final String KEY_SPINNING_RESERVE = "spinning reserve";
@@ -294,7 +294,7 @@ public class SettingsImportService {
                 .yearByYear(ParameterValueConverter.getBooleanValue(dataMap, KEY_YEAR_BY_YEAR))
                 .simulationSynthesis(ParameterValueConverter.getBooleanValue(dataMap, KEY_SYNTHESIS))
                 .buildingMode(ParameterValueConverter.getStringValue(dataMap, KEY_BUILDING_MODE))
-                .userPlaylist(ParameterValueConverter.getBooleanValue(dataMap, KEY_SELECTION_MODE))
+                .userPlaylist(ParameterValueConverter.getStringValue(dataMap, KEY_SELECTION_MODE).equalsIgnoreCase(CUSTOM_VALUE))
                 .thematicTrimming(ParameterValueConverter.getStringValue(dataMap, KEY_THEMATIC_TRIMMING).equalsIgnoreCase(CUSTOM_VALUE))
                 .geographicTrimming(ParameterValueConverter.getStringValue(dataMap, KEY_GEOGRAPHIC_TRIMMING).equalsIgnoreCase(CUSTOM_VALUE))
                 .nbTimeseriesThermal(ParameterValueConverter.getIntValue(dataMap, KEY_NBTIMESERIESTHERMAL))
