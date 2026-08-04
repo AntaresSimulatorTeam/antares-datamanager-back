@@ -1636,7 +1636,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
-                throwAlreadyProcessedFileException(trajectoryFilePath);
+                throw BusinessException.builder()
+                        .message("File already processed with same content {0}")
+                        .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             } else {
                 trajectory.setVersion(existingTrajectory.get().getVersion() + 1);
             }
