@@ -834,7 +834,7 @@ class StudyGeneratorServiceImplTest {
 
         var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
         var peakRef = ThermalClusterRef.builder().name("Nuclear_peak1").build();
-        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
         when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto,
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", peakRef), dto
@@ -895,7 +895,7 @@ class StudyGeneratorServiceImplTest {
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
-        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
         when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
                 new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto
         ));
