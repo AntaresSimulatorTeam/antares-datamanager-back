@@ -518,6 +518,54 @@ class StudyGeneratorServiceImplTest {
         verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
     }
 
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowBusinessErrorAreaNotPresentInAdequacyModeEntity() {
+        var areaEntity = AreaEntity.builder().name("ZH").build();
+        var areaConfig = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("ZH").build();
+
+        AdequacyModeEntity adequacyModeEntityDe = AdequacyModeEntity.builder()
+                .area("DE")
+                .mode("adequacy_patch")
+                .build();
+        AdequacyModeEntity adequacyModeEntityAt = AdequacyModeEntity.builder()
+                .area("AT")
+                .mode("adequacy_patch")
+                .build();
+        AdequacyModeEntity adequacyModeEntityFr = AdequacyModeEntity.builder()
+                .area("FR")
+                .mode("adequacy_patch")
+                .build();
+
+        AdequacySettingsEntity adequacySettingsEntity = AdequacySettingsEntity.builder()
+                .includeAdqPatch(true)
+                .priceTakingOrder("DENS")
+                .thresholdInitiateCurtailmentSharingRule(0)
+                .thresholdDisplayLocalMatchingRuleViolations(0)
+                .thresholdCsrVariableBoundsRelaxation(0)
+                .build();
+
+        TrajectoryEntity trajectoryEntityAdequacy = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adequacy_trajectory.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeEntityDe, adequacyModeEntityAt, adequacyModeEntityFr))
+                .adequacySettingsEntities(Collections.singletonList(adequacySettingsEntity))
+                .build();
+        
+        var study = StudyEntity.builder().id(1).name("studyTest").trajectories(Set.of(areaTrajectory, trajectoryEntityAdequacy)).build();
+        
+        when(studyRepository.findById(13)).thenReturn(Optional.of(study));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(13));
+
+        assertTrue(exception.getMessage().contains("Area: {0} is not present in the list of areas for adequacy configuration"));
+    }
+
 
     @Test
     void callGenerateStudyService_shouldThrowTechnicalExceptionOnRuntimeException() {
