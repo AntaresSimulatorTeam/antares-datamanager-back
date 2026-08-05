@@ -66,7 +66,7 @@ public class SettingsImportService {
     private static final String KEY_SIMPLEX_OPTIMIZATION_RANGE = "simplex optimization range";
     private static final String KEY_TRANSMISSION_CAPACITIES = "transmission capacities";
     private static final String KEY_BINDING_CONSTRAINTS = "binding constraints";
-    private static final String KEY_HURDLE_COSTS = "hurdle costs";
+    private static final String KEY_HURDLE_COSTS = "Hurdles costs";
     private static final String KEY_THERMAL_CLUSTERS_MIN_STABLE_POWER = "thermal clusters min stable power";
     private static final String KEY_THERMAL_CLUSTERS_MIN_UD_TIME = "thermal clusters min U/D time";
     private static final String KEY_DAY_AHEAD_RESERVE = "day ahead reserve";
@@ -84,7 +84,7 @@ public class SettingsImportService {
     private static final String KEY_UNIT_COMMITMENT_MODE = "unit commitment mode";
     private static final String KEY_NUMBER_OF_CORES_MODE = "Simulation cores";
     private static final String KEY_RENEWABLE_GENERATION_MODELLING = "renewable generation modeling";
-    private static final String KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE = "accurate shave peaks include short term storage";
+    private static final String KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE = "Acurate shave peaks include short term storage";
 
 
     // Seeds Parameters Keys
