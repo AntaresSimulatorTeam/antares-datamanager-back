@@ -98,7 +98,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         @BeforeEach
         void setUp() throws IOException {
             when(properties.getNuclearLtDirectory()).thenReturn("specific_nuclear/TS_dispo");
-            when(properties.getNuclearAvailabilityTsOutputDirectory()).thenReturn("output/nuclear_availability_ts_output");
+            when(properties.getNuclearAvailabilityTsOutputDirectory()).thenReturn("output/nuclear_availability_ts_arrow");
 
             when(clusterDesignationRepository.findByCluster_TypeCluster("cp0_cp1_cp2")).thenReturn(List.of(
                     ClusterDesignationEntity.builder().id(ClusterDesignationKey.builder().clusterId(2).nomCluster("BLAYAN01").build()).build(),
@@ -199,7 +199,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         @BeforeEach
         void setUp() throws IOException {
             when(properties.getNuclearEprDirectory()).thenReturn("specific_nuclear/TS_dispo/EPR");
-            when(properties.getNuclearAvailabilityTsOutputDirectory()).thenReturn("output/nuclear_availability_ts_output");
+            when(properties.getNuclearAvailabilityTsOutputDirectory()).thenReturn("output/nuclear_availability_ts_arrow");
 
             Path eprDir = tempDir.resolve("INPUT").resolve("specific_nuclear/TS_dispo/EPR");
             Files.createDirectories(eprDir);
@@ -290,7 +290,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         @BeforeEach
         void setUp() throws IOException {
             when(properties.getNuclearSmrDirectory()).thenReturn("specific_nuclear/TS_dispo/SMR");
-            when(properties.getNuclearAvailabilityTsOutputDirectory()).thenReturn("output/nuclear_availability_ts_output");
+            when(properties.getNuclearAvailabilityTsOutputDirectory()).thenReturn("output/nuclear_availability_ts_arrow");
 
             Path smrDir = tempDir.resolve("INPUT").resolve("specific_nuclear/TS_dispo/SMR");
             Files.createDirectories(smrDir);

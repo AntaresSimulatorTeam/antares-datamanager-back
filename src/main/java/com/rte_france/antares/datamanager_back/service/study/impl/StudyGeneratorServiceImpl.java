@@ -340,10 +340,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private List<String> extractFrNuclearClusterNames(Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
-        return thermalClusterProps.keySet().stream()
-                .filter(key -> "fr".equalsIgnoreCase(key.area())
-                        && NuclearClusterNames.isNuclear(key.thermalClusterRef().getName()))
-                .map(key -> key.thermalClusterRef().getName())
+        return thermalClusterProps.entrySet().stream()
+                .filter(entry -> "fr".equalsIgnoreCase(entry.getKey().area())
+                        && NuclearClusterNames.isNuclear(entry.getKey().thermalClusterRef().getName()) && entry.getValue().getEnabled())
+                .map(entry -> entry.getKey().thermalClusterRef().getName())
                 .distinct()
                 .toList();
     }
