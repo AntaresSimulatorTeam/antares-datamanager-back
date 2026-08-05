@@ -610,7 +610,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.NUCLEAR_FR_TS_ERP,
                 TrajectoryType.NUCLEAR_FR_TS_LONG_TERM,
                 TrajectoryType.NUCLEAR_FR_TS_SMR,
-                TrajectoryType.SETTINGS
+                TrajectoryType.SETTINGS,
+                TrajectoryType.FLOWBASED
         );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
