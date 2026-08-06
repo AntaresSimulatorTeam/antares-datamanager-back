@@ -1007,6 +1007,7 @@ class StudyGeneratorServiceImplTest {
 
         List<String> clusters = (List<String>) modulation.get("frStandardClusters");
         assertThat(clusters)
+                .isNotEmpty()
                 .doesNotContain("fr_nuclear_epr1");
     }
 
