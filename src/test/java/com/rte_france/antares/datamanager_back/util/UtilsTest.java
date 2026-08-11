@@ -1641,4 +1641,96 @@ class UtilsTest {
                 .isInstanceOf(TechnicalException.class)
                 .hasMessageContaining("outside of the allowed directory");
     }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_returnsSameChecksumForSameContent(@TempDir Path testDir) throws IOException {
+        Path dir = testDir.resolve("flowbased");
+        Files.createDirectories(dir);
+
+        Files.writeString(dir.resolve("correspondance_links_weights.csv"), "link1,0.5\nlink2,0.3");
+        Files.writeString(dir.resolve("Flowbased_nodes_links.xlsx"), "node1,link1");
+        Files.writeString(dir.resolve("IdTypDays.csv"), "1,2,Winter");
+
+        String checksum = Utils.calculateFlowbasedFilesChecksum(dir);
+
+        assertNotNull(checksum);
+        assertTrue(checksum.length() > 0);
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_returnsDifferentChecksumForDifferentContent(@TempDir Path testDir) throws IOException {
+        Path dir1 = testDir.resolve("flowbased1");
+        Path dir2 = testDir.resolve("flowbased2");
+        Files.createDirectories(dir1);
+        Files.createDirectories(dir2);
+
+        Files.writeString(dir1.resolve("correspondance_links_weights.csv"), "link1,0.5");
+        Files.writeString(dir1.resolve("Flowbased_nodes_links.xlsx"), "node1,link1");
+        Files.writeString(dir1.resolve("IdTypDays.csv"), "1,2,Winter");
+
+        Files.writeString(dir2.resolve("correspondance_links_weights.csv"), "link1,0.6");
+        Files.writeString(dir2.resolve("Flowbased_nodes_links.xlsx"), "node1,link1");
+        Files.writeString(dir2.resolve("IdTypDays.csv"), "1,2,Winter");
+
+        String checksum1 = Utils.calculateFlowbasedFilesChecksum(dir1);
+        String checksum2 = Utils.calculateFlowbasedFilesChecksum(dir2);
+
+        assertNotEquals(checksum1, checksum2);
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_throwsTechnicalExceptionWhenFileIsMissing(@TempDir Path testDir) throws IOException {
+        Path dir = testDir.resolve("flowbased");
+        Files.createDirectories(dir);
+
+        Files.writeString(dir.resolve("correspondance_links_weights.csv"), "link1,0.5");
+        Files.writeString(dir.resolve("Flowbased_nodes_links.xlsx"), "node1,link1");
+        // Missing IdTypDays.csv
+
+        assertThatThrownBy(() -> Utils.calculateFlowbasedFilesChecksum(dir))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("required file not found");
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_throwsTechnicalExceptionWhenDirectoryIsNull() {
+        assertThatThrownBy(() -> Utils.calculateFlowbasedFilesChecksum(null))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory path is null");
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_throwsTechnicalExceptionWhenPathIsNotDirectory(@TempDir Path testDir) throws IOException {
+        Path filePath = testDir.resolve("not_a_directory.txt");
+        Files.writeString(filePath, "content");
+
+        assertThatThrownBy(() -> Utils.calculateFlowbasedFilesChecksum(filePath))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory does not exist or is not a directory");
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_isSame_WhenFilesHaveSameContentButDifferentOrder(@TempDir Path testDir) throws IOException {
+        Path dir1 = testDir.resolve("flowbased1");
+        Path dir2 = testDir.resolve("flowbased2");
+        Files.createDirectories(dir1);
+        Files.createDirectories(dir2);
+
+        String content1 = "link1,0.5";
+        String content2 = "node1,link1";
+        String content3 = "1,2,Winter";
+
+        Files.writeString(dir1.resolve("correspondance_links_weights.csv"), content1);
+        Files.writeString(dir1.resolve("Flowbased_nodes_links.xlsx"), content2);
+        Files.writeString(dir1.resolve("IdTypDays.csv"), content3);
+
+        Files.writeString(dir2.resolve("correspondance_links_weights.csv"), content1);
+        Files.writeString(dir2.resolve("Flowbased_nodes_links.xlsx"), content2);
+        Files.writeString(dir2.resolve("IdTypDays.csv"), content3);
+
+        String checksum1 = Utils.calculateFlowbasedFilesChecksum(dir1);
+        String checksum2 = Utils.calculateFlowbasedFilesChecksum(dir2);
+
+        assertEquals(checksum1, checksum2);
+    }
 }

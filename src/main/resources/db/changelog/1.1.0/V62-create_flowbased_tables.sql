@@ -4,8 +4,8 @@
 CREATE TABLE fb_links_weight
 (
     id                            INTEGER,
-    weight                        VARCHAR(20),
-    link                          VARCHAR(20) NOT NULL,
+    weight                        VARCHAR(40),
+    link                          VARCHAR(40) NOT NULL,
     trajectory_id                 INTEGER,
     PRIMARY KEY (id)
 );
@@ -41,7 +41,7 @@ CREATE SEQUENCE fb_virtual_nodes_sequence
 CREATE TABLE fb_link_capacity
 (
     id                                  INTEGER,
-    name                                VARCHAR(20),
+    name                                VARCHAR(40),
     winter_HP_direct_MW                 INTEGER,
     winter_HP_indirect_MW               INTEGER,
     winter_HC_direct_MW                 INTEGER,
@@ -68,9 +68,9 @@ CREATE SEQUENCE fb_link_capacity_sequence
 CREATE TABLE fb_type_day
 (
     id                          INTEGER,
-    clustering                  VARCHAR(20),
+    clustering                  VARCHAR(40),
     id_type_day                 INTEGER NOT NULL,
-    class_day                   VARCHAR(20),
+    class_day                   VARCHAR(40),
     trajectory_id               INTEGER,
     PRIMARY KEY (id)
 );

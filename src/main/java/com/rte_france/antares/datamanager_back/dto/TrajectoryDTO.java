@@ -42,4 +42,7 @@ public class TrajectoryDTO {
     @JsonProperty("hasTimeSeries")
     Boolean hasTimeSeries;
 
+    @JsonProperty("horizon")
+    String horizon;
+
 }

@@ -25,6 +25,7 @@ public class TrajectoryMapper {
                 .area(entity.getArea())
                 .technology(entity.getTechnology())
                 .hasTimeSeries(entity.getHasTimeSeries())
+                .horizon(entity.getHorizon())
                 .build();
     }
 

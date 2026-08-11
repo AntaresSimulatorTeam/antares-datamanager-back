@@ -136,6 +136,22 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<NuclearModulationParameterEntity> nuclearModulationParameterEntities;
 
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkWeightEntity> flowbasedLinkWeights;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity> flowbasedVirtualNodes;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity> flowbasedLinkCapacities;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity> flowbasedTypeDays;
+
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AdequacyModeEntity> adequacyModeEntities;
 
