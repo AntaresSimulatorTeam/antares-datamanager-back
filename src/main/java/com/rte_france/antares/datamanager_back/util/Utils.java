@@ -976,6 +976,66 @@ public class Utils {
         }
     }
 
+    public static String calculateFlowbasedFilesChecksum(Path directory)
+            throws IOException, TechnicalException {
+
+        if (directory == null) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: directory path is null")
+                    .build();
+        }
+
+        Path trustedDirectory = directory.toAbsolutePath().normalize();
+        if (!Files.isDirectory(trustedDirectory)) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: directory does not exist or is not a directory")
+                    .build();
+        }
+
+        Path canonicalBaseDirectory = trustedDirectory.toRealPath();
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            String[] requiredFiles = {
+                    "correspondance_links_weights.csv",
+                    "Flowbased_nodes_links.xlsx",
+                    "IdTypDays.csv"
+            };
+
+            for (String fileName : requiredFiles) {
+                Path filePath = canonicalBaseDirectory.resolve(fileName);
+                if (!Files.exists(filePath)) {
+                    throw TechnicalException.builder()
+                            .message("Error processing file: required file not found: " + fileName)
+                            .build();
+                }
+
+                Path canonicalFile = filePath.toRealPath();
+                if (!canonicalFile.startsWith(canonicalBaseDirectory)) {
+                    throw TechnicalException.builder()
+                            .message("Error processing file: file path is outside of the allowed directory")
+                            .build();
+                }
+
+                // Hash du fichier
+                digest.update(fileName.getBytes());
+                try (InputStream is = Files.newInputStream(canonicalFile)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = is.read(buffer)) != -1) {
+                        digest.update(buffer, 0, bytesRead);
+                    }
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: " + e.getMessage())
+                    .build();
+        }
+    }
+
     public static String getErrorMessageLabelFromType(String type) {
         return switch (type) {
             case "DSR" -> "DSR cluster";
