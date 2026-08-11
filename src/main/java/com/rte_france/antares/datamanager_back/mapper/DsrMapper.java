@@ -23,6 +23,8 @@ public class DsrMapper {
                 .enabled(Optional.ofNullable(dsrEntity.getToUse()).orElse(false))
                 .group(GROUP)
                 .nominalCapacity(unitCount == 0 ? 0.0 : (nominalCapacity / unitCount))
+                .capacity(Optional.ofNullable(dsrEntity.getCapacity()).map(Number::doubleValue).orElse(0.0))
+                .bindingConstraint(Optional.ofNullable(dsrEntity.getModulation()).orElse(false))
                 .unitCount(unitCount)
                 .marginalCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
                 .marketBidCost(Optional.ofNullable(dsrEntity.getPrice()).map(Number::doubleValue).orElse(0.0))
