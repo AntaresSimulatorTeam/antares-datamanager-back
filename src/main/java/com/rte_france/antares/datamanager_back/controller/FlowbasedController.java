@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,9 @@ public class FlowbasedController {
     @Operation(summary = "import flowbased trajectory to database")
     @PostMapping("/flowbased")
     public ResponseEntity<TrajectoryDTO> uploadFlowbasedTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse")
+            @Pattern(regexp = "^[a-zA-Z0-9_#-]+$")
+            @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
             @RequestParam(value = "studyId", required = false) Integer studyId,
             @RequestParam("horizon") String horizon) {
         

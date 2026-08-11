@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.flowbased;
 
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkWeightEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
