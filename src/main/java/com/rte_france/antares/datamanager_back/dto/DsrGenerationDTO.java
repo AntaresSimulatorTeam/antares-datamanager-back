@@ -48,6 +48,15 @@ public class DsrGenerationDTO {
     @JsonProperty("modulation")
     private List<String> dsrTsList;
 
+
+    @JsonView(DsrClustersViews.Data.class)
+    @JsonProperty("capacity")
+    private Double capacity;
+
+    @JsonView(DsrClustersViews.Data.class)
+    @JsonProperty("binding_constraint")
+    private Boolean bindingConstraint;
+
     @JsonView(DsrClustersViews.Data.class)
     @JsonProperty("fo_duration")
     private Double foDuration;
