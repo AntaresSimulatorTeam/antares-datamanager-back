@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
@@ -61,7 +60,7 @@ class FlowbasedControllerTest {
                 .param("horizon", "2030-2031")
                 .param("studyId", "1"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.trajectoryName").value("repo1###repo2"))
+                .andExpect(jsonPath("$.trajectoryName").value("repo1/repo2"))
                 .andExpect(jsonPath("$.type").value("FLOWBASED"))
                 .andExpect(jsonPath("$.horizon").value("2030-2031"));
     }
@@ -173,13 +172,13 @@ class FlowbasedControllerTest {
                 .param("horizon", "2030-2031")
                 .param("studyId", "1"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.trajectoryName").value("repo1###repo2"));
+                .andExpect(jsonPath("$.trajectoryName").value("repo1/repo2"));
 
         this.mockMvc.perform(post("/v1/trajectory/flowbased")
                 .param("trajectoryToUse", "repo3###repo4")
                 .param("horizon", "2025-2026")
                 .param("studyId", "2"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.trajectoryName").value("repo3###repo4"));
+                .andExpect(jsonPath("$.trajectoryName").value("repo3/repo4"));
     }
 }

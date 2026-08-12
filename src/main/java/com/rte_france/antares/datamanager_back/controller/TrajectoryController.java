@@ -44,7 +44,9 @@ public class TrajectoryController {
                                                                             @RequestParam(value = "technology", required = false) String technology) {
 
 
-        return new ResponseEntity<>(toTrajectoryDtos(trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains, area, technology)), HttpStatus.OK);
+        return new ResponseEntity<>(toTrajectoryDtos(
+                trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(trajectoryType, horizon, fileNameContains, area, technology)),
+                HttpStatus.OK);
     }
 
 
