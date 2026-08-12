@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.mapper;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -17,7 +18,7 @@ public class TrajectoryMapper {
     public static TrajectoryDTO toTrajectoryDTO(TrajectoryEntity entity) {
         return TrajectoryDTO.builder()
                 .id(entity.getId())
-                .fileName(entity.getFileName())
+                .fileName(formatFileName(entity))
                 .type(entity.getType())
                 .version(entity.getVersion())
                 .createdBy(entity.getCreatedBy())
@@ -27,6 +28,14 @@ public class TrajectoryMapper {
                 .hasTimeSeries(entity.getHasTimeSeries())
                 .horizon(entity.getHorizon())
                 .build();
+    }
+
+    private static String formatFileName(TrajectoryEntity entity) {
+        if (entity.getType() != null && entity.getFileName() != null
+                && entity.getType().equals(TrajectoryType.FLOWBASED.name())) {
+            return entity.getFileName().replace("###", "/");
+        }
+        return entity.getFileName();
     }
 
     public static TrajectoryEntity toTrajectoryEntity(TrajectoryDTO dto) {

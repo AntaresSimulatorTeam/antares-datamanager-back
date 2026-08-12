@@ -26,7 +26,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @Validated
 @RequestMapping("/v1/trajectory")
 @RequiredArgsConstructor
-@Tag(name = "Trajectory Settings", description = "APIs for importing trajectory settings from Excel files")
+@Tag(name = "Settings", description = "APIs for importing trajectory settings from Excel files")
 public class SettingsController {
 
     private final SettingsImportService trajectorySettingsImportService;
