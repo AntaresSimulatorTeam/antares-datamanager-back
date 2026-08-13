@@ -1066,7 +1066,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private FsTrajectoryDTO createFsTrajectoryDTO(Path path, TrajectoryType trajectoryType) {
         try {
             return FsTrajectoryDTO.builder()
-                    .fileName(trajectoryType == FLOWBASED ? path.getParent().getFileName() + "_" + path.getFileName() : path.getFileName().toString())
+                    .fileName(trajectoryType == FLOWBASED ? path.getParent().getFileName() + "/" + path.getFileName() : path.getFileName().toString())
                     .lastModifiedDate(Files.getLastModifiedTime(path)
                             .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
                     .type(trajectoryType.name())

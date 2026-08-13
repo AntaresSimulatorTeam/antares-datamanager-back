@@ -1863,9 +1863,9 @@ class TrajectoryServiceImplTest {
         // Then
         assertEquals(3, result.size());
         List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
-        assertTrue(fileNames.contains(trajName1+"_"+yearDir1));
-        assertTrue(fileNames.contains(trajName2+"_"+yearDir2));
-        assertTrue(fileNames.contains(trajName3+"_"+yearDir3));
+        assertTrue(fileNames.contains(trajName1+"/"+yearDir1));
+        assertTrue(fileNames.contains(trajName2+"/"+yearDir2));
+        assertTrue(fileNames.contains(trajName3+"/"+yearDir3));
     }
 
     @Test
