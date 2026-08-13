@@ -733,13 +733,11 @@ public class Utils {
         }
     }
 
-    public static Path findFirstChildDirectory(Path parent) {
+    public static List<Path> findFirstChildDirectory(Path parent) {
         try (Stream<Path> s = Files.list(parent)) {
-            Optional<Path> dir = s
+            return s
                     .filter(Files::isDirectory)
-                    .findFirst();
-
-            return dir.orElse(null);
+                    .collect(Collectors.toList());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
