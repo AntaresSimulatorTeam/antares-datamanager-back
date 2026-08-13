@@ -510,8 +510,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             return stream
                     .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) ||
                             (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
-                    .map(path -> getFsTrajectoryDTO(trajectoryType, path))
-                    .filter(Objects::nonNull)
+                    .flatMap(path -> getFsTrajectoryDTO(trajectoryType, path).stream())
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
                     .collect(Collectors.groupingBy(
                             FsTrajectoryDTO::getFileName,
@@ -977,15 +976,15 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private FsTrajectoryDTO getFsTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
+    private List<FsTrajectoryDTO> getFsTrajectoryDTO(TrajectoryType trajectoryType, Path path) {
         if (trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER) {
             try {
-                return FsTrajectoryDTO.builder()
+                return List.of(FsTrajectoryDTO.builder()
                         .fileName(path.getFileName().toString())
                         .type(trajectoryType.name())
                         .lastModifiedDate(Files.getLastModifiedTime(path)
                                 .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                        .build();
+                        .build());
             } catch (IOException e) {
                 throw TechnicalException.builder()
                         .message("Can't read trajectory file")
@@ -993,12 +992,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build();
             }
         } else {
-            Path directoryPath = trajectoryType ==  FLOWBASED ? findFirstChildDirectory(path) : path;
-            if (directoryPath != null) {
-                return createFsTrajectoryDTO(directoryPath, trajectoryType);
+            List<Path> subdirectories = trajectoryType == FLOWBASED ? findFirstChildDirectory(path) : List.of(path);
+            if (!subdirectories.isEmpty()) {
+                return createFsTrajectoryDTO(subdirectories, trajectoryType);
             }
         }
-        return null;
+        return List.of();
     }
 
 
@@ -1063,17 +1062,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private FsTrajectoryDTO createFsTrajectoryDTO(Path path, TrajectoryType trajectoryType) {
-        try {
-            return FsTrajectoryDTO.builder()
-                    .fileName(trajectoryType == FLOWBASED ? path.getParent().getFileName() + "/" + path.getFileName() : path.getFileName().toString())
-                    .lastModifiedDate(Files.getLastModifiedTime(path)
-                            .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                    .type(trajectoryType.name())
-                    .build();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    private List<FsTrajectoryDTO> createFsTrajectoryDTO(List<Path> paths, TrajectoryType trajectoryType) {
+        return paths.stream()
+                .map(path -> {
+                    try {
+                        return FsTrajectoryDTO.builder()
+                                .fileName(trajectoryType == FLOWBASED ? path.getParent().getFileName() + "/" + path.getFileName() : path.getFileName().toString())
+                                .lastModifiedDate(Files.getLastModifiedTime(path)
+                                        .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                                .type(trajectoryType.name())
+                                .build();
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
+                .collect(Collectors.toList());
     }
     
     /**
