@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroFileProcessorService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -32,7 +33,7 @@ public class HydroController {
     @Operation(summary = "import HYDRO series trajectory to database ")
     @PostMapping("/hydro-series")
     public ResponseEntity<TrajectoryDTO> uploadSeriesHydroTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("area") String area,
@@ -47,7 +48,7 @@ public class HydroController {
     @Operation(summary = "import HYDRO technical parameters trajectory to database ")
     @PostMapping("/hydro-technical-parameters")
     public ResponseEntity<TrajectoryDTO> uploadTechnicalParametersHydroTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("area") String area,
