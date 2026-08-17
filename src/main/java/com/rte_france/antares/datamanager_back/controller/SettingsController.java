@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.settings.SettingsImportService;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,8 +36,7 @@ public class SettingsController {
     @PostMapping("/settings")
     public ResponseEntity<TrajectoryDTO> importTrajectorySettings(
             @RequestParam("trajectoryToUse") 
-            @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") 
-            @Pattern(regexp = "^[a-zA-Z0-9_-]+$") 
+            @ValidTrajectoryName
             @Parameter(description = "Name of the trajectory folder (e.g., BP23_A_ref_200MC)") 
             String trajectoryToUse,
 

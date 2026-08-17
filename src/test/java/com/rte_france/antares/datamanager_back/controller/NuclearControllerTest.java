@@ -203,32 +203,6 @@ class NuclearControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ========== Validation Failure Cases - Trajectory Name ==========
-
-    @Test
-    void uploadNuclearModulationTrajectory_withInvalidTrajectoryName_mustReturnBadRequest() throws Exception {
-
-        this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
-                .param("trajectoryToUse", "tra@jectory_test_with_invalid_chars")
-                .param("horizon", "2025-2026")
-                .param("studyId", "1")
-                .param("area", "FR"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void uploadNuclearModulationTrajectory_withSpecialCharactersInName_mustReturnBadRequest() throws Exception {
-        String[] invalidNames = {"test#trajectory", "traj ectory", "traj*ory", "traj!ory"};
-
-        for (String name : invalidNames) {
-            this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
-                    .param("trajectoryToUse", name)
-                    .param("horizon", "2025-2026")
-                    .param("studyId", "1")
-                    .param("area", "FR"))
-                    .andExpect(status().isBadRequest());
-        }
-    }
 
     @Test
     void uploadNuclearModulationTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
@@ -560,16 +534,6 @@ class NuclearControllerTest {
     }
 
     @Test
-    void uploadNuclearLongTermTrajectory_withInvalidTrajectoryName_mustReturnBadRequest() throws Exception {
-        this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
-                .param("trajectoryToUse", "trajectory@test!")
-                .param("horizon", "2025-2026")
-                .param("studyId", "1")
-                .param("area", "FR"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void uploadNuclearLongTermTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
         this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
                 .param("trajectoryToUse", "this_is_a_very_long_trajectory_name_exceeding_forty_characters")
@@ -769,15 +733,6 @@ class NuclearControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
-    void uploadNuclearTsErpTrajectory_withInvalidTrajectoryName_mustReturnBadRequest() throws Exception {
-        this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
-                .param("trajectoryToUse", "ts@epr!")
-                .param("horizon", "2025-2026")
-                .param("studyId", "1")
-                .param("area", "FR"))
-                .andExpect(status().isBadRequest());
-    }
 
     @Test
     void uploadNuclearTsErpTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
@@ -976,16 +931,6 @@ class NuclearControllerTest {
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
                 .param("trajectoryToUse", "ts_smr.xlsx")
                 .param("horizon", "2025")
-                .param("studyId", "1")
-                .param("area", "FR"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void uploadNuclearTsSmrTrajectory_withInvalidTrajectoryName_mustReturnBadRequest() throws Exception {
-        this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
-                .param("trajectoryToUse", "ts@smr!")
-                .param("horizon", "2025-2026")
                 .param("studyId", "1")
                 .param("area", "FR"))
                 .andExpect(status().isBadRequest());

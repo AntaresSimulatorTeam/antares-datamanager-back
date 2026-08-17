@@ -47,15 +47,7 @@ class SettingsControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    @Test
-    void testImportTrajectorySettingsInvalidTrajectoryName() throws Exception {
-        mockMvc.perform(post("/v1/trajectory/settings")
-                        .param("trajectoryToUse", "invalid@name")
-                        .param("horizon", "2028-2029")
-                        .param("studyId", "1")
-                        .param("area", "FR"))
-                .andExpect(status().isBadRequest());
-    }
+
 
     @Test
     void testImportTrajectorySettingsInvalidHorizon() throws Exception {

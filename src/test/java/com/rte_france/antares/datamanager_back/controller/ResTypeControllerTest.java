@@ -170,7 +170,7 @@ class ResControllerTest {
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                             .param("area", "FR")
                             .param("technology", "wind")
-                            .param("trajectoryToUse", "loadFactorRES_test")
+                            .param("trajectoryToUse", "loadFactorRES_telklklklklklklmlmlmlmlmlmlklklklklkst")
                             .param("horizon", "2029")
                             .param("studyId", "1"))
                     .andExpect(status().isBadRequest());
