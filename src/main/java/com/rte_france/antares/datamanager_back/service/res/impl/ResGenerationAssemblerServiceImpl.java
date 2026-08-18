@@ -98,7 +98,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String resolveIndexedSingleSeries(String area, String group, String cluster, SeriesLookup nonFrLookup) {
-        var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_" + cluster.toUpperCase(Locale.ROOT);
+        String normGroup = toKey(group);
+        var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + normGroup.toUpperCase(Locale.ROOT) + "_" + cluster.toUpperCase(Locale.ROOT);
         var match = nonFrLookup.index().get(lookupKey);
 
         if (match != null) {
@@ -292,10 +293,12 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String technology,
             SeriesLookup frLookup
     ) {
-        var candidateKeys = buildFrTechnologyCandidateKeys(group, technology);
+        String normGroup = toKey(group);
+        String normTechnology = toKey(technology);
+        var candidateKeys = buildFrTechnologyCandidateKeys(normGroup, normTechnology);
 
         for (var candidateKey : candidateKeys) {
-            var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_"
+            var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + normGroup.toUpperCase(Locale.ROOT) + "_"
                     + cluster.toUpperCase(Locale.ROOT) + "_" + candidateKey.toUpperCase(Locale.ROOT);
             var match = frLookup.index().get(lookupKey);
             if (match != null) {
@@ -375,9 +378,11 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         Set<String> candidates = new LinkedHashSet<>();
         candidates.add(normalizedTechnology);
 
-        String groupPrefix = normalizedGroup + "_";
-        if (normalizedTechnology.startsWith(groupPrefix) && normalizedTechnology.length() > groupPrefix.length()) {
-            candidates.add(normalizedTechnology.substring(groupPrefix.length()));
+        if (!normalizedTechnology.isEmpty()) {
+            String groupPrefix = normalizedGroup + "_";
+            if (normalizedTechnology.startsWith(groupPrefix) && normalizedTechnology.length() > groupPrefix.length()) {
+                candidates.add(normalizedTechnology.substring(groupPrefix.length()));
+            }
         }
 
         return candidates;

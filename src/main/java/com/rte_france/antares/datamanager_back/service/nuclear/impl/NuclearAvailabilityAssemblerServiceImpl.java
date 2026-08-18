@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNam
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.NuclearTimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -60,6 +61,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
 
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
+    private final NuclearTimeSeriesReader nuclearTimeSeriesReader;
     private final AntaresDataManagerProperties properties;
     private final PathSecurityUtil pathSecurityUtil;
     private final ClusterDesignationRepository clusterDesignationRepository;
@@ -132,6 +134,10 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
             for (String sheetName : sheetNames) {
                 TimeSeriesMatrix selected = timeSeriesReader.readSelectedColumnsFromXlsx(ltPath, sheetName, whitelist);
                     double[] hourly = expandDailyToHourly(sumColumnsRowWise(selected));
+                    //To round to 2 decimal places
+                    for (int i = 0; i < hourly.length; i++) {
+                        hourly[i] = Math.round(hourly[i] * 100.0) / 100.0;
+                    }
                     onglets.add(new TimeSeriesMatrixColumn(sheetName, hourly));
             }
 
@@ -188,8 +194,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
                     NuclearFilePrefixes.EPR_FILE_PREFIX, eprTrajectory.getFileName());
             Path eprPath = resolveValidatedNasPath(relativePath, "Invalid nuclear EPR path: {0}");
 
-            TimeSeriesMatrix pool = nasFileService.readMatrix(eprPath, horizonYear, true,
-                    TrajectoryType.NUCLEAR_FR_TS_ERP.name(), "EPR");
+            TimeSeriesMatrix pool = nuclearTimeSeriesReader.readFromXlsx(eprPath, horizonYear, true);
             List<TimeSeriesMatrixColumn> hourlyColumns = pool.columns().stream()
                     .map(column -> new TimeSeriesMatrixColumn(column.name(), expandDailyToHourly(column.values())))
                     .toList();
@@ -249,8 +254,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
                     NuclearFilePrefixes.SMR_FILE_PREFIX, smrTrajectory.getFileName());
             Path smrPath = resolveValidatedNasPath(relativePath, "Invalid nuclear SMR path: {0}");
 
-            TimeSeriesMatrix pool = nasFileService.readMatrix(smrPath, horizonYear, true,
-                    TrajectoryType.NUCLEAR_FR_TS_SMR.name(), "SMR");
+            TimeSeriesMatrix pool = nuclearTimeSeriesReader.readFromXlsx(smrPath, horizonYear, true);
             return pool.columns().stream()
                     .map(column -> new TimeSeriesMatrixColumn(column.name(), expandDailyToHourly(column.values())))
                     .toList();
