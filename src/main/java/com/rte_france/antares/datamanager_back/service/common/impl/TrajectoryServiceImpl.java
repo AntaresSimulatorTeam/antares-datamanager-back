@@ -992,7 +992,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build();
             }
         } else {
-            List<Path> subdirectories = trajectoryType == FLOWBASED ? findFirstChildDirectory(path) : List.of(path);
+            List<Path> subdirectories = trajectoryType == FLOWBASED ? listChildDirectories(path) : List.of(path);
             if (!subdirectories.isEmpty()) {
                 return createFsTrajectoryDTO(subdirectories, trajectoryType);
             }
@@ -1076,7 +1076,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         throw new UncheckedIOException(e);
                     }
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
     
     /**

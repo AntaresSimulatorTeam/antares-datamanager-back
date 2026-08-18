@@ -733,11 +733,20 @@ public class Utils {
         }
     }
 
-    public static List<Path> findFirstChildDirectory(Path parent) {
+    public static List<Path> listChildDirectories(Path parent) {
         try (Stream<Path> s = Files.list(parent)) {
             return s
                     .filter(Files::isDirectory)
-                    .collect(Collectors.toList());
+                    .filter(Utils::isDirectoryNotEmpty)
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    public static boolean isDirectoryNotEmpty(Path dir) {
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(dir)) {
+            return entries.iterator().hasNext();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
