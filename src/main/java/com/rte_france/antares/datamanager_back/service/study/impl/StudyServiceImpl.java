@@ -351,6 +351,7 @@ public class StudyServiceImpl implements StudyService {
                 .warningMessages(new HashSet<>())
                 .trajectories(trajectories)
                 .hvdc(studyDTO.getHvdc())
+                .recalculate(studyDTO.getRecalculate())
                 .build();
     }
 
@@ -442,6 +443,7 @@ public class StudyServiceImpl implements StudyService {
         if (studyDTO.getName() != null) updateStudyNameIfPresent(study, studyDTO);
         if (studyDTO.getTags() != null) updateTagsIfPresent(study, studyDTO);
         if (studyDTO.getHvdc() != null) study.setHvdc(studyDTO.getHvdc());
+        if (studyDTO.getRecalculate() != null) study.setRecalculate(studyDTO.getRecalculate());
         var saved = studyRepository.save(study);
         return StudyMapper.toStudyDTO(saved);
     }

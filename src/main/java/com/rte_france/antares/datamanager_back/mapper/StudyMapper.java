@@ -33,6 +33,7 @@ public class StudyMapper {
                 .status(entity.getStatus().name())
                 .trajectoryIds(entity.getTrajectories() != null ? entity.getTrajectories().stream().map(TrajectoryEntity::getId).toList() : Collections.emptyList())
                 .hvdc(entity.getHvdc())
+                .recalculate(entity.getRecalculate())
                 .build();
     }
 

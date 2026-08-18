@@ -130,3 +130,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V61-split-p4-cluster-designation-from-n4.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V62-create_flowbased_tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V63-add-column-recalculate-scenario-table.sql
