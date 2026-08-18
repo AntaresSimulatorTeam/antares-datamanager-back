@@ -620,17 +620,19 @@ class StudyServiceImplTest {
                 .project(project)
                 .status(StudyStatus.IN_PROGRESS)
                 .hvdc(false)
+                .recalculate(false)
                 .build();
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
-        var dto = StudyDTO.builder().hvdc(true).build();
+        var dto = StudyDTO.builder().hvdc(true).recalculate(true).build();
 
         StudyDTO result = studyServiceImpl.updateStudy(1, dto);
 
         assertNotNull(result);
         assertTrue(study.getHvdc());
+        assertTrue(study.getRecalculate());
         verify(studyRepository).save(any(StudyEntity.class));
     }
 

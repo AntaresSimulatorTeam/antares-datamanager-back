@@ -28,6 +28,9 @@ public class StudyEntity {
     @Column(name = "hvdc")
     private Boolean hvdc = false;
 
+    @Column(name = "recalculate")
+    private Boolean recalculate = false;
+
     @Size(max = 255)
     @Column(name = "created_by")
     private String createdBy;
