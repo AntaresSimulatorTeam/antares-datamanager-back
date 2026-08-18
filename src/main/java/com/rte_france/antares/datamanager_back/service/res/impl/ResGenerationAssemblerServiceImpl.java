@@ -299,7 +299,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         for (var candidateKey : candidateKeys) {
             var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + normGroup.toUpperCase(Locale.ROOT) + "_"
-                    + cluster.toUpperCase(Locale.ROOT) + "_" + candidateKey.toUpperCase(Locale.ROOT);
+                    + toKey(cluster).toUpperCase(Locale.ROOT) + "_" + toKey(candidateKey).toUpperCase(Locale.ROOT);
             var match = frLookup.index().get(lookupKey);
             if (match != null) {
                 return convertSeriesToArrowIfAbsent(match, frLookup.arrowCache());
