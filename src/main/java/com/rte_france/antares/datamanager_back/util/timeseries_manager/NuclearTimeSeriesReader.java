@@ -27,18 +27,7 @@ public class NuclearTimeSeriesReader {
         requireFileExists(xlsxPath);
 
         try (Workbook workbook = WorkbookFactory.create(xlsxPath.toFile(), null, true)) {
-            if (workbook.getNumberOfSheets() == 0) {
-                throw TechnicalException.builder().message("Excel file has no sheets").build();
-            }
-            Sheet sheet = (horizon == null || horizon.isBlank()) ? workbook.getSheetAt(0) : workbook.getSheet(horizon);
-            if (sheet == null) {
-                throw BusinessException.builder()
-                        .message("Horizon {0} does not exist in file: {1}")
-                        .errorMessageArguments(List.of(horizon != null ? horizon : "default", xlsxPath.getFileName().toString()))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
+            Sheet sheet = getSheet(workbook, horizon, xlsxPath);
             int rowCount = sheet.getLastRowNum() + 1;
             if (rowCount == 0) {
                 throw TechnicalException.builder().message("Excel sheet is empty").build();
@@ -52,31 +41,57 @@ public class NuclearTimeSeriesReader {
                 throw TechnicalException.builder().message("Excel sheet is empty").build();
             }
             int colCount = headerRow.getLastCellNum();
-            List<String> headerNames = new ArrayList<>(colCount);
-            for (int i = 0; i < colCount; i++) {
-                Cell cell = headerRow.getCell(i);
-                String name = null;
-                if (hasHeader && cell != null) {
-                    name = new DataFormatter().formatCellValue(cell).trim();
-                }
-                headerNames.add(name != null && !name.isEmpty() ? name : COLUMN_PREFIX + i);
-            }
+            List<String> headerNames = getHeaderNames(headerRow, colCount, hasHeader);
 
-            List<TimeSeriesMatrixColumn> columns = new ArrayList<>(colCount);
-            for (int i = 0; i < colCount; i++) {
-                double[] values = new double[numDataRows];
-                for (int r = 0; r < numDataRows; r++) {
-                    Row row = sheet.getRow(r + startRow);
-                    if (row != null) {
-                        Cell cell = row.getCell(i);
-                        values[r] = getNumericCellValue(cell);
-                    }
-                }
-                columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), values));
-            }
+            List<TimeSeriesMatrixColumn> columns = readColumns(sheet, colCount, numDataRows, startRow, headerNames);
 
             return new TimeSeriesMatrix(columns);
         }
+    }
+
+    private Sheet getSheet(Workbook workbook, String horizon, Path xlsxPath) {
+        if (workbook.getNumberOfSheets() == 0) {
+            throw TechnicalException.builder().message("Excel file has no sheets").build();
+        }
+        Sheet sheet = (horizon == null || horizon.isBlank()) ? workbook.getSheetAt(0) : workbook.getSheet(horizon);
+        if (sheet == null) {
+            throw BusinessException.builder()
+                    .message("Horizon {0} does not exist in file: {1}")
+                    .errorMessageArguments(List.of(horizon != null ? horizon : "default", xlsxPath.getFileName().toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return sheet;
+    }
+
+    private List<String> getHeaderNames(Row headerRow, int colCount, boolean hasHeader) {
+        List<String> headerNames = new ArrayList<>(colCount);
+        DataFormatter formatter = new DataFormatter();
+        for (int i = 0; i < colCount; i++) {
+            Cell cell = headerRow.getCell(i);
+            String name = null;
+            if (hasHeader && cell != null) {
+                name = formatter.formatCellValue(cell).trim();
+            }
+            headerNames.add(name != null && !name.isEmpty() ? name : COLUMN_PREFIX + i);
+        }
+        return headerNames;
+    }
+
+    private List<TimeSeriesMatrixColumn> readColumns(Sheet sheet, int colCount, int numDataRows, int startRow, List<String> headerNames) {
+        List<TimeSeriesMatrixColumn> columns = new ArrayList<>(colCount);
+        for (int i = 0; i < colCount; i++) {
+            double[] values = new double[numDataRows];
+            for (int r = 0; r < numDataRows; r++) {
+                Row row = sheet.getRow(r + startRow);
+                if (row != null) {
+                    Cell cell = row.getCell(i);
+                    values[r] = getNumericCellValue(cell);
+                }
+            }
+            columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), values));
+        }
+        return columns;
     }
 
     private double getNumericCellValue(Cell cell) {

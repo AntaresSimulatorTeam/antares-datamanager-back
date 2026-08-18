@@ -203,6 +203,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             assertThat(combined.columns().get(1).values()).hasSize(24);
             // single day sum = 10.005 + 20.004 = 30.009, rounded to 30.01
             assertThat(combined.columns().get(1).values()[0]).isEqualTo(30.01);
+            assertThat(combined.columns().get(1).values()[23]).isEqualTo(30.01);
         }
     }
 
