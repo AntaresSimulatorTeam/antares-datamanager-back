@@ -397,9 +397,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String area = parts[parts.length - 2];
         String prefix = String.join("_", Arrays.copyOf(parts, parts.length - 2));
 
-        boolean areaMatches = Objects.equals(areaParam, OTHERS_AREA)
+        boolean areaMatches = (areaParam != null && areaParam.equals(OTHERS_AREA))
                 ? studyAreas.stream().anyMatch(sa -> sa.equalsIgnoreCase(area))
-                : areaParam.equalsIgnoreCase(area);
+                : areaParam != null && areaParam.equalsIgnoreCase(area);
 
         return prefixes.stream().anyMatch(p -> p.equalsIgnoreCase(prefix))
                 && areaMatches
