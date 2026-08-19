@@ -37,7 +37,7 @@ public class FlowbasedToJsonService {
         flowbased.put("recalculate_ts", recalculate);
         
         if (recalculate && !dayTypesParams.isEmpty()) {
-            flowbased.put("type_days", linksParams) //buildTypeDaysMap(dayTypesParams));
+            flowbased.put("type_days", linksParams); //buildTypeDaysMap(dayTypesParams));
         }
 
         if (!virtualNodesParams.isEmpty()) {
