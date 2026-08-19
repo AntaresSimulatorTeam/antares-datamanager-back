@@ -2,16 +2,29 @@ package com.rte_france.antares.datamanager_back.util.timeseries_manager;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
+import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.openxml4j.opc.PackageAccess;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.util.XMLHelper;
+import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
+import org.apache.poi.xssf.eventusermodel.XSSFReader;
+import org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler;
+import org.apache.poi.xssf.model.StylesTable;
+import org.apache.poi.xssf.usermodel.XSSFComment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Specific reader for Nuclear time series that ensures decimal precision.
@@ -25,100 +38,169 @@ public class NuclearTimeSeriesReader {
     public TimeSeriesMatrix readFromXlsx(Path xlsxPath, String horizon, boolean hasHeader) throws IOException {
         Objects.requireNonNull(xlsxPath);
         requireFileExists(xlsxPath);
-
-        try (Workbook workbook = WorkbookFactory.create(xlsxPath.toFile(), null, true)) {
-            Sheet sheet = getSheet(workbook, horizon, xlsxPath);
-            int rowCount = sheet.getLastRowNum() + 1;
-            if (rowCount == 0) {
-                throw TechnicalException.builder().message("Excel sheet is empty").build();
+        try (OPCPackage pkg = OPCPackage.open(xlsxPath.toFile(), PackageAccess.READ)) {
+            XSSFReader reader = new XSSFReader(pkg);
+            StylesTable styles = reader.getStylesTable();
+            ReadOnlySharedStringsTable sharedStrings = new ReadOnlySharedStringsTable(pkg);
+            try (InputStream sheetInput = openSheetInputStream(reader, horizon, xlsxPath)) {
+                NuclearSheetHandler handler = new NuclearSheetHandler(hasHeader);
+                XMLReader parser = XMLHelper.newXMLReader();
+                // Pass a DataFormatter that doesn't lose precision for numbers
+                DataFormatter preciseFormatter = new DataFormatter() {
+                    @Override
+                    public String formatRawCellContents(double value, int formatIndex, String formatString) {
+                        return Double.toString(value);
+                    }
+                };
+                XSSFSheetXMLHandler sheetHandler = new XSSFSheetXMLHandler(
+                        styles, null, sharedStrings, handler, preciseFormatter, false);
+                parser.setContentHandler(sheetHandler);
+                parser.parse(new InputSource(sheetInput));
+                return handler.toMatrix();
             }
-
-            int startRow = hasHeader ? 1 : 0;
-            int numDataRows = Math.min(MAX_ROWS_PER_YEAR, Math.max(0, rowCount - startRow));
-
-            Row headerRow = sheet.getRow(0);
-            if (headerRow == null) {
-                throw TechnicalException.builder().message("Excel sheet is empty").build();
-            }
-            int colCount = headerRow.getLastCellNum();
-            List<String> headerNames = getHeaderNames(headerRow, colCount, hasHeader);
-
-            List<TimeSeriesMatrixColumn> columns = readColumns(sheet, colCount, numDataRows, startRow, headerNames);
-
-            return new TimeSeriesMatrix(columns);
+        } catch (OpenXML4JException | SAXException | ParserConfigurationException e) {
+            throw new IOException(e);
         }
     }
 
-    private Sheet getSheet(Workbook workbook, String horizon, Path xlsxPath) {
-        if (workbook.getNumberOfSheets() == 0) {
+    private InputStream openSheetInputStream(XSSFReader reader, String horizon, Path xlsxPath) throws IOException, OpenXML4JException {
+        XSSFReader.SheetIterator it = (XSSFReader.SheetIterator) reader.getSheetsData();
+        if (!it.hasNext()) {
             throw TechnicalException.builder().message("Excel file has no sheets").build();
         }
-        Sheet sheet = (horizon == null || horizon.isBlank()) ? workbook.getSheetAt(0) : workbook.getSheet(horizon);
-        if (sheet == null) {
-            throw BusinessException.builder()
-                    .message("Horizon {0} does not exist in file: {1}")
-                    .errorMessageArguments(List.of(horizon != null ? horizon : "default", xlsxPath.getFileName().toString()))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        return sheet;
-    }
-
-    private List<String> getHeaderNames(Row headerRow, int colCount, boolean hasHeader) {
-        List<String> headerNames = new ArrayList<>(colCount);
-        DataFormatter formatter = new DataFormatter();
-        for (int i = 0; i < colCount; i++) {
-            Cell cell = headerRow.getCell(i);
-            String name = null;
-            if (hasHeader && cell != null) {
-                name = formatter.formatCellValue(cell).trim();
+        InputStream first = null;
+        while (it.hasNext()) {
+            InputStream is = it.next();
+            String name = it.getSheetName();
+            if (first == null) first = is;
+            if (horizon != null && horizon.equalsIgnoreCase(name)) {
+                return is;
             }
-            headerNames.add(name != null && !name.isEmpty() ? name : COLUMN_PREFIX + i);
-        }
-        return headerNames;
-    }
-
-    private List<TimeSeriesMatrixColumn> readColumns(Sheet sheet, int colCount, int numDataRows, int startRow, List<String> headerNames) {
-        List<TimeSeriesMatrixColumn> columns = new ArrayList<>(colCount);
-        for (int i = 0; i < colCount; i++) {
-            double[] values = new double[numDataRows];
-            for (int r = 0; r < numDataRows; r++) {
-                Row row = sheet.getRow(r + startRow);
-                if (row != null) {
-                    Cell cell = row.getCell(i);
-                    values[r] = getNumericCellValue(cell);
-                }
-            }
-            columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), values));
-        }
-        return columns;
-    }
-
-    private double getNumericCellValue(Cell cell) {
-        if (cell == null) return 0.0;
-        double val = 0.0;
-        if (cell.getCellType() == CellType.NUMERIC) {
-            val = cell.getNumericCellValue();
-        } else if (cell.getCellType() == CellType.STRING) {
-            val = parseStringNumber(cell.getStringCellValue());
-        } else if (cell.getCellType() == CellType.FORMULA) {
-            if (cell.getCachedFormulaResultType() == CellType.NUMERIC) {
-                val = cell.getNumericCellValue();
-            } else if (cell.getCachedFormulaResultType() == CellType.STRING) {
-                val = parseStringNumber(cell.getRichStringCellValue().getString());
+            if (horizon == null || horizon.isBlank()) {
+                return is;
             }
         }
-        return Math.round(val * 100.0) / 100.0;
+        if (first != null && horizon.isBlank()) return first;
+
+        throw BusinessException.builder()
+                .message("Horizon {0} does not exist in file: {1}")
+                .errorMessageArguments(List.of(horizon, xlsxPath.getFileName().toString()))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
     }
 
-    private double parseStringNumber(String s) {
+    private static double parseStringNumber(String s) {
         if (s == null) return 0.0;
         s = s.trim();
         if (s.isEmpty()) return 0.0;
         try {
-            return Double.parseDouble(s.replace(',', '.'));
+            double val = Double.parseDouble(s.replace(',', '.'));
+            return Math.round(val * 100.0) / 100.0;
         } catch (NumberFormatException e) {
             return 0.0;
+        }
+    }
+
+    private static final class NuclearSheetHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
+        private final boolean hasHeader;
+        private final List<String> headerNames = new ArrayList<>();
+        private final List<double[]> columnData = new ArrayList<>();
+        private final Map<Integer, String> currentRowValues = new HashMap<>();
+        private boolean currentRowHasCells;
+        private boolean headerProcessed;
+        private int dataRowIndex;
+
+        private NuclearSheetHandler(boolean hasHeader) {
+            this.hasHeader = hasHeader;
+        }
+
+        @Override
+        public void startRow(int rowNum) {
+            currentRowValues.clear();
+            currentRowHasCells = false;
+        }
+
+        @Override
+        public void endRow(int rowNum) {
+            if (!headerProcessed && currentRowHasCells) {
+                processHeaderRow();
+                return;
+            }
+
+            if (headerProcessed && dataRowIndex < MAX_ROWS_PER_YEAR) {
+                if (currentRowHasCells) {
+                    addCurrentRowToData();
+                } else {
+                    addEmptyRowToData();
+                }
+                dataRowIndex++;
+            }
+        }
+
+        private void processHeaderRow() {
+            int maxCol = currentRowValues.keySet().stream().mapToInt(i -> i).max().orElse(-1);
+            int colCount = maxCol + 1;
+            for (int i = 0; i < colCount; i++) {
+                headerNames.add(resolveHeaderName(i));
+                columnData.add(new double[MAX_ROWS_PER_YEAR]);
+            }
+            headerProcessed = true;
+            if (!hasHeader) {
+                addCurrentRowToData();
+                dataRowIndex++;
+            }
+        }
+
+        private String resolveHeaderName(int i) {
+            if (!hasHeader) return COLUMN_PREFIX + i;
+            String v = currentRowValues.get(i);
+            return v != null && !v.trim().isEmpty() ? v.trim() : COLUMN_PREFIX + i;
+        }
+
+        private void addCurrentRowToData() {
+            for (int i = 0; i < columnData.size(); i++) {
+                columnData.get(i)[dataRowIndex] = parseStringNumber(currentRowValues.get(i));
+            }
+        }
+
+        private void addEmptyRowToData() {
+            for (double[] columnDatum : columnData) {
+                columnDatum[dataRowIndex] = 0.0;
+            }
+        }
+
+        @Override
+        public void cell(String cellReference, String formattedValue, XSSFComment comment) {
+            if (cellReference == null) return;
+            int colIndex = new CellReference(cellReference).getCol();
+
+            // If rawValue was already set by the other cell() overload, don't overwrite it.
+            // XSSFSheetXMLHandler typically calls the 4-arg overload first if it's there?
+            // Actually, POI's XSSFSheetXMLHandler.SheetContentsHandler only has the 3-arg version.
+            // The 4-arg version I added is NOT an override, it's just a method that I hope gets called.
+            // But XSSFSheetXMLHandler only knows about the 3-arg one.
+
+            currentRowValues.putIfAbsent(colIndex, formattedValue);
+            currentRowHasCells = true;
+        }
+
+        // This is not part of the interface, so it won't be called by XSSFSheetXMLHandler.
+        // I need to check how to get the raw value.
+        // Looking at XSSFSheetXMLHandler source, it calls SheetContentsHandler.cell(cellRef, formattedValue, comment).
+        // It doesn't seem to expose the raw value if a DataFormatter is used.
+
+        private TimeSeriesMatrix toMatrix() {
+            if (!headerProcessed) {
+                throw TechnicalException.builder().message("Excel sheet is empty").build();
+            }
+            List<TimeSeriesMatrixColumn> columns = new ArrayList<>(headerNames.size());
+            for (int i = 0; i < headerNames.size(); i++) {
+                double[] fullArray = columnData.get(i);
+                double[] trimmedArray = new double[dataRowIndex];
+                System.arraycopy(fullArray, 0, trimmedArray, 0, dataRowIndex);
+                columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), trimmedArray));
+            }
+            return new TimeSeriesMatrix(columns);
         }
     }
 
