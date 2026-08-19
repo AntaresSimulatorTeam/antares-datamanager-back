@@ -12,9 +12,7 @@ import java.util.List;
 public interface FlowbasedFileProcessorService {
 
     TrajectoryEntity processFlowbasedFiles(Path trajectoryFilePath, String trajectoryToUse, Integer studyId, String horizon);
-
-    List<FlowbasedLinkWeightEntity> buildFlowbasedLinkWeightList(Path trajectoryFilePath) throws Exception;
-
+    
     List<FlowbasedVirtualNodesEntity> buildFlowbasedVirtualNodesList(Path trajectoryFilePath) throws Exception;
 
     List<FlowbasedLinkCapacityEntity> buildFlowbasedLinkCapacityList(Path trajectoryFilePath) throws Exception;
