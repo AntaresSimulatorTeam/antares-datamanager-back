@@ -1664,12 +1664,10 @@ class UtilsTest {
         Files.createDirectories(dir1);
         Files.createDirectories(dir2);
 
-        Files.writeString(dir1.resolve("correspondance_links_weights.csv"), "link1,0.5");
         Files.writeString(dir1.resolve("Flowbased_nodes_links.xlsx"), "node1,link1");
         Files.writeString(dir1.resolve("IdTypDays.csv"), "1,2,Winter");
-
-        Files.writeString(dir2.resolve("correspondance_links_weights.csv"), "link1,0.6");
-        Files.writeString(dir2.resolve("Flowbased_nodes_links.xlsx"), "node1,link1");
+        
+        Files.writeString(dir2.resolve("Flowbased_nodes_links.xlsx"), "node2,link1");
         Files.writeString(dir2.resolve("IdTypDays.csv"), "1,2,Winter");
 
         String checksum1 = Utils.calculateFlowbasedFilesChecksum(dir1);
