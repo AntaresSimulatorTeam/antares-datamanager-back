@@ -219,7 +219,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
         }
         Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.settingsTrajectory();
-        Map<String, Object> flowbasedMap;
+        Map<String, Object> flowbasedMap = null;
         if (flowbasedTrajectory.isPresent()) {
             flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get().getId(), study.getRecalculate());
         }
@@ -230,6 +230,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("nb_years", 1);
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
+        innerGeneratorMap.put("flowbased", Objects.requireNonNullElse(flowbasedMap, "flowbased work on going"));
 
         Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps);
         if (!bindingConstraints.isEmpty()) {
