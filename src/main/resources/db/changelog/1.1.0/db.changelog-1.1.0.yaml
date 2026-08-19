@@ -132,3 +132,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V62-create_flowbased_tables.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V63-add-column-recalculate-scenario-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V64-drop-fb-links-weight-table.sql
