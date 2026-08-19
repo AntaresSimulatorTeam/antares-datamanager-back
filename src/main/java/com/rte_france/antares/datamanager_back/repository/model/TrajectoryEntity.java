@@ -135,11 +135,7 @@ public class TrajectoryEntity {
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<NuclearModulationParameterEntity> nuclearModulationParameterEntities;
-
-    @BatchSize(size = 10000)
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkWeightEntity> flowbasedLinkWeights;
-
+    
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity> flowbasedVirtualNodes;
