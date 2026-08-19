@@ -54,6 +54,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final ThermalToJsonService thermalToJsonService;
     private final HydroToJsonService hydroToJsonService;
     private final StudyRepository studyRepository;
+    private final FlowbasedToJsonService flowbasedToJsonService;
 
     private final WebClient webClient;
 
@@ -146,7 +147,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private record TrajectoryDispatchResult(Map<String, Object> areasMap, Map<String, Object> linksMap,
                                              Optional<TrajectoryEntity> nuclearModulationTrajectory,
                                              Optional<TrajectoryEntity> nuclearTalonTrajectory,
-                                             Optional<TrajectoryEntity> settingsTrajectory) {}
+                                             Optional<TrajectoryEntity> settingsTrajectory, 
+                                             Optional<TrajectoryEntity> flowbasedTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -156,6 +158,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> nuclearModulationTraj = Optional.empty();
         Optional<TrajectoryEntity> nuclearTalonTraj = Optional.empty();
         Optional<TrajectoryEntity> settingsTraj = Optional.empty();
+        Optional<TrajectoryEntity> flowbasedTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -188,6 +191,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_TALON -> nuclearTalonTraj = Optional.of(trajectory);
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
+                case FLOWBASED -> flowbasedTraj = Optional.of(trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -195,7 +199,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj);
     }
 
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
@@ -213,6 +217,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             // Fallback to adequacy settings if no dedicated settings trajectory
             Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
             settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
+        }
+        Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.settingsTrajectory();
+        Map<String, Object> flowbasedMap;
+        if (flowbasedTrajectory.isPresent()) {
+            flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get().getId(), study.getRecalculate());
         }
 
         innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));
