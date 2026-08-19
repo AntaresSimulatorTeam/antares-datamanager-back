@@ -38,15 +38,9 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     private final UserService userService;
 
     private static final String[] REQUIRED_FILES = {
-            "clusters_porygon.RDS",
             "correspondance_links_weights.csv",
-            "domainesFB.RDS",
             "Flowbased_nodes_links.xlsx",
             "IdTypDays.csv",
-            "random_forest_summer.pmml",
-            "random_forest_winter.pmml",
-            "rf_summer.rds",
-            "rf_winter.rds",
             "second_member.txt",
             "weight.txt"
     };
