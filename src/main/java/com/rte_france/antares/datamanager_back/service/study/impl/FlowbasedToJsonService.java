@@ -1,8 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.repository.*;
-import com.rte_france.antares.datamanager_back.repository.model.SettingsAdvancedParametersEntity;
-import com.rte_france.antares.datamanager_back.repository.model.SettingsSeedsParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
@@ -10,9 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -30,55 +29,50 @@ public class FlowbasedToJsonService {
      */
     public Map<String, Object> buildFlowbasedMap(Integer trajectoryId, boolean recalculate) {
         Map<String, Object> flowbased = new LinkedHashMap<>();
-        
-        Optional<FlowbasedTypeDayEntity> dayTypesParams = flowbasedTypeDaysRepository.findByTrajectoryId(trajectoryId);
-        Optional<FlowbasedVirtualNodesEntity> virtualNodesParams = flowbasedVirtualNodesRepository.findByTrajectoryId(trajectoryId);
-        Optional<FlowbasedLinkCapacityEntity> linksParams = flowbasedLinkCapacityRepository.findByTrajectoryId(trajectoryId);
+
+        List<FlowbasedTypeDayEntity> dayTypesParams = flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(trajectoryId);
+        List<FlowbasedVirtualNodesEntity> virtualNodesParams = flowbasedVirtualNodesRepository.findByTrajectoryId(trajectoryId);
+        List<FlowbasedLinkCapacityEntity> linksParams = flowbasedLinkCapacityRepository.findByTrajectoryId(trajectoryId);
         
         flowbased.put("recalculate_ts", recalculate);
         
-        if (recalculate && dayTypesParams.isPresent()) {
-            flowbased.put("type_days", buildTypeDaysMap(dayTypesParams.get()));
-        } else {
-            flowbased.put("type_days", new LinkedHashMap<>());
+        if (recalculate && !dayTypesParams.isEmpty()) {
+            flowbased.put("type_days", linksParams) //buildTypeDaysMap(dayTypesParams));
         }
 
-        if (virtualNodesParams.isPresent()) {
-            flowbased.put("virtual_nodes", buildVirtualNodes(virtualNodesParams.get()));
-        } else {
-            flowbased.put("virtual_nodes", new LinkedHashMap<>());
-        }
-
-        if (linksParams.isPresent()) {
-            flowbased.put("links", buildLinksMap(linksParams.get()));
-        } else {
-            flowbased.put("links", new LinkedHashMap<>());
+        if (!virtualNodesParams.isEmpty()) {
+            flowbased.put("virtual_nodes", buildVirtualNodes(virtualNodesParams));
+        } 
+        
+        if (!linksParams.isEmpty()) {
+            flowbased.put("links", buildLinksMap(linksParams));
         }
 
         return flowbased;
     }
 
-    private Map<String, Object> buildTypeDaysMap(FlowbasedTypeDayEntity entity) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        //addIfNotNull(map, "seed_tsgen_thermal", entity.getSeedTsgenThermal());
-        return map;
+//    private List<Map<String,? extends Serializable>> buildTypeDaysMap(List<FlowbasedTypeDayEntity> entities) {
+//        return entities.stream()
+//                .map(item -> Map.of(
+//                        "clustering", item.getClustering(),
+//                        "id_type_day", item.getIdTypeDay(),
+//                        "class_day", item.getClassDay()
+//                ))
+//                .toList();
+//    }
+    
+
+    private List<String> buildVirtualNodes(List<FlowbasedVirtualNodesEntity> entities) {
+        return entities.stream()
+                .map(item -> item.getName().split("-")[0].trim())
+                .toList();
     }
 
-    private Map<String, Object> buildVirtualNodes(FlowbasedVirtualNodesEntity entity) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        //addIfNotNull(map, "seed_tsgen_thermal", entity.getSeedTsgenThermal());
-        return map;
-    }
-
-    private Map<String, Object> buildLinksMap(FlowbasedLinkCapacityEntity entity) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        //addIfNotNull(map, "seed_tsgen_thermal", entity.getSeedTsgenThermal());
-        return map;
-    }
-
-    private void addIfNotNull(Map<String, Object> map, String key, Object value) {
-        if (value != null) {
-            map.put(key, value);
-        }
+    private List<Map<String, String>> buildLinksMap(List<FlowbasedLinkCapacityEntity> entities) {
+        return entities.stream()
+                .map(item -> Map.of(
+                        "name", item.getName().split("-")[0].trim()
+                ))
+                .toList();
     }
 }

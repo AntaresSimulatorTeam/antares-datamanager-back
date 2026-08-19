@@ -218,7 +218,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
             settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
         }
-        Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.settingsTrajectory();
+        Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.flowbasedTrajectory();
         Map<String, Object> flowbasedMap = null;
         if (flowbasedTrajectory.isPresent()) {
             flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get().getId(), study.getRecalculate());
