@@ -293,7 +293,19 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String technology,
             SeriesLookup frLookup
     ) {
+        if (zone == null) {
+            throw BusinessException.builder()
+                    .message("Invalid or missing zone for FR aggregation (group: " + group + ", cluster: " + cluster + ", tech: " + technology + ")")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         String normGroup = toKey(group);
+        if (normGroup == null) {
+            throw BusinessException.builder()
+                    .message("Invalid or missing group for FR aggregation (zone: " + zone + ", cluster: " + cluster + ", tech: " + technology + ")")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         String normTechnology = toKey(technology);
         var candidateKeys = buildFrTechnologyCandidateKeys(normGroup, normTechnology);
 
@@ -605,7 +617,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return series.stream()
                 .filter(ref -> !ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
-                        ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.cluster().toUpperCase(Locale.ROOT),
+                        ref -> toKey(ref.area()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.group()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.cluster()).toUpperCase(Locale.ROOT),
                         ref -> ref,
                         this::mergeSeriesRefs
                 ));
@@ -640,7 +652,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return series.stream()
                 .filter(ref -> ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
-                        ref -> ref.zone().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.cluster().toUpperCase(Locale.ROOT) + "_" + ref.technology().toUpperCase(Locale.ROOT),
+                        ref -> toKey(ref.zone()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.group()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.cluster()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.technology()).toUpperCase(Locale.ROOT),
                         ref -> ref,
                         this::mergeSeriesRefs
                 ));
