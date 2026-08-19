@@ -1005,7 +1005,6 @@ public class Utils {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             String[] requiredFiles = {
-                    "correspondance_links_weights.csv",
                     "Flowbased_nodes_links.xlsx",
                     "IdTypDays.csv"
             };
