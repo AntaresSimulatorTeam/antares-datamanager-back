@@ -221,7 +221,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.flowbasedTrajectory();
         Map<String, Object> flowbasedMap = null;
         if (flowbasedTrajectory.isPresent()) {
-            flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get().getId(), study.getRecalculate());
+            flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get(), study.getRecalculate());
         }
 
         innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));

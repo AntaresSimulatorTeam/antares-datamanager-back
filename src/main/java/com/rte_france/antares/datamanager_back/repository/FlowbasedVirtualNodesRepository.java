@@ -14,5 +14,5 @@ public interface FlowbasedVirtualNodesRepository extends JpaRepository<Flowbased
               WHERE t.trajectory.id = :id
               ORDER BY t.name ASC
            """)
-    List<FlowbasedVirtualNodesEntity> findByTrajectoryId(Integer id);
+    List<FlowbasedVirtualNodesEntity> findEntitiesByTrajectoryId(Integer id);
 }
