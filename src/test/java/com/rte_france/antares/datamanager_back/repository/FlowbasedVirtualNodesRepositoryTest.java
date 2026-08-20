@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.repository;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,15 +15,15 @@ import java.util.List;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 @DataJpaTest
-class FlowbasedLinkCapacityRepositoryTest {
+class FlowbasedVirtualNodesRepositoryTest {
 
     @Autowired
-    private FlowbasedLinkCapacityRepository repository;
+    private FlowbasedVirtualNodesRepository repository;
 
     @PersistenceContext
     private EntityManager entityManager;
     
-    private FlowbasedLinkCapacityEntity savedFlowbasedLink;
+    private FlowbasedVirtualNodesEntity savedFlowbasedTypeDay;
 
     @BeforeEach
     void setUp() {
@@ -39,34 +39,32 @@ class FlowbasedLinkCapacityRepositoryTest {
         trajectory.setCreationDate(LocalDateTime.now());
         entityManager.persist(trajectory);
 
-        FlowbasedLinkCapacityEntity flowbased = new FlowbasedLinkCapacityEntity();
+        FlowbasedVirtualNodesEntity flowbased = new FlowbasedVirtualNodesEntity();
         flowbased.setTrajectory(trajectory);
-        flowbased.setName("Z_LINK");
-        flowbased.setHurdlesCost(false);
+        flowbased.setName("alegro2");
 
-        FlowbasedLinkCapacityEntity flowbased2 = new FlowbasedLinkCapacityEntity();
+        FlowbasedVirtualNodesEntity flowbased2 = new FlowbasedVirtualNodesEntity();
         flowbased2.setTrajectory(trajectory);
-        flowbased2.setName("A_LINK");
-        flowbased2.setHurdlesCost(false);
+        flowbased2.setName("alegro1");
 
         entityManager.persist(flowbased);
         entityManager.persist(flowbased2);
 
         entityManager.flush();
 
-        savedFlowbasedLink = entityManager.find(FlowbasedLinkCapacityEntity.class, flowbased.getId());
+        savedFlowbasedTypeDay = entityManager.find(FlowbasedVirtualNodesEntity.class, flowbased.getId());
     }
 
     @Test
     void shouldFindEntitiesByTrajectoryIdOrderedByName() {
         // When
-        List<FlowbasedLinkCapacityEntity> result =
-                repository.findEntitiesByTrajectoryId(savedFlowbasedLink.getTrajectory().getId());
+        List<FlowbasedVirtualNodesEntity> result =
+                repository.findEntitiesByTrajectoryId(savedFlowbasedTypeDay.getTrajectory().getId());
 
         // Then
         assertThat(result)
                 .hasSize(2)
-                .extracting(FlowbasedLinkCapacityEntity::getName)
-                .containsExactly("A_LINK", "Z_LINK");
+                .extracting(FlowbasedVirtualNodesEntity::getName)
+                .containsExactly("alegro1", "alegro2");
     }
 }
