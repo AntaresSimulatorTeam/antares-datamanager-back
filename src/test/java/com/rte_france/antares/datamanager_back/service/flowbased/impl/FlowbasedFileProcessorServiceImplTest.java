@@ -741,14 +741,13 @@ class FlowbasedFileProcessorServiceImplTest {
     }
 
     @Test
-    void determineOverallType_returnsInfinite_whenOneValueIsInfinite() throws IOException {
+    void determineOverallType_returnsInfinite_whenAllValuesAreInfinite() throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
             
-            row.createCell(0).setCellValue("infinite");
-            for (int i = 1; i < 8; i++) {
-                row.createCell(i).setCellValue(100 * (i + 1));
+            for (int i = 0; i < 8; i++) {
+                row.createCell(i).setCellValue("infinite");
             }
 
             IntegerCellValue[] values = new IntegerCellValue[8];
@@ -761,6 +760,33 @@ class FlowbasedFileProcessorServiceImplTest {
                     values[4], values[5], values[6], values[7]);
 
             assertEquals(FlowbasedLinkCapacityType.INFINITE, result);
+        }
+    }
+
+    @Test
+    void determineOverallType_throwsException_whenMixedInfiniteAndNumeric() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            
+            row.createCell(0).setCellValue("infinite");
+            row.createCell(1).setCellValue(200);
+            row.createCell(2).setCellValue(300);
+            row.createCell(3).setCellValue(400);
+            row.createCell(4).setCellValue(500);
+            row.createCell(5).setCellValue(600);
+            row.createCell(6).setCellValue(700);
+            row.createCell(7).setCellValue(800);
+
+            IntegerCellValue[] values = new IntegerCellValue[8];
+            for (int i = 0; i < 8; i++) {
+                values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
+            }
+
+            assertThrows(BusinessException.class, () -> 
+                flowbasedFileProcessorService.determineOverallType(
+                    values[0], values[1], values[2], values[3],
+                    values[4], values[5], values[6], values[7]));
         }
     }
 
@@ -790,7 +816,7 @@ class FlowbasedFileProcessorServiceImplTest {
     }
 
     @Test
-    void determineOverallType_returnsInfinite_whenMixedDisabledAndInfinite() throws IOException {
+    void determineOverallType_throwsException_whenMixedInfiniteAndDisabled() throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
@@ -798,18 +824,18 @@ class FlowbasedFileProcessorServiceImplTest {
             row.createCell(0).setCellValue("infinite");
             row.createCell(1).setCellValue(200);
             row.createCell(2).setCellValue(300);
-            // Cells 3-7 not created
+            row.createCell(3).setCellValue(400);
+            // Cells 4-7 not created (DISABLED)
 
             IntegerCellValue[] values = new IntegerCellValue[8];
             for (int i = 0; i < 8; i++) {
                 values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
             }
 
-            FlowbasedLinkCapacityType result = flowbasedFileProcessorService.determineOverallType(
+            assertThrows(BusinessException.class, () -> 
+                flowbasedFileProcessorService.determineOverallType(
                     values[0], values[1], values[2], values[3],
-                    values[4], values[5], values[6], values[7]);
-
-            assertEquals(FlowbasedLinkCapacityType.INFINITE, result);
+                    values[4], values[5], values[6], values[7]));
         }
     }
 }
