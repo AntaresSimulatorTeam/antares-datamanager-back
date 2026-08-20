@@ -4150,4 +4150,355 @@ class TrajectoryServiceImplTest {
         verify(resCoherenceCheckService, times(1)).validateIPLoadFactorCoherence(studyId, trajectory);
         verify(resCoherenceCheckService, times(1)).validateLFDTCoherence(studyId, trajectory);
     }
+
+    @Test
+    void findTrajectoriesByType_returnsScenarioBuilderFilesWithCorrectPrefix(@TempDir Path tempDir) throws IOException {
+        // Given
+        Files.createDirectories(tempDir);
+        String trajectoryFilePath = "trajectories";
+        String scenarioBuilderDir = "settings/scenario_builder";
+        
+        Path scenarioBuilderPath = tempDir.resolve(trajectoryFilePath).resolve(scenarioBuilderDir);
+        Files.createDirectories(scenarioBuilderPath);
+        
+        Path file1 = scenarioBuilderPath.resolve("scenario_builder_test1.xlsx");
+        Path file2 = scenarioBuilderPath.resolve("scenario_builder_test2.xlsx");
+        Path invalidFile = scenarioBuilderPath.resolve("invalid_file.xlsx");
+        
+        Files.createFile(file1);
+        Files.createFile(file2);
+        Files.createFile(invalidFile);
+        
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryFilePath);
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(scenarioBuilderDir);
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.SCENARIO_BUILDER, null, null, null);
+        
+        // Then
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(dto -> dto.getFileName().startsWith("scenario_builder_")));
+        assertTrue(result.stream().allMatch(dto -> dto.getFileName().endsWith(".xlsx")));
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsScenarioBuilderFilesFilteredByFileName(@TempDir Path tempDir) throws IOException {
+        // Given
+        Files.createDirectories(tempDir);
+        String trajectoryFilePath = "trajectories";
+        String scenarioBuilderDir = "settings/scenario_builder";
+        
+        Path scenarioBuilderPath = tempDir.resolve(trajectoryFilePath).resolve(scenarioBuilderDir);
+        Files.createDirectories(scenarioBuilderPath);
+        
+        Path file1 = scenarioBuilderPath.resolve("scenario_builder_production.xlsx");
+        Path file2 = scenarioBuilderPath.resolve("scenario_builder_test.xlsx");
+        
+        Files.createFile(file1);
+        Files.createFile(file2);
+        
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryFilePath);
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(scenarioBuilderDir);
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.SCENARIO_BUILDER, null, null, "production");
+        
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("scenario_builder_production.xlsx", result.get(0).getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsEmptyList_whenNoScenarioBuilderFilesExist(@TempDir Path tempDir) throws IOException {
+        // Given
+        Files.createDirectories(tempDir);
+        String trajectoryFilePath = "trajectories";
+        String scenarioBuilderDir = "settings/scenario_builder";
+        
+        Path scenarioBuilderPath = tempDir.resolve(trajectoryFilePath).resolve(scenarioBuilderDir);
+        Files.createDirectories(scenarioBuilderPath);
+        
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryFilePath);
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(scenarioBuilderDir);
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.SCENARIO_BUILDER, null, null, null);
+        
+        // Then
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void isDirectoryTrajectory_returnsFalse_forScenarioBuilderType() {
+        // Given
+        Path dirPath = Paths.get("/some/path");
+        
+        // When & Then
+        assertFalse(trajectoryService.isDirectoryTrajectory(dirPath, TrajectoryType.SCENARIO_BUILDER, null));
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldLinkScenarioBuilderTrajectory_andReplaceExisting() throws IOException {
+        // Given
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        TrajectoryEntity oldTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.SCENARIO_BUILDER.name())
+                .build();
+
+        StudyTrajectoryEntity oldLink = StudyTrajectoryEntity.builder()
+                .trajectory(oldTrajectory)
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .studyTrajectoryEntities(new HashSet<>(List.of(oldLink)))
+                .build();
+
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.SCENARIO_BUILDER.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(newTrajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.SCENARIO_BUILDER);
+
+        // Then
+        assertEquals(trajectoryId, result.getId());
+        verify(studyTrajectoryRepository).delete(oldLink);
+        verify(studyTrajectoryRepository).save(any(StudyTrajectoryEntity.class));
+    }
+
+    @Test
+    void checkTrajectoryCoherence_shouldNotThrowException_forScenarioBuilderType() throws IOException {
+        // Given
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.SCENARIO_BUILDER.name())
+                .build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        when(warningRepository.saveAll(any())).thenReturn(Collections.emptyList());
+
+        // When & Then - should not throw exception
+        assertDoesNotThrow(() -> trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user"));
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnScenarioBuilderDirectory() throws IOException {
+        // Given
+        String expectedDir = "settings/scenario_builder";
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(expectedDir);
+
+        // When
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.SCENARIO_BUILDER, null, null);
+
+        // Then
+        assertEquals(expectedDir, result);
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsScenarioBuilderTrajectories() {
+        // Given
+        List<TrajectoryEntity> expectedEntities = List.of(
+                TrajectoryEntity.builder()
+                        .id(1)
+                        .type(TrajectoryType.SCENARIO_BUILDER.name())
+                        .fileName("scenario_builder_test1.xlsx")
+                        .build(),
+                TrajectoryEntity.builder()
+                        .id(2)
+                        .type(TrajectoryType.SCENARIO_BUILDER.name())
+                        .fileName("scenario_builder_test2.xlsx")
+                        .build()
+        );
+        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(
+                TrajectoryType.SCENARIO_BUILDER.name(), "2023-2024", "test", null, null))
+                .thenReturn(expectedEntities);
+
+        // When
+        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(
+                TrajectoryType.SCENARIO_BUILDER, "2023-2024", "test", null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(t -> t.getType().equals(TrajectoryType.SCENARIO_BUILDER.name())));
+        verify(trajectoryRepository).findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(
+                TrajectoryType.SCENARIO_BUILDER.name(), "2023-2024", "test", null, null);
+    }
+
+    @Test
+    void findTrajectoriesByTypeAndFileNameContainsFromDB_returnsEmptyForScenarioBuilder_whenNoMatches() {
+        // Given
+        when(trajectoryRepository.findTrajectoriesFileNameByTypeAndHorizonAndFileNameContains(
+                TrajectoryType.SCENARIO_BUILDER.name(), "2023-2024", "nonexistent", null, null))
+                .thenReturn(Collections.emptyList());
+
+        // When
+        List<TrajectoryEntity> result = trajectoryService.findTrajectoriesByTypeAndFileNameContainsFromDB(
+                TrajectoryType.SCENARIO_BUILDER, "2023-2024", "nonexistent", null, null);
+
+        // Then
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void normalizeAndValidateDirectory_returnsCorrectPathForScenarioBuilder() throws IOException {
+        // Given
+        String nasDir = "/nas/data";
+        String trajectoryPath = "trajectories";
+        String scenarioBuilderDir = "settings/scenario_builder";
+        String expectedPath = "/nas/data/trajectories/settings/scenario_builder";
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir);
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryPath);
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(scenarioBuilderDir);
+
+        // When
+        Path result = trajectoryService.normalizeAndValidateDirectory(TrajectoryType.SCENARIO_BUILDER, null, null);
+
+        // Then
+        assertTrue(result.toString().contains("settings"));
+        assertTrue(result.toString().contains("scenario_builder"));
+    }
+
+    @Test
+    void findTrajectoriesByType_ignoresInvalidScenarioBuilderFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Files.createDirectories(tempDir);
+        String trajectoryFilePath = "trajectories";
+        String scenarioBuilderDir = "settings/scenario_builder";
+        
+        Path scenarioBuilderPath = tempDir.resolve(trajectoryFilePath).resolve(scenarioBuilderDir);
+        Files.createDirectories(scenarioBuilderPath);
+        
+        Path validFile = scenarioBuilderPath.resolve("scenario_builder_valid.xlsx");
+        Path invalidPrefix = scenarioBuilderPath.resolve("test_invalid.xlsx");
+        Path noPrefix = scenarioBuilderPath.resolve("noscenariobuilder.xlsx");
+        
+        Files.createFile(validFile);
+        Files.createFile(invalidPrefix);
+        Files.createFile(noPrefix);
+        
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryFilePath);
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(scenarioBuilderDir);
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.SCENARIO_BUILDER, null, null, null);
+        
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("scenario_builder_valid.xlsx", result.get(0).getFileName());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldNotCallCoherenceCheckForScenarioBuilder() throws IOException {
+        // Given
+        Integer trajectoryId = 1;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        StudyEntity study = StudyEntity.builder().id(studyId).studyTrajectoryEntities(Collections.emptySet()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(trajectoryId)
+                .type(TrajectoryType.SCENARIO_BUILDER.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(trajectoryId)).thenReturn(Optional.of(trajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        trajectoryService.linkTrajectoryToStudy(trajectoryId, studyId, TrajectoryType.SCENARIO_BUILDER);
+
+        // Then - No coherence checks should be called for SCENARIO_BUILDER
+        verify(resCoherenceCheckService, never()).validateIPTDCoherence(any(), any());
+        verify(resCoherenceCheckService, never()).validateIPLoadFactorCoherence(any(), any());
+    }
+
+    @Test
+    void findTrajectoriesByType_handlesScenarioBuilderWithSpecialCharactersInFileName(@TempDir Path tempDir) throws IOException {
+        // Given
+        Files.createDirectories(tempDir);
+        String trajectoryFilePath = "trajectories";
+        String scenarioBuilderDir = "settings/scenario_builder";
+        
+        Path scenarioBuilderPath = tempDir.resolve(trajectoryFilePath).resolve(scenarioBuilderDir);
+        Files.createDirectories(scenarioBuilderPath);
+        
+        Path fileWithSpecialChars = scenarioBuilderPath.resolve("scenario_builder_test-2024_v2.xlsx");
+        Files.createFile(fileWithSpecialChars);
+        
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryFilePath);
+        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn(scenarioBuilderDir);
+        
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.SCENARIO_BUILDER, null, null, null);
+        
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("scenario_builder_test-2024_v2.xlsx", result.get(0).getFileName());
+    }
+
+    @Test
+    void linkTrajectoryToStudy_shouldPreserveScenarioBuilderAsOnlyOne() throws IOException {
+        // Given - existing link
+        Integer oldTrajectoryId = 1;
+        Integer newTrajectoryId = 2;
+        Integer studyId = 1;
+        String userNni = "user";
+
+        TrajectoryEntity oldTrajectory = TrajectoryEntity.builder()
+                .id(oldTrajectoryId)
+                .type(TrajectoryType.SCENARIO_BUILDER.name())
+                .build();
+
+        StudyTrajectoryEntity oldLink = StudyTrajectoryEntity.builder()
+                .trajectory(oldTrajectory)
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .studyTrajectoryEntities(new HashSet<>(List.of(oldLink)))
+                .build();
+
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
+                .id(newTrajectoryId)
+                .type(TrajectoryType.SCENARIO_BUILDER.name())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(userNni).build());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.findById(newTrajectoryId)).thenReturn(Optional.of(newTrajectory));
+        when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(warningRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When - link new scenario builder
+        TrajectoryEntity result = trajectoryService.linkTrajectoryToStudy(newTrajectoryId, studyId, TrajectoryType.SCENARIO_BUILDER);
+
+        // Then
+        assertEquals(newTrajectoryId, result.getId());
+        // Verify old link was deleted and new one was created
+        verify(studyTrajectoryRepository, times(1)).delete(oldLink);
+        verify(studyTrajectoryRepository, times(1)).save(any(StudyTrajectoryEntity.class));
+    }
 }
+
+

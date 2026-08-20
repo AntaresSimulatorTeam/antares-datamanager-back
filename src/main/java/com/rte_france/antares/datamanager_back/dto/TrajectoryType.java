@@ -33,5 +33,6 @@ public enum TrajectoryType {
     SETTINGS,
     ADEQUACY_PATCH,
     FLOWBASED,
+    SCENARIO_BUILDER,
     UNKNOWN
 }
