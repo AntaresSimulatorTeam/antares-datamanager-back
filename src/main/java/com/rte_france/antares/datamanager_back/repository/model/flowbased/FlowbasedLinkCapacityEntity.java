@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository.model.flowbased;
 
+import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,6 +47,10 @@ public class FlowbasedLinkCapacityEntity {
     
     @Column(name = "hurdles_cost", nullable = false)
     private Boolean hurdlesCost;                       
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type")
+    private FlowbasedLinkCapacityType type;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id")

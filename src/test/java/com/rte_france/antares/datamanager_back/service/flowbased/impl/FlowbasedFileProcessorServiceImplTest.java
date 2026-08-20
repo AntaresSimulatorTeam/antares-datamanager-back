@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.flowbased.impl;
 
+import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -481,6 +482,334 @@ class FlowbasedFileProcessorServiceImplTest {
                 "summer_HC_indirect_MW", "hurdles_cost"};
         for (int i = 0; i < headers.length; i++) {
             header.createCell(i).setCellValue(headers[i]);
+        }
+    }
+
+    // ============================================================================
+    // getIntegerCellValue Tests
+    // ============================================================================
+
+    @Test
+    void getIntegerCellValue_returnsIntegerWhenNumericCell() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue(42);
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertEquals(42, result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_returnsNullWhenCellIsNull() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            // Don't create any cells - cell at index 0 will be null
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertNull(result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_returnsNullWhenStringValueIsInfinite() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("infinite");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertNull(result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_returnsNullWhenStringValueIsInfiniteUpperCase() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("INFINITE");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertNull(result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_returnsNullWhenStringValueIsInfiniteMixedCase() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("InFiNiTe");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertNull(result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_returnsIntegerWhenStringValueIsNumeric() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("123");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertEquals(123, result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_returnsIntegerWhenStringValueIsNumericWithSpaces() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("  456  ");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertEquals(456, result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_throwsBusinessExceptionWhenStringValueIsNotNumericAndNotInfinite() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("invalid_value");
+
+            assertThrows(BusinessException.class, () -> 
+                flowbasedFileProcessorService.getIntegerCellValue(row, 0));
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_throwsBusinessExceptionWhenStringValueIsDecimal() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("123.45");
+
+            assertThrows(BusinessException.class, () -> 
+                flowbasedFileProcessorService.getIntegerCellValue(row, 0));
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_throwsBusinessExceptionWhenCellTypeBool() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue(true);
+
+            assertThrows(BusinessException.class, () -> 
+                flowbasedFileProcessorService.getIntegerCellValue(row, 0));
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_throwsBusinessExceptionWhenStringValueIsEmpty() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("");
+
+            assertThrows(BusinessException.class, () -> 
+                flowbasedFileProcessorService.getIntegerCellValue(row, 0));
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_handlesNegativeNumbers() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("-99");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertEquals(-99, result);
+        }
+    }
+
+    @Test
+    void getIntegerCellValue_handlesZero() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("0");
+
+            Integer result = flowbasedFileProcessorService.getIntegerCellValue(row, 0);
+            assertEquals(0, result);
+        }
+    }
+
+    // ============================================================================
+    // getIntegerCellValueWithType Tests
+    // ============================================================================
+
+    @Test
+    void getIntegerCellValueWithType_returnsEnabledWhenNumericCell() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue(42);
+
+            IntegerCellValue result = flowbasedFileProcessorService.getIntegerCellValueWithType(row, 0);
+            assertEquals(42, result.getValue());
+            assertEquals(FlowbasedLinkCapacityType.ENABLED, result.getType());
+        }
+    }
+
+    @Test
+    void getIntegerCellValueWithType_returnsDisabledWhenCellIsNull() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+
+            IntegerCellValue result = flowbasedFileProcessorService.getIntegerCellValueWithType(row, 0);
+            assertNull(result.getValue());
+            assertEquals(FlowbasedLinkCapacityType.DISABLED, result.getType());
+        }
+    }
+
+    @Test
+    void getIntegerCellValueWithType_returnsInfiniteWhenStringValueIsInfinite() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("infinite");
+
+            IntegerCellValue result = flowbasedFileProcessorService.getIntegerCellValueWithType(row, 0);
+            assertNull(result.getValue());
+            assertEquals(FlowbasedLinkCapacityType.INFINITE, result.getType());
+        }
+    }
+
+    @Test
+    void getIntegerCellValueWithType_returnsInfiniteWhenStringValueIsInfiniteUpperCase() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("INFINITE");
+
+            IntegerCellValue result = flowbasedFileProcessorService.getIntegerCellValueWithType(row, 0);
+            assertNull(result.getValue());
+            assertEquals(FlowbasedLinkCapacityType.INFINITE, result.getType());
+        }
+    }
+
+    @Test
+    void getIntegerCellValueWithType_returnsEnabledWhenStringValueIsNumeric() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            row.createCell(0).setCellValue("123");
+
+            IntegerCellValue result = flowbasedFileProcessorService.getIntegerCellValueWithType(row, 0);
+            assertEquals(123, result.getValue());
+            assertEquals(FlowbasedLinkCapacityType.ENABLED, result.getType());
+        }
+    }
+
+    // ============================================================================
+    // determineOverallType Tests
+    // ============================================================================
+
+    @Test
+    void determineOverallType_returnsEnabled_whenAllValuesAreEnabled() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            
+            for (int i = 0; i < 8; i++) {
+                row.createCell(i).setCellValue(100 * (i + 1));
+            }
+
+            IntegerCellValue[] values = new IntegerCellValue[8];
+            for (int i = 0; i < 8; i++) {
+                values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
+            }
+
+            FlowbasedLinkCapacityType result = flowbasedFileProcessorService.determineOverallType(
+                    values[0], values[1], values[2], values[3],
+                    values[4], values[5], values[6], values[7]);
+
+            assertEquals(FlowbasedLinkCapacityType.ENABLED, result);
+        }
+    }
+
+    @Test
+    void determineOverallType_returnsInfinite_whenOneValueIsInfinite() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            
+            row.createCell(0).setCellValue("infinite");
+            for (int i = 1; i < 8; i++) {
+                row.createCell(i).setCellValue(100 * (i + 1));
+            }
+
+            IntegerCellValue[] values = new IntegerCellValue[8];
+            for (int i = 0; i < 8; i++) {
+                values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
+            }
+
+            FlowbasedLinkCapacityType result = flowbasedFileProcessorService.determineOverallType(
+                    values[0], values[1], values[2], values[3],
+                    values[4], values[5], values[6], values[7]);
+
+            assertEquals(FlowbasedLinkCapacityType.INFINITE, result);
+        }
+    }
+
+    @Test
+    void determineOverallType_returnsDisabled_whenSomeValuesAreDisabled() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            
+            row.createCell(0).setCellValue(100);
+            row.createCell(1).setCellValue(200);
+            row.createCell(2).setCellValue(300);
+            row.createCell(3).setCellValue(400);
+            // Cells 4-7 not created (null/DISABLED)
+
+            IntegerCellValue[] values = new IntegerCellValue[8];
+            for (int i = 0; i < 8; i++) {
+                values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
+            }
+
+            FlowbasedLinkCapacityType result = flowbasedFileProcessorService.determineOverallType(
+                    values[0], values[1], values[2], values[3],
+                    values[4], values[5], values[6], values[7]);
+
+            assertEquals(FlowbasedLinkCapacityType.DISABLED, result);
+        }
+    }
+
+    @Test
+    void determineOverallType_returnsInfinite_whenMixedDisabledAndInfinite() throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet();
+            var row = sheet.createRow(0);
+            
+            row.createCell(0).setCellValue("infinite");
+            row.createCell(1).setCellValue(200);
+            row.createCell(2).setCellValue(300);
+            // Cells 3-7 not created
+
+            IntegerCellValue[] values = new IntegerCellValue[8];
+            for (int i = 0; i < 8; i++) {
+                values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
+            }
+
+            FlowbasedLinkCapacityType result = flowbasedFileProcessorService.determineOverallType(
+                    values[0], values[1], values[2], values[3],
+                    values[4], values[5], values[6], values[7]);
+
+            assertEquals(FlowbasedLinkCapacityType.INFINITE, result);
         }
     }
 }

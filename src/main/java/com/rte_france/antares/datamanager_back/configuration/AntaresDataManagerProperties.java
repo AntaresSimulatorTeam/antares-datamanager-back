@@ -135,4 +135,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.flowbased.directory}")
     public String flowbasedDirectory;
+
+    @Value("${antares.datamanager.scenario.builder.directory}")
+    public String scenarioBuilderDirectory;
 }

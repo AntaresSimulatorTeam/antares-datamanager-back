@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.flowbased.impl;
 
+import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -180,17 +181,33 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
                 String name = getStringCellValue(row, columnIndexMap.getOrDefault("name", 0));
                 if (name == null || name.isEmpty()) continue;
 
+                // Extract all 8 MW values with their types
+                IntegerCellValue winterHPDirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("winter_HP_direct_MW", 1));
+                IntegerCellValue winterHPIndirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("winter_HP_indirect_MW", 2));
+                IntegerCellValue winterHCDirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("winter_HC_direct_MW", 3));
+                IntegerCellValue winterHCIndirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("winter_HC_indirect_MW", 4));
+                IntegerCellValue summerHPDirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("summer_HP_direct_MW", 5));
+                IntegerCellValue summerHPIndirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("summer_HP_indirect_MW", 6));
+                IntegerCellValue summerHCDirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("summer_HC_direct_MW", 7));
+                IntegerCellValue summerHCIndirect = getIntegerCellValueWithType(row, columnIndexMap.getOrDefault("summer_HC_indirect_MW", 8));
+
+                // Determine overall type
+                FlowbasedLinkCapacityType overallType = determineOverallType(
+                        winterHPDirect, winterHPIndirect, winterHCDirect, winterHCIndirect,
+                        summerHPDirect, summerHPIndirect, summerHCDirect, summerHCIndirect);
+
                 FlowbasedLinkCapacityEntity entity = FlowbasedLinkCapacityEntity.builder()
                         .name(name)
-                        .winterHPDirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("winter_HP_direct_MW", 1)))
-                        .winterHPIndirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("winter_HP_indirect_MW", 2)))
-                        .winterHCDirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("winter_HC_direct_MW", 3)))
-                        .winterHCIndirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("winter_HC_indirect_MW", 4)))
-                        .summerHPDirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("summer_HP_direct_MW", 5)))
-                        .summerHPIndirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("summer_HP_indirect_MW", 6)))
-                        .summerHCDirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("summer_HC_direct_MW", 7)))
-                        .summerHCIndirectMW(getIntegerCellValue(row, columnIndexMap.getOrDefault("summer_HC_indirect_MW", 8)))
+                        .winterHPDirectMW(winterHPDirect.getValue())
+                        .winterHPIndirectMW(winterHPIndirect.getValue())
+                        .winterHCDirectMW(winterHCDirect.getValue())
+                        .winterHCIndirectMW(winterHCIndirect.getValue())
+                        .summerHPDirectMW(summerHPDirect.getValue())
+                        .summerHPIndirectMW(summerHPIndirect.getValue())
+                        .summerHCDirectMW(summerHCDirect.getValue())
+                        .summerHCIndirectMW(summerHCIndirect.getValue())
                         .hurdlesCost(getBooleanCellValue(row, columnIndexMap.getOrDefault("hurdles_cost", 9)))
+                        .type(overallType)
                         .build();
                 result.add(entity);
             }
@@ -273,14 +290,68 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         return null;
     }
 
-    private Integer getIntegerCellValue(Row row, int cellIndex) {
+    protected IntegerCellValue getIntegerCellValueWithType(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null) return IntegerCellValue.builder().value(null).type(FlowbasedLinkCapacityType.DISABLED).build();
+
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return IntegerCellValue.builder()
+                    .value((int) cell.getNumericCellValue())
+                    .type(FlowbasedLinkCapacityType.ENABLED)
+                    .build();
+        }
+
+        if (cell.getCellType() == CellType.STRING) {
+            String stringValue = cell.getStringCellValue().trim();
+            if (stringValue.equalsIgnoreCase("infinite")) {
+                return IntegerCellValue.builder()
+                        .value(null)
+                        .type(FlowbasedLinkCapacityType.INFINITE)
+                        .build();
+            }
+            try {
+                int intValue = Integer.parseInt(stringValue);
+                return IntegerCellValue.builder()
+                        .value(intValue)
+                        .type(FlowbasedLinkCapacityType.ENABLED)
+                        .build();
+            } catch (NumberFormatException e) {
+                throw BusinessException.builder()
+                        .message("Invalid integer value: " + stringValue + ". Expected a numeric value or 'infinite'")
+                        .build();
+            }
+        }
+
+        throw BusinessException.builder()
+                .message("Invalid cell type for integer value. Expected NUMERIC or STRING")
+                .build();
+    }
+
+    protected Integer getIntegerCellValue(Row row, int cellIndex) {
         Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         if (cell == null) return null;
 
         if (cell.getCellType() == CellType.NUMERIC) {
             return (int) cell.getNumericCellValue();
         }
-        return null;
+
+        if (cell.getCellType() == CellType.STRING) {
+            String stringValue = cell.getStringCellValue().trim();
+            if (stringValue.equalsIgnoreCase("infinite")) {
+                return null;
+            }
+            try {
+                return Integer.parseInt(stringValue);
+            } catch (NumberFormatException e) {
+                throw BusinessException.builder()
+                        .message("Invalid integer value: " + stringValue + ". Expected a numeric value or 'infinite'")
+                        .build();
+            }
+        }
+
+        throw BusinessException.builder()
+                .message("Invalid cell type for integer value. Expected NUMERIC or STRING")
+                .build();
     }
 
     private Boolean getBooleanCellValue(Row row, int cellIndex) {
@@ -291,6 +362,44 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
             return cell.getBooleanCellValue();
         }
         return false;
+    }
+
+    protected FlowbasedLinkCapacityType determineOverallType(
+            IntegerCellValue winterHPDirect,
+            IntegerCellValue winterHPIndirect,
+            IntegerCellValue winterHCDirect,
+            IntegerCellValue winterHCIndirect,
+            IntegerCellValue summerHPDirect,
+            IntegerCellValue summerHPIndirect,
+            IntegerCellValue summerHCDirect,
+            IntegerCellValue summerHCIndirect) {
+
+        // Check if any value has INFINITE type
+        if (winterHPDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            winterHPIndirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            winterHCDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            winterHCIndirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            summerHPDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            summerHPIndirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            summerHCDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
+            summerHCIndirect.getType() == FlowbasedLinkCapacityType.INFINITE) {
+            return FlowbasedLinkCapacityType.INFINITE;
+        }
+
+        // Check if all values are ENABLED
+        if (winterHPDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            winterHPIndirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            winterHCDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            winterHCIndirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            summerHPDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            summerHPIndirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            summerHCDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
+            summerHCIndirect.getType() == FlowbasedLinkCapacityType.ENABLED) {
+            return FlowbasedLinkCapacityType.ENABLED;
+        }
+
+        // Otherwise DISABLED
+        return FlowbasedLinkCapacityType.DISABLED;
     }
 
     private Map<String, Integer> buildColumnIndexMap(Row headerRow) {

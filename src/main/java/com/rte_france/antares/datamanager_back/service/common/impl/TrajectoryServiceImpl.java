@@ -131,6 +131,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String NUCLEAR_EPR_FOLDER = "epr";
     private static final String NUCLEAR_SMR_FOLDER = "smr";
     public static final String SETTINGS_PREFIX = "general_data_";
+    public static final String SCENARIO_BUILDER_PREFIX = "scenario_builder_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional
@@ -550,6 +551,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case NUCLEAR_FR_TS_ERP -> fileName.startsWith(NUCLEAR_EPR_PREFIX);
             case NUCLEAR_FR_TS_SMR -> fileName.startsWith(NUCLEAR_SMR_PREFIX);
             case SETTINGS -> fileName.startsWith(SETTINGS_PREFIX);
+            case SCENARIO_BUILDER -> fileName.startsWith(SCENARIO_BUILDER_PREFIX);
             default -> true;
         };
     }
@@ -611,7 +613,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.NUCLEAR_FR_TS_LONG_TERM,
                 TrajectoryType.NUCLEAR_FR_TS_SMR,
                 TrajectoryType.SETTINGS,
-                TrajectoryType.FLOWBASED
+                TrajectoryType.FLOWBASED,
+                TrajectoryType.SCENARIO_BUILDER
         );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
@@ -1133,6 +1136,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case ADEQUACY_PATCH -> antaresDataManagerProperties.getAdequacyDirectory();
             case SETTINGS -> antaresDataManagerProperties.getTrajectorySettingsDirectory();
             case FLOWBASED -> antaresDataManagerProperties.getFlowbasedDirectory();
+            case SCENARIO_BUILDER -> antaresDataManagerProperties.getScenarioBuilderDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
@@ -1188,7 +1192,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
               case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
                case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS", "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
                    "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM", "NUCLEAR_FR_TS_SMR" ,
-                   "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS" ->
+                   "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER" ->
                   // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
                   log.info("No additional coherence check for Hydro trajectory type {} yet", type);
 
