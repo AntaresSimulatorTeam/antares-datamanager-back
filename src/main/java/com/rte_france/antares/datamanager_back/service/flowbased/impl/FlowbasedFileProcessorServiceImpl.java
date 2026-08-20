@@ -374,31 +374,46 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
             IntegerCellValue summerHCDirect,
             IntegerCellValue summerHCIndirect) {
 
-        // Check if any value has INFINITE type
-        if (winterHPDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            winterHPIndirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            winterHCDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            winterHCIndirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            summerHPDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            summerHPIndirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            summerHCDirect.getType() == FlowbasedLinkCapacityType.INFINITE ||
-            summerHCIndirect.getType() == FlowbasedLinkCapacityType.INFINITE) {
+        // Collect all types
+        IntegerCellValue[] values = {
+            winterHPDirect, winterHPIndirect, winterHCDirect, winterHCIndirect,
+            summerHPDirect, summerHPIndirect, summerHCDirect, summerHCIndirect
+        };
+
+        // Count each type
+        int infiniteCount = 0;
+        int enabledCount = 0;
+        int disabledCount = 0;
+
+        for (IntegerCellValue cellValue : values) {
+            if (cellValue.getType() == FlowbasedLinkCapacityType.INFINITE) {
+                infiniteCount++;
+            } else if (cellValue.getType() == FlowbasedLinkCapacityType.ENABLED) {
+                enabledCount++;
+            } else if (cellValue.getType() == FlowbasedLinkCapacityType.DISABLED) {
+                disabledCount++;
+            }
+        }
+
+        // Check if all values are INFINITE
+        if (infiniteCount == 8) {
             return FlowbasedLinkCapacityType.INFINITE;
         }
 
-        // Check if all values are ENABLED
-        if (winterHPDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            winterHPIndirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            winterHCDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            winterHCIndirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            summerHPDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            summerHPIndirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            summerHCDirect.getType() == FlowbasedLinkCapacityType.ENABLED &&
-            summerHCIndirect.getType() == FlowbasedLinkCapacityType.ENABLED) {
+        // Check if there's a mix of INFINITE and other types (not all DISABLED)
+        if (infiniteCount > 0 && infiniteCount < 8) {
+            throw BusinessException.builder()
+                    .message("Invalid link capacity data: Cannot mix 'infinite' values with numeric or partially filled values. Either all values must be 'infinite' or all must be numeric.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Check if all values are ENABLED (no DISABLED, no INFINITE)
+        if (enabledCount == 8) {
             return FlowbasedLinkCapacityType.ENABLED;
         }
 
-        // Otherwise DISABLED
+        // Otherwise DISABLED (contains at least one DISABLED, and no INFINITE)
         return FlowbasedLinkCapacityType.DISABLED;
     }
 
