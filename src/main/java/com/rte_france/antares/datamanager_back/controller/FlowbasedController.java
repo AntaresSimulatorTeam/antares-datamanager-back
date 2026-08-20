@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -34,16 +35,14 @@ public class FlowbasedController {
     @Operation(summary = "import flowbased trajectory to database")
     @PostMapping("/flowbased")
     public ResponseEntity<TrajectoryDTO> uploadFlowbasedTrajectory(
-            @RequestParam("trajectoryToUse")
-            @Pattern(regexp = "^[a-zA-Z0-9_#-]+$")
-            @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName  String trajectoryToUse,
             @RequestParam(value = "studyId", required = false) Integer studyId,
             @RequestParam("horizon") String horizon) {
         
         String[] parts = trajectoryToUse.split("###");
         if (parts.length != 2) {
             throw BusinessException.builder()
-                    .message("trajectoryToUse must be in format: repertoire1_repertoire2")
+                    .message("Trajectory name must be in format: repertoire1###repertoire2")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

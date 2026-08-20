@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
-import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkWeightEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -56,19 +55,7 @@ class FlowbasedFileProcessorServiceImplTest {
 
         assertDoesNotThrow(() -> flowbasedFileProcessorService.validateRequiredFiles(tempDir));
     }
-
-    @Test
-    void validateRequiredFiles_shouldThrowExceptionWhenSingleFileIsMissing(@TempDir Path tempDir) throws IOException {
-        createAllRequiredFilesExcept(tempDir, "correspondance_links_weights.csv");
-
-        BusinessException exception = assertThrows(BusinessException.class,
-                () -> flowbasedFileProcessorService.validateRequiredFiles(tempDir));
-
-        assertTrue(exception.getMessage().contains("Required files are missing"));
-        assertTrue(exception.getMessage().contains("correspondance_links_weights.csv"));
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-    }
-
+    
     @Test
     void validateRequiredFiles_shouldThrowExceptionWhenMultipleFilesAreMissing(@TempDir Path tempDir) throws IOException {
         createAllRequiredFilesExcept(tempDir, "Flowbased_nodes_links.xlsx", "IdTypDays.csv");
@@ -169,73 +156,6 @@ class FlowbasedFileProcessorServiceImplTest {
             assertEquals(1, result.getVersion());
             verify(trajectoryRepository, times(2)).save(any(TrajectoryEntity.class));
         }
-    }
-
-    @Test
-    void buildFlowbasedLinkWeightList_shouldParseValidCsvFile(@TempDir Path tempDir) throws IOException {
-        Path csvPath = tempDir.resolve("correspondance_links_weights.csv");
-        Files.writeString(csvPath, "link,weight\nLINK1,0.5\nLINK2,0.75\n");
-
-        List<FlowbasedLinkWeightEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkWeightList(tempDir);
-
-        assertEquals(2, result.size());
-        assertEquals("LINK1", result.get(0).getLink());
-        assertEquals("0.5", result.get(0).getWeight());
-        assertEquals("LINK2", result.get(1).getLink());
-        assertEquals("0.75", result.get(1).getWeight());
-    }
-
-    @Test
-    void buildFlowbasedLinkWeightList_shouldSkipHeaderRow(@TempDir Path tempDir) throws IOException {
-        Path csvPath = tempDir.resolve("correspondance_links_weights.csv");
-        Files.writeString(csvPath, "link,weight\nLINK1,0.5\n");
-
-        List<FlowbasedLinkWeightEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkWeightList(tempDir);
-
-        assertEquals(1, result.size());
-        assertEquals("LINK1", result.get(0).getLink());
-    }
-
-    @Test
-    void buildFlowbasedLinkWeightList_shouldSkipRowsWithInsufficientColumns(@TempDir Path tempDir) throws IOException {
-        Path csvPath = tempDir.resolve("correspondance_links_weights.csv");
-        Files.writeString(csvPath, "link,weight\nLINK1\nLINK2,0.75\n");
-
-        List<FlowbasedLinkWeightEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkWeightList(tempDir);
-
-        assertEquals(1, result.size());
-        assertEquals("LINK2", result.get(0).getLink());
-    }
-
-    @Test
-    void buildFlowbasedLinkWeightList_shouldTrimWhitespace(@TempDir Path tempDir) throws IOException {
-        Path csvPath = tempDir.resolve("correspondance_links_weights.csv");
-        Files.writeString(csvPath, "link,weight\n  LINK1  ,  0.5  \n");
-
-        List<FlowbasedLinkWeightEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkWeightList(tempDir);
-
-        assertEquals(1, result.size());
-        assertEquals("LINK1", result.get(0).getLink());
-        assertEquals("0.5", result.get(0).getWeight());
-    }
-
-    @Test
-    void buildFlowbasedLinkWeightList_shouldThrowExceptionWhenFileNotFound(@TempDir Path tempDir) {
-        BusinessException exception = assertThrows(BusinessException.class,
-                () -> flowbasedFileProcessorService.buildFlowbasedLinkWeightList(tempDir));
-
-        assertTrue(exception.getMessage().contains("Error reading correspondance_links_weights.csv"));
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-    }
-
-    @Test
-    void buildFlowbasedLinkWeightList_shouldReturnEmptyListForEmptyCsvFile(@TempDir Path tempDir) throws IOException {
-        Path csvPath = tempDir.resolve("correspondance_links_weights.csv");
-        Files.writeString(csvPath, "link,weight\n");
-
-        List<FlowbasedLinkWeightEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkWeightList(tempDir);
-
-        assertEquals(0, result.size());
     }
 
     @Test
@@ -483,24 +403,15 @@ class FlowbasedFileProcessorServiceImplTest {
 
     private void createAllRequiredFilesWithContent(Path tempDir) throws IOException {
         String[] requiredFiles = {
-                "clusters_porygon.RDS",
-                "correspondance_links_weights.csv",
-                "domainesFB.RDS",
                 "Flowbased_nodes_links.xlsx",
                 "IdTypDays.csv",
-                "random_forest_summer.pmml",
-                "random_forest_winter.pmml",
-                "rf_summer.rds",
-                "rf_winter.rds",
                 "second_member.txt",
                 "weight.txt"
         };
 
         for (String fileName : requiredFiles) {
             Path filePath = tempDir.resolve(fileName);
-            if (fileName.equals("correspondance_links_weights.csv")) {
-                Files.writeString(filePath, "link,weight\nLINK1,0.5\n");
-            } else if (fileName.equals("IdTypDays.csv")) {
+            if (fileName.equals("IdTypDays.csv")) {
                 Files.writeString(filePath, "clustering;id_type_day;class_day\nCluster1;1;Day1\n");
             } else if (fileName.equals("Flowbased_nodes_links.xlsx")) {
                 createLinksSheet(filePath);
@@ -512,15 +423,8 @@ class FlowbasedFileProcessorServiceImplTest {
 
     private void createAllRequiredFilesExcept(Path tempDir, String... excludeFiles) throws IOException {
         String[] requiredFiles = {
-                "clusters_porygon.RDS",
-                "correspondance_links_weights.csv",
-                "domainesFB.RDS",
                 "Flowbased_nodes_links.xlsx",
                 "IdTypDays.csv",
-                "random_forest_summer.pmml",
-                "random_forest_winter.pmml",
-                "rf_summer.rds",
-                "rf_winter.rds",
                 "second_member.txt",
                 "weight.txt"
         };

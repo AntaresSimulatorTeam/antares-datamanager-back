@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity;
 import com.rte_france.antares.datamanager_back.service.res.ResFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.res.ResTypeService;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -41,7 +42,7 @@ public class ResController {
     @PostMapping("/load-factor-res")
     public ResponseEntity<TrajectoryDTO> uploadLoadFactorResTrajectory(
             @RequestParam("area") String area,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") @Pattern(regexp = "^[a-zA-Z0-9_-]+$") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology) throws IOException {
@@ -54,7 +55,7 @@ public class ResController {
     public ResponseEntity<TrajectoryDTO> uploadInstalledResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
@@ -69,7 +70,7 @@ public class ResController {
     public ResponseEntity<TrajectoryDTO> uploadTechnologyDistributionResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
@@ -84,7 +85,7 @@ public class ResController {
     public ResponseEntity<TrajectoryDTO> uploadZonalDistributionResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {

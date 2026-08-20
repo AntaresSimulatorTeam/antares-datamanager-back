@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorService;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
@@ -33,7 +34,7 @@ public class StStorageController {
     @PostMapping("/st-storage")
     public ResponseEntity<TrajectoryDTO> uploadStStorageTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
                                                                          @RequestParam(value = "technology") String technology,
-                                                                         @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+                                                                         @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                          @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                                          @RequestParam("studyId") Integer studyId, @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 

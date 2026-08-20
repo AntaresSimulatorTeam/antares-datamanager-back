@@ -1846,6 +1846,13 @@ class TrajectoryServiceImplTest {
         Files.createDirectories(traj2Dir);
         Files.createDirectories(traj3Dir);
 
+        // Files with different cases - filenames are made lowercase in validation
+        Files.createFile(traj1Dir.resolve("correspondance_links_weights.csv"));
+        Files.createFile(traj1Dir.resolve("Flowbased_nodes_links.xlsx"));
+        Files.createFile(traj1Dir.resolve("IdTypDays.csv"));
+        Files.createFile(traj1Dir.resolve("second_member.txt"));
+        Files.createFile(traj1Dir.resolve("weight.txt"));
+
         when(antaresDataManagerProperties.getFlowbasedDirectory()).thenReturn(basePath.toString());
         
         TrajectoryServiceImpl spyService = spy(trajectoryService);
@@ -1861,11 +1868,11 @@ class TrajectoryServiceImplTest {
         List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.FLOWBASED, null, null, null);
 
         // Then
-        assertEquals(3, result.size());
+        assertEquals(1, result.size());
         List<String> fileNames = result.stream().map(FsTrajectoryDTO::getFileName).toList();
         assertTrue(fileNames.contains(trajName1+"/"+yearDir1));
-        assertTrue(fileNames.contains(trajName2+"/"+yearDir2));
-        assertTrue(fileNames.contains(trajName3+"/"+yearDir3));
+        assertFalse(fileNames.contains(trajName2+"/"+yearDir2));
+        assertFalse(fileNames.contains(trajName3+"/"+yearDir3));
     }
 
     @Test

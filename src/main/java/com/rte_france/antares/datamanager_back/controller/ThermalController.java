@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
@@ -34,7 +35,7 @@ public class ThermalController {
     @PostMapping("/thermal-capacity")
     public ResponseEntity<TrajectoryDTO> uploadThermalCapacityTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
                                                                          @RequestParam(value = "technology", required = false) String technology,
-                                                                         @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+                                                                         @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                          @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                          @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                                          @RequestParam("studyId") Integer studyId,
@@ -48,7 +49,7 @@ public class ThermalController {
     @Operation(summary = "import thermal common parameters trajectory to database ")
     @PostMapping("/thermal-common-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalParameterTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
             @Parameter(description = "example of horizon : 2020-2021") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
@@ -62,7 +63,7 @@ public class ThermalController {
     @PostMapping("/thermal-specific-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalSpecificParameterTrajectory(
             @RequestParam("area") String area,
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
@@ -73,7 +74,7 @@ public class ThermalController {
     @Operation(summary = "import thermal modulation parameters trajectory to database ")
     @PostMapping("/thermal-modulation-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalModulationParameterTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
         return new ResponseEntity<>(toTrajectoryDTO(
@@ -84,7 +85,7 @@ public class ThermalController {
     @Operation(summary = "import thermal economic costs trajectory to database ")
     @PostMapping("/thermal-economic-costs")
     public ResponseEntity<TrajectoryDTO> uploadThermalEconomicCostsTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
             @Parameter(description = "example of horizon : 2020-2021") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
@@ -96,7 +97,7 @@ public class ThermalController {
     @Operation(summary = "import thermal economic parameters trajectory to database ")
     @PostMapping("/thermal-economic-parameter")
     public ResponseEntity<TrajectoryDTO> uploadThermalEconomicParamTrajectory(
-            @RequestParam("trajectoryToUse") @Size(max = 40, message = "Trajectory name cannot exceed 40 characters") String trajectoryToUse,
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
             @Parameter(description = "example of horizon : 2020-2021") String horizon,
             @RequestParam("studyId") Integer studyId) throws Exception {

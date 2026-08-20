@@ -5,7 +5,8 @@ public enum AntaresErrorCode {
     DATA_NOT_FOUND("data.not.found"),
     LINKS_ALL_VALUES_ZERO("links.all_values_zero"),
     LINKS_UNILATERAL_VALUES_ZERO("links.unilateral_values_zero"),
-    LINKS_AREA_NOT_PRESENT("links.area_not_present");
+    LINKS_AREA_NOT_PRESENT("links.area_not_present"),
+    INVALID_TRAJECTORY_NAME("invalid.trajectory.name");
 
     private final String value;
 

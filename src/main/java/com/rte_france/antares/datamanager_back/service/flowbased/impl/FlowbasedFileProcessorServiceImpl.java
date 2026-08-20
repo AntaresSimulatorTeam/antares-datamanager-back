@@ -4,7 +4,6 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkWeightEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
@@ -38,15 +37,8 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     private final UserService userService;
 
     private static final String[] REQUIRED_FILES = {
-            "clusters_porygon.RDS",
-            "correspondance_links_weights.csv",
-            "domainesFB.RDS",
             "Flowbased_nodes_links.xlsx",
             "IdTypDays.csv",
-            "random_forest_summer.pmml",
-            "random_forest_winter.pmml",
-            "rf_summer.rds",
-            "rf_winter.rds",
             "second_member.txt",
             "weight.txt"
     };
@@ -74,8 +66,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     @Override
     public TrajectoryEntity processFlowbasedFiles(Path trajectoryFilePath, String trajectoryToUse, Integer studyId, String horizon) {
         validateRequiredFiles(trajectoryFilePath);
-
-        List<FlowbasedLinkWeightEntity> linkWeights = buildFlowbasedLinkWeightList(trajectoryFilePath);
+        
         List<FlowbasedVirtualNodesEntity> virtualNodes = buildFlowbasedVirtualNodesList(trajectoryFilePath);
         List<FlowbasedLinkCapacityEntity> linkCapacities = buildFlowbasedLinkCapacityList(trajectoryFilePath);
         List<FlowbasedTypeDayEntity> typeDays = buildFlowbasedTypeDayList(trajectoryFilePath);
@@ -117,53 +108,16 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         }
 
         final TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
-
-        linkWeights.forEach(lw -> lw.setTrajectory(savedTrajectory));
+        
         virtualNodes.forEach(vn -> vn.setTrajectory(savedTrajectory));
         linkCapacities.forEach(lc -> lc.setTrajectory(savedTrajectory));
         typeDays.forEach(td -> td.setTrajectory(savedTrajectory));
-
-        savedTrajectory.setFlowbasedLinkWeights(linkWeights);
+        
         savedTrajectory.setFlowbasedVirtualNodes(virtualNodes);
         savedTrajectory.setFlowbasedLinkCapacities(linkCapacities);
         savedTrajectory.setFlowbasedTypeDays(typeDays);
 
         return trajectoryRepository.save(savedTrajectory);
-    }
-
-    @Override
-    public List<FlowbasedLinkWeightEntity> buildFlowbasedLinkWeightList(Path trajectoryFilePath) {
-        List<FlowbasedLinkWeightEntity> result = new ArrayList<>();
-        Path csvPath = trajectoryFilePath.resolve("correspondance_links_weights.csv");
-
-        try (BufferedReader reader = Files.newBufferedReader(csvPath, StandardCharsets.UTF_8)) {
-            String line;
-            boolean headerSkipped = false;
-            
-            while ((line = reader.readLine()) != null) {
-                if (!headerSkipped) {
-                    headerSkipped = true;
-                    continue;
-                }
-                
-                String[] parts = line.split(",");
-                if (parts.length >= 2) {
-                    FlowbasedLinkWeightEntity entity = FlowbasedLinkWeightEntity.builder()
-                            .link(parts[0].trim())
-                            .weight(parts[1].trim())
-                            .build();
-                    result.add(entity);
-                }
-            }
-        } catch (IOException e) {
-            log.error("Error reading correspondance_links_weights.csv", e);
-            throw BusinessException.builder()
-                    .message("Error reading correspondance_links_weights.csv: " + e.getMessage())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        return result;
     }
 
     @Override

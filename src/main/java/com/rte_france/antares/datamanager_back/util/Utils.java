@@ -733,13 +733,20 @@ public class Utils {
         }
     }
 
-    public static Path findFirstChildDirectory(Path parent) {
+    public static List<Path> listChildDirectories(Path parent) {
         try (Stream<Path> s = Files.list(parent)) {
-            Optional<Path> dir = s
+            return s
                     .filter(Files::isDirectory)
-                    .findFirst();
+                    .filter(Utils::isDirectoryNotEmpty)
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
-            return dir.orElse(null);
+    public static boolean isDirectoryNotEmpty(Path dir) {
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(dir)) {
+            return entries.iterator().hasNext();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -998,7 +1005,6 @@ public class Utils {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             String[] requiredFiles = {
-                    "correspondance_links_weights.csv",
                     "Flowbased_nodes_links.xlsx",
                     "IdTypDays.csv"
             };
