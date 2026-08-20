@@ -12,7 +12,7 @@ public interface FlowbasedTypeDaysRepository extends JpaRepository<FlowbasedType
     @Query("""
               SELECT t FROM FlowbasedTypeDayEntity t
               WHERE t.trajectory.id = :id
-              ORDER BY t.clustering ASC
+              ORDER BY t.idTypeDay ASC
            """)
     List<FlowbasedTypeDayEntity> findEntitiesByTrajectoryId(Integer id);
 }

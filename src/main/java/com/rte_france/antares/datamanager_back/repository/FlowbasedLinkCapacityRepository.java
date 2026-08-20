@@ -14,5 +14,5 @@ public interface FlowbasedLinkCapacityRepository extends JpaRepository<Flowbased
               WHERE t.trajectory.id = :id
               ORDER BY t.name ASC
            """)
-    List<FlowbasedLinkCapacityEntity> findByTrajectoryId(Integer id);
+    List<FlowbasedLinkCapacityEntity> findEntitiesByTrajectoryId(Integer id);
 }
