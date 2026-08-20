@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
@@ -70,7 +71,7 @@ public class FlowbasedToJsonService {
 
     private List<String> buildVirtualNodes(List<FlowbasedVirtualNodesEntity> entities) {
         return entities.stream()
-                .map(item -> item.getName().split("-")[0].trim())
+                .map(FlowbasedVirtualNodesEntity::getName)
                 .toList();
     }
 
@@ -78,16 +79,18 @@ public class FlowbasedToJsonService {
         return entities.stream()
                 .map(item -> {
                     Map<String, Object> map = new HashMap<>();
-                    map.put("name", item.getName().split("-")[0].trim());
-                    map.put("winter_HP_direct_MW", item.getWinterHPDirectMW());
-                    map.put("winter_HP_indirect_MW", item.getWinterHPIndirectMW());
-                    map.put("winter_HC_direct_MW", item.getWinterHCDirectMW());
-                    map.put("winter_HC_indirect_MW", item.getWinterHCIndirectMW());
-                    map.put("summer_HP_direct_MW", item.getSummerHPDirectMW());
-                    map.put("summer_HP_indirect_MW", item.getSummerHPIndirectMW());
-                    map.put("summer_HC_direct_MW", item.getSummerHCDirectMW());
-                    map.put("summer_HC_indirect_MW", item.getSummerHCIndirectMW());
-                    //map.put("transmission_capacities", item.getType());
+                    map.put("name", item.getName());
+                    if (item.getType() != FlowbasedLinkCapacityType.INFINITE) {
+                        map.put("winter_HP_direct_MW", item.getWinterHPDirectMW());
+                        map.put("winter_HP_indirect_MW", item.getWinterHPIndirectMW());
+                        map.put("winter_HC_direct_MW", item.getWinterHCDirectMW());
+                        map.put("winter_HC_indirect_MW", item.getWinterHCIndirectMW());
+                        map.put("summer_HP_direct_MW", item.getSummerHPDirectMW());
+                        map.put("summer_HP_indirect_MW", item.getSummerHPIndirectMW());
+                        map.put("summer_HC_direct_MW", item.getSummerHCDirectMW());
+                        map.put("summer_HC_indirect_MW", item.getSummerHCIndirectMW());
+                    }
+                    map.put("transmission_capacities", item.getType());
                     return map;
                 })
                 .toList();

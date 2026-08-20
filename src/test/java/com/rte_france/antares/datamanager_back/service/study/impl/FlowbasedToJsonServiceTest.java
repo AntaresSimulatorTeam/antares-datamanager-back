@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.repository.FlowbasedLinkCapacityRepository;
 import com.rte_france.antares.datamanager_back.repository.FlowbasedTypeDaysRepository;
 import com.rte_france.antares.datamanager_back.repository.FlowbasedVirtualNodesRepository;
@@ -10,7 +11,10 @@ import com.rte_france.antares.datamanager_back.repository.model.flowbased.Flowba
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
@@ -19,7 +23,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-
+@ExtendWith(MockitoExtension.class)
 class FlowbasedToJsonServiceTest {
     @Mock
     private FlowbasedVirtualNodesRepository flowbasedVirtualNodesRepository;
@@ -29,13 +33,8 @@ class FlowbasedToJsonServiceTest {
     private FlowbasedLinkCapacityRepository flowbasedLinkCapacityRepository;
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
-
+    @InjectMocks
     private FlowbasedToJsonService flowbasedToJsonService;
-
-    @BeforeEach
-    void setUp() {
-        flowbasedToJsonService = new FlowbasedToJsonService(flowbasedVirtualNodesRepository, flowbasedTypeDaysRepository, flowbasedLinkCapacityRepository, antaresDataManagerProperties);
-    }
 
     @Test
     void shouldBuildCompleteFlowbasedMapWhenRecalculateIsTrue() {
@@ -62,6 +61,7 @@ class FlowbasedToJsonServiceTest {
         link.setSummerHPIndirectMW(50);
         link.setSummerHCDirectMW(40);
         link.setSummerHCIndirectMW(30);
+        link.setType(FlowbasedLinkCapacityType.ENABLED);
 
         when(flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(1))
                 .thenReturn(List.of(typeDay));
@@ -99,12 +99,115 @@ class FlowbasedToJsonServiceTest {
         List<String> virtualNodes =
                 (List<String>) result.get("virtual_nodes");
 
-        assertEquals(List.of("FR"), virtualNodes);
+        assertEquals(List.of("FR - France"), virtualNodes);
 
         List<Map<String, Object>> links =
                 (List<Map<String, Object>>) result.get("links");
 
-        assertEquals("FR", links.get(0).get("name"));
+        assertEquals("FR-BE - Link", links.get(0).get("name"));
+    }
+
+    @Test
+    void shouldAddCapacitiesForNonInfiniteLink() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setId(1);
+        trajectory.setFileName("study###file");
+
+        FlowbasedLinkCapacityEntity link = new FlowbasedLinkCapacityEntity();
+        link.setName("FR-BE - Interco");
+        link.setType(FlowbasedLinkCapacityType.ENABLED);
+        link.setWinterHPDirectMW(100);
+        link.setWinterHPIndirectMW(90);
+        link.setWinterHCDirectMW(80);
+        link.setWinterHCIndirectMW(70);
+        link.setSummerHPDirectMW(60);
+        link.setSummerHPIndirectMW(50);
+        link.setSummerHCDirectMW(40);
+        link.setSummerHCIndirectMW(30);
+
+        when(flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedVirtualNodesRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(List.of(link));
+
+        when(antaresDataManagerProperties.getFlowbasedDirectory())
+                .thenReturn("/flowbased");
+
+        // When
+        Map<String, Object> result = flowbasedToJsonService.buildFlowbasedMap(trajectory, false);
+
+        // Then
+        List<Map<String, Object>> links =
+                (List<Map<String, Object>>) result.get("links");
+
+        Map<String, Object> linkMap = links.get(0);
+
+        assertEquals("FR-BE - Interco", linkMap.get("name"));
+        assertEquals(FlowbasedLinkCapacityType.ENABLED,
+                linkMap.get("transmission_capacities"));
+
+        assertEquals(100, linkMap.get("winter_HP_direct_MW"));
+        assertEquals(90, linkMap.get("winter_HP_indirect_MW"));
+        assertEquals(80, linkMap.get("winter_HC_direct_MW"));
+        assertEquals(70, linkMap.get("winter_HC_indirect_MW"));
+        assertEquals(60, linkMap.get("summer_HP_direct_MW"));
+        assertEquals(50, linkMap.get("summer_HP_indirect_MW"));
+        assertEquals(40, linkMap.get("summer_HC_direct_MW"));
+        assertEquals(30, linkMap.get("summer_HC_indirect_MW"));
+    }
+
+    @Test
+    void shouldNotAddCapacitiesForInfiniteLink() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setId(1);
+        trajectory.setFileName("study###file");
+
+        FlowbasedLinkCapacityEntity link = new FlowbasedLinkCapacityEntity();
+        link.setName("FR-BE - Interco");
+        link.setType(FlowbasedLinkCapacityType.INFINITE);
+
+        when(flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedVirtualNodesRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(List.of(link));
+
+        when(antaresDataManagerProperties.getFlowbasedDirectory())
+                .thenReturn("/flowbased");
+
+        // When
+        Map<String, Object> result = flowbasedToJsonService.buildFlowbasedMap(trajectory, false);
+
+        // Then
+        List<Map<String, Object>> links =
+                (List<Map<String, Object>>) result.get("links");
+
+        Map<String, Object> linkMap = links.get(0);
+
+        assertEquals("FR-BE - Interco", linkMap.get("name"));
+        assertEquals(
+                FlowbasedLinkCapacityType.INFINITE,
+                linkMap.get("transmission_capacities")
+        );
+
+        assertFalse(linkMap.containsKey("winter_HP_direct_MW"));
+        assertFalse(linkMap.containsKey("winter_HP_indirect_MW"));
+        assertFalse(linkMap.containsKey("winter_HC_direct_MW"));
+        assertFalse(linkMap.containsKey("winter_HC_indirect_MW"));
+        assertFalse(linkMap.containsKey("summer_HP_direct_MW"));
+        assertFalse(linkMap.containsKey("summer_HP_indirect_MW"));
+        assertFalse(linkMap.containsKey("summer_HC_direct_MW"));
+        assertFalse(linkMap.containsKey("summer_HC_indirect_MW"));
+
     }
 
     @Test
@@ -112,7 +215,7 @@ class FlowbasedToJsonServiceTest {
         // Given
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setId(1);
-        trajectory.setFileName("study###trajectory.txt");
+        trajectory.setFileName("study###trajectory");
 
         FlowbasedTypeDayEntity typeDay = new FlowbasedTypeDayEntity();
 
@@ -173,7 +276,7 @@ class FlowbasedToJsonServiceTest {
         // Given
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setId(1);
-        trajectory.setFileName("myStudy###input.txt");
+        trajectory.setFileName("myStudy###input");
 
         when(flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(1))
                 .thenReturn(Collections.emptyList());
@@ -184,7 +287,15 @@ class FlowbasedToJsonServiceTest {
         when(flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(1))
                 .thenReturn(Collections.emptyList());
 
-        when(antaresDataManagerProperties.getFlowbasedDirectory());
+        when(antaresDataManagerProperties.getFlowbasedDirectory())
+                .thenReturn("/flowbased");
+
+        // When
+        Map<String, Object> result = flowbasedToJsonService.buildFlowbasedMap(trajectory, true);
+
+        assertTrue(result.containsKey("ts_path"));
+        // Then
+        assertEquals("/flowbased/myStudy/input", result.get("ts_path"));
 
     }
 }
