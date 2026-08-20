@@ -133,8 +133,8 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V63-add-column-recalculate-scenario-table.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V64-create-scenario-builder-table.sql
+      file: classpath*:db/changelog/1.1.0/V64-drop-fb-links-weight-table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V65-add-type-column-fb-link-capacity-table.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V64-drop-fb-links-weight-table.sql
+      file: classpath*:db/changelog/1.1.0/V66-create-scenario-builder-table.sql
