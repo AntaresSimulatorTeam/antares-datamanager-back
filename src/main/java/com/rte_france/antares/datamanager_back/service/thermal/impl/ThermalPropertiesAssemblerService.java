@@ -56,7 +56,10 @@ public class ThermalPropertiesAssemblerService {
      */
 
     public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleForTrajectories(StudyEntity study) {
-        Integer studyId = study != null ? study.getId() : null;
+        if (study == null) {
+            return Collections.emptyMap();
+        }
+        Integer studyId = study.getId();
         MDC.put("studyId", Objects.toString(studyId, "null"));
         log.info("Start assembling thermal properties for studyId={}", studyId);
 
@@ -154,7 +157,7 @@ public class ThermalPropertiesAssemblerService {
         //example file name: MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Other Gas conventional old 2.csv.6401800f-8425-49d5-a42b-e89cb1e8a293.arrow
         //area : BE
         //cluster name: Other Gas conventional old 2
-        String targetSegment = "_" + areaClusterRefKey.area() + "_" + areaClusterRefKey.thermalClusterRef().getName() + ".csv";
+        String targetSegment = "_" + areaClusterRefKey.area() + "_" + (areaClusterRefKey.thermalClusterRef() != null ? areaClusterRefKey.thermalClusterRef().getName() : "null") + ".csv";
         String targetSegmentLower = targetSegment.toLowerCase();
 
         return splitedTsFileNameList.stream()

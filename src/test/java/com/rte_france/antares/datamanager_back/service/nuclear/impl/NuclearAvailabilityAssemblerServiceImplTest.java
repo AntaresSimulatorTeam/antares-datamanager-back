@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.NuclearTimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -58,6 +59,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
 
     @Mock private NasFileService nasFileService;
     @Mock private TimeSeriesReader timeSeriesReader;
+    @Mock private NuclearTimeSeriesReader nuclearTimeSeriesReader;
     @Mock private AntaresDataManagerProperties properties;
     @Mock private PathSecurityUtil pathSecurityUtil;
     @Mock private ClusterDesignationRepository clusterDesignationRepository;
@@ -151,7 +153,6 @@ class NuclearAvailabilityAssemblerServiceImplTest {
 
             NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(ltTrajectory()), props);
 
-            // cp0_cp1_cp2, n4, and p4 each get their own, distinct file
             assertThat(result.seriesByCluster())
                     .containsEntry(cp0Key, "lt_cp0_cp1_cp2_arrow_file.arrow")
                     .containsEntry(n4Key, "lt_n4_arrow_file.arrow")
@@ -163,9 +164,24 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         }
 
         @Test
-        void shouldWriteOneColumnPerOnglet_withDailyValuesDuplicated24Times() throws IOException {
+        void shouldWriteOneColumnPerOnglet_withDailyValuesDuplicated24TimesAndRounded() throws IOException {
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
             props.put(key("fr", "Nuclear_cp0_cp1_cp2"), ThermalClusterGenerationDto.builder().build());
+
+            // Mock values that will result in more than 2 decimals after the sum
+            // Use values that also match the original test logic (4.0 and 6.0) but with decimals to test rounding
+            when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), eq("s1"), anySet())).thenReturn(new TimeSeriesMatrix(List.of(
+                    new TimeSeriesMatrixColumn("BLAYAN01", new double[]{1.234, 2.0001}),
+                    new TimeSeriesMatrixColumn("BLAYAN02", new double[]{3.456, 4.0001})
+            )));
+            // day 1: 1.234 + 3.456 = 4.69
+            // day 2: 2.0001 + 4.0001 = 6.0002 -> 6.0
+
+            when(timeSeriesReader.readSelectedColumnsFromXlsx(any(), eq("s2"), anySet())).thenReturn(new TimeSeriesMatrix(List.of(
+                    new TimeSeriesMatrixColumn("BLAYAN01", new double[]{10.005}),
+                    new TimeSeriesMatrixColumn("BLAYAN02", new double[]{20.004})
+            )));
+            // day 1: 10.005 + 20.004 = 30.009 -> 30.01
 
             assembler.assembleAvailability(studyWith(ltTrajectory()), props);
 
@@ -174,19 +190,20 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             TimeSeriesMatrix combined = captor.getValue();
 
             assertThat(combined.columns()).hasSize(2);
-            assertThat(combined.columns().get(0).name()).isEqualTo("s1");
-            assertThat(combined.columns().get(0).values()).hasSize(48);
-            // day 1 sum = 1.0 + 3.0 = 4.0, duplicated across first 24 hourly steps
-            assertThat(combined.columns().get(0).values()[0]).isEqualTo(4.0);
-            assertThat(combined.columns().get(0).values()[23]).isEqualTo(4.0);
-            // day 2 sum = 2.0 + 4.0 = 6.0, duplicated across next 24 hourly steps
+            assertThat(combined.columns().getFirst().name()).isEqualTo("s1");
+            assertThat(combined.columns().getFirst().values()).hasSize(48);
+            // day 1 sum = 1.234 + 3.456 = 4.69, duplicated across first 24 hourly steps
+            assertThat(combined.columns().getFirst().values()[0]).isEqualTo(4.69);
+            assertThat(combined.columns().getFirst().values()[23]).isEqualTo(4.69);
+            // day 2 sum = 2.0001 + 4.0001 = 6.0002, rounded to 6.0, duplicated across next 24 hourly steps
             assertThat(combined.columns().get(0).values()[24]).isEqualTo(6.0);
             assertThat(combined.columns().get(0).values()[47]).isEqualTo(6.0);
 
             assertThat(combined.columns().get(1).name()).isEqualTo("s2");
             assertThat(combined.columns().get(1).values()).hasSize(24);
-            // single day sum = 10.0 + 20.0 = 30.0
-            assertThat(combined.columns().get(1).values()[0]).isEqualTo(30.0);
+            // single day sum = 10.005 + 20.004 = 30.009, rounded to 30.01
+            assertThat(combined.columns().get(1).values()[0]).isEqualTo(30.01);
+            assertThat(combined.columns().get(1).values()[23]).isEqualTo(30.01);
         }
     }
 
@@ -205,7 +222,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             Files.createDirectories(eprDir);
             Files.createFile(eprDir.resolve("TS_EPR_" + STORED_NAME + ".xlsx"));
 
-            when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean(), anyString(), anyString())).thenReturn(new TimeSeriesMatrix(List.of(
+            when(nuclearTimeSeriesReader.readFromXlsx(any(Path.class), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of(
                     new TimeSeriesMatrixColumn("Simu1", new double[]{1.0, 2.0}),
                     new TimeSeriesMatrixColumn("Simu2", new double[]{3.0, 4.0})
             )));
@@ -236,7 +253,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
             ArgumentCaptor<Boolean> hasHeaderCaptor = ArgumentCaptor.forClass(Boolean.class);
-            verify(nasFileService).readMatrix(pathCaptor.capture(), eq("2030"), hasHeaderCaptor.capture(), anyString(), anyString());
+            verify(nuclearTimeSeriesReader).readFromXlsx(pathCaptor.capture(), eq("2030"), hasHeaderCaptor.capture());
 
             assertThat(pathCaptor.getValue().toString())
                     .endsWith(Path.of("specific_nuclear", "TS_dispo", "EPR", "TS_EPR_" + STORED_NAME + ".xlsx").toString());
@@ -247,12 +264,12 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             TimeSeriesMatrix written = writtenCaptor.getValue();
 
             assertThat(written.columns()).hasSize(2);
-            assertThat(written.columns().get(0).name()).isEqualTo("Simu1");
-            assertThat(written.columns().get(0).values()).hasSize(48);
-            assertThat(written.columns().get(0).values()[0]).isEqualTo(1.0);
-            assertThat(written.columns().get(0).values()[23]).isEqualTo(1.0);
-            assertThat(written.columns().get(0).values()[24]).isEqualTo(2.0);
-            assertThat(written.columns().get(0).values()[47]).isEqualTo(2.0);
+            assertThat(written.columns().getFirst().name()).isEqualTo("Simu1");
+            assertThat(written.columns().getFirst().values()).hasSize(48);
+            assertThat(written.columns().getFirst().values()[0]).isEqualTo(1.0);
+            assertThat(written.columns().getFirst().values()[23]).isEqualTo(1.0);
+            assertThat(written.columns().getFirst().values()[24]).isEqualTo(2.0);
+            assertThat(written.columns().getFirst().values()[47]).isEqualTo(2.0);
         }
 
         @Test
@@ -267,7 +284,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             assembler.assembleAvailability(studyWith(eprTrajectory(storedName)), props);
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
-            verify(nasFileService).readMatrix(pathCaptor.capture(), any(), anyBoolean(), anyString(), anyString());
+            verify(nuclearTimeSeriesReader).readFromXlsx(pathCaptor.capture(), any(), anyBoolean());
             assertThat(pathCaptor.getValue().toString()).endsWith("ts_epr_" + storedName + ".xlsx");
         }
 
@@ -308,7 +325,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
 
         @Test
         void shouldWriteOneSharedPoolWithAllColumnsExpandedHourly() throws IOException {
-            when(nasFileService.readMatrix(any(), any(), anyBoolean(), anyString(), anyString())).thenReturn(new TimeSeriesMatrix(List.of(
+            when(nuclearTimeSeriesReader.readFromXlsx(any(), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of(
                     new TimeSeriesMatrixColumn("col1", new double[]{1.0, 2.0}),
                     new TimeSeriesMatrixColumn("col2", new double[]{3.0, 4.0})
             )));
@@ -328,11 +345,11 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             assertThat(writtenPool.columns()).extracting(TimeSeriesMatrixColumn::name).containsExactly("col1", "col2");
 
             // each retained column is expanded x24 daily-to-hourly, like LT/EPR
-            assertThat(writtenPool.columns().get(0).values()).hasSize(48);
-            assertThat(writtenPool.columns().get(0).values()[0]).isEqualTo(1.0);
-            assertThat(writtenPool.columns().get(0).values()[23]).isEqualTo(1.0);
-            assertThat(writtenPool.columns().get(0).values()[24]).isEqualTo(2.0);
-            assertThat(writtenPool.columns().get(0).values()[47]).isEqualTo(2.0);
+            assertThat(writtenPool.columns().getFirst().values()).hasSize(48);
+            assertThat(writtenPool.columns().getFirst().values()[0]).isEqualTo(1.0);
+            assertThat(writtenPool.columns().getFirst().values()[23]).isEqualTo(1.0);
+            assertThat(writtenPool.columns().getFirst().values()[24]).isEqualTo(2.0);
+            assertThat(writtenPool.columns().getFirst().values()[47]).isEqualTo(2.0);
 
             assertThat(result.seriesByCluster()).containsEntry(smrKey, "smr_arrow_file.arrow");
             assertThat(result.smrMixageByCluster()).containsKey(smrKey);
@@ -342,8 +359,31 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         }
 
         @Test
+        void shouldKeepDecimalValuesWhenExpandingHourly() throws IOException {
+            double decimalValue1 = 0.857;
+            double decimalValue2 = 1.23456789;
+
+            when(nuclearTimeSeriesReader.readFromXlsx(any(), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of(
+                    new TimeSeriesMatrixColumn("col1", new double[]{decimalValue1, decimalValue2})
+            )));
+
+            Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
+            AreaClusterRefKey smrKey = key("fr", "Nuclear_smr");
+            props.put(smrKey, ThermalClusterGenerationDto.builder().unitCount(1).build());
+
+            assembler.assembleAvailability(studyWith(smrTrajectory()), props);
+
+            ArgumentCaptor<TimeSeriesMatrix> captor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
+            verify(capturingWriter).writeToByteArray(captor.capture());
+            TimeSeriesMatrix writtenPool = captor.getValue();
+
+            assertThat(writtenPool.columns().getFirst().values()[0]).isEqualTo(decimalValue1);
+            assertThat(writtenPool.columns().getFirst().values()[24]).isEqualTo(decimalValue2);
+        }
+
+        @Test
         void shouldShareTheSameArrowFileAcrossMultipleMatchedSmrClusters() throws IOException {
-            when(nasFileService.readMatrix(any(), any(), anyBoolean(), anyString(), anyString())).thenReturn(new TimeSeriesMatrix(List.of(
+            when(nuclearTimeSeriesReader.readFromXlsx(any(), any(), anyBoolean())).thenReturn(new TimeSeriesMatrix(List.of(
                     new TimeSeriesMatrixColumn("col1", new double[]{1.0}),
                     new TimeSeriesMatrixColumn("col2", new double[]{2.0})
             )));
@@ -360,7 +400,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             assertThat(result.seriesByCluster()).containsEntry(smrKey1, smrKey2Series);
             assertThat(result.smrMixageByCluster().get(smrKey1).unitCount()).isEqualTo(1);
             assertThat(result.smrMixageByCluster().get(smrKey2).unitCount()).isEqualTo(2);
-            // one write only, even with two matched clusters
+            // one write-only, even with two matched clusters
             verify(capturingWriter).writeToByteArray(any());
         }
 

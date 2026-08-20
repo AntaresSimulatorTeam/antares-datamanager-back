@@ -98,7 +98,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private String resolveIndexedSingleSeries(String area, String group, String cluster, SeriesLookup nonFrLookup) {
-        var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_" + cluster.toUpperCase(Locale.ROOT);
+        String normGroup = toKey(group);
+        var lookupKey = area.toUpperCase(Locale.ROOT) + "_" + normGroup.toUpperCase(Locale.ROOT) + "_" + cluster.toUpperCase(Locale.ROOT);
         var match = nonFrLookup.index().get(lookupKey);
 
         if (match != null) {
@@ -292,11 +293,25 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             String technology,
             SeriesLookup frLookup
     ) {
-        var candidateKeys = buildFrTechnologyCandidateKeys(group, technology);
+        if (zone == null) {
+            throw BusinessException.builder()
+                    .message("Invalid or missing zone for FR aggregation (group: " + group + ", cluster: " + cluster + ", tech: " + technology + ")")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        String normGroup = toKey(group);
+        if (normGroup == null) {
+            throw BusinessException.builder()
+                    .message("Invalid or missing group for FR aggregation (zone: " + zone + ", cluster: " + cluster + ", tech: " + technology + ")")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        String normTechnology = toKey(technology);
+        var candidateKeys = buildFrTechnologyCandidateKeys(normGroup, normTechnology);
 
         for (var candidateKey : candidateKeys) {
-            var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + group.toUpperCase(Locale.ROOT) + "_"
-                    + cluster.toUpperCase(Locale.ROOT) + "_" + candidateKey.toUpperCase(Locale.ROOT);
+            var lookupKey = zone.toUpperCase(Locale.ROOT) + "_" + normGroup.toUpperCase(Locale.ROOT) + "_"
+                    + toKey(cluster).toUpperCase(Locale.ROOT) + "_" + toKey(candidateKey).toUpperCase(Locale.ROOT);
             var match = frLookup.index().get(lookupKey);
             if (match != null) {
                 return convertSeriesToArrowIfAbsent(match, frLookup.arrowCache());
@@ -375,9 +390,11 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         Set<String> candidates = new LinkedHashSet<>();
         candidates.add(normalizedTechnology);
 
-        String groupPrefix = normalizedGroup + "_";
-        if (normalizedTechnology.startsWith(groupPrefix) && normalizedTechnology.length() > groupPrefix.length()) {
-            candidates.add(normalizedTechnology.substring(groupPrefix.length()));
+        if (!normalizedTechnology.isEmpty()) {
+            String groupPrefix = normalizedGroup + "_";
+            if (normalizedTechnology.startsWith(groupPrefix) && normalizedTechnology.length() > groupPrefix.length()) {
+                candidates.add(normalizedTechnology.substring(groupPrefix.length()));
+            }
         }
 
         return candidates;
@@ -600,7 +617,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return series.stream()
                 .filter(ref -> !ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
-                        ref -> ref.area().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.cluster().toUpperCase(Locale.ROOT),
+                        ref -> toKey(ref.area()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.group()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.cluster()).toUpperCase(Locale.ROOT),
                         ref -> ref,
                         this::mergeSeriesRefs
                 ));
@@ -635,7 +652,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         return series.stream()
                 .filter(ref -> ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
                 .collect(Collectors.toMap(
-                        ref -> ref.zone().toUpperCase(Locale.ROOT) + "_" + ref.group().toUpperCase(Locale.ROOT) + "_" + ref.cluster().toUpperCase(Locale.ROOT) + "_" + ref.technology().toUpperCase(Locale.ROOT),
+                        ref -> toKey(ref.zone()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.group()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.cluster()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.technology()).toUpperCase(Locale.ROOT),
                         ref -> ref,
                         this::mergeSeriesRefs
                 ));
