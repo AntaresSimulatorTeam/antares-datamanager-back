@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -57,9 +56,6 @@ import static org.mockito.Mockito.*;
 class StudyGeneratorServiceImplTest {
 
 
-
-    @Mock
-    private LoadRepository loadRepository;
 
     @Mock
     private NasFileService nasFileService;
@@ -484,9 +480,9 @@ class StudyGeneratorServiceImplTest {
     }
 
     @Test
-    void buildJsonForStudyGeneration_shouldGenerateArrowFileIfOutPutFileNameIsNull() throws IOException {
+    void buildJsonForStudyGeneration_shouldRegenerateArrowFileOnEveryCall_notReuseCachedOne() throws IOException {
         // Given
-        var load = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build(); // outputFileName == null
+        var load = LoadEntity.builder().id(1).fileName("load_fr_2030-2031.txt").build();
 
         var loadTrajectory = TrajectoryEntity.builder().type("LOAD").area("OTHERS").fileName("BP23_A_Ref").build();
         loadTrajectory.addLoadEntity(load);
@@ -504,10 +500,44 @@ class StudyGeneratorServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("load");
         when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("outload");
-        when(loadRepository.save(any())).thenReturn(load);
         doReturn("generated.arrow").when(nasFileService).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
         // Delegate the mocked service call to real logic to trigger arrow generation
-        doAnswer(inv -> new LoadToJsonService(loadRepository, nasFileService, antaresDataManagerProperties)
+        doAnswer(inv -> new LoadToJsonService(nasFileService, antaresDataManagerProperties)
+                .getListArrowLoadFilesByAreaFromStudy(inv.getArgument(0)))
+                .when(loadToJsonService).getListArrowLoadFilesByAreaFromStudy(any());
+
+        // When: reused load file
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then: each request must regenerate one .arrow
+        verify(nasFileService, times(2)).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldGenerateArrowFileThroughRealLoadToJsonService_withExplicitArea() throws IOException {
+        // Given
+        var load = LoadEntity.builder().id(1).fileName("load_fr_2030-2031.txt").build();
+
+        var loadTrajectory = TrajectoryEntity.builder().type("LOAD").area("FR").fileName("BP23_A_Ref").build();
+        loadTrajectory.addLoadEntity(load);
+
+        var areaEntityFR = AreaEntity.builder().name("FR").build();
+        var areaConfigFR = AreaConfigEntity.builder().area(areaEntityFR).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfigFR)).build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest").build();
+        study.addTrajectoryEntity(loadTrajectory);
+        study.addTrajectoryEntity(areaTrajectory);
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("load");
+        when(antaresDataManagerProperties.getOutputLoadDirectory()).thenReturn("outload");
+        doReturn("generated.arrow").when(nasFileService).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
+        // Delegate the mocked service call to real logic to trigger the explicit-area branch
+        doAnswer(inv -> new LoadToJsonService(nasFileService, antaresDataManagerProperties)
                 .getListArrowLoadFilesByAreaFromStudy(inv.getArgument(0)))
                 .when(loadToJsonService).getListArrowLoadFilesByAreaFromStudy(any());
 

@@ -2,7 +2,6 @@ package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
-import com.rte_france.antares.datamanager_back.repository.LoadRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -13,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -24,8 +24,6 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class LoadToJsonService {
 
-    private final LoadRepository loadRepository;
-
     private final NasFileService nasFileService;
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
@@ -33,9 +31,10 @@ public class LoadToJsonService {
     public  Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         log.info("Retrieve LOAD files for study = {}", studyEntity.getId());
         Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
+        Map<Integer, String> arrowFileCache = new HashMap<>();
         Map<String, List<String>> result = studyEntity.getTrajectories().stream()
                 .filter(this::isLoadTrajectoryWithEntities)
-                .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern))
+                .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern, arrowFileCache))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
@@ -50,33 +49,30 @@ public class LoadToJsonService {
                 && !trajectory.getLoadEntities().isEmpty();
     }
 
-    private  Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern) {
+    private  Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern,
+                                                                        Map<Integer, String> arrowFileCache) {
         log.info("Load processing for trajectory= {} area={}", trajectory.getFileName(), trajectory.getArea());
         if ("OTHERS".equals(trajectory.getArea())) {
             return trajectory.getLoadEntities().stream()
                     .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
-                    .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern));
+                    .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern, arrowFileCache));
         } else {
             return trajectory.getLoadEntities().stream()
-                    .map(loadEntity -> {
-                        processLoadEntityWithPattern(loadEntity, trajectory, pattern);
-                        return Map.entry(trajectory.getArea().toUpperCase(), loadEntity.getOutPutFileName());
-                    });
-
+                    .map(loadEntity -> Map.entry(
+                            trajectory.getArea().toUpperCase(),
+                            resolveOutputFileName(loadEntity, trajectory, arrowFileCache)));
         }
     }
-    private  Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern) {
-        if (loadEntity.getOutPutFileName() == null) {
-            log.info("No outPutFileName for load {} - génération en cours", loadEntity.getFileName());
-            String outputFileName = generateAndSaveOutputFileName(loadEntity, trajectory);
-            loadEntity.setOutPutFileName(outputFileName);
-            loadRepository.save(loadEntity);
-            log.info("OutPutFileName généré et sauvegardé pour load {} : {}", loadEntity.getFileName(), outputFileName);
-        } else {
-            log.info("OutPutFileName existant pour load {} : {}", loadEntity.getFileName(), loadEntity.getOutPutFileName());
-        }
-        String area = extractAreaFromFileName(loadEntity.getOutPutFileName(), pattern);
-        return Map.entry(area, loadEntity.getOutPutFileName());
+
+    private  Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern,
+                                                                      Map<Integer, String> arrowFileCache) {
+        String outputFileName = resolveOutputFileName(loadEntity, trajectory, arrowFileCache);
+        String area = extractAreaFromFileName(outputFileName, pattern);
+        return Map.entry(area, outputFileName);
+    }
+
+    private  String resolveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory, Map<Integer, String> arrowFileCache) {
+        return arrowFileCache.computeIfAbsent(loadEntity.getId(), id -> generateAndSaveOutputFileName(loadEntity, trajectory));
     }
 
 
