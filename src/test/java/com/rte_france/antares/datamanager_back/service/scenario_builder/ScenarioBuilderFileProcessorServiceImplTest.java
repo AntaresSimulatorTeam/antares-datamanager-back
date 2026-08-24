@@ -10,17 +10,19 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.impl.ScenarioBuilderFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.FileOutputStream;
@@ -36,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class ScenarioBuilderFileProcessorServiceImplTest {
 
     @Mock
@@ -59,28 +62,20 @@ class ScenarioBuilderFileProcessorServiceImplTest {
     @TempDir
     Path tempDir;
 
-    private Path scenarioBuilderDir;
-    private Path sampleExcelFile;
+    private Path sampleFilePath;
 
     @BeforeEach
     void setUp() throws IOException {
-        MockitoAnnotations.openMocks(this);
-
-        Path nasDir = tempDir.resolve("nas");
-        Path trajDir = nasDir.resolve("trajectories");
-        scenarioBuilderDir = trajDir.resolve("settings/scenario_builder");
+        Path baseDir = tempDir.resolve("nas");
+        Path scenarioBuilderDir = baseDir.resolve("trajectories").resolve("settings/scenario_builder");
         Files.createDirectories(scenarioBuilderDir);
 
-        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir.toString());
-        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
-        when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn("settings/scenario_builder");
+        lenient().when(antaresDataManagerProperties.getNasDirectory()).thenReturn(baseDir.toString());
+        lenient().when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        lenient().when(antaresDataManagerProperties.getScenarioBuilderDirectory()).thenReturn("settings/scenario_builder");
 
-        UserInfoDto userInfo = new UserInfoDto();
-        userInfo.setNni("test_user");
-        when(userService.getCurrentUserDetails()).thenReturn(userInfo);
-
-        sampleExcelFile = scenarioBuilderDir.resolve("scenario_builder_BP23_A_ref_vdef.xlsx");
-        createSampleExcelFile(sampleExcelFile);
+        sampleFilePath = scenarioBuilderDir.resolve("scenario_builder_BP23_A_ref_vdef.xlsx");
+        createSampleExcelFile(sampleFilePath);
     }
 
     private void createSampleExcelFile(Path path) throws IOException {
@@ -90,13 +85,11 @@ class ScenarioBuilderFileProcessorServiceImplTest {
             String[] rows = {
                     "[Default Rules]",
                     "l,fr,1 = 57",
-                    "l,fr,2 = 57",
+                    "l,fr,2 = 57@*",
                     "[Hydro]",
-                    "h,fr,1 = 1",
+                    "h,fr,1 = 1*",
                     "[Thermal]",
-                    "t,fr,1 = 1",
-                    "[Climatic data]",
-                    "c,fr,1 = 1"
+                    "@t,fr,1 = 1"
             };
             for (int i = 0; i < rows.length; i++) {
                 Row row = sheet.createRow(i);
@@ -108,7 +101,11 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
     @Test
     void processScenarioBuilderFile_scenario2_newTrajectory_shouldInsertWithVersion1() throws IOException {
-        // Given: trajectory does not exist in DB
+        // Given
+        UserInfoDto userInfo = new UserInfoDto();
+        userInfo.setNni("test_user");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfo);
+
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), eq(SCENARIO_BUILDER.name())))
                 .thenReturn(Optional.empty());
 
@@ -120,7 +117,7 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
         // When
         TrajectoryEntity result = scenarioBuilderFileProcessorService.processScenarioBuilderFile(
-                "scenario_builder_BP23_A_ref_vdef", "2023-2024", 1, "FR");
+                "scenario_builder_BP23_A_ref_vdef", "2023-2024", 1);
 
         // Then
         assertNotNull(result);
@@ -150,8 +147,9 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
     @Test
     void processScenarioBuilderFile_scenario1_sameChecksum_shouldThrowBusinessException() throws IOException {
-        // Given: trajectory exists with identical checksum
-        String checksum = com.rte_france.antares.datamanager_back.util.Utils.getFileChecksum(sampleExcelFile.toString());
+        // Given
+        String checksum = Utils.getFileChecksum(sampleFilePath.toString());
+
         TrajectoryEntity existing = TrajectoryEntity.builder()
                 .id(50)
                 .fileName("BP23_A_ref_vdef")
@@ -168,7 +166,7 @@ class ScenarioBuilderFileProcessorServiceImplTest {
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 scenarioBuilderFileProcessorService.processScenarioBuilderFile(
-                        "scenario_builder_BP23_A_ref_vdef", "2023-2024", null, null)
+                        "scenario_builder_BP23_A_ref_vdef", "2023-2024", null)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
@@ -182,12 +180,12 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
     @Test
     void processScenarioBuilderFile_scenario3_differentChecksum_shouldInsertWithNextVersion() throws IOException {
-        // Given: trajectory exists with different checksum
+        // Given
         TrajectoryEntity existing = TrajectoryEntity.builder()
                 .id(50)
                 .fileName("BP23_A_ref_vdef")
                 .version(2)
-                .checksum("old_different_checksum")
+                .checksum("mock_checksum_old")
                 .horizon("2023-2024")
                 .type(SCENARIO_BUILDER.name())
                 .build();
@@ -204,7 +202,7 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
         // When
         TrajectoryEntity result = scenarioBuilderFileProcessorService.processScenarioBuilderFile(
-                "scenario_builder_BP23_A_ref_vdef.xlsx", "2023-2024", null, null);
+                "scenario_builder_BP23_A_ref_vdef.xlsx", "2023-2024", null);
 
         // Then
         assertNotNull(result);
@@ -219,7 +217,7 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 scenarioBuilderFileProcessorService.processScenarioBuilderFile(
-                        "scenario_builder_BP23_A_ref_vdef", "2023-2024", null, null)
+                        "scenario_builder_BP23_A_ref_vdef", "2023-2024", null)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
@@ -230,7 +228,7 @@ class ScenarioBuilderFileProcessorServiceImplTest {
     void processScenarioBuilderFile_fileNotFound_shouldThrowBusinessException() {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 scenarioBuilderFileProcessorService.processScenarioBuilderFile(
-                        "non_existent_file", "2023-2024", null, null)
+                        "no_file", "2023-2024", null)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());

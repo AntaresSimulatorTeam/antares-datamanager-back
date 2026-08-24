@@ -36,14 +36,13 @@ class ScenarioBuilderControllerTest {
 
     @Test
     void testUploadScenarioBuilderTrajectorySuccess() throws Exception {
-        when(scenarioBuilderFileProcessorService.processScenarioBuilderFile("scenario_builder_BP23_A_ref_vdef", "2023-2024", 1, "FR"))
+        when(scenarioBuilderFileProcessorService.processScenarioBuilderFile("scenario_builder_BP23_A_ref_vdef", "2023-2024", 1))
                 .thenReturn(TrajectoryEntity.builder().id(1).fileName("BP23_A_ref_vdef").type("SCENARIO_BUILDER").build());
 
         mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
                         .param("trajectoryToUse", "scenario_builder_BP23_A_ref_vdef")
                         .param("horizon", "2023-2024")
-                        .param("studyId", "1")
-                        .param("area", "FR"))
+                        .param("studyId", "1"))
                 .andExpect(status().isCreated());
     }
 
@@ -52,18 +51,10 @@ class ScenarioBuilderControllerTest {
         mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
                         .param("trajectoryToUse", "scenario_builder_BP23_A_ref_vdef")
                         .param("horizon", "2023")
-                        .param("studyId", "1")
-                        .param("area", "FR"))
+                        .param("studyId", "1"))
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
-    void testUploadScenarioBuilderTrajectoryInvalidArea() throws Exception {
-        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
-                        .param("trajectoryToUse", "scenario_builder_BP23_A_ref_vdef")
-                        .param("horizon", "2023-2024")
-                        .param("studyId", "1")
-                        .param("area", "invalid@area"))
-                .andExpect(status().isBadRequest());
-    }
+
+
 }
