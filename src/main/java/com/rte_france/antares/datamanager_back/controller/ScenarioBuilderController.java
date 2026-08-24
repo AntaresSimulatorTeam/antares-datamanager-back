@@ -1,0 +1,67 @@
+package com.rte_france.antares.datamanager_back.controller;
+
+import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
+import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+
+import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
+
+@Slf4j
+@RestController
+@Validated
+@RequestMapping("/v1/trajectory")
+@RequiredArgsConstructor
+@Tag(name = "ScenarioBuilder", description = "APIs for importing scenario builder trajectories")
+public class ScenarioBuilderController {
+
+    private final ScenarioBuilderFileProcessorService scenarioBuilderFileProcessorService;
+
+    @Operation(summary = "Import scenario builder trajectory from Excel file (scenario_builder_*.xlsx)")
+    @PostMapping("/scenarioBuilder")
+    public ResponseEntity<TrajectoryDTO> uploadScenarioBuilderTrajectory(
+            @RequestParam("trajectoryToUse")
+            @ValidTrajectoryName
+            @Parameter(description = "Name of the trajectory file (e.g., scenario_builder_BP23_A_ref_vdef)")
+            String trajectoryToUse,
+
+            @RequestParam("horizon")
+            @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "Horizon in format YYYY-YYYY (e.g., 2028-2029)")
+            String horizon,
+
+            @RequestParam(value = "studyId", required = false)
+            @Parameter(description = "Study ID")
+            Integer studyId,
+
+            @RequestParam(value = "area", required = false)
+            @Size(max = 40, message = "Area name cannot exceed 40 characters")
+            @Pattern(regexp = "^[a-zA-Z0-9_-]+$")
+            @Parameter(description = "Area code (e.g., FR, DE, IT)")
+            String area)
+            throws IOException {
+
+        log.info("Importing scenario builder trajectory for: trajectory={}, horizon={}, studyId={}, area={}",
+                trajectoryToUse, horizon, studyId, area);
+
+        return new ResponseEntity<>(
+                toTrajectoryDTO(scenarioBuilderFileProcessorService.processScenarioBuilderFile(trajectoryToUse, horizon, studyId, area)),
+                HttpStatus.CREATED
+        );
+    }
+}
