@@ -186,8 +186,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                 String cleaned = trimmed.replace("@", "").replace("*", "").trim();
 
                 ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
-                        .category(currentCategory)
-                        .modulo(cleaned)
+                        .modulo(trimmed)
                         .trajectory(trajectory)
                         .build();
                 entities.add(entity);
