@@ -138,3 +138,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V65-add-type-column-fb-link-capacity-table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V66-create-scenario-builder-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V67-rename-scenario-builder-data-column.sql

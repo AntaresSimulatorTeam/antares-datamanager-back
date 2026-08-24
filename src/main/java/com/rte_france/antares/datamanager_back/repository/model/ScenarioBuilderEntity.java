@@ -17,8 +17,8 @@ public class ScenarioBuilderEntity {
     @SequenceGenerator(name = "scenario_builder_seq_gen", sequenceName = "scenario_builder_seq", allocationSize = 1)
     private Integer id;
 
-    @Column(name = "data")
-    private String data;
+    @Column(name = "modulo")
+    private String modulo;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id")

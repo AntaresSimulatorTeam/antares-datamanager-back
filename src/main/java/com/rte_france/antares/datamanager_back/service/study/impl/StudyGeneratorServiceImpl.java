@@ -227,7 +227,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));
         // TODO: get input for random generation flag and number of years, maybe also move them somewhere else
         innerGeneratorMap.put("enable_random_ts", true);
-        innerGeneratorMap.put("nb_years", 1);
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
         innerGeneratorMap.put("flowbased", flowbasedMap);
@@ -266,7 +265,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         // Get LOAD files by area from all study trajectories
         Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Number of zones LOAD found: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
-        
+
         log.info("Thermal cluster props found: {}", thermalClusterProps != null ? thermalClusterProps.size() : 0);
 
         var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);

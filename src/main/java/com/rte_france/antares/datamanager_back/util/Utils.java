@@ -259,8 +259,10 @@ public class Utils {
             prefix = RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.RES_ZONAL_DISTRIBUTION.toString())) {
             prefix = RES_ZONAL_DISTRIBUTION_PREFIX;
-        }  else if (Objects.equals(trajectoryType, TrajectoryType.SETTINGS.toString())) {
+        } else if (Objects.equals(trajectoryType, TrajectoryType.SETTINGS.toString())) {
             prefix = SETTINGS_PREFIX;
+        } else if (Objects.equals(trajectoryType, TrajectoryType.SCENARIO_BUILDER.toString())) {
+            prefix = SCENARIO_BUILDER_PREFIX;
         }
 
         else {
@@ -418,7 +420,7 @@ public class Utils {
      */
     public static String computeChecksumByType(Path path, TrajectoryType type, String horizon, String area) throws IOException {
         return switch (type) {
-            case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION, RES_ZONAL_DISTRIBUTION -> getFileChecksum(path.toString());
+            case LOAD, THERMAL_CAPACITY, RES_TECHNOLOGY_DISTRIBUTION, RES_ZONAL_DISTRIBUTION, SCENARIO_BUILDER -> getFileChecksum(path.toString());
             case RES_CAPACITY -> "FR".equals(area) ? calculateDirectoryChecksum(path) : getFileChecksum(path.toString());
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->

@@ -45,22 +45,14 @@ public class ScenarioBuilderController {
             @Parameter(description = "Horizon in format YYYY-YYYY (e.g., 2028-2029)")
             String horizon,
 
-            @RequestParam(value = "studyId", required = false)
+            @RequestParam(value = "studyId")
             @Parameter(description = "Study ID")
-            Integer studyId,
+            Integer studyId)
 
-            @RequestParam(value = "area", required = false)
-            @Size(max = 40, message = "Area name cannot exceed 40 characters")
-            @Pattern(regexp = "^[a-zA-Z0-9_-]+$")
-            @Parameter(description = "Area code (e.g., FR, DE, IT)")
-            String area)
             throws IOException {
 
-        log.info("Importing scenario builder trajectory for: trajectory={}, horizon={}, studyId={}, area={}",
-                trajectoryToUse, horizon, studyId, area);
-
         return new ResponseEntity<>(
-                toTrajectoryDTO(scenarioBuilderFileProcessorService.processScenarioBuilderFile(trajectoryToUse, horizon, studyId, area)),
+                toTrajectoryDTO(scenarioBuilderFileProcessorService.processScenarioBuilderFile(trajectoryToUse, horizon, studyId)),
                 HttpStatus.CREATED
         );
     }

@@ -46,7 +46,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TrajectoryEntity processScenarioBuilderFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
+    public TrajectoryEntity processScenarioBuilderFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         String scenarioBuilderDirectory = antaresDataManagerProperties.getScenarioBuilderDirectory();
         Path trajectoryFolder = basePath.resolve(scenarioBuilderDirectory).normalize();
@@ -95,20 +95,15 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (checksum.equals(existingTrajectory.getChecksum())) {
-                log.info("Scenario 1: File already processed with same content {}", filePath.getFileName());
                 throw BusinessException.builder()
                         .message("File already processed with same content {0}")
                         .errorMessageArguments(List.of(filePath.getFileName().toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             } else {
-                log.info("Scenario 3: File exists with different checksum, creating new version");
                 version = existingTrajectory.getVersion() + 1;
             }
-        } else {
-            log.info("Scenario 2: Trajectory does not exist in DB, creating version 1");
         }
-
         String createdBy = userService != null && userService.getCurrentUserDetails() != null
                 ? userService.getCurrentUserDetails().getNni()
                 : UNKNOWN_USER;
@@ -125,7 +120,6 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                         ZoneId.systemDefault()
                 ))
                 .horizon(civilToChevalHorizon(horizon))
-                .area(area)
                 .type(SCENARIO_BUILDER.name())
                 .build();
 
@@ -165,8 +159,10 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                     continue;
                 }
 
+                String cleaned = trimmed.replace("@", "").replace("*", "").trim();
+
                 ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
-                        .modulo(trimmed)
+                        .modulo(cleaned)
                         .trajectory(trajectory)
                         .build();
                 entities.add(entity);
