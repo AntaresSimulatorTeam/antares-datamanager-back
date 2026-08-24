@@ -183,8 +183,6 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                     continue;
                 }
 
-                String cleaned = trimmed.replace("@", "").replace("*", "").trim();
-
                 ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
                         .modulo(trimmed)
                         .trajectory(trajectory)
