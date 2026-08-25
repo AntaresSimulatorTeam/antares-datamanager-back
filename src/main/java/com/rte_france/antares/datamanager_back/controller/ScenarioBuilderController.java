@@ -1,13 +1,16 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -31,6 +34,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class ScenarioBuilderController {
 
     private final ScenarioBuilderFileProcessorService scenarioBuilderFileProcessorService;
+    private final PathSecurityUtil pathSecurityUtil;
 
     @Operation(summary = "Import scenario builder trajectory from Excel file (scenario_builder_*.xlsx)")
     @PostMapping("/scenarioBuilder")
@@ -51,8 +55,19 @@ public class ScenarioBuilderController {
 
             throws IOException {
 
+
+        pathSecurityUtil.validatePathFromBaseDir(
+                trajectoryToUse,
+                AntaresDataManagerProperties::getTrajectoryFilePath
+        );
+
+        TrajectoryEntity trajectory = scenarioBuilderFileProcessorService.processScenarioBuilderFile(
+                trajectoryToUse,
+                horizon,
+                studyId
+        );
         return new ResponseEntity<>(
-                toTrajectoryDTO(scenarioBuilderFileProcessorService.processScenarioBuilderFile(trajectoryToUse, horizon, studyId)),
+                toTrajectoryDTO(trajectory),
                 HttpStatus.CREATED
         );
     }
