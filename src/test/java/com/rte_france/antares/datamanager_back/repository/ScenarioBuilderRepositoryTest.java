@@ -45,6 +45,7 @@ class ScenarioBuilderRepositoryTest {
     void testSaveScenarioBuilder() {
         // Given
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo("test_modulo")
                 .trajectory(trajectory)
                 .build();
@@ -54,6 +55,7 @@ class ScenarioBuilderRepositoryTest {
 
         // Then
         assertNotNull(saved.getId());
+        assertEquals("Default Rules", saved.getCategory());
         assertEquals("test_modulo", saved.getModulo());
         assertEquals(trajectory.getId(), saved.getTrajectory().getId());
     }
@@ -62,6 +64,7 @@ class ScenarioBuilderRepositoryTest {
     void testFindByTrajectoryId_found() {
         // Given
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo("scenario_data_123")
                 .trajectory(trajectory)
                 .build();
@@ -73,6 +76,7 @@ class ScenarioBuilderRepositoryTest {
 
         // Then
         assertTrue(result.isPresent());
+        assertEquals("Default Rules", result.get().getCategory());
         assertEquals("scenario_data_123", result.get().getModulo());
         assertEquals(trajectory.getId(), result.get().getTrajectory().getId());
     }
@@ -93,6 +97,7 @@ class ScenarioBuilderRepositoryTest {
     void testUpdateScenarioBuilder() {
         // Given
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo("initial_modulo")
                 .trajectory(trajectory)
                 .build();
@@ -101,6 +106,7 @@ class ScenarioBuilderRepositoryTest {
 
         // When
         saved.setModulo("updated_modulo");
+        saved.setCategory("Hydro");
         scenarioBuilderRepository.save(saved);
         entityManager.flush();
 
@@ -108,6 +114,7 @@ class ScenarioBuilderRepositoryTest {
 
         // Then
         assertTrue(updated.isPresent());
+        assertEquals("Hydro", updated.get().getCategory());
         assertEquals("updated_modulo", updated.get().getModulo());
     }
 
@@ -115,6 +122,7 @@ class ScenarioBuilderRepositoryTest {
     void testDeleteScenarioBuilder() {
         // Given
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo("data_to_delete")
                 .trajectory(trajectory)
                 .build();
@@ -135,6 +143,7 @@ class ScenarioBuilderRepositoryTest {
     void testScenarioBuilderEntityMapping() {
         // Given
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Thermal")
                 .modulo("mapping_test_modulo")
                 .trajectory(trajectory)
                 .build();
@@ -148,6 +157,7 @@ class ScenarioBuilderRepositoryTest {
 
         // Then
         assertNotNull(retrieved.getId());
+        assertEquals("Thermal", retrieved.getCategory());
         assertEquals("mapping_test_modulo", retrieved.getModulo());
         assertNotNull(retrieved.getTrajectory());
         assertEquals(trajectory.getId(), retrieved.getTrajectory().getId());
@@ -158,6 +168,7 @@ class ScenarioBuilderRepositoryTest {
     void testMultipleScenarioBuilderForSameTrajectory_shouldReplace() {
         // Given
         ScenarioBuilderEntity first = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo("first_modulo")
                 .trajectory(trajectory)
                 .build();
@@ -165,6 +176,7 @@ class ScenarioBuilderRepositoryTest {
 
         // When - save another with same trajectory (should be separate record)
         ScenarioBuilderEntity second = ScenarioBuilderEntity.builder()
+                .category("Hydro")
                 .modulo("second_modulo")
                 .trajectory(trajectory)
                 .build();
@@ -183,6 +195,7 @@ class ScenarioBuilderRepositoryTest {
         // Given - test with 100 character data (VARCHAR(100) limit)
         String maxData = "a".repeat(100);
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo(maxData)
                 .trajectory(trajectory)
                 .build();
@@ -199,6 +212,7 @@ class ScenarioBuilderRepositoryTest {
     void testScenarioBuilderNullData() {
         // Given
         ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                .category("Default Rules")
                 .modulo(null)
                 .trajectory(trajectory)
                 .build();
@@ -209,5 +223,6 @@ class ScenarioBuilderRepositoryTest {
 
         // Then
         assertNull(saved.getModulo());
+        assertEquals("Default Rules", saved.getCategory());
     }
 }

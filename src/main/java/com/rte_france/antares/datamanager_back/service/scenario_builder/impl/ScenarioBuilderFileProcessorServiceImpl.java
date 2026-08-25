@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.scenario_builder.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ScenarioBuilderRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -9,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -43,12 +45,15 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
     private final TrajectoryServiceImpl trajectoryService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final UserService userService;
+    private final PathSecurityUtil pathSecurityUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TrajectoryEntity processScenarioBuilderFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         String scenarioBuilderDirectory = antaresDataManagerProperties.getScenarioBuilderDirectory();
+
+
+        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         Path trajectoryFolder = basePath.resolve(scenarioBuilderDirectory).normalize();
 
         log.info("Loading scenario builder from: {}", trajectoryFolder);
@@ -104,8 +109,13 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                 version = existingTrajectory.getVersion() + 1;
             }
         }
-        String createdBy = userService != null && userService.getCurrentUserDetails() != null
-                ? userService.getCurrentUserDetails().getNni()
+
+
+        UserInfoDto currentUserDetails =
+                userService != null ? userService.getCurrentUserDetails() : null;
+
+        String createdBy = currentUserDetails != null
+                ? currentUserDetails.getNni()
                 : UNKNOWN_USER;
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
@@ -146,6 +156,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
+            String currentCategory = "";
             for (Row row : sheet) {
                 if (row == null) continue;
                 Cell cell = row.getCell(0);
@@ -156,12 +167,14 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
 
                 String trimmed = cellValue.trim();
                 if (trimmed.contains("[") && trimmed.contains("]")) {
+                    currentCategory = trimmed.substring(trimmed.indexOf('[') + 1, trimmed.lastIndexOf(']')).trim();
                     continue;
                 }
 
                 String cleaned = trimmed.replace("@", "").replace("*", "").trim();
 
                 ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                        .category(currentCategory)
                         .modulo(cleaned)
                         .trajectory(trajectory)
                         .build();
