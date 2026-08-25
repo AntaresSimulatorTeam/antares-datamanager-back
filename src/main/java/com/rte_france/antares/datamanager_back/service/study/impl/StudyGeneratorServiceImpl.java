@@ -70,6 +70,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final AdequacySettingsToJsonService adequacySettingsToJsonService;
     private final NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
     private final SettingsToJsonService settingsToJsonService;
+    private final ScenarioBuilderToJsonService scenarioBuilderToJsonService;
 
     private static final String PROPERTIES = "properties";
 
@@ -146,7 +147,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private record TrajectoryDispatchResult(Map<String, Object> areasMap, Map<String, Object> linksMap,
                                              Optional<TrajectoryEntity> nuclearModulationTrajectory,
                                              Optional<TrajectoryEntity> nuclearTalonTrajectory,
-                                             Optional<TrajectoryEntity> settingsTrajectory) {}
+                                             Optional<TrajectoryEntity> settingsTrajectory,
+                                             Optional<TrajectoryEntity> scenarioBuilderTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -156,6 +158,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> nuclearModulationTraj = Optional.empty();
         Optional<TrajectoryEntity> nuclearTalonTraj = Optional.empty();
         Optional<TrajectoryEntity> settingsTraj = Optional.empty();
+        Optional<TrajectoryEntity> scenarioBuilderTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -165,6 +168,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case AREA -> buildAreasDataMap(study, trajectory, areasMap, thermalClusterProps, nuclearAvailability);
                 case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
                 case SETTINGS -> settingsTraj = Optional.of(trajectory);
+                case SCENARIO_BUILDER -> scenarioBuilderTraj = Optional.of(trajectory);
                 case ADEQUACY_PATCH -> log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                 case LOAD ->
                         log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
@@ -195,7 +199,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, scenarioBuilderTraj);
+    }
+
+    private Map<String, Object> buildScenarioBuilderDataMap(TrajectoryEntity trajectory) {
+        return scenarioBuilderToJsonService.buildScenarioBuilderMap(trajectory.getId());
     }
 
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
@@ -213,6 +221,16 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             // Fallback to adequacy settings if no dedicated settings trajectory
             Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
             settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
+        }
+
+        if (dispatchResult.scenarioBuilderTrajectory().isPresent()) {
+            Map<String, Object> scenarioBuilderMap = buildScenarioBuilderDataMap(dispatchResult.scenarioBuilderTrajectory().get());
+            if (settingsMap == null) {
+                settingsMap = new LinkedHashMap<>();
+            }
+            if (!scenarioBuilderMap.isEmpty()) {
+                settingsMap.put("scenariobuilder", scenarioBuilderMap);
+            }
         }
 
         innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));
