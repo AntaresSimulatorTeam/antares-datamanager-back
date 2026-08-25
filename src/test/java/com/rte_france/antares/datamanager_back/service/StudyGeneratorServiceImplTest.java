@@ -87,6 +87,12 @@ class StudyGeneratorServiceImplTest {
     private StudyGeneratorServiceImpl studyGeneratorService;
 
     @Mock
+    private SettingsToJsonService settingsToJsonService;
+
+    @Mock
+    private ScenarioBuilderToJsonService scenarioBuilderToJsonService;
+
+    @Mock
     private AdequacySettingsToJsonService adequacySettingsToJsonService;
 
     @Mock
@@ -1113,5 +1119,72 @@ class StudyGeneratorServiceImplTest {
                 () -> studyGeneratorService.callGenerateStudyService(studyId));
 
         assertEquals("generator down", exception.getMessage());
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeScenarioBuilderInSettings_whenScenarioBuilderTrajectoryPresent() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var scenarioBuilderTraj = TrajectoryEntity.builder().id(50).type("SCENARIO_BUILDER").fileName("sb_traj.xlsx").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, scenarioBuilderTraj)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        Map<String, Object> sbMap = new LinkedHashMap<>();
+        sbMap.put("climatic_data", List.of("load", "hydro", "wind_onshore@*"));
+        sbMap.put("thermal", List.of("nuclear@fr"));
+        when(scenarioBuilderToJsonService.buildScenarioBuilderMap(50)).thenReturn(sbMap);
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> settings = mapper.convertValue(studyMap.get("settings"), new TypeReference<>() {});
+
+        assertThat(settings).containsKey("scenariobuilder");
+        Map<String, Object> scenariobuilder = mapper.convertValue(settings.get("scenariobuilder"), new TypeReference<>() {});
+        assertThat(scenariobuilder).containsEntry("climatic_data", List.of("load", "hydro", "wind_onshore@*"));
+        assertThat(scenariobuilder).containsEntry("thermal", List.of("nuclear@fr"));
+        verify(scenarioBuilderToJsonService, times(1)).buildScenarioBuilderMap(50);
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeScenarioBuilderWithDedicatedSettingsTrajectory() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var settingsTraj = TrajectoryEntity.builder().id(20).type("SETTINGS").fileName("settings.xlsx").build();
+        var scenarioBuilderTraj = TrajectoryEntity.builder().id(50).type("SCENARIO_BUILDER").fileName("sb_traj.xlsx").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, settingsTraj, scenarioBuilderTraj)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        Map<String, Object> settingsMap = new LinkedHashMap<>();
+        settingsMap.put("general_parameters", Map.of("mode", "economy"));
+        when(settingsToJsonService.buildSettingsMap(20)).thenReturn(settingsMap);
+
+        Map<String, Object> sbMap = new LinkedHashMap<>();
+        sbMap.put("links", List.of("nl/z_p2h_pachybride"));
+        when(scenarioBuilderToJsonService.buildScenarioBuilderMap(50)).thenReturn(sbMap);
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> settings = mapper.convertValue(studyMap.get("settings"), new TypeReference<>() {});
+
+        assertThat(settings).containsKey("general_parameters");
+        assertThat(settings).containsKey("scenariobuilder");
+        Map<String, Object> scenariobuilder = mapper.convertValue(settings.get("scenariobuilder"), new TypeReference<>() {});
+        assertThat(scenariobuilder).containsEntry("links", List.of("nl/z_p2h_pachybride"));
     }
 }
