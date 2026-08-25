@@ -134,9 +134,13 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
         List<ScenarioBuilderEntity> savedEntities = captor.getValue();
         assertEquals(4, savedEntities.size());
+        assertEquals("Default Rules", savedEntities.get(0).getCategory());
         assertEquals("l,fr,1 = 57", savedEntities.get(0).getModulo());
+        assertEquals("Default Rules", savedEntities.get(1).getCategory());
         assertEquals("l,fr,2 = 57", savedEntities.get(1).getModulo());
+        assertEquals("Hydro", savedEntities.get(2).getCategory());
         assertEquals("h,fr,1 = 1", savedEntities.get(2).getModulo());
+        assertEquals("Thermal", savedEntities.get(3).getCategory());
         assertEquals("t,fr,1 = 1", savedEntities.get(3).getModulo());
         // Verify no headers with [ ] were saved
         assertTrue(savedEntities.stream().noneMatch(e -> e.getModulo().contains("[") || e.getModulo().contains("]")));
