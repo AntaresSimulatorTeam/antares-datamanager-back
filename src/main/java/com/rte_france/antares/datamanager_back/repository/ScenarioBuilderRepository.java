@@ -4,9 +4,9 @@ import com.rte_france.antares.datamanager_back.repository.model.ScenarioBuilderE
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface ScenarioBuilderRepository extends JpaRepository<ScenarioBuilderEntity, Integer> {
-    Optional<ScenarioBuilderEntity> findByTrajectoryId(Integer trajectoryId);
+    List<ScenarioBuilderEntity> findByTrajectoryId(Integer trajectoryId);
 }

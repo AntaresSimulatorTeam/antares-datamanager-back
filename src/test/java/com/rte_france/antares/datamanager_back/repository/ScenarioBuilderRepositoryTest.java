@@ -72,13 +72,13 @@ class ScenarioBuilderRepositoryTest {
         entityManager.flush();
 
         // When
-        Optional<ScenarioBuilderEntity> result = scenarioBuilderRepository.findByTrajectoryId(trajectory.getId());
+        List<ScenarioBuilderEntity> result = scenarioBuilderRepository.findByTrajectoryId(trajectory.getId());
 
         // Then
-        assertTrue(result.isPresent());
-        assertEquals("Default Rules", result.get().getCategory());
-        assertEquals("scenario_data_123", result.get().getModulo());
-        assertEquals(trajectory.getId(), result.get().getTrajectory().getId());
+        assertFalse(result.isEmpty());
+        assertEquals("Default Rules", result.get(0).getCategory());
+        assertEquals("scenario_data_123", result.get(0).getModulo());
+        assertEquals(trajectory.getId(), result.get(0).getTrajectory().getId());
     }
 
     @Test
@@ -87,10 +87,10 @@ class ScenarioBuilderRepositoryTest {
         Integer nonexistentTrajectoryId = 999999;
 
         // When
-        Optional<ScenarioBuilderEntity> result = scenarioBuilderRepository.findByTrajectoryId(nonexistentTrajectoryId);
+        List<ScenarioBuilderEntity> result = scenarioBuilderRepository.findByTrajectoryId(nonexistentTrajectoryId);
 
         // Then
-        assertFalse(result.isPresent());
+        assertTrue(result.isEmpty());
     }
 
     @Test
