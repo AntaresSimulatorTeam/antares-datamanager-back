@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
-import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,7 +39,6 @@ public class ScenarioBuilderController {
     @PostMapping("/scenarioBuilder")
     public ResponseEntity<TrajectoryDTO> uploadScenarioBuilderTrajectory(
             @RequestParam("trajectoryToUse")
-            @ValidTrajectoryName
             @Parameter(description = "Name of the trajectory file (e.g., scenario_builder_BP23_A_ref_vdef)")
             String trajectoryToUse,
 
@@ -55,11 +53,6 @@ public class ScenarioBuilderController {
 
             throws IOException {
 
-
-        pathSecurityUtil.validatePathFromBaseDir(
-                trajectoryToUse,
-                AntaresDataManagerProperties::getTrajectoryFilePath
-        );
 
         TrajectoryEntity trajectory = scenarioBuilderFileProcessorService.processScenarioBuilderFile(
                 trajectoryToUse,
