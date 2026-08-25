@@ -66,10 +66,22 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                     .build();
         }
 
+
         String fileNameWithExt = trajectoryToUse.endsWith(SCENARIO_BUILDER_FILE_SUFFIX)
                 ? trajectoryToUse
                 : trajectoryToUse + SCENARIO_BUILDER_FILE_SUFFIX;
-        Path filePath = trajectoryFolder.resolve(fileNameWithExt).normalize();
+
+        Path normalizedTrajectoryFolder = trajectoryFolder
+                .toAbsolutePath()
+                .normalize();
+
+        Path filePath = normalizedTrajectoryFolder
+                .resolve(fileNameWithExt)
+                .normalize();
+
+        if (!filePath.startsWith(normalizedTrajectoryFolder)) {
+            throw new IOException("Entry is outside of the allowed directory");
+        }
 
         if (!Files.isRegularFile(filePath)) {
             throw BusinessException.builder()
