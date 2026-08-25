@@ -17,6 +17,9 @@ public class ScenarioBuilderEntity {
     @SequenceGenerator(name = "scenario_builder_seq_gen", sequenceName = "scenario_builder_seq", allocationSize = 1)
     private Integer id;
 
+    @Column(name = "category")
+    private String category;
+
     @Column(name = "modulo")
     private String modulo;
 
