@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ResFileProcessorServiceImplTest {
+class ResFileProcessorServiceImplTest {
 
     // Constants for test data
     private static final String AREA_FR = "FR";

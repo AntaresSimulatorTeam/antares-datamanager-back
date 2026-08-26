@@ -126,7 +126,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         return results;
     }
 
-    public Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
+    public Path getTrajectoryFilePath(String trajectoryToUse) {
         String baseName = trajectoryToUse;
         if (startsWithIgnoreCase(baseName, DSR_CAPACITY_MODULATION)) {
             baseName = baseName.substring(3);

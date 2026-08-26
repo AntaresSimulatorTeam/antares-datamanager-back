@@ -540,7 +540,7 @@ class NuclearFileProcessorServiceImplTest {
     // ========== Tests for processNuclearLongTermFile (nuclear-lt) ==========
 
     @Test
-    void processNuclearLongTermFile_withMissingTrajectoryFolder_throwsBusinessException() throws IOException {
+    void processNuclearLongTermFile_withMissingTrajectoryFolder_throwsBusinessException() {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
