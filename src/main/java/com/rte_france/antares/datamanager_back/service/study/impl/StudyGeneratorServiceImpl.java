@@ -234,8 +234,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get(), study.getRecalculate());
         }
 
-        if (dispatchResult.scenarioBuilderTrajectory().isPresent()) {
-            Map<String, Object> scenarioBuilderMap = buildScenarioBuilderDataMap(dispatchResult.scenarioBuilderTrajectory().get());
+        Optional<TrajectoryEntity> scenarioBuilderTrajectory = dispatchResult.scenarioBuilderTrajectory();
+        if (scenarioBuilderTrajectory.isPresent()) {
+            Map<String, Object> scenarioBuilderMap = buildScenarioBuilderDataMap(scenarioBuilderTrajectory.get());
             if (settingsMap == null) {
                 settingsMap = new LinkedHashMap<>();
             }
@@ -245,7 +246,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
 
         innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));
-        // TODO: get input for random generation flag and number of years, maybe also move them somewhere else
+        // TODO: get input for random generation flag, maybe also move them somewhere else
         innerGeneratorMap.put("enable_random_ts", true);
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
