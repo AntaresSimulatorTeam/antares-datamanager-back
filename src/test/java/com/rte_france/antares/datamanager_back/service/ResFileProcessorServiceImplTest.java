@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,7 +32,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -71,7 +69,6 @@ public class ResFileProcessorServiceImplTest {
     protected static final String FILE_NOT_FOUND = "File not found: ";
     private static final String ZONAL_REPARTITION_FILE_NAME = "repartition_zonal_BP23_Aref";
 
-    @InjectMocks
     private ResFileProcessorServiceImpl resFileProcessorServiceImpl;
 
     @Mock
@@ -90,13 +87,19 @@ public class ResFileProcessorServiceImplTest {
     private AntaresDataManagerProperties antaresDataManagerProperties;
 
     @Mock
-    private PathSecurityUtil pathSecurityUtil;
-
-    @Mock
     private ResCoherenceCheckService resCoherenceCheckService;
 
     @Mock
     private ResTypeService resTypeService;
+
+    @BeforeEach
+    void setUpService() {
+        PathSecurityUtil pathSecurityUtil = new PathSecurityUtil(antaresDataManagerProperties);
+        resFileProcessorServiceImpl = new ResFileProcessorServiceImpl(
+                trajectoryRepository, userService, areaRepository, resTypeService,
+                antaresDataManagerProperties, trajectoryService, pathSecurityUtil, resCoherenceCheckService
+        );
+    }
 
     // ======================================================
     // INSTALLED POWER RES
@@ -1157,20 +1160,13 @@ public class ResFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(TRAJECTORY_PATH);
             when(trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, AREA_FR, null))
                     .thenReturn(DIRECTORY_RES_LOAD);
-            doAnswer(invocation -> {
-                String value = invocation.getArgument(0, String.class);
-                if (value.contains("..")) {
-                    throw new IOException("Entry is outside of the allowed directory");
-                }
-                return null;
-            }).when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any(Function.class));
 
             assertThatThrownBy(() ->
                     resFileProcessorServiceImpl.processLoadFactorResFile(
                             TRAJECTORY_NAME, HORIZON_2029_2030, STUDY_ID, AREA_FR, "../../../etc/passwd"
                     ))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("Invalid trajectory path");
+                    .hasMessageContaining("outside of the allowed directory");
         }
 
         @Test

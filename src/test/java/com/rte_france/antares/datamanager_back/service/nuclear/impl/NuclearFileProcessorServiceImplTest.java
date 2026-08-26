@@ -14,7 +14,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -30,7 +29,6 @@ import org.apache.poi.ss.usermodel.Workbook;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doNothing;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -51,11 +49,8 @@ class NuclearFileProcessorServiceImplTest {
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
 
-    @Mock
-    @SuppressWarnings("java:S1481")
     private PathSecurityUtil pathSecurityUtil;
 
-    @InjectMocks
     private NuclearFileProcessorServiceImpl nuclearFileProcessorService;
 
     private Path testDirectory;
@@ -81,6 +76,11 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearModulationDirectory()).thenReturn("nuclear_modulation");
         when(userService.getCurrentUserDetails()).thenReturn(null);
+
+        pathSecurityUtil = new PathSecurityUtil(antaresDataManagerProperties);
+        nuclearFileProcessorService = new NuclearFileProcessorServiceImpl(
+                trajectoryRepository, nuclearModulationParameterRepository, userService,
+                antaresDataManagerProperties, pathSecurityUtil);
     }
 
     private Path createTestTrajectoryFolder() throws IOException {
@@ -544,7 +544,6 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
 
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             nuclearFileProcessorService.processNuclearLongTermFile(trajectoryName, horizon, studyId, area);
@@ -562,7 +561,6 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
 
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             nuclearFileProcessorService.processNuclearLongTermFile(trajectoryName, horizon, studyId, area);
@@ -583,7 +581,6 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
                 .thenReturn(Optional.empty());
@@ -627,7 +624,6 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
                 .thenReturn(Optional.of(existingTrajectory));
@@ -660,7 +656,6 @@ class NuclearFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
             when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-            doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                     trajectoryName + "_" + testArea, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
                     .thenReturn(Optional.empty());
@@ -692,7 +687,6 @@ class NuclearFileProcessorServiceImplTest {
             when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
             when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
             when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-            doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                     trajectoryName, testHorizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
                     .thenReturn(Optional.empty());
@@ -721,7 +715,6 @@ class NuclearFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getNuclearLtDirectory()).thenReturn("nuclear_lt");
-        doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_TS_LONG_TERM.name()))
                 .thenReturn(Optional.empty());

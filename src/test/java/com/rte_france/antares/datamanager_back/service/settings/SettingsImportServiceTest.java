@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,7 +55,8 @@ class SettingsImportServiceTest {
                 advancedParametersRepository,
                 seedsParametersRepository,
                 trajectoryRepository,
-                antaresDataManagerProperties
+                antaresDataManagerProperties,
+                new PathSecurityUtil(antaresDataManagerProperties)
         );
     }
 

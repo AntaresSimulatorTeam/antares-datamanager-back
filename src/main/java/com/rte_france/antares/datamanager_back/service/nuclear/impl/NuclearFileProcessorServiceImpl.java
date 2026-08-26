@@ -63,22 +63,12 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     @Transactional
     @Override
     public TrajectoryEntity processNuclearModulationFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        
-        // Build the trajectory path
-        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
-        
-        // Get the nuclear modulation directory from the configuration
-        String modulationDirectory = antaresDataManagerProperties.getNuclearModulationDirectory();
 
-        // Validate path security
-        validatePathFromTrajectoryRoot(modulationDirectory, trajectoryToUse);
-        
         // Full path to trajectory folder
-        Path trajectoryFolder = basePath
-                .resolve(modulationDirectory)
-                .resolve(trajectoryToUse)
-                .normalize();
+        Path trajectoryFolder = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath(), properties.getNuclearModulationDirectory()),
+                trajectoryToUse
+        );
 
         // Check trajectory folder exists
         if (!Files.isDirectory(trajectoryFolder)) {
@@ -91,7 +81,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
         // Build parameters file path
         String parametersFileName = PARAMETERS_FILE_PREFIX + trajectoryToUse + PARAMETERS_FILE_SUFFIX;
-        Path parametersFilePath = trajectoryFolder.resolve(parametersFileName);
+        Path parametersFilePath = pathSecurityUtil.resolveSafePath(trajectoryFolder, parametersFileName);
 
         // Check parameters file exists
         if (!Files.isRegularFile(parametersFilePath)) {
@@ -157,8 +147,8 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
      * Validate time series files in TS_modulation directory
      */
     private void validateTimeSeriesFiles(Path trajectoryFolder, String trajectoryToUse, String horizon) {
-        Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
-        
+        Path tsModulationDir = pathSecurityUtil.resolveSafePath(trajectoryFolder, "TS_modulation");
+
         // Check if TS_modulation directory exists
         if (!Files.isDirectory(tsModulationDir)) {
             throw BusinessException.builder()
@@ -167,17 +157,17 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        
+
         // Extract horizon year (e.g., "2030-2031" -> "2031")
         String horizonYear = horizon.split("-")[1];
-        
+
         // Array of modulation types to check
         String[] modulationTypes = {"daily", "hourly", "weekly"};
-        
+
         for (String modulationType : modulationTypes) {
             String fileName = trajectoryToUse + "_" + modulationType + PARAMETERS_FILE_SUFFIX;
-            Path filePath = tsModulationDir.resolve(fileName);
-            
+            Path filePath = pathSecurityUtil.resolveSafePath(tsModulationDir, fileName);
+
             // Check if file exists
             if (!Files.isRegularFile(filePath)) {
                 throw BusinessException.builder()
@@ -372,22 +362,12 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     @Transactional
     @Override
     public TrajectoryEntity processNuclearLongTermFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        
-        // Build the trajectory path
-        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
-        
-        // Get the nuclear long-term directory from the configuration
-        String ltDirectory = antaresDataManagerProperties.getNuclearLtDirectory();
 
-        // Validate path security
-        validatePathFromTrajectoryRoot(ltDirectory, trajectoryToUse);
-        
         // Full path to trajectory folder
-        Path trajectoryFolder = basePath
-                .resolve(ltDirectory)
-                .resolve(trajectoryToUse)
-                .normalize();
+        Path trajectoryFolder = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath(), properties.getNuclearLtDirectory()),
+                trajectoryToUse
+        );
 
         // Check trajectory folder exists
         if (!Files.isDirectory(trajectoryFolder)) {
@@ -398,9 +378,9 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     .build();
         }
 
-        // Build simulation file path: Simu_<horizon>.xlsx
+        // Build simulation file path: Simu_<horizon>.xlsx, confined to the trajectory folder
         String simulationFileName = "Simu_" + horizon + PARAMETERS_FILE_SUFFIX;
-        Path simulationFilePath = trajectoryFolder.resolve(simulationFileName);
+        Path simulationFilePath = pathSecurityUtil.resolveSafePath(trajectoryFolder, simulationFileName);
 
         // Check simulation file exists
         if (!Files.isRegularFile(simulationFilePath)) {
@@ -500,17 +480,14 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon, Integer studyId, 
             String area, String directoryPath, TrajectoryType trajectoryType) throws IOException {
         
-        // Build the full path to the file using NAS directory and trajectory file path
-        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
-        
         // If trajectoryToUse doesn't have an extension, add .xlsx
         String fileName = trajectoryToUse.endsWith(PARAMETERS_FILE_SUFFIX) ? trajectoryToUse : trajectoryToUse + PARAMETERS_FILE_SUFFIX;
-        
-        Path filePath = basePath
-                .resolve(directoryPath)
-                .resolve(fileName)
-                .normalize();
+
+        // Full path to the file, confined to the given nuclear time series directory
+        Path filePath = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath(), directoryPath),
+                fileName
+        );
 
         // Check file exists
         if (!Files.isRegularFile(filePath)) {
@@ -597,22 +574,6 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         );
 
         return pattern.matcher(fileName).replaceFirst("");
-    }
-
-    /**
-     * Validate path from trajectory root for security
-     */
-    private void validatePathFromTrajectoryRoot(String... pathSegments) {
-        String relativePath = String.join("/", pathSegments);
-        try {
-            pathSecurityUtil.validatePathFromBaseDir(relativePath, AntaresDataManagerProperties::getTrajectoryFilePath);
-        } catch (IOException e) {
-            throw BusinessException.builder()
-                    .message("Invalid trajectory path: {0}")
-                    .errorMessageArguments(List.of(relativePath))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
     }
 }
 

@@ -123,19 +123,16 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     @Override
     public TrajectoryEntity processLoadFactorResFile(String trajectoryToUse, String horizon, Integer studyId, String area, String technology) throws IOException {
-        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         String loadDirectory = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.RES_LOAD, area, null);
 
-        validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse);
-
-        Path trajectoryFolder = basePath
-                .resolve(loadDirectory)
-                .resolve(trajectoryToUse)
-                .normalize();
+        // Full path to trajectory folder, confined to the RES load directory
+        Path trajectoryFolder = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath(), loadDirectory),
+                trajectoryToUse
+        );
 
         // Validate and get the trajectory file path
-        Path trajectoryFilePath = validateAndGetTrajectoryFilePath(trajectoryFolder, trajectoryToUse, technology, loadDirectory);
+        Path trajectoryFilePath = validateAndGetTrajectoryFilePath(trajectoryFolder, trajectoryToUse, technology);
 
         validateNoMalformedZonalFiles(trajectoryFilePath, trajectoryToUse);
 
@@ -183,9 +180,8 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
      * If technology is specified, returns the technology folder.
      * If technology is not specified, validates all 4 required technologies exist.
      */
-    private Path validateAndGetTrajectoryFilePath(Path trajectoryFolder, String trajectoryToUse, String technology, String loadDirectory) throws IOException {
+    private Path validateAndGetTrajectoryFilePath(Path trajectoryFolder, String trajectoryToUse, String technology) throws IOException {
         if (technology != null && !technology.isBlank()) {
-            validatePathFromTrajectoryRoot(loadDirectory, trajectoryToUse, technology);
             Path technologyFolder = resolveTechnologyFolder(trajectoryFolder, technology);
             
             // Validate that at least one subdirectory contains CSV files
@@ -217,19 +213,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         if (!hasValidSubFolder) {
             throw BusinessException.builder()
                     .message("No subdirectory with CSV files found for technology: " + technology)
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    private void validatePathFromTrajectoryRoot(String... pathSegments) {
-        String relativePath = String.join("/", pathSegments);
-        try {
-            pathSecurityUtil.validatePathFromBaseDir(relativePath, AntaresDataManagerProperties::getTrajectoryFilePath);
-        } catch (IOException e) {
-            throw BusinessException.builder()
-                    .message("Invalid trajectory path: {0}")
-                    .errorMessageArguments(List.of(relativePath))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -479,12 +462,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
      * Resolves the technology folder path under trajectoryFolder.
      * Returns trajectoryFolder/technology
      */
-    private static Path resolveTechnologyFolder(Path trajectoryFolder, String technology) {
+    private Path resolveTechnologyFolder(Path trajectoryFolder, String technology) {
         Objects.requireNonNull(trajectoryFolder, "trajectoryFolder must not be null");
         Objects.requireNonNull(technology, "technology must not be null");
-        
-        Path techFolder = trajectoryFolder.resolve(technology).normalize();
-        
+
+        Path techFolder = pathSecurityUtil.resolveSafePath(trajectoryFolder, technology);
+
         if (!Files.exists(techFolder)) {
             throw BusinessException.builder()
                     .message("No technology folder found for: " + technology)

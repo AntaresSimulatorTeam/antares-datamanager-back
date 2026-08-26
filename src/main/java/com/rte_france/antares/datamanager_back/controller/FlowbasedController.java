@@ -1,9 +1,9 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 
@@ -30,7 +29,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @RequiredArgsConstructor
 public class FlowbasedController {
     private final FlowbasedFileProcessorService flowbasedFileProcessorService;
-    private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final PathSecurityUtil pathSecurityUtil;
 
     @Operation(summary = "import flowbased trajectory to database")
     @PostMapping("/flowbased")
@@ -38,7 +37,7 @@ public class FlowbasedController {
             @RequestParam("trajectoryToUse") @ValidTrajectoryName  String trajectoryToUse,
             @RequestParam(value = "studyId", required = false) Integer studyId,
             @RequestParam("horizon") String horizon) {
-        
+
         String[] parts = trajectoryToUse.split("###");
         if (parts.length != 2) {
             throw BusinessException.builder()
@@ -46,18 +45,15 @@ public class FlowbasedController {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        
+
         String repertoire1 = parts[0];
         String repertoire2 = parts[1];
-        
-        Path trajectoryFilePath = Paths.get(
-                antaresDataManagerProperties.getNasDirectory(),
-                antaresDataManagerProperties.getTrajectoryFilePath(),
-                antaresDataManagerProperties.getFlowbasedDirectory(),
-                repertoire1,
-                repertoire2
+
+        Path trajectoryFilePath = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath(), properties.getFlowbasedDirectory()),
+                repertoire1, repertoire2
         );
-        
+
         return new ResponseEntity<>(toTrajectoryDTO(
                 flowbasedFileProcessorService.processFlowbasedFiles(trajectoryFilePath, trajectoryToUse, studyId, horizon)
         ), HttpStatus.CREATED);
