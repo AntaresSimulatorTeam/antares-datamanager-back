@@ -301,7 +301,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
         Path directory = Path.of(directoryProperty);
         for (String candidatePrefix : List.of(prefix, prefix.toLowerCase(Locale.ROOT))) {
             Path candidate = directory.resolve(buildPrefixedFileName(candidatePrefix, storedFileName));
-            if (Files.exists(resolveNasPath(candidate))) {
+            if (Files.exists(resolveValidatedNasPath(candidate, "Invalid nuclear file path: {0}"))) {
                 return candidate;
             }
         }
@@ -318,22 +318,21 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     }
 
     private Path resolveNasPath(Path relativePath) {
-        return Path.of(properties.getNasDirectory())
-                .resolve(properties.getTrajectoryFilePath())
-                .resolve(relativePath)
-                .normalize();
+        return pathSecurityUtil.resolveSafePath(
+                p -> Path.of(p.getNasDirectory(), p.getTrajectoryFilePath()),
+                relativePath.toString()
+        );
     }
 
     private Path resolveValidatedNasPath(Path relativePath, String invalidPathMessage) {
         try {
-            pathSecurityUtil.validatePathFromBaseDir(relativePath.toString(), AntaresDataManagerProperties::getTrajectoryFilePath);
-        } catch (IOException e) {
+            return resolveNasPath(relativePath);
+        } catch (BusinessException e) {
             throw TechnicalException.builder()
                     .errorMessageArguments(List.of(relativePath.toString()))
                     .message(invalidPathMessage)
                     .cause(e)
                     .build();
         }
-        return resolveNasPath(relativePath);
     }
 }

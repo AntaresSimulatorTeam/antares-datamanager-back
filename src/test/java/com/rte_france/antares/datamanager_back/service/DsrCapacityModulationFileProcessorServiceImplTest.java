@@ -45,7 +45,6 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     @Mock private DsrRepository dsrRepository;
     @Mock private TrajectoryRepository trajectoryRepository;
     @Mock private UserService userService;
-    @Mock private PathSecurityUtil pathSecurityUtil;
 
     @TempDir
     Path tempDir;
@@ -60,14 +59,13 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
 
         service = spy(new DsrCapacityModulationFileProcessorServiceImpl(
                 properties,
-                pathSecurityUtil,
+                new PathSecurityUtil(properties),
                 trajectoryRepository,
                 userService,
                 dsrRepository
         ));
 
         lenient().when(trajectoryRepository.save(any())) .thenAnswer(inv -> inv.getArgument(0));
-        lenient().doNothing().when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
     }
 
     // -------------------------------------------------------------------------
@@ -397,7 +395,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     @Test
     void testGetTrajectoryFilePathPathTraversalSecurity() {
         assertThatThrownBy(() -> service.getTrajectoryFilePath("../../../etc/passwd"))
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("Path is outside of the target directory");
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("outside of the allowed directory");
     }
 }

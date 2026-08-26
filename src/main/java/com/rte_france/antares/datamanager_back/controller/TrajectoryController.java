@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.controller;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
@@ -9,7 +8,6 @@ import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -18,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -71,7 +70,10 @@ public class TrajectoryController {
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId
                                                           ) throws IOException {
-        pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaresDataManagerProperties::getTrajectoryFilePath);
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
@@ -82,7 +84,10 @@ public class TrajectoryController {
                                                           @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                           @Parameter(description = "example of horizon : 2020-2021") String horizon,
                                                           @RequestParam("studyId") Integer studyId) throws IOException {
-        pathSecurityUtil.validatePathFromBaseDir(trajectoryToUse, AntaresDataManagerProperties::getTrajectoryFilePath);
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 

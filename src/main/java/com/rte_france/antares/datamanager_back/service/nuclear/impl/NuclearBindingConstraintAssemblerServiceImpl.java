@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.NuclearBindingConstraintGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.NuclearConstraintItemDTO;
 import com.rte_france.antares.datamanager_back.dto.NuclearTalonBindingConstraintGenerationDTO;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
@@ -192,7 +193,7 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
         Path talonDirectory = Path.of(properties.getNuclearTalonDirectory());
         for (String prefix : TALON_PREFIX_CANDIDATES) {
             Path candidate = talonDirectory.resolve(buildTalonFileName(prefix, storedFileName));
-            if (Files.exists(resolveNasPath(candidate))) {
+            if (Files.exists(resolveValidatedNasPath(candidate, "Invalid nuclear talon path: {0}"))) {
                 return candidate;
             }
         }
@@ -205,22 +206,21 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     }
 
     private Path resolveNasPath(Path relativePath) {
-        return Path.of(properties.getNasDirectory())
-                .resolve(properties.getTrajectoryFilePath())
-                .resolve(relativePath)
-                .normalize();
+        return pathSecurityUtil.resolveSafePath(
+                p -> Path.of(p.getNasDirectory(), p.getTrajectoryFilePath()),
+                relativePath.toString()
+        );
     }
 
     private Path resolveValidatedNasPath(Path relativePath, String invalidPathMessage) {
         try {
-            pathSecurityUtil.validatePathFromBaseDir(relativePath.toString(), AntaresDataManagerProperties::getTrajectoryFilePath);
-        } catch (IOException e) {
+            return resolveNasPath(relativePath);
+        } catch (BusinessException e) {
             throw TechnicalException.builder()
                     .errorMessageArguments(List.of(relativePath.toString()))
                     .message(invalidPathMessage)
                     .cause(e)
                     .build();
         }
-        return resolveNasPath(relativePath);
     }
 }

@@ -442,10 +442,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void resolveSeriesInTrajectory(SeriesScanContext scanContext, Path base, List<ResSeriesRef> result) {
         try {
-            pathSecurityUtil.validatePathFromBaseDir(scanContext.trajectoryFileName(), AntaresDataManagerProperties::getResLoadDirectory);
-            Path trajectoryRoot = base.resolve(scanContext.trajectoryFileName()).normalize();
+            Path trajectoryRoot = pathSecurityUtil.resolveSafePath(base, scanContext.trajectoryFileName());
 
-            if (!trajectoryRoot.startsWith(base) || !Files.exists(trajectoryRoot)) {
+            if (!Files.exists(trajectoryRoot)) {
                 throw BusinessException.builder()
                         .message("Invalid RES load trajectory path: " + scanContext.trajectoryFileName())
                         .httpStatus(HttpStatus.BAD_REQUEST)
