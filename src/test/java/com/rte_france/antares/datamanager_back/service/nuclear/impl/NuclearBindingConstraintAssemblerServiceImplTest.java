@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -40,7 +39,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,9 +49,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
     @Mock private NuclearModulationParameterRepository nuclearModulationParameterRepository;
     @Mock private NasFileService nasFileService;
     @Mock private AntaresDataManagerProperties properties;
-    @Mock private PathSecurityUtil pathSecurityUtil;
 
-    @InjectMocks
     private NuclearBindingConstraintAssemblerServiceImpl assembler;
 
     private static final String HORIZON = "2026-2027";
@@ -66,6 +62,10 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         tempDir = Files.createTempDirectory("nuc_bc_test_");
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
         when(properties.getTrajectoryFilePath()).thenReturn("INPUT");
+
+        PathSecurityUtil pathSecurityUtil = new PathSecurityUtil(properties);
+        assembler = new NuclearBindingConstraintAssemblerServiceImpl(
+                nuclearModulationParameterRepository, nasFileService, properties, pathSecurityUtil);
     }
 
     @AfterEach
@@ -257,10 +257,9 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
         }
 
         @Test
-        void assembleTalonBindingConstraint_shouldThrowTechnicalExceptionWhenPathValidationFails() throws IOException {
-            doThrow(new IOException("invalid path"))
-                    .when(pathSecurityUtil).validatePathFromBaseDir(anyString(), any());
-            TrajectoryEntity trajectory = talonTrajectory(STORED_FILE_NAME);
+        void assembleTalonBindingConstraint_shouldThrowTechnicalExceptionWhenPathValidationFails() {
+            // A stored file name crafted to escape the allowed NAS directory via ".." segments
+            TrajectoryEntity trajectory = talonTrajectory("../../../../../../../../etc/passwd");
 
             assertThatThrownBy(() -> assembler.assembleTalonBindingConstraint(study, trajectory, List.of()))
                     .isInstanceOf(TechnicalException.class);

@@ -27,7 +27,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -61,10 +60,8 @@ class NuclearAvailabilityAssemblerServiceImplTest {
     @Mock private TimeSeriesReader timeSeriesReader;
     @Mock private NuclearTimeSeriesReader nuclearTimeSeriesReader;
     @Mock private AntaresDataManagerProperties properties;
-    @Mock private PathSecurityUtil pathSecurityUtil;
     @Mock private ClusterDesignationRepository clusterDesignationRepository;
 
-    @InjectMocks
     private NuclearAvailabilityAssemblerServiceImpl assembler;
 
     private static final String HORIZON = "2029-2030";
@@ -76,6 +73,10 @@ class NuclearAvailabilityAssemblerServiceImplTest {
         tempDir = Files.createTempDirectory("nuc_availability_test_");
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
         when(properties.getTrajectoryFilePath()).thenReturn("INPUT");
+
+        PathSecurityUtil pathSecurityUtil = new PathSecurityUtil(properties);
+        assembler = new NuclearAvailabilityAssemblerServiceImpl(
+                nasFileService, timeSeriesReader, nuclearTimeSeriesReader, properties, pathSecurityUtil, clusterDesignationRepository);
     }
 
     @AfterEach

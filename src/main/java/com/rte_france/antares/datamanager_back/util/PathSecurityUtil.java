@@ -5,8 +5,6 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.function.Function;
@@ -17,23 +15,6 @@ public class PathSecurityUtil {
 
     public PathSecurityUtil(AntaresDataManagerProperties properties) {
         this.properties = Objects.requireNonNull(properties);
-    }
-
-    /**
-     * Prefer {@link #resolveSafePath} for new code because it's
-     * NIO, accepts any number of untrusted segments, and fails with a {@link BusinessException}
-     * <p>
-     * Migrate this method's remaining callers to
-     * {@code resolveSafePath}, then remove it.
-     */
-    public void validatePathFromBaseDir(String fileName, Function<AntaresDataManagerProperties, String> pathGetter) throws IOException {
-        var baseDir = new File(pathGetter.apply(properties));
-        var targetFile = new File(baseDir, fileName);
-        var canonicalBase = baseDir.getCanonicalPath() + File.separator;
-        var canonicalTarget = targetFile.getCanonicalPath();
-        if (!canonicalTarget.startsWith(canonicalBase)) {
-            throw new IOException("Entry is outside of the allowed directory");
-        }
     }
 
     /**

@@ -133,34 +133,16 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
         }
 
         String targetFileName = trajectoryToUse + FILE_EXTENSION;
-        pathSecurityUtil.validatePathFromBaseDir(
-                targetFileName,
-                properties -> Path.of(properties.getNasDirectory())
-                        .resolve(properties.getTrajectoryFilePath())
-                        .resolve(properties.getDsrCapacityDirectory())
-                        .toString()
-        );
 
-        //build the file path
         Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                 .resolve(antaresDataManagerProperties.getDsrCapacityDirectory())
                 .normalize();
 
-        if (!baseDirectory.endsWith("/")) {
-            baseDirectory = baseDirectory.resolve("");
-        }
-
-        Path upperCasePath = baseDirectory.resolve(DSR_CAPACITY_MODULATION + baseName + FILE_EXTENSION).normalize();
-        Path lowerCasePath = baseDirectory.resolve(DSR_CAPACITY_MODULATION.toLowerCase(Locale.ROOT) + baseName + FILE_EXTENSION).normalize();
-
-        //download the file
-        Path trajectoryFilePath = baseDirectory.resolve(targetFileName).normalize();
-        if (!upperCasePath.startsWith(baseDirectory) ||
-                !lowerCasePath.startsWith(baseDirectory) ||
-                !trajectoryFilePath.startsWith(baseDirectory)) {
-            throw new IOException("Path is outside of the target directory");
-        }
+        //build the file path (independently confined to baseDirectory)
+        Path trajectoryFilePath = pathSecurityUtil.resolveSafePath(baseDirectory, targetFileName);
+        Path upperCasePath = pathSecurityUtil.resolveSafePath(baseDirectory, DSR_CAPACITY_MODULATION + baseName + FILE_EXTENSION);
+        Path lowerCasePath = pathSecurityUtil.resolveSafePath(baseDirectory, DSR_CAPACITY_MODULATION.toLowerCase(Locale.ROOT) + baseName + FILE_EXTENSION);
 
         if (Files.exists(trajectoryFilePath) && !Files.isSymbolicLink(trajectoryFilePath)) {
             return trajectoryFilePath;
