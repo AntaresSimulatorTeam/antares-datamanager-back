@@ -173,7 +173,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
                 case SETTINGS -> settingsTraj = Optional.of(trajectory);
                 case SCENARIO_BUILDER -> scenarioBuilderTraj = Optional.of(trajectory);
-                case ADEQUACY_PATCH -> log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
+                case ADEQUACY_PATCH -> log.warn("Adequacy patch trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                 case LOAD ->
                         log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                 case THERMAL_CAPACITY, THERMAL_TECHNICAL_COMMON_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER,
@@ -204,12 +204,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj);
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, scenarioBuilderTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj);
     }
 
     private Map<String, Object> buildScenarioBuilderDataMap(TrajectoryEntity trajectory) {
         return scenarioBuilderToJsonService.buildScenarioBuilderMap(trajectory.getId());
+
     }
 
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
