@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +17,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -104,22 +105,19 @@ public class SettingsImportService {
     private final SettingsSeedsParametersRepository seedsParametersRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final PathSecurityUtil pathSecurityUtil;
 
     @Transactional
     public TrajectoryEntity importSettings(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        // Build the trajectory path following the NuclearFileProcessorServiceImpl pattern
-        Path basePath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath());
-        
         // Get the trajectory settings directory from the configuration
         String settingsDirectory = antaresDataManagerProperties.getTrajectorySettingsDirectory();
-        
+
         // Full path to trajectory folder
-        Path trajectoryFolder = basePath
-                .resolve(settingsDirectory)
+        Path trajectoryFolder = Path.of(antaresDataManagerProperties.getNasDirectory(), antaresDataManagerProperties.getTrajectoryFilePath(), settingsDirectory)
                 .normalize();
-        
+
         log.info("Loading trajectory settings from: {}", trajectoryFolder);
-        
+
         // Check trajectory folder exists
         if (!Files.isDirectory(trajectoryFolder)) {
             throw BusinessException.builder()
@@ -129,9 +127,9 @@ public class SettingsImportService {
                     .build();
         }
 
-        // Build settings file path
+        // Build settings file path, confined to the trajectory folder
         String settingsFileName = trajectoryToUse + SETTINGS_FILE_SUFFIX;
-        Path filePath = trajectoryFolder.resolve(settingsFileName);
+        Path filePath = pathSecurityUtil.resolveSafePath(trajectoryFolder, settingsFileName);
 
         // Check settings file exists
         if (!Files.isRegularFile(filePath)) {
@@ -142,7 +140,7 @@ public class SettingsImportService {
                     .build();
         }
 
-        try (FileInputStream fileInputStream = new FileInputStream(filePath.toFile());
+        try (InputStream fileInputStream = Files.newInputStream(filePath);
              Workbook workbook = new XSSFWorkbook(fileInputStream)) {
 
             // Calculate checksums per sheet
