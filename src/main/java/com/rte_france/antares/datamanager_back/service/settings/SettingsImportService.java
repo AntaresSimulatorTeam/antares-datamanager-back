@@ -122,7 +122,7 @@ public class SettingsImportService {
         if (!Files.isDirectory(trajectoryFolder)) {
             throw BusinessException.builder()
                     .message("Trajectory settings folder not found: {0}")
-                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .errorMessageArguments(List.of(trajectoryFolder.toString()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

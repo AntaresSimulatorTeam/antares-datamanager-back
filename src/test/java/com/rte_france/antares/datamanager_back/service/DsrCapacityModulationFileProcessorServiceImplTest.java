@@ -50,7 +50,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     Path tempDir;
 
     @BeforeEach
-    void setup() throws IOException {
+    void setup() {
         AntaresDataManagerProperties properties = mock(AntaresDataManagerProperties.class);
 
         lenient().when(properties.getNasDirectory()).thenReturn(tempDir.toString());

@@ -5,6 +5,8 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.function.Function;
@@ -49,12 +51,47 @@ public class PathSecurityUtil {
         resolved = resolved.normalize();
 
         if (!resolved.startsWith(normalizedBase)) {
-            throw BusinessException.builder()
-                    .message("Resolved path is outside of the allowed directory")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
+            throw outsideAllowedDirectory();
+        }
+
+        // for symlinks
+        if (!realPathOfExistingPrefix(resolved).startsWith(realPathOfExistingPrefix(normalizedBase))) {
+            throw outsideAllowedDirectory();
         }
 
         return resolved;
+    }
+
+    private static BusinessException outsideAllowedDirectory() {
+        return BusinessException.builder()
+                .message("Resolved path is outside of the allowed directory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
+
+    /**
+     * Returns where {@code path} really points on disk, following any symlinks but only for
+     * the part of it that exists right now. Returns {@code path}
+     * unchanged if nothing on it exists at all.
+     *
+     * @throws BusinessException (400) if resolving an existing part of the path fails for a
+     * reason other than it not existing (ex: permissions)
+     */
+    private static Path realPathOfExistingPrefix(Path path) {
+        Path suffix = null;
+        for (Path current = path; current != null; current = current.getParent()) {
+            try {
+                Path realPrefix = current.toRealPath();
+                return suffix == null ? realPrefix : realPrefix.resolve(suffix).normalize();
+            } catch (NoSuchFileException e) {
+                Path name = current.getFileName();
+                if (name != null) {
+                    suffix = suffix == null ? name : name.resolve(suffix);
+                }
+            } catch (IOException e) {
+                throw outsideAllowedDirectory();
+            }
+        }
+        return path;
     }
 }

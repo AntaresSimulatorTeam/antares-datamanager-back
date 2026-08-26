@@ -442,14 +442,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void resolveSeriesInTrajectory(SeriesScanContext scanContext, Path base, List<ResSeriesRef> result) {
         try {
-            Path trajectoryRoot = pathSecurityUtil.resolveSafePath(base, scanContext.trajectoryFileName());
-
-            if (!Files.exists(trajectoryRoot)) {
-                throw BusinessException.builder()
-                        .message("Invalid RES load trajectory path: " + scanContext.trajectoryFileName())
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+            Path trajectoryRoot = resolveExistingTrajectoryRoot(scanContext, base);
 
             try (var walk = Files.walk(trajectoryRoot)) {
                 walk.filter(file -> {
@@ -468,6 +461,27 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     .cause(e)
                     .build();
         }
+    }
+
+    private Path resolveExistingTrajectoryRoot(SeriesScanContext scanContext, Path base) {
+        Path trajectoryRoot;
+        try {
+            trajectoryRoot = pathSecurityUtil.resolveSafePath(base, scanContext.trajectoryFileName());
+        } catch (BusinessException e) {
+            throw TechnicalException.builder()
+                    .message("Invalid RES load trajectory path: " + scanContext.trajectoryFileName())
+                    .cause(e)
+                    .build();
+        }
+
+        if (!Files.exists(trajectoryRoot)) {
+            throw BusinessException.builder()
+                    .message("Invalid RES load trajectory path: " + scanContext.trajectoryFileName())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        return trajectoryRoot;
     }
 
     private void createSeriesFromFile(Path file, Path trajectoryRoot, SeriesScanContext scanContext, List<ResSeriesRef> result) {

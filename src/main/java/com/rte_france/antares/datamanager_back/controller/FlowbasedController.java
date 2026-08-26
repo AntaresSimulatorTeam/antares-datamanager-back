@@ -6,8 +6,6 @@ import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFilePr
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
