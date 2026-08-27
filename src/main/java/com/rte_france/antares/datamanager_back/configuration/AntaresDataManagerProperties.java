@@ -144,4 +144,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.p2g.directory}")
     public String p2gDirectory;
+    
+    @Value("${antares.datamanager.p2g.market.modulation.directory}")
+    public String p2gMarketModulationDirectory;
 }
