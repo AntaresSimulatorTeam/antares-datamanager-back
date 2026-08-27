@@ -35,5 +35,7 @@ public enum TrajectoryType {
     ADEQUACY_PATCH,
     FLOWBASED,
     SCENARIO_BUILDER,
+    P2G_CAPACITY_COST,
+    P2G_MARKET_MODULATION,
     UNKNOWN
 }

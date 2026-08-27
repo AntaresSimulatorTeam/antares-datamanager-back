@@ -41,14 +41,4 @@ CREATE TABLE p2g_costs
 
 CREATE SEQUENCE p2g_costs_seq START WITH 1 INCREMENT BY 1;
 
-CREATE TABLE p2g_market_modulation
-(
-    id                          INTEGER PRIMARY KEY,
-    name                        VARCHAR(40),
-    trajectory_id               INTEGER NOT NULL,
-    CONSTRAINT "p2g_market_modulation_fk1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
-);
-
-CREATE SEQUENCE p2g_market_modulation_seq START WITH 1 INCREMENT BY 1;
-
 

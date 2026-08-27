@@ -1043,7 +1043,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_MODULATION
                         || trajectoryType == TrajectoryType.NUCLEAR_FR_TS_LONG_TERM && isRelevantNuclearDirectory(path)
                         || trajectoryType == TrajectoryType.ADEQUACY_PATCH
-                        || trajectoryType == FLOWBASED);
+                        || trajectoryType == FLOWBASED
+                        || trajectoryType == P2G_CAPACITY_COST
+                        || trajectoryType == P2G_MARKET_MODULATION);
     }
 
     /**
@@ -1140,6 +1142,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case SETTINGS -> antaresDataManagerProperties.getTrajectorySettingsDirectory();
             case FLOWBASED -> antaresDataManagerProperties.getFlowbasedDirectory();
             case SCENARIO_BUILDER -> antaresDataManagerProperties.getScenarioBuilderDirectory();
+            case P2G_CAPACITY_COST -> antaresDataManagerProperties.getP2gDirectory();
+            case P2G_MARKET_MODULATION -> antaresDataManagerProperties.getP2gMarketModulationDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
