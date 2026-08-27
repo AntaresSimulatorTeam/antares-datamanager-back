@@ -184,6 +184,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                 }
 
                 ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
+                        .category(currentCategory)
                         .modulo(trimmed)
                         .trajectory(trajectory)
                         .build();
