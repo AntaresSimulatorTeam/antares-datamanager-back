@@ -141,4 +141,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.scenario.builder.directory}")
     public String scenarioBuilderDirectory;
+
+    @Value("${antares.datamanager.p2g.directory}")
+    public String p2gDirectory;
 }

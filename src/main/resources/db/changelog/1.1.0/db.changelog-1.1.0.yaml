@@ -142,3 +142,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V67-rename-scenario-builder-data-column.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V68-alter_area_name_column_length.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V68-create-p2g-table.sql
