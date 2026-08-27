@@ -45,7 +45,6 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
     private final TrajectoryServiceImpl trajectoryService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final UserService userService;
-    private final PathSecurityUtil pathSecurityUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
