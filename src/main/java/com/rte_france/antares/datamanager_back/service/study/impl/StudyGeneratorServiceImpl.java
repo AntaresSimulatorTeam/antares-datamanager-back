@@ -149,8 +149,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                              Optional<TrajectoryEntity> nuclearModulationTrajectory,
                                              Optional<TrajectoryEntity> nuclearTalonTrajectory,
                                              Optional<TrajectoryEntity> settingsTrajectory,
-                                             Optional<TrajectoryEntity> flowbasedTrajectory) {}
-                                             Optional<TrajectoryEntity> settingsTrajectory,
+                                             Optional<TrajectoryEntity> flowbasedTrajectory,
                                              Optional<TrajectoryEntity> scenarioBuilderTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
