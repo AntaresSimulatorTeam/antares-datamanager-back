@@ -75,6 +75,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final ScenarioBuilderToJsonService scenarioBuilderToJsonService;
 
     private static final String PROPERTIES = "properties";
+    private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
 
 
     @ExecutionTime
@@ -408,9 +409,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build();
                     }
-                    propertiesMap.put("adequacy_patch_mode", adequacyModeByArea.get(matchingKey));
+                    propertiesMap.put(ADEQUACY_PATCH_MODE, adequacyModeByArea.get(matchingKey));
                 } else {
-                    propertiesMap.put("adequacy_patch_mode", null);
+                    propertiesMap.put(ADEQUACY_PATCH_MODE, null);
                 }
             }
         }
@@ -442,7 +443,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> areaProperties = new HashMap<>();
         areaProperties.put("energy_cost_unsupplied", areaDTO.getUnsuppliedEnergyCost());
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
-        areaProperties.put("adequacy_patch_mode", null);
+        areaProperties.put(ADEQUACY_PATCH_MODE, null);
         areaMap.put(PROPERTIES, areaProperties);
 
         Map<String, ThermalClusterGenerationDto> allClusters = context.getClusterPropsByArea().get(areaDTO.getName());

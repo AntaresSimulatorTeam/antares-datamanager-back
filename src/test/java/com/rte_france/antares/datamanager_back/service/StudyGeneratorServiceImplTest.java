@@ -659,8 +659,7 @@ class StudyGeneratorServiceImplTest {
 
         Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
         Map<String, Object> frProperties = objectMapper.convertValue(frArea.get("properties"), new TypeReference<>() {});
-        assertThat(frProperties.get("adequacy_patch_mode")).isEqualTo("adequacy_patch");
-
+        assertEquals("adequacy_patch", frProperties.get("adequacy_patch_mode"));
         Map<String, Object> deArea = objectMapper.convertValue(areasMap.get("DE"), new TypeReference<>() {});
         Map<String, Object> deProperties = objectMapper.convertValue(deArea.get("properties"), new TypeReference<>() {});
         assertThat(deProperties.get("adequacy_patch_mode")).isEqualTo("outside");
