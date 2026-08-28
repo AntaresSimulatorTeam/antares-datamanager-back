@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 @Slf4j
 @Service
@@ -27,8 +27,17 @@ public class AdequacySettingsAssemblerServiceImpl implements AdequacySettingsAss
     @Override
     public Map<String, String> assembleAdequacyModeByArea(StudyEntity studyEntity) {
         return findAdequacyTrajectory(studyEntity)
-                .map(t -> t.getAdequacyModeEntities().stream()
-                        .collect(Collectors.toMap(AdequacyModeEntity::getArea, AdequacyModeEntity::getMode, (a, b) -> a)))
+                .map(t -> {
+                    Map<String, String> modeByArea = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+                    if (t.getAdequacyModeEntities() != null) {
+                        for (AdequacyModeEntity entity : t.getAdequacyModeEntities()) {
+                            if (entity.getArea() != null) {
+                                modeByArea.putIfAbsent(entity.getArea(), entity.getMode());
+                            }
+                        }
+                    }
+                    return modeByArea;
+                })
                 .orElse(Collections.emptyMap());
     }
 

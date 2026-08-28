@@ -69,5 +69,26 @@ class AdequacySettingsAssemblerServiceImplTest {
         assertThat(result).hasSize(2)
                 .containsEntry("Area1", "Mode1")
                 .containsEntry("Area2", "Mode2");
+        assertThat(result.get("area1")).isEqualTo("Mode1");
+        assertThat(result.get("AREA2")).isEqualTo("Mode2");
+    }
+
+    @Test
+    void assembleAdequacyModeByArea_shouldHandleNullEntitiesAndNullModes() {
+        AdequacyModeEntity modeWithNullMode = AdequacyModeEntity.builder().area("AreaNull").mode(null).build();
+        AdequacyModeEntity entityWithNullArea = AdequacyModeEntity.builder().area(null).mode("Mode").build();
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.ADEQUACY_PATCH.name())
+                .adequacyModeEntities(Arrays.asList(modeWithNullMode, entityWithNullArea))
+                .build();
+
+        StudyEntity study = new StudyEntity();
+        study.setTrajectories(new HashSet<>(Collections.singletonList(trajectory)));
+
+        Map<String, String> result = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
+
+        assertThat(result).hasSize(1)
+                .containsEntry("AreaNull", null);
     }
 }
