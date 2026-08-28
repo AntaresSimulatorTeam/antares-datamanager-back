@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.repository.model.p2g;
 
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,7 +18,11 @@ public class P2GCostEntity {
     @SequenceGenerator(name = "p2g_costs_seq_gen", sequenceName = "p2g_costs_sequence", allocationSize = 1)
     private Integer id;
 
-    private P2GTypeEnum type;
+    private String type;
     private String modulation;
-    private Integer cost;
+    private Double cost;
+
+    @ManyToOne
+    @JoinColumn(name = "trajectory_id")
+    private TrajectoryEntity trajectory;
 }

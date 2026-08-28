@@ -1,6 +1,13 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
+import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCostEntity;
+import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParametersEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
@@ -138,21 +145,30 @@ public class TrajectoryEntity {
     
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity> flowbasedVirtualNodes;
+    List<FlowbasedVirtualNodesEntity> flowbasedVirtualNodes;
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity> flowbasedLinkCapacities;
+    List<FlowbasedLinkCapacityEntity> flowbasedLinkCapacities;
 
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity> flowbasedTypeDays;
+    List<FlowbasedTypeDayEntity> flowbasedTypeDays;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AdequacyModeEntity> adequacyModeEntities;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
-    List<com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity> adequacySettingsEntities;
+    List<AdequacySettingsEntity> adequacySettingsEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<P2GCapacityEntity> p2gCapacityEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<P2GParametersEntity> p2gParametersEntities;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<P2GCostEntity> p2gCostEntities;
 
     @ManyToMany
     @JoinTable(name = "scenario_trajectory",

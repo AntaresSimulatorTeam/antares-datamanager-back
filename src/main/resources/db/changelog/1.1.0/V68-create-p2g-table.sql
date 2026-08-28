@@ -5,12 +5,12 @@ CREATE TABLE p2g_capacity
 (
     id                    INTEGER PRIMARY KEY,
     area                  VARCHAR(10),
-    base_fatal_band       INTEGER,
-    base_eff              INTEGER,
-    base_capacity         INTEGER,
-    marg_capacity         INTEGER,
-    methanation_capacity  INTEGER,
-    asservi_capacity      INTEGER,
+    base_fatal_band       NUMERIC,
+    base_eff              NUMERIC,
+    base_capacity         NUMERIC,
+    marg_capacity         NUMERIC,
+    methanation_capacity  NUMERIC,
+    asservi_capacity      NUMERIC,
     trajectory_id  INTEGER NOT NULL,
     CONSTRAINT "p2g_capacity_fk1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
@@ -20,9 +20,9 @@ CREATE SEQUENCE p2g_capacity_seq START WITH 1 INCREMENT BY 1;
 CREATE TABLE p2g_parameters
 (
     id                          INTEGER PRIMARY KEY,
-    fc_electrolyseur            INTEGER,
-    facteur_surdimension_enr    INTEGER,
-    part_pv_mix                 INTEGER,
+    fc_electrolyseur            NUMERIC,
+    facteur_surdimension_enr    NUMERIC,
+    part_pv_mix                 NUMERIC,
     trajectory_id               INTEGER NOT NULL,
     CONSTRAINT "p2g_parameters_fk1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
@@ -32,9 +32,9 @@ CREATE SEQUENCE p2g_parameters_seq START WITH 1 INCREMENT BY 1;
 CREATE TABLE p2g_costs
 (
     id                          INTEGER PRIMARY KEY,
-    type                        VARCHAR(20) NOT NULL CHECK (type IN ('BASE', 'MARGINAL', 'METHANATION', 'ASSERVI')),
+    type                        VARCHAR(20),
     modulation                  VARCHAR(10),
-    cost                        INTEGER,
+    cost                        NUMERIC,
     trajectory_id               INTEGER NOT NULL,
     CONSTRAINT "p2g_costs_fk1" FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
