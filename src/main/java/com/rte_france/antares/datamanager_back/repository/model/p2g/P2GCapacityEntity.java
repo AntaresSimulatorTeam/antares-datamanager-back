@@ -18,7 +18,7 @@ public class P2GCapacityEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "p2g_capacity_seq_gen")
-    @SequenceGenerator(name = "p2g_capacity_seq_gen", sequenceName = "p2g_capacity_sequence", allocationSize = 1)
+    @SequenceGenerator(name = "p2g_capacity_seq_gen", sequenceName = "p2g_capacity_seq", allocationSize = 1)
     private Integer id;
 
     private String area;

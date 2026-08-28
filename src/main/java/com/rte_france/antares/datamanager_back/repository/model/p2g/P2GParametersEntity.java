@@ -15,7 +15,7 @@ public class P2GParametersEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "p2g_parameters_seq_gen")
-    @SequenceGenerator(name = "p2g_parameters_seq_gen", sequenceName = "p2g_parameters_sequence", allocationSize = 1)
+    @SequenceGenerator(name = "p2g_parameters_seq_gen", sequenceName = "p2g_parameters_seq", allocationSize = 1)
     private Integer id;
 
     @Column(name = "fc_electrolyseur")
