@@ -591,13 +591,185 @@ class StudyGeneratorServiceImplTest {
                 .adequacyModeEntities(List.of(adequacyModeEntityDe, adequacyModeEntityAt, adequacyModeEntityFr))
                 .adequacySettingsEntities(Collections.singletonList(adequacySettingsEntity))
                 .build();
-        
+
         var study = StudyEntity.builder().id(1).name("studyTest").trajectories(Set.of(areaTrajectory, trajectoryEntityAdequacy)).build();
-        
+
         when(studyRepository.findById(13)).thenReturn(Optional.of(study));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> studyGeneratorService.buildJsonForStudyGeneration(13));
+
+        assertTrue(exception.getMessage().contains("Area: {0} is not present in the list of areas for adequacy configuration"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldSetAdequacyModeAcrossMultipleAreaTrajectories() throws Exception {
+        var areaEntityFr = AreaEntity.builder().name("FR").build();
+        var areaConfigFr = AreaConfigEntity.builder()
+                .area(areaEntityFr)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
+        var areaTrajectoryFr = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfigFr)).area("FR").build();
+
+        var areaEntityDe = AreaEntity.builder().name("DE").build();
+        var areaConfigDe = AreaConfigEntity.builder()
+                .area(areaEntityDe)
+                .unsuppliedEnergyCost(2000.0)
+                .spilledEnergyCost(0.0)
+                .build();
+        var areaTrajectoryDe = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfigDe)).area("DE").build();
+
+        AdequacyModeEntity adequacyModeEntityDe = AdequacyModeEntity.builder()
+                .area("de")
+                .mode("outside")
+                .build();
+        AdequacyModeEntity adequacyModeEntityFr = AdequacyModeEntity.builder()
+                .area("fr")
+                .mode("adequacy_patch")
+                .build();
+
+        AdequacySettingsEntity adequacySettingsEntity = AdequacySettingsEntity.builder()
+                .includeAdqPatch(true)
+                .build();
+
+        TrajectoryEntity trajectoryEntityAdequacy = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adequacy_trajectory.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeEntityDe, adequacyModeEntityFr))
+                .adequacySettingsEntities(Collections.singletonList(adequacySettingsEntity))
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(Set.of(areaTrajectoryFr, areaTrajectoryDe, trajectoryEntityAdequacy))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        // When
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then
+        var captorValue = captureGeneratedJson(1);
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> jsonMap = objectMapper.readValue(captorValue, new TypeReference<>() {});
+        Map<String, Object> studyMap = objectMapper.convertValue(jsonMap.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+
+        Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {});
+        Map<String, Object> frProperties = objectMapper.convertValue(frArea.get("properties"), new TypeReference<>() {});
+        assertThat(frProperties.get("adequacy_patch_mode")).isEqualTo("adequacy_patch");
+
+        Map<String, Object> deArea = objectMapper.convertValue(areasMap.get("DE"), new TypeReference<>() {});
+        Map<String, Object> deProperties = objectMapper.convertValue(deArea.get("properties"), new TypeReference<>() {});
+        assertThat(deProperties.get("adequacy_patch_mode")).isEqualTo("outside");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldSetAdequacyModeForVirtualYNucModulationArea() throws Exception {
+        var areaEntityFr = AreaEntity.builder().name("FR").build();
+        var areaConfigFr = AreaConfigEntity.builder()
+                .area(areaEntityFr)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
+        var areaTrajectoryFr = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfigFr)).area("FR").build();
+        var nuclearModTraj = TrajectoryEntity.builder().type("NUCLEAR_FR_MODULATION").fileName("default_nuc").build();
+
+        AdequacyModeEntity adequacyModeEntityFr = AdequacyModeEntity.builder()
+                .area("fr")
+                .mode("adequacy_patch")
+                .build();
+        AdequacyModeEntity adequacyModeEntityYNuc = AdequacyModeEntity.builder()
+                .area("y_nuc_modulation")
+                .mode("outside")
+                .build();
+
+        AdequacySettingsEntity adequacySettingsEntity = AdequacySettingsEntity.builder()
+                .includeAdqPatch(true)
+                .build();
+
+        TrajectoryEntity trajectoryEntityAdequacy = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adequacy_trajectory.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeEntityFr, adequacyModeEntityYNuc))
+                .adequacySettingsEntities(Collections.singletonList(adequacySettingsEntity))
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(Set.of(areaTrajectoryFr, nuclearModTraj, trajectoryEntityAdequacy))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto
+        ));
+        when(nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(any(), any(), any()))
+                .thenReturn(new NuclearBindingConstraintGenerationDTO("scenarised200", 200,
+                        List.of("fr_nuclear_cp0"), List.of(),
+                        List.of("y_nuc_modulation_nuclear_cp0"), List.of()));
+
+        // When
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then
+        var captorValue = captureGeneratedJson(1);
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> jsonMap = objectMapper.readValue(captorValue, new TypeReference<>() {});
+        Map<String, Object> studyMap = objectMapper.convertValue(jsonMap.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+
+        Map<String, Object> yNucArea = objectMapper.convertValue(areasMap.get("y_nuc_modulation"), new TypeReference<>() {});
+        Map<String, Object> yNucProperties = objectMapper.convertValue(yNucArea.get("properties"), new TypeReference<>() {});
+        assertThat(yNucProperties.get("adequacy_patch_mode")).isEqualTo("outside");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldThrowBusinessErrorWhenYNucModulationMissingInAdequacyModeEntity() {
+        var areaEntityFr = AreaEntity.builder().name("FR").build();
+        var areaConfigFr = AreaConfigEntity.builder()
+                .area(areaEntityFr)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
+        var areaTrajectoryFr = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfigFr)).area("FR").build();
+        var nuclearModTraj = TrajectoryEntity.builder().type("NUCLEAR_FR_MODULATION").fileName("default_nuc").build();
+
+        AdequacyModeEntity adequacyModeEntityFr = AdequacyModeEntity.builder()
+                .area("fr")
+                .mode("adequacy_patch")
+                .build();
+
+        AdequacySettingsEntity adequacySettingsEntity = AdequacySettingsEntity.builder()
+                .includeAdqPatch(true)
+                .build();
+
+        TrajectoryEntity trajectoryEntityAdequacy = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adequacy_trajectory.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeEntityFr))
+                .adequacySettingsEntities(Collections.singletonList(adequacySettingsEntity))
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(Set.of(areaTrajectoryFr, nuclearModTraj, trajectoryEntityAdequacy))
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+                new ThermalPropertiesAssemblerService.AreaClusterRefKey("fr", nuclearRef), dto
+        ));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> studyGeneratorService.buildJsonForStudyGeneration(1));
 
         assertTrue(exception.getMessage().contains("Area: {0} is not present in the list of areas for adequacy configuration"));
     }
