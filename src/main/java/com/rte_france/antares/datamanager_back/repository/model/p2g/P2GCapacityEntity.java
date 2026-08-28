@@ -1,7 +1,11 @@
 package com.rte_france.antares.datamanager_back.repository.model.p2g;
 
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity(name = "P2GCapacity")
 @Table(name = "p2g_capacity")
@@ -18,10 +22,26 @@ public class P2GCapacityEntity {
     private Integer id;
 
     private String area;
-    private Integer base_fatal_band;
-    private Integer base_eff;
-    private Integer base_capacity;
-    private Integer marg_capacity;
-    private Integer methanation_capacity;
-    private Integer asservi_capacity;
+
+    @Column(name = "base_fatal_band")
+    private Double baseFatalBand;
+    
+    @Column(name = "base_eff")
+    private Double baseEff;
+
+    @Column(name = "base_capacity")
+    private Double baseCapacity;
+
+    @Column(name = "marg_capacity")
+    private Double margCapacity;
+
+    @Column(name = "methanation_capacity")
+    private Double methanationCapacity;
+
+    @Column(name = "asservi_capacity")
+    private Double asserviCapacity;
+
+    @ManyToOne
+    @JoinColumn(name = "trajectory_id")
+    private TrajectoryEntity trajectory;
 }
