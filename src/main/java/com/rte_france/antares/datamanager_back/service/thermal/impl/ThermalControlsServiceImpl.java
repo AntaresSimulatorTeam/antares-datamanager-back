@@ -426,22 +426,6 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
         return value instanceof String && ((String) value).trim().isEmpty();
     }
 
-    // Utility to check if a value is numeric (Number or numeric string)
-    private boolean isNumeric(Object value) {
-        if (value instanceof Number) {
-            return !Double.isNaN(((Number) value).doubleValue());
-        }
-        if (value instanceof String) {
-            try {
-                double val = Double.parseDouble(((String) value).trim());
-                return !Double.isNaN(val);
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        }
-        return false;
-    }
-
 
     /**
      * Converts a cell value to String (handles STRING and NUMERIC types)

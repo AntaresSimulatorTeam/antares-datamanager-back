@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
-import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
@@ -24,33 +24,32 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @Validated
 @RequestMapping("/v1/trajectory")
 @RequiredArgsConstructor
-public class MiscController {
-    private final MiscFileProcessorService miscFileProcessorService;
+public class P2GController {
+    private final P2gFileProcessorService p2gFileProcessorService;
 
-    @Operation(summary = "import installed misc trajectory to database ")
-    @PostMapping("/installed-misc")
-    public ResponseEntity<TrajectoryDTO> uploadInstalledMiscTrajectory(
-            @RequestParam("area") String area,
+    @Operation(summary = "import capacity cost trajectory to database ")
+    @PostMapping("/capacity-cost-p2g")
+    public ResponseEntity<TrajectoryDTO> uploadCapacityCostP2GTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(
-                miscFileProcessorService.processInstalledMiscFile(trajectoryToUse, horizon, studyId, area, isCivilYear)
+                p2gFileProcessorService.processCapacityP2gFile(trajectoryToUse, horizon, studyId, isCivilYear)
         ), HttpStatus.CREATED);
     }
 
-    @Operation(summary = "import load factor misc trajectory to database ")
-    @PostMapping("/load-factor-misc")
-    public ResponseEntity<TrajectoryDTO> uploadLoadFactorMiscTrajectory(
-            @RequestParam("area") String area,
+    @Operation(summary = "import modulation P2G trajectory to database ")
+    @PostMapping("/modulation-p2g")
+    public ResponseEntity<TrajectoryDTO> uploadModulationP2GTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
-            @RequestParam("studyId") Integer studyId) throws Exception {
+            @RequestParam("studyId") Integer studyId,
+            @RequestParam("isCivilYear") boolean isCivilYear) throws Exception {
 
         return new ResponseEntity<>(toTrajectoryDTO(
-                miscFileProcessorService.processLoadFactorMiscFile(trajectoryToUse, horizon, studyId, area)
+                p2gFileProcessorService.processModulationP2gFile(trajectoryToUse, horizon, studyId, isCivilYear)
         ), HttpStatus.CREATED);
     }
 }

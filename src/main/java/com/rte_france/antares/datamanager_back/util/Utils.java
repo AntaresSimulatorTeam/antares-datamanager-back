@@ -302,27 +302,132 @@ public class Utils {
     }
 
 
-    public static Object getCellValue(Row row, int cellIndex) {
+    public record FormulaAndValue(String formula, Object value) {
+        public boolean hasFormula() {
+            return formula != null && !formula.isBlank();
+        }
+
+        public boolean hasValue() {
+            return value != null;
+        }
+
+        public Double getNumericValue() {
+            if (value instanceof Number n) {
+                return n.doubleValue();
+            } else if (value instanceof String s) {
+                try {
+                    return Double.parseDouble(s.trim());
+                } catch (NumberFormatException ignored) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public String getStringValue() {
+            return value == null ? null : String.valueOf(value);
+        }
+
+        public Boolean getBooleanValue() {
+            if (value instanceof Boolean b) {
+                return b;
+            } else if (value instanceof String s) {
+                return Boolean.parseBoolean(s.trim());
+            }
+            return null;
+        }
+    }
+
+    public static FormulaAndValue getFormulaAndValue(Cell cell) {
+        return getFormulaAndValue(cell, null);
+    }
+
+    public static FormulaAndValue getFormulaAndValue(Cell cell, FormulaEvaluator evaluator) {
+        if (cell == null) {
+            return new FormulaAndValue(null, null);
+        }
+
+        String formula = null;
+        if (cell.getCellType() == CellType.FORMULA) {
+            try {
+                formula = cell.getCellFormula();
+            } catch (Exception e) {
+                log.warn("Could not retrieve formula for cell {}: {}", cell.getAddress(), e.getMessage());
+            }
+        }
+
+        Object value = getCellValue(cell, evaluator);
+        return new FormulaAndValue(formula, value);
+    }
+
+    public static FormulaAndValue getFormulaAndValue(Row row, int cellIndex) {
+        return getFormulaAndValue(row, cellIndex, null);
+    }
+
+    public static FormulaAndValue getFormulaAndValue(Row row, int cellIndex, FormulaEvaluator evaluator) {
+        if (row == null) {
+            return new FormulaAndValue(null, null);
+        }
         Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        return getFormulaAndValue(cell, evaluator);
+    }
+
+    public static Object getCellValue(Row row, int cellIndex) {
+        return getCellValue(row, cellIndex, null);
+    }
+
+    public static Object getCellValue(Row row, int cellIndex, FormulaEvaluator evaluator) {
+        if (row == null) {
+            return null;
+        }
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        return getCellValue(cell, evaluator);
+    }
+
+    public static Object getCellValue(Cell cell) {
+        return getCellValue(cell, null);
+    }
+
+    public static Object getCellValue(Cell cell, FormulaEvaluator evaluator) {
         if (cell == null) {
             return null;
         }
 
         return switch (cell.getCellType()) {
-            case NUMERIC -> cell.getNumericCellValue();
+            case NUMERIC -> {
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    yield cell.getLocalDateTimeCellValue();
+                }
+                yield cell.getNumericCellValue();
+            }
             case STRING -> cell.getStringCellValue();
             case BOOLEAN -> cell.getBooleanCellValue();
+            case BLANK -> null;
             case FORMULA -> {
-                FormulaEvaluator evaluator = row.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
-                CellValue evaluated = evaluator.evaluate(cell);
-                if (evaluated == null) {
-                    yield null;
+                CellValue evaluated = null;
+                try {
+                    FormulaEvaluator formulaEvaluator = evaluator != null
+                            ? evaluator
+                            : cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                    evaluated = formulaEvaluator.evaluate(cell);
+                } catch (Exception e) {
+                    log.warn("Could not evaluate formula for cell {}: {}", cell.getAddress(), e.getMessage());
                 }
-                yield switch (evaluated.getCellType()) {
-                    case NUMERIC -> evaluated.getNumberValue();
-                    case STRING -> evaluated.getStringValue();
-                    case BOOLEAN -> evaluated.getBooleanValue();
-                    default -> null; // BLANK or ERROR
+
+                if (evaluated != null) {
+                    yield switch (evaluated.getCellType()) {
+                        case NUMERIC -> evaluated.getNumberValue();
+                        case STRING -> evaluated.getStringValue();
+                        case BOOLEAN -> evaluated.getBooleanValue();
+                        default -> null;
+                    };
+                }
+
+                yield switch (cell.getCachedFormulaResultType()) {
+                    case NUMERIC -> cell.getNumericCellValue();
+                    case STRING -> cell.getStringCellValue();
+                    case BOOLEAN -> cell.getBooleanCellValue();
+                    default -> null;
                 };
             }
             default -> null;
@@ -784,6 +889,58 @@ public class Utils {
             return String.format("%04d-%s", year - 1, s);
         }
         return s;
+    }
+
+    public boolean isNumericCellWithFormula(Cell cell, FormulaEvaluator evaluator) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.NUMERIC) return true;
+        if (t == CellType.FORMULA) {
+            try {
+                FormulaEvaluator formulaEvaluator = evaluator != null
+                        ? evaluator
+                        : cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                CellValue evaluated = formulaEvaluator.evaluate(cell);
+                if (evaluated != null) {
+                    if (evaluated.getCellType() == CellType.NUMERIC) return true;
+                    if (evaluated.getCellType() == CellType.STRING) {
+                        String s = evaluated.getStringValue().trim();
+                        if (s.isEmpty()) return false;
+                        try {
+                            Double.parseDouble(s);
+                            return true;
+                        } catch (NumberFormatException ignored) {
+                            return false;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            CellType resType = cell.getCachedFormulaResultType();
+            if (resType == CellType.NUMERIC) return true;
+            if (resType == CellType.STRING) {
+                String s = cell.getStringCellValue().trim();
+                if (s.isEmpty()) return false;
+                try {
+                    Double.parseDouble(s);
+                    return true;
+                } catch (NumberFormatException ignored) {
+                    return false;
+                }
+            }
+            return false;
+        }
+        if (t == CellType.STRING) {
+            String s = cell.getStringCellValue().trim();
+            if (s.isEmpty()) return false;
+            try {
+                Double.parseDouble(s);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     public boolean isNumericCell(Cell cell) {
@@ -1394,5 +1551,21 @@ public class Utils {
                     .build();
         }
         return realTrajectoryFilePath;
+    }
+
+    // Utility to check if a value is numeric (Number or numeric string)
+    public boolean isNumeric(Object value) {
+        if (value instanceof Number) {
+            return !Double.isNaN(((Number) value).doubleValue());
+        }
+        if (value instanceof String) {
+            try {
+                double val = Double.parseDouble(((String) value).trim());
+                return !Double.isNaN(val);
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
     }
 }

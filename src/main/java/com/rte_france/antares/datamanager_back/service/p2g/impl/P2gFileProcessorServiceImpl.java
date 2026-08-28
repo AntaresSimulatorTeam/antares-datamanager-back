@@ -17,15 +17,15 @@ import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import com.rte_france.antares.datamanager_back.util.Utils;
+import com.rte_france.antares.datamanager_back.util.Utils.FormulaAndValue;
 import static com.rte_france.antares.datamanager_back.util.Utils.checkMissingColumns;
 import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
@@ -51,52 +51,40 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "Part_PV_mix"
     );
     
-    private static final Map<String, Integer> REQUIRED_COLUMN_NAMES = Map.of(
-            "area_antares_name", 2,
+    private static final Map<String, Integer> REQUIRED_COLUMN_NAMES = new LinkedHashMap<>(Map.of(
             "P2G_fatalband",3,
             "P2G_asservi",4,
             "P2G_methanation",6,
             "P2G_base_eff",7,
             "To_Links_p2G_marg",9,
-            "To_Links_p2G_base",10
-    );
+            "To_Links_p2G_base (P2G base + fatal)",10
+    ));
     
     private static final Map<String, Integer> REQUIRED_COSTS_COLUMN_NAMES = Map.of(
             "type P2G", 0,
             "modulation",2
     );
     
-    private static final String[] REQUIRED_TYPE_NAMES = {
+    private static final Set<String> REQUIRED_TYPE_NAMES = Set.of(
             "Marginal",
             "Base",
             "Asservi",
             "Methanation"
-    };
+    );
 
     private static final String MODULATION_PREFIX = "MB_MC_modulation";
     
-    private Map<String, Path> validateRequiredFiles(Path trajectoryFilePath) throws IOException {
+    private Map<String, Path> validateRequiredFiles(Path trajectoryFilePath) {
         List<String> missingFiles = new ArrayList<>();
         Map<String, Path> paths = new HashMap<>();
 
-        try (Stream<Path> stream = Files.list(trajectoryFilePath)) {
-            List<Path> allFiles = stream.toList();
-
-            for (var fileName : REQUIRED_FILES) {
-                Path match = allFiles.stream()
-                        .filter(p -> {
-                            if (!p.getFileName().toString().equals(fileName)) {
-                                missingFiles.add(fileName);
-                                return false;
-                            } else {
-                                return true;
-                            }
-                        })
-                        .findFirst()
-                        .orElse(null);
- 
-                var type = match.getFileName().toString().contains("capacity") ? capacity : costs;
-                paths.put(type, match);
+        for (String fileName : REQUIRED_FILES) {
+            Path filePath = trajectoryFilePath.resolve(fileName);
+            if (!Files.exists(filePath)) {
+                missingFiles.add(fileName);
+            } else {
+                String type = fileName.contains("capacity") ? capacity : costs;
+                paths.put(type, filePath);
             }
         }
 
@@ -106,7 +94,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        
+
         return paths;
     }
 
@@ -115,7 +103,6 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             String trajectoryToUse,
             String horizon,
             Integer studyId,
-            String areaParam,
             boolean isCivilYear
     ) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(TrajectoryType.P2G_CAPACITY_COST, null, null);
@@ -133,58 +120,13 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                 null
         );
         
-       
-        try (InputStream inputStream = Files.newInputStream(files.get(capacity));
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
+        try (InputStream capacityInputStream = Files.newInputStream(files.get(capacity));
+             Workbook capacityWorkbook = WorkbookFactory.create(capacityInputStream);
+             InputStream costsInputStream = Files.newInputStream(files.get(costs));
+             Workbook costsWorkbook = WorkbookFactory.create(costsInputStream)) {
 
-            List<String> missingTabs = new ArrayList<>();
-            // Build parameters entities
-            List<P2GParametersEntity> parametersEntities = buildParametersEntities(workbook, trajectory, missingTabs, horizon);
-            
-            List<P2GCapacityEntity> capacityEntities = buildCapacityEntities(workbook, trajectory, missingTabs, horizon, studyId);
-
-            if (!missingTabs.isEmpty()) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(String.join(", ", missingTabs), trajectoryToUse))
-                        .message("Missing tab {0} in P2G trajectory {1}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            if (parametersEntities.isEmpty() || capacityEntities.isEmpty()) {
-                String dataMissing = capacityEntities.isEmpty() ? horizon : SHEET_PARAMETERS;
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(dataMissing, trajectoryToUse))
-                        .message("No data in {0} tab in AdequacyPatch trajectory {1}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            trajectory.setP2gParametersEntities(parametersEntities);
-            trajectory.setP2gCapacityEntities(capacityEntities);
-            
-        } catch (IOException e) {
-            throw TechnicalException.builder()
-                    .message("Could not process adequacy file: " + e.getMessage())
-                    .cause(e)
-                    .build();
-        }
-
-        try (InputStream inputStream = Files.newInputStream(files.get(costs));
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
-
-            // Build cost entities
-            List<String> missingCostsTabs = new ArrayList<>();
-            List<P2GCostEntity> costEntities = buildCostsEntities(workbook, trajectory, missingCostsTabs, horizon);
-
-            if (!missingCostsTabs.isEmpty()) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(SHEET_COSTS, trajectoryToUse))
-                        .message("Missing tab {0} in P2G trajectory {1}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-            trajectory.setP2gCostEntities(costEntities);
+            processCapacityAndParameters(capacityWorkbook, trajectory, trajectoryToUse, horizon, studyId);
+            processCosts(costsWorkbook, trajectory, trajectoryToUse, horizon);
 
         } catch (IOException e) {
             throw TechnicalException.builder()
@@ -197,6 +139,56 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
+    private void processCapacityAndParameters(Workbook workbook, TrajectoryEntity trajectory, String trajectoryToUse, String horizon, Integer studyId) {
+        List<String> missingParametersTabs = new ArrayList<>();
+        List<P2GParametersEntity> parametersEntities = buildParametersEntities(workbook, trajectory, missingParametersTabs, horizon);
+
+        if (!missingParametersTabs.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryToUse))
+                    .message("Parameters tab does not exist in the P2G Capacity trajectory {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        List<String> missingHorizonTabs = new ArrayList<>();
+        List<P2GCapacityEntity> capacityEntities = buildCapacityEntities(workbook, trajectory, missingHorizonTabs, horizon, studyId);
+
+        if (!missingHorizonTabs.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(String.join(", ", missingHorizonTabs), trajectoryToUse))
+                    .message("Horizon tab {0} does not exist in the P2G Capacity trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        if (parametersEntities.isEmpty() || capacityEntities.isEmpty()) {
+            String dataMissing = capacityEntities.isEmpty() ? horizon : SHEET_PARAMETERS;
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(dataMissing, trajectoryToUse))
+                    .message("No data in {0} tab in P2G trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        trajectory.setP2gParametersEntities(parametersEntities);
+        trajectory.setP2gCapacityEntities(capacityEntities);
+    }
+
+    private void processCosts(Workbook workbook, TrajectoryEntity trajectory, String trajectoryToUse, String horizon) {
+        List<String> missingCostsTabs = new ArrayList<>();
+        List<P2GCostEntity> costEntities = buildCostsEntities(workbook, trajectory, missingCostsTabs, horizon);
+
+        if (!missingCostsTabs.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(SHEET_COSTS, trajectoryToUse))
+                    .message("Missing tab {0} in P2G trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        trajectory.setP2gCostEntities(costEntities);
+    }
+
     private List<P2GParametersEntity> buildParametersEntities(Workbook workbook, TrajectoryEntity trajectory, List<String> missingTabs, String horizon) {
         Sheet sheet = workbook.getSheet(SHEET_PARAMETERS);
         if (sheet == null) {
@@ -205,48 +197,53 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         }
         
         Row header = sheet.getRow(0);
+        if (header == null) {
+            missingTabs.add(SHEET_PARAMETERS);
+            return Collections.emptyList();
+        }
         int lastCol = header.getLastCellNum();
         int yearColIndex = -1;
         yearColIndex = getYearColIndex(1, lastCol, header, horizon, yearColIndex);
         if (yearColIndex == -1) {
             throw BusinessException.builder()
-                    .message("Horizon '" + horizon + "' in parameters tab in P2G Capacity trajectory " + trajectory.getFileName())
+                    .message("Missing horizon '" + horizon + "' in parameters tab in P2G Capacity trajectory " + trajectory.getFileName())
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
       
         List<P2GParametersEntity> parameters = new ArrayList<>();
-        List<String> missingParameters = new ArrayList<>();
-        List<String> nonNumericParameters = new ArrayList<>();
+        List<String> requiredParameters = new ArrayList<>();
         Map<String, Double> parametersMap = new HashMap<>();
+        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
         for (Row row : sheet) {
             if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
-            String parameterName = Objects.toString(getCellValue(row, 0), null);
+            String parameterName = Objects.toString(getCellValue(row, 0, evaluator), null);
             Cell parameterCell = row.getCell(yearColIndex);
-            if (!REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
-                missingParameters.add(parameterName);
-                continue;
+            if (REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
+                requiredParameters.add(parameterName);
             }
-            if (!isNumericCell(parameterCell)) {
-                nonNumericParameters.add(parameterName);
-                continue;
+            FormulaAndValue formulaAndValue = getFormulaAndValue(parameterCell, evaluator);
+            Double numValue = formulaAndValue.getNumericValue();
+            if (numValue == null) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(parameterName != null ? parameterName : "", trajectory.getFileName()))
+                        .message("Parameter Value {0} must be numeric in parameters tab in P2G Capacity trajectory {1}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
-            parametersMap.put(parameterName, parameterCell.getNumericCellValue());
+            parametersMap.put(parameterName, numValue);
        }
 
-        if (!missingParameters.isEmpty()) {
+        if (requiredParameters.size() != REQUIRED_PARAMETERS_NAMES.size()) {
+            var missingParameters = REQUIRED_PARAMETERS_NAMES.stream()
+                    .filter(param -> !requiredParameters.contains(param))
+                    .toList();
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(String.join(", ", missingParameters), trajectory.getFileName()))
                     .message("Missing parameters {0} in parameters tab in P2G Capacity trajectory {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
-        } else if (!nonNumericParameters.isEmpty()) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(String.join(", ", missingParameters), trajectory.getFileName()))
-                    .message("Parameter Value {0} must be numeric in parameters tab in P2G Capacity trajectory {1}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        } 
 
         P2GParametersEntity parametersEntity = P2GParametersEntity.builder()
                 .fcElectrolyseur(parametersMap.get("FC_electrolyseur"))
@@ -273,36 +270,55 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         List<P2GCapacityEntity> capacities = new ArrayList<>();
         List<String> areaNames = new ArrayList<>();
         List<String> columnsNonNumeric = new ArrayList<>();
+        Map<String, Double> capacityMap = new HashMap<>();
+        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
         for (Row row : sheet) {
-            if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
-            String areaName = Objects.toString(getCellValue(row, 0), null);
+            if (isRowEmpty(row)|| row.getRowNum() == 0) continue;
+            String areaName = Objects.toString(getCellValue(row, 2, evaluator), null);
             if (studyAreas.contains(areaName)) {
                 areaNames.add(areaName);
+            } else {
                 continue;
             }
             for (Map.Entry<String, Integer> column : REQUIRED_COLUMN_NAMES.entrySet()) {
-                Cell cell = row.getCell(column.getValue());
+                Cell capacityCell = row.getCell(column.getValue());
 
-                if (!isNumericCell(cell)) {
+                FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
+                Double numVal = formulaAndValue.getNumericValue();
+                if (numVal == null) {
                     columnsNonNumeric.add(column.getKey());
+                    throw BusinessException.builder()
+                            .errorMessageArguments(List.of(String.join(", ", columnsNonNumeric), trajectory.getFileName()))
+                            .message("Column value {0} must be numeric in horizon tab in P2G Capacity trajectory {1}")
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                } else {
+                    capacityMap.put(column.getKey(), numVal);
                 }
             }
+
+            P2GCapacityEntity capacityEntity = P2GCapacityEntity.builder()
+                    .area(areaName)
+                    .baseFatalBand(capacityMap.get("P2G_fatalband"))
+                    .baseEff(capacityMap.get("P2G_base_eff"))
+                    .baseCapacity(capacityMap.get("To_Links_p2G_base (P2G base + fatal)"))
+                    .margCapacity(capacityMap.get("To_Links_p2G_marg"))
+                    .methanationCapacity(capacityMap.get("P2G_methanation"))
+                    .asserviCapacity(capacityMap.get("P2G_asservi"))
+                    .trajectory(trajectory)
+                    .build();
+
+            capacities.add(capacityEntity);
         }
 
         if (areaNames.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectory.getFileName()))
-                    .message("No area of the study is present in horizon tab in P2G Capacity trajectory {1}")
+                    .message("No area of the study is present in horizon tab in P2G Capacity trajectory {0}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        if (!columnsNonNumeric.isEmpty()) {
-            throw BusinessException.builder()
-                    .errorMessageArguments(List.of(String.join(", ", columnsNonNumeric), trajectory.getFileName()))
-                    .message("Column value {0} must be numeric in horizon tab in P2G Capacity trajectory {1}")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        
         return capacities;
     }
 
@@ -316,35 +332,39 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         checkMissingColumns(sheet, REQUIRED_COSTS_COLUMN_NAMES.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
 
         Row header = sheet.getRow(0);
+        if (header == null) {
+            missingTabs.add(horizon);
+            return Collections.emptyList();
+        }
         int lastCol = header.getLastCellNum();
         int yearColIndex = -1;
         String horizonYear = horizon.split("-")[1];
         yearColIndex = getYearColIndex(1, lastCol, header, horizonYear, yearColIndex);
         if (yearColIndex == -1) {
             throw BusinessException.builder()
-                    .message("Missing horizon '" + horizon + "' in P2G Costs trajectory " + trajectory.getFileName())
+                    .message("Missing horizon '" + horizonYear + "' in P2G Costs trajectory " + trajectory.getFileName())
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
 
         List<P2GCostEntity> costs = new ArrayList<>();
-        for (Row row : sheet) {
-            if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
+        List<String> requiredTypes = new ArrayList<>();
+        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        for (int r = 0; r <= 4; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row)|| row.getRowNum() == 0) continue;
 
-            String typeName = Objects.toString(getCellValue(row, 0), null);
-            String modulationValue = Objects.toString(getCellValue(row, 2), null);
+            String typeName = Objects.toString(getCellValue(row, 0, evaluator), null);
+            String modulationValue = Objects.toString(getCellValue(row, 2, evaluator), null);
             Cell costCell = row.getCell(yearColIndex);
-            
-            if(!Arrays.asList(REQUIRED_TYPE_NAMES).contains(typeName)) {
-                throw BusinessException.builder()
-                        .errorMessageArguments(List.of(typeName, trajectory.getFileName()))
-                        .message("Missing P2G Type {0} in P2G Costs trajectory {1}")
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
+
+            if (typeName != null && REQUIRED_TYPE_NAMES.contains(typeName)) {
+                requiredTypes.add(typeName);
             }
+            
             if (!isNumericCell(costCell)) {
                 throw BusinessException.builder()
-                        .errorMessageArguments(List.of(typeName, trajectory.getFileName()))
+                        .errorMessageArguments(List.of(typeName != null ? typeName : "", trajectory.getFileName()))
                         .message("P2G Type Value {0} must be numeric in P2G Costs trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -358,6 +378,17 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                     .build();
 
             costs.add(costEntity);
+        }
+
+        if (requiredTypes.size() != REQUIRED_TYPE_NAMES.size()) {
+            var missingType = REQUIRED_TYPE_NAMES.stream()
+                    .filter(param -> !requiredTypes.contains(param))
+                    .toList();
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(String.join(", ", missingType), trajectory.getFileName()))
+                    .message("Missing P2G Type {0} in P2G Costs trajectory {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
         
 
@@ -376,7 +407,6 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             String trajectoryToUse,
             String horizon,
             Integer studyId,
-            String areaParam,
             boolean isCivilYear
     ) throws IOException {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(TrajectoryType.P2G_MARKET_MODULATION, null, null);
@@ -406,6 +436,14 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         
         // Sauvegarder uniquement si validation OK
         return trajectoryRepository.save(trajectory);
+    }
+
+    public FormulaAndValue getFormulaAndValue(Cell cell) {
+        return Utils.getFormulaAndValue(cell);
+    }
+
+    public FormulaAndValue getFormulaAndValue(Cell cell, FormulaEvaluator evaluator) {
+        return Utils.getFormulaAndValue(cell, evaluator);
     }
     
 }
