@@ -891,58 +891,6 @@ public class Utils {
         return s;
     }
 
-    public boolean isNumericCellWithFormula(Cell cell, FormulaEvaluator evaluator) {
-        if (cell == null) return false;
-        CellType t = cell.getCellType();
-        if (t == CellType.NUMERIC) return true;
-        if (t == CellType.FORMULA) {
-            try {
-                FormulaEvaluator formulaEvaluator = evaluator != null
-                        ? evaluator
-                        : cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
-                CellValue evaluated = formulaEvaluator.evaluate(cell);
-                if (evaluated != null) {
-                    if (evaluated.getCellType() == CellType.NUMERIC) return true;
-                    if (evaluated.getCellType() == CellType.STRING) {
-                        String s = evaluated.getStringValue().trim();
-                        if (s.isEmpty()) return false;
-                        try {
-                            Double.parseDouble(s);
-                            return true;
-                        } catch (NumberFormatException ignored) {
-                            return false;
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            CellType resType = cell.getCachedFormulaResultType();
-            if (resType == CellType.NUMERIC) return true;
-            if (resType == CellType.STRING) {
-                String s = cell.getStringCellValue().trim();
-                if (s.isEmpty()) return false;
-                try {
-                    Double.parseDouble(s);
-                    return true;
-                } catch (NumberFormatException ignored) {
-                    return false;
-                }
-            }
-            return false;
-        }
-        if (t == CellType.STRING) {
-            String s = cell.getStringCellValue().trim();
-            if (s.isEmpty()) return false;
-            try {
-                Double.parseDouble(s);
-                return true;
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        }
-        return false;
-    }
-
     public boolean isNumericCell(Cell cell) {
         if (cell == null) return false;
         CellType t = cell.getCellType();
