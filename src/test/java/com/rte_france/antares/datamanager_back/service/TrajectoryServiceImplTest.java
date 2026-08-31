@@ -4017,7 +4017,7 @@ class TrajectoryServiceImplTest {
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("NNI123").build());
 
-        try (var mockedStatic = mockStatic(Utils.class, CALLS_REAL_METHODS)) {
+        try (var mockedStatic = mockStatic(Utils.class)) {
             mockedStatic.when(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(traj, expectedFilesWithSheets))
                     .thenReturn(checkSum);
             mockedStatic.when(() -> Utils.civilToChevalHorizon(horizon)).thenReturn("2029-2030");

@@ -46,7 +46,7 @@ public class P2GController {
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
-            @RequestParam("isCivilYear") boolean isCivilYear) throws Exception {
+            @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(
                 p2gFileProcessorService.processModulationP2gFile(trajectoryToUse, horizon, studyId, isCivilYear)

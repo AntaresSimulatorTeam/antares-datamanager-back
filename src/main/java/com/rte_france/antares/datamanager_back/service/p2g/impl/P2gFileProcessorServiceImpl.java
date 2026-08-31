@@ -42,8 +42,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "P2G_capacity.xlsx",
             "P2G_costs.xlsx"
     };
-    private final String capacity = "capacity";
-    private final String costs = "costs";
+    private static final String capacity = "capacity";
     private static final String SHEET_PARAMETERS = "parameters";
     private static final String SHEET_COSTS = "costs";
     private static final Set<String> REQUIRED_PARAMETERS_NAMES = Set.of(
@@ -103,7 +102,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         
         try (InputStream capacityInputStream = Files.newInputStream(files.get(capacity));
              Workbook capacityWorkbook = WorkbookFactory.create(capacityInputStream);
-             InputStream costsInputStream = Files.newInputStream(files.get(costs));
+             InputStream costsInputStream = Files.newInputStream(files.get(SHEET_COSTS));
              Workbook costsWorkbook = WorkbookFactory.create(costsInputStream)) {
 
             processCapacityAndParameters(capacityWorkbook, trajectory, trajectoryToUse, horizon, studyId);
@@ -165,7 +164,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             if (!Files.exists(filePath)) {
                 missingFiles.add(fileName);
             } else {
-                String type = fileName.contains("capacity") ? capacity : costs;
+                String type = fileName.contains("capacity") ? capacity : SHEET_COSTS;
                 paths.put(type, filePath);
             }
         }
@@ -336,10 +335,6 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         checkMissingColumns(sheet, REQUIRED_COSTS_COLUMN_NAMES.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
 
         Row header = sheet.getRow(0);
-        if (header == null) {
-            missingTabs.add(horizon);
-            return Collections.emptyList();
-        }
         int lastCol = header.getLastCellNum();
         int yearColIndex = -1;
         String horizonYear = horizon.split("-")[1];
@@ -351,7 +346,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                     .build();
         }
 
-        List<P2GCostEntity> costs = new ArrayList<>();
+        List<P2GCostEntity> costsEntities = new ArrayList<>();
         List<String> requiredTypes = new ArrayList<>();
         FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
         for (int r = 0; r <= 4; r++) {
@@ -381,7 +376,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                     .trajectory(trajectory)
                     .build();
 
-            costs.add(costEntity);
+            costsEntities.add(costEntity);
         }
 
         if (requiredTypes.size() != REQUIRED_TYPE_NAMES.size()) {
@@ -396,7 +391,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         }
         
 
-        return costs;
+        return costsEntities;
     }
     
     public List<String> loadStudyAreas(Integer studyId) {
