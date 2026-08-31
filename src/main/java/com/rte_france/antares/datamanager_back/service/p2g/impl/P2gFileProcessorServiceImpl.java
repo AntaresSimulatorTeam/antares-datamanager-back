@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.Utils.FormulaAndValue;
@@ -51,7 +52,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "Part_PV_mix"
     );
     
-    private static final Map<String, Integer> REQUIRED_COLUMN_NAMES = new LinkedHashMap<>(Map.of(
+    private static final Map<String, Integer> NUMERIC_COLUMN_NAMES = new LinkedHashMap<>(Map.of(
             "P2G_fatalband",3,
             "P2G_asservi",4,
             "P2G_methanation",6,
@@ -59,6 +60,10 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "To_Links_p2G_marg",9,
             "To_Links_p2G_base (P2G base + fatal)",10
     ));
+
+    private static final Map<String, Integer> STRING_COLUMN_NAMES = Map.of(
+            "area_antares_name",2
+    );
     
     private static final Map<String, Integer> REQUIRED_COSTS_COLUMN_NAMES = Map.of(
             "type P2G", 0,
@@ -73,30 +78,6 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
     );
 
     private static final String MODULATION_PREFIX = "MB_MC_modulation";
-    
-    private Map<String, Path> validateRequiredFiles(Path trajectoryFilePath) {
-        List<String> missingFiles = new ArrayList<>();
-        Map<String, Path> paths = new HashMap<>();
-
-        for (String fileName : REQUIRED_FILES) {
-            Path filePath = trajectoryFilePath.resolve(fileName);
-            if (!Files.exists(filePath)) {
-                missingFiles.add(fileName);
-            } else {
-                String type = fileName.contains("capacity") ? capacity : costs;
-                paths.put(type, filePath);
-            }
-        }
-
-        if (!missingFiles.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Required files are missing: " + String.join(", ", missingFiles))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        return paths;
-    }
 
     @Override
     public TrajectoryEntity processCapacityP2gFile(
@@ -130,7 +111,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
 
         } catch (IOException e) {
             throw TechnicalException.builder()
-                    .message("Could not process adequacy file: " + e.getMessage())
+                    .message("Could not process P2G file: " + e.getMessage())
                     .cause(e)
                     .build();
         }
@@ -173,6 +154,30 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
 
         trajectory.setP2gParametersEntities(parametersEntities);
         trajectory.setP2gCapacityEntities(capacityEntities);
+    }
+
+    private Map<String, Path> validateRequiredFiles(Path trajectoryFilePath) {
+        List<String> missingFiles = new ArrayList<>();
+        Map<String, Path> paths = new HashMap<>();
+
+        for (String fileName : REQUIRED_FILES) {
+            Path filePath = trajectoryFilePath.resolve(fileName);
+            if (!Files.exists(filePath)) {
+                missingFiles.add(fileName);
+            } else {
+                String type = fileName.contains("capacity") ? capacity : costs;
+                paths.put(type, filePath);
+            }
+        }
+
+        if (!missingFiles.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Required files are missing: " + String.join(", ", missingFiles))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        return paths;
     }
 
     private void processCosts(Workbook workbook, TrajectoryEntity trajectory, String trajectoryToUse, String horizon) {
@@ -222,16 +227,14 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             if (REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
                 requiredParameters.add(parameterName);
             }
-            FormulaAndValue formulaAndValue = getFormulaAndValue(parameterCell, evaluator);
-            Double numValue = formulaAndValue.getNumericValue();
-            if (numValue == null) {
+            if (!isNumericCell(parameterCell)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(parameterName != null ? parameterName : "", trajectory.getFileName()))
                         .message("Parameter Value {0} must be numeric in parameters tab in P2G Capacity trajectory {1}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-            parametersMap.put(parameterName, numValue);
+            parametersMap.put(parameterName, parameterCell.getNumericCellValue());
        }
 
         if (requiredParameters.size() != REQUIRED_PARAMETERS_NAMES.size()) {
@@ -263,8 +266,10 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             missingTabs.add(horizon);
             return Collections.emptyList();
         }
-
-        checkMissingColumns(sheet, REQUIRED_COLUMN_NAMES.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
+        Map<String, Integer> allColumns = new LinkedHashMap<>();
+        allColumns.putAll(STRING_COLUMN_NAMES);
+        allColumns.putAll(NUMERIC_COLUMN_NAMES);
+        checkMissingColumns(sheet, allColumns.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
         List<String> studyAreas = loadStudyAreas(studyId);
 
         List<P2GCapacityEntity> capacities = new ArrayList<>();
@@ -280,12 +285,9 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             } else {
                 continue;
             }
-            for (Map.Entry<String, Integer> column : REQUIRED_COLUMN_NAMES.entrySet()) {
+            for (Map.Entry<String, Integer> column : NUMERIC_COLUMN_NAMES.entrySet()) {
                 Cell capacityCell = row.getCell(column.getValue());
-
-                FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
-                Double numVal = formulaAndValue.getNumericValue();
-                if (numVal == null) {
+                if (!isNumericCellWithFormula(capacityCell, evaluator)) {
                     columnsNonNumeric.add(column.getKey());
                     throw BusinessException.builder()
                             .errorMessageArguments(List.of(String.join(", ", columnsNonNumeric), trajectory.getFileName()))
@@ -293,6 +295,8 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 } else {
+                    FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
+                    Double numVal = formulaAndValue.getNumericValue();
                     capacityMap.put(column.getKey(), numVal);
                 }
             }
@@ -369,11 +373,11 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-
+            
             P2GCostEntity costEntity = P2GCostEntity.builder()
                     .type(typeName)
                     .modulation(modulationValue)
-                    .cost(costCell.getNumericCellValue())
+                    .cost(castDouble(costCell.getNumericCellValue(), typeName, r))
                     .trajectory(trajectory)
                     .build();
 

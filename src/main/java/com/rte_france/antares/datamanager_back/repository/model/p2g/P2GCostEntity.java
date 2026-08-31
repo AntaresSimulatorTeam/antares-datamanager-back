@@ -4,6 +4,8 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity(name = "P2GCost")
 @Table(name = "p2g_costs")
 @Getter

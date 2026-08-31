@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.List;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
@@ -696,6 +697,173 @@ class UtilsTest {
             when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
 
             assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_NullCell() {
+            assertFalse(Utils.isNumericCellWithFormula(null, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_NumericCell() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.NUMERIC);
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_StringNumeric() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn(" 123.45 ");
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_StringEmpty() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("   ");
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_StringNonNumeric() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("BE");
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaNumericResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+            CellValue cellValue = new CellValue(42.0);
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(cellValue);
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaStringNumericResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+            CellValue cellValue = new CellValue("42.5");
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(cellValue);
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaStringEmptyResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+            CellValue cellValue = new CellValue("   ");
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(cellValue);
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaStringNonNumericResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+            CellValue cellValue = new CellValue("BE");
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(cellValue);
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaEvaluatorThrowsException() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenThrow(new RuntimeException("Evaluation error"));
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaEvaluatorNull_FallbackWorkbook() {
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("TestSheet");
+            Row row = sheet.createRow(0);
+            Cell cell = row.createCell(0);
+            cell.setCellFormula("10+20");
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaEvaluatorNull_FallbackWorkbookNonNumeric() {
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("TestSheet");
+            Row row = sheet.createRow(0);
+            Cell cell = row.createCell(0);
+            cell.setCellFormula("\"BE\"");
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaCachedNumericResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(null);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.NUMERIC);
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaCachedStringNumericResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(null);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn(" 99.9 ");
+
+            assertTrue(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_FormulaCachedStringNonNumericResult() {
+            Cell cell = mock(Cell.class);
+            FormulaEvaluator evaluator = mock(FormulaEvaluator.class);
+
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(evaluator.evaluate(cell)).thenReturn(null);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("BE");
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, evaluator));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_OtherType() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, null));
         }
 
     @Test
@@ -1730,5 +1898,208 @@ class UtilsTest {
         String checksum2 = Utils.calculateFlowbasedFilesChecksum(dir2);
 
         assertEquals(checksum1, checksum2);
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_returnsSameChecksumForSameContent(@TempDir Path testDir) throws IOException {
+        Path dir = testDir.resolve("p2g");
+        Files.createDirectories(dir);
+
+        Path capFile = dir.resolve("P2G_capacity.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet pSheet = wb.createSheet("parameters");
+            Row r0 = pSheet.createRow(0);
+            r0.createCell(0).setCellValue("FC_electrolyseur");
+            Sheet hSheet = wb.createSheet("2025-2026");
+            Row hr0 = hSheet.createRow(0);
+            hr0.createCell(0).setCellValue("area");
+            try (var out = Files.newOutputStream(capFile)) {
+                wb.write(out);
+            }
+        }
+
+        Path costsFile = dir.resolve("P2G_costs.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet cSheet = wb.createSheet("costs");
+            Row r0 = cSheet.createRow(0);
+            r0.createCell(0).setCellValue("type P2G");
+            try (var out = Files.newOutputStream(costsFile)) {
+                wb.write(out);
+            }
+        }
+
+        Map<String, List<String>> filesWithSheets = Map.of(
+                "P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
+                "P2G_costs.xlsx", List.of("costs")
+        );
+
+        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir, filesWithSheets);
+        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir, filesWithSheets);
+
+        assertNotNull(checksum1);
+        assertEquals(checksum1, checksum2);
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_returnsDifferentChecksumForDifferentSheetContent(@TempDir Path testDir) throws IOException {
+        Path dir1 = testDir.resolve("p2g1");
+        Path dir2 = testDir.resolve("p2g2");
+        Files.createDirectories(dir1);
+        Files.createDirectories(dir2);
+
+        for (Path dir : List.of(dir1, dir2)) {
+            Path costsFile = dir.resolve("P2G_costs.xlsx");
+            try (Workbook wb = new XSSFWorkbook()) {
+                Sheet cSheet = wb.createSheet("costs");
+                Row r0 = cSheet.createRow(0);
+                r0.createCell(0).setCellValue("type P2G");
+                try (var out = Files.newOutputStream(costsFile)) {
+                    wb.write(out);
+                }
+            }
+        }
+
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet pSheet = wb.createSheet("parameters");
+            pSheet.createRow(0).createCell(0).setCellValue("Val1");
+            wb.createSheet("2025-2026");
+            try (var out = Files.newOutputStream(dir1.resolve("P2G_capacity.xlsx"))) {
+                wb.write(out);
+            }
+        }
+
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet pSheet = wb.createSheet("parameters");
+            pSheet.createRow(0).createCell(0).setCellValue("Val2");
+            wb.createSheet("2025-2026");
+            try (var out = Files.newOutputStream(dir2.resolve("P2G_capacity.xlsx"))) {
+                wb.write(out);
+            }
+        }
+
+        Map<String, List<String>> filesWithSheets = Map.of(
+                "P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
+                "P2G_costs.xlsx", List.of("costs")
+        );
+
+        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir1, filesWithSheets);
+        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir2, filesWithSheets);
+
+        assertNotEquals(checksum1, checksum2);
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_ignoresUnspecifiedSheetsModifications(@TempDir Path testDir) throws IOException {
+        Path dir1 = testDir.resolve("p2g1");
+        Path dir2 = testDir.resolve("p2g2");
+        Files.createDirectories(dir1);
+        Files.createDirectories(dir2);
+
+        // Same parameters and 2025-2026 sheets, but different other_sheet
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet pSheet = wb.createSheet("parameters");
+            pSheet.createRow(0).createCell(0).setCellValue("ValSame");
+            wb.createSheet("2025-2026");
+            Sheet other = wb.createSheet("other_sheet");
+            other.createRow(0).createCell(0).setCellValue("Extra1");
+            try (var out = Files.newOutputStream(dir1.resolve("P2G_capacity.xlsx"))) {
+                wb.write(out);
+            }
+        }
+
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet pSheet = wb.createSheet("parameters");
+            pSheet.createRow(0).createCell(0).setCellValue("ValSame");
+            wb.createSheet("2025-2026");
+            Sheet other = wb.createSheet("other_sheet");
+            other.createRow(0).createCell(0).setCellValue("Extra2");
+            try (var out = Files.newOutputStream(dir2.resolve("P2G_capacity.xlsx"))) {
+                wb.write(out);
+            }
+        }
+
+        Map<String, List<String>> filesWithSheets = Map.of(
+                "P2G_capacity.xlsx", List.of("parameters", "2025-2026")
+        );
+
+        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir1, filesWithSheets);
+        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir2, filesWithSheets);
+
+        assertEquals(checksum1, checksum2);
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_hashesWholeFileWhenNoSheetsSpecified(@TempDir Path testDir) throws IOException {
+        Path dir = testDir.resolve("files");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("data.csv"), "col1,col2\n1,2");
+
+        Map<String, List<String>> filesWithSheets = Map.of(
+                "data.csv", Collections.emptyList()
+        );
+
+        String checksum = Utils.calculateDirectoryChecksumWithSpecificSheets(dir, filesWithSheets);
+        assertNotNull(checksum);
+        assertFalse(checksum.isEmpty());
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_throwsTechnicalExceptionWhenDirectoryIsNull() {
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(null, Map.of("file.xlsx", List.of("Sheet1"))))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory path is null");
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_throwsTechnicalExceptionWhenPathIsNotDirectory(@TempDir Path testDir) throws IOException {
+        Path file = testDir.resolve("test.txt");
+        Files.writeString(file, "test");
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(file, Map.of("file.xlsx", List.of("Sheet1"))))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory does not exist or is not a directory");
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_throwsTechnicalExceptionWhenMapIsNull(@TempDir Path testDir) {
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(testDir, null))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("files map is null or empty");
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_throwsTechnicalExceptionWhenMapIsEmpty(@TempDir Path testDir) {
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(testDir, Collections.emptyMap()))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("files map is null or empty");
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_throwsTechnicalExceptionWhenFileIsMissing(@TempDir Path testDir) {
+        Map<String, List<String>> filesWithSheets = Map.of(
+                "missing.xlsx", List.of("Sheet1")
+        );
+
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(testDir, filesWithSheets))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("required file not found");
+    }
+
+    @Test
+    void calculateDirectoryChecksumWithSpecificSheets_throwsTechnicalExceptionWhenRequiredSheetIsMissing(@TempDir Path testDir) throws IOException {
+        Path file = testDir.resolve("file.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            wb.createSheet("ExistingSheet");
+            try (var out = Files.newOutputStream(file)) {
+                wb.write(out);
+            }
+        }
+
+        Map<String, List<String>> filesWithSheets = Map.of(
+                "file.xlsx", List.of("MissingSheet")
+        );
+
+        assertThatThrownBy(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(testDir, filesWithSheets))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("{0} tab does not exist in the {1} trajectory {2}");
     }
 }
