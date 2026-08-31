@@ -2325,6 +2325,20 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void getDirectoryByTrajectoryType_returnsP2GCapacityDirectory_whenTypeIsP2GCapacity() throws IOException {
+        when(antaresDataManagerProperties.getP2gDirectory()).thenReturn("/P2G");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.P2G_CAPACITY_COST, null, null);
+        assertEquals("/P2G", result);
+    }
+
+    @Test
+    void getDirectoryByTrajectoryType_returnsP2GModulationDirectory_whenTypeIsP2GModulation() throws IOException {
+        when(antaresDataManagerProperties.getP2gMarketModulationDirectory()).thenReturn("/thermal/economic parameters/market_bid_marg_cost_modulation");
+        String result = trajectoryService.getDirectoryByTrajectoryType(TrajectoryType.P2G_MARKET_MODULATION, null, null);
+        assertEquals("/thermal/economic parameters/market_bid_marg_cost_modulation", result);
+    }
+
+    @Test
     void processThermalCommonParameterTrajectory_shouldReturnTrajectoryEntityWhenValidParameters() throws IOException {
         String trajectoryToUse = "thermal_common_parameters";
         String horizon = "2025";
