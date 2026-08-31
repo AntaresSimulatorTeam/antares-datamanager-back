@@ -286,7 +286,7 @@ public class P2gFileProcessorServiceImplTest {
             // Onglet horizon "2025-2026" avec une formule cross-sheet vers "parameters"
             Sheet horizonSheet = wbCap.createSheet("2025-2026");
             Row headerHorizon = horizonSheet.createRow(0);
-            headerHorizon.createCell(2).setCellValue("area");
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
             headerHorizon.createCell(3).setCellValue("P2G_fatalband");
             headerHorizon.createCell(4).setCellValue("P2G_asservi");
             headerHorizon.createCell(6).setCellValue("P2G_methanation");
@@ -435,7 +435,7 @@ public class P2gFileProcessorServiceImplTest {
 
             Sheet horizonSheet = wbCap.createSheet("2025-2026");
             Row headerHorizon = horizonSheet.createRow(0);
-            headerHorizon.createCell(2).setCellValue("area");
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
             headerHorizon.createCell(3).setCellValue("P2G_fatalband");
             headerHorizon.createCell(4).setCellValue("P2G_asservi");
             headerHorizon.createCell(6).setCellValue("P2G_methanation");
@@ -518,7 +518,7 @@ public class P2gFileProcessorServiceImplTest {
 
             Sheet horizonSheet = wbCap.createSheet("2025-2026");
             Row headerHorizon = horizonSheet.createRow(0);
-            headerHorizon.createCell(2).setCellValue("area");
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
             headerHorizon.createCell(3).setCellValue("P2G_fatalband");
             headerHorizon.createCell(4).setCellValue("P2G_asservi");
             headerHorizon.createCell(6).setCellValue("P2G_methanation");
@@ -564,5 +564,592 @@ public class P2gFileProcessorServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("must be numeric in horizon tab")
                 .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingParametersTab() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingParamsTab");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingParamsTab")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            wbCap.createSheet("2025-2026");
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            wbCost.createSheet("costs");
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingParamsTab", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Parameters tab does not exist")
+                .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingHorizonInParametersTab() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingHorizonInParams");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingHorizonInParams")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2030-2031");
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            wbCost.createSheet("costs");
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingHorizonInParams", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing horizon '2025-2026' in parameters tab")
+                .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_NonNumericParameterValue() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapNonNumericParam");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapNonNumericParam")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            Row r = paramsSheet.createRow(1);
+            r.createCell(0).setCellValue("FC_electrolyseur");
+            r.createCell(1).setCellValue("NOT_A_NUMBER");
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            wbCost.createSheet("costs");
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapNonNumericParam", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("must be numeric in parameters tab")
+                .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingRequiredParameters() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingReqParams");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingReqParams")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            Row r = paramsSheet.createRow(1);
+            r.createCell(0).setCellValue("FC_electrolyseur");
+            r.createCell(1).setCellValue(1.0);
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            wbCost.createSheet("costs");
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingReqParams", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing parameters")
+                .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingColumnsInHorizonSheet() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingColsHorizon");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingColsHorizon")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            String[] params = {"FC_electrolyseur", "Facteur_surdimension_ENR", "Part_PV_mix"};
+            for (int i = 0; i < params.length; i++) {
+                Row r = paramsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(params[i]);
+                r.createCell(1).setCellValue(1.0);
+            }
+
+            Sheet horizonSheet = wbCap.createSheet("2025-2026");
+            Row headerHorizon = horizonSheet.createRow(0);
+            headerHorizon.createCell(0).setCellValue("area");
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            wbCost.createSheet("costs");
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingColsHorizon", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing columns");
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingCostsTab() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingCostsTab");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingCostsTab")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        AreaEntity areaEntity = new AreaEntity();
+        areaEntity.setName("FR");
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            String[] params = {"FC_electrolyseur", "Facteur_surdimension_ENR", "Part_PV_mix"};
+            for (int i = 0; i < params.length; i++) {
+                Row r = paramsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(params[i]);
+                r.createCell(1).setCellValue(1.0);
+            }
+
+            Sheet horizonSheet = wbCap.createSheet("2025-2026");
+            Row headerHorizon = horizonSheet.createRow(0);
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
+            headerHorizon.createCell(3).setCellValue("P2G_fatalband");
+            headerHorizon.createCell(4).setCellValue("P2G_asservi");
+            headerHorizon.createCell(6).setCellValue("P2G_methanation");
+            headerHorizon.createCell(7).setCellValue("P2G_base_eff");
+            headerHorizon.createCell(9).setCellValue("To_Links_p2G_marg");
+            headerHorizon.createCell(10).setCellValue("To_Links_p2G_base (P2G base + fatal)");
+
+            Row dataRow = horizonSheet.createRow(1);
+            dataRow.createCell(2).setCellValue("FR");
+            dataRow.createCell(3).setCellValue(10.0);
+            dataRow.createCell(4).setCellValue(20.0);
+            dataRow.createCell(6).setCellValue(30.0);
+            dataRow.createCell(7).setCellValue(40.0);
+            dataRow.createCell(9).setCellValue(50.0);
+            dataRow.createCell(10).setCellValue(60.0);
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            wbCost.createSheet("other_tab");
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingCostsTab", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing tab {0}")
+                .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingColumnsInCostsSheet() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingColsCosts");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingColsCosts")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        AreaEntity areaEntity = new AreaEntity();
+        areaEntity.setName("FR");
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            String[] params = {"FC_electrolyseur", "Facteur_surdimension_ENR", "Part_PV_mix"};
+            for (int i = 0; i < params.length; i++) {
+                Row r = paramsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(params[i]);
+                r.createCell(1).setCellValue(1.0);
+            }
+
+            Sheet horizonSheet = wbCap.createSheet("2025-2026");
+            Row headerHorizon = horizonSheet.createRow(0);
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
+            headerHorizon.createCell(3).setCellValue("P2G_fatalband");
+            headerHorizon.createCell(4).setCellValue("P2G_asservi");
+            headerHorizon.createCell(6).setCellValue("P2G_methanation");
+            headerHorizon.createCell(7).setCellValue("P2G_base_eff");
+            headerHorizon.createCell(9).setCellValue("To_Links_p2G_marg");
+            headerHorizon.createCell(10).setCellValue("To_Links_p2G_base (P2G base + fatal)");
+
+            Row dataRow = horizonSheet.createRow(1);
+            dataRow.createCell(2).setCellValue("FR");
+            dataRow.createCell(3).setCellValue(10.0);
+            dataRow.createCell(4).setCellValue(20.0);
+            dataRow.createCell(6).setCellValue(30.0);
+            dataRow.createCell(7).setCellValue(40.0);
+            dataRow.createCell(9).setCellValue(50.0);
+            dataRow.createCell(10).setCellValue(60.0);
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            Sheet costsSheet = wbCost.createSheet("costs");
+            Row headerCosts = costsSheet.createRow(0);
+            headerCosts.createCell(0).setCellValue("type P2G");
+
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingColsCosts", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing columns");
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingHorizonYearInCostsSheet() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingHorizonYearInCosts");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingHorizonYearInCosts")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        AreaEntity areaEntity = new AreaEntity();
+        areaEntity.setName("FR");
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            String[] params = {"FC_electrolyseur", "Facteur_surdimension_ENR", "Part_PV_mix"};
+            for (int i = 0; i < params.length; i++) {
+                Row r = paramsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(params[i]);
+                r.createCell(1).setCellValue(1.0);
+            }
+
+            Sheet horizonSheet = wbCap.createSheet("2025-2026");
+            Row headerHorizon = horizonSheet.createRow(0);
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
+            headerHorizon.createCell(3).setCellValue("P2G_fatalband");
+            headerHorizon.createCell(4).setCellValue("P2G_asservi");
+            headerHorizon.createCell(6).setCellValue("P2G_methanation");
+            headerHorizon.createCell(7).setCellValue("P2G_base_eff");
+            headerHorizon.createCell(9).setCellValue("To_Links_p2G_marg");
+            headerHorizon.createCell(10).setCellValue("To_Links_p2G_base (P2G base + fatal)");
+
+            Row dataRow = horizonSheet.createRow(1);
+            dataRow.createCell(2).setCellValue("FR");
+            dataRow.createCell(3).setCellValue(10.0);
+            dataRow.createCell(4).setCellValue(20.0);
+            dataRow.createCell(6).setCellValue(30.0);
+            dataRow.createCell(7).setCellValue(40.0);
+            dataRow.createCell(9).setCellValue(50.0);
+            dataRow.createCell(10).setCellValue(60.0);
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            Sheet costsSheet = wbCost.createSheet("costs");
+            Row headerCosts = costsSheet.createRow(0);
+            headerCosts.createCell(0).setCellValue("type P2G");
+            headerCosts.createCell(2).setCellValue("modulation");
+            headerCosts.createCell(3).setCellValue("2030");
+
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingHorizonYearInCosts", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing horizon '2026' in P2G Costs trajectory");
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_NonNumericCostValue() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapNonNumericCost");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapNonNumericCost")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        AreaEntity areaEntity = new AreaEntity();
+        areaEntity.setName("FR");
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            String[] params = {"FC_electrolyseur", "Facteur_surdimension_ENR", "Part_PV_mix"};
+            for (int i = 0; i < params.length; i++) {
+                Row r = paramsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(params[i]);
+                r.createCell(1).setCellValue(1.0);
+            }
+
+            Sheet horizonSheet = wbCap.createSheet("2025-2026");
+            Row headerHorizon = horizonSheet.createRow(0);
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
+            headerHorizon.createCell(3).setCellValue("P2G_fatalband");
+            headerHorizon.createCell(4).setCellValue("P2G_asservi");
+            headerHorizon.createCell(6).setCellValue("P2G_methanation");
+            headerHorizon.createCell(7).setCellValue("P2G_base_eff");
+            headerHorizon.createCell(9).setCellValue("To_Links_p2G_marg");
+            headerHorizon.createCell(10).setCellValue("To_Links_p2G_base (P2G base + fatal)");
+
+            Row dataRow = horizonSheet.createRow(1);
+            dataRow.createCell(2).setCellValue("FR");
+            dataRow.createCell(3).setCellValue(10.0);
+            dataRow.createCell(4).setCellValue(20.0);
+            dataRow.createCell(6).setCellValue(30.0);
+            dataRow.createCell(7).setCellValue(40.0);
+            dataRow.createCell(9).setCellValue(50.0);
+            dataRow.createCell(10).setCellValue(60.0);
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            Sheet costsSheet = wbCost.createSheet("costs");
+            Row headerCosts = costsSheet.createRow(0);
+            headerCosts.createCell(0).setCellValue("type P2G");
+            headerCosts.createCell(2).setCellValue("modulation");
+            headerCosts.createCell(3).setCellValue("2026");
+
+            Row r = costsSheet.createRow(1);
+            r.createCell(0).setCellValue("Marginal");
+            r.createCell(2).setCellValue("mod_Marginal");
+            r.createCell(3).setCellValue("NOT_NUMERIC");
+
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapNonNumericCost", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("must be numeric in P2G Costs trajectory");
+    }
+
+    @Test
+    void testProcessCapacityP2gFile_MissingRequiredP2gType() throws IOException {
+        Path trajectoryDir = tempDir.resolve("trajCapMissingReqP2gType");
+        Files.createDirectories(trajectoryDir);
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.P2G_CAPACITY_COST), any(), any()))
+                .thenReturn(tempDir);
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .fileName("trajCapMissingReqP2gType")
+                .type(TrajectoryType.P2G_CAPACITY_COST.name())
+                .build();
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockTrajectory);
+
+        AreaEntity areaEntity = new AreaEntity();
+        areaEntity.setName("FR");
+        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+
+        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        try (Workbook wbCap = new XSSFWorkbook()) {
+            Sheet paramsSheet = wbCap.createSheet("parameters");
+            Row headerParams = paramsSheet.createRow(0);
+            headerParams.createCell(0).setCellValue("parameter");
+            headerParams.createCell(1).setCellValue("2025-2026");
+            String[] params = {"FC_electrolyseur", "Facteur_surdimension_ENR", "Part_PV_mix"};
+            for (int i = 0; i < params.length; i++) {
+                Row r = paramsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(params[i]);
+                r.createCell(1).setCellValue(1.0);
+            }
+
+            Sheet horizonSheet = wbCap.createSheet("2025-2026");
+            Row headerHorizon = horizonSheet.createRow(0);
+            headerHorizon.createCell(2).setCellValue("area_antares_name");
+            headerHorizon.createCell(3).setCellValue("P2G_fatalband");
+            headerHorizon.createCell(4).setCellValue("P2G_asservi");
+            headerHorizon.createCell(6).setCellValue("P2G_methanation");
+            headerHorizon.createCell(7).setCellValue("P2G_base_eff");
+            headerHorizon.createCell(9).setCellValue("To_Links_p2G_marg");
+            headerHorizon.createCell(10).setCellValue("To_Links_p2G_base (P2G base + fatal)");
+
+            Row dataRow = horizonSheet.createRow(1);
+            dataRow.createCell(2).setCellValue("FR");
+            dataRow.createCell(3).setCellValue(10.0);
+            dataRow.createCell(4).setCellValue(20.0);
+            dataRow.createCell(6).setCellValue(30.0);
+            dataRow.createCell(7).setCellValue(40.0);
+            dataRow.createCell(9).setCellValue(50.0);
+            dataRow.createCell(10).setCellValue(60.0);
+
+            try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
+                wbCap.write(fos);
+            }
+        }
+
+        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        try (Workbook wbCost = new XSSFWorkbook()) {
+            Sheet costsSheet = wbCost.createSheet("costs");
+            Row headerCosts = costsSheet.createRow(0);
+            headerCosts.createCell(0).setCellValue("type P2G");
+            headerCosts.createCell(2).setCellValue("modulation");
+            headerCosts.createCell(3).setCellValue("2026");
+
+            String[] partialTypes = {"Marginal", "Base"};
+            for (int i = 0; i < partialTypes.length; i++) {
+                Row r = costsSheet.createRow(i + 1);
+                r.createCell(0).setCellValue(partialTypes[i]);
+                r.createCell(2).setCellValue("mod_" + partialTypes[i]);
+                r.createCell(3).setCellValue(15.5 * (i + 1));
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
+                wbCost.write(fos);
+            }
+        }
+
+        assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissingReqP2gType", "2025-2026", 1, false))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Missing P2G Type");
     }
 }

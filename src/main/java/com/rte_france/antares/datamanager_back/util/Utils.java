@@ -912,6 +912,59 @@ public class Utils {
         return false;
     }
 
+    public boolean isNumericCellWithFormula(Cell cell, FormulaEvaluator evaluator) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.NUMERIC) return true;
+        if (t == CellType.FORMULA) {
+            try {
+                FormulaEvaluator formulaEvaluator = evaluator != null
+                        ? evaluator
+                        : cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                CellValue evaluated = formulaEvaluator.evaluate(cell);
+                if (evaluated != null) {
+                    if (evaluated.getCellType() == CellType.NUMERIC) return true;
+                    if (evaluated.getCellType() == CellType.STRING) {
+                        String s = evaluated.getStringValue().trim();
+                        if (s.isEmpty()) return false;
+                        try {
+                            Double.parseDouble(s);
+                            return true;
+                        } catch (NumberFormatException ignored) {
+                            return false;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+                return false;
+            }
+            CellType resType = cell.getCachedFormulaResultType();
+            if (resType == CellType.NUMERIC) return true;
+            if (resType == CellType.STRING) {
+                String s = cell.getStringCellValue().trim();
+                if (s.isEmpty()) return false;
+                try {
+                    Double.parseDouble(s);
+                    return true;
+                } catch (NumberFormatException ignored) {
+                    return false;
+                }
+            }
+            return false;
+        }
+        if (t == CellType.STRING) {
+            String s = cell.getStringCellValue().trim();
+            if (s.isEmpty()) return false;
+            try {
+                Double.parseDouble(s);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
     public static void checkMissingColumns(
             Sheet sheet,
             String[] expectedColumns,
@@ -1079,6 +1132,91 @@ public class Utils {
                     int bytesRead;
                     while ((bytesRead = is.read(buffer)) != -1) {
                         digest.update(buffer, 0, bytesRead);
+                    }
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    public static String calculateDirectoryChecksumWithSpecificSheets(
+            Path directory,
+            Map<String, List<String>> filesWithSheets
+    ) throws IOException, TechnicalException, BusinessException {
+        if (directory == null) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: directory path is null")
+                    .build();
+        }
+
+        Path trustedDirectory = directory.toAbsolutePath().normalize();
+        if (!Files.isDirectory(trustedDirectory)) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: directory does not exist or is not a directory")
+                    .build();
+        }
+
+        Path canonicalBaseDirectory = trustedDirectory.toRealPath();
+
+        if (filesWithSheets == null || filesWithSheets.isEmpty()) {
+            throw TechnicalException.builder()
+                    .message("Error processing file: files map is null or empty")
+                    .build();
+        }
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            List<String> fileNames = filesWithSheets.keySet().stream().sorted().toList();
+
+            for (String fileName : fileNames) {
+                Path filePath = canonicalBaseDirectory.resolve(fileName);
+                if (!Files.exists(filePath)) {
+                    throw TechnicalException.builder()
+                            .message("Error processing file: required file not found: " + fileName)
+                            .build();
+                }
+
+                Path canonicalFile = filePath.toRealPath();
+                if (!canonicalFile.startsWith(canonicalBaseDirectory)) {
+                    throw TechnicalException.builder()
+                            .message("Error processing file: file path is outside of the allowed directory")
+                            .build();
+                }
+
+                digest.update(fileName.getBytes(StandardCharsets.UTF_8));
+                List<String> sheets = filesWithSheets.get(fileName);
+
+                if (sheets != null && !sheets.isEmpty()) {
+                    try (InputStream is = Files.newInputStream(canonicalFile);
+                         Workbook wb = WorkbookFactory.create(is)) {
+                        for (String sheetName : sheets) {
+                            if (sheetName != null) {
+                                Sheet sheet = wb.getSheet(sheetName);
+                                if (sheet == null) {
+                                    throw BusinessException.builder()
+                                            .errorMessageArguments(List.of(capitalizeFirstLetter(sheetName), formatFileName(fileName), directory.getFileName().toString()))
+                                            .message("{0} tab does not exist in the {1} trajectory {2}")
+                                            .httpStatus(HttpStatus.BAD_REQUEST)
+                                            .build();
+                                }
+                                digest.update(sheetName.getBytes(StandardCharsets.UTF_8));
+                                String sheetHash = hashWholeSheet(sheet);
+                                digest.update(sheetHash.getBytes(StandardCharsets.UTF_8));
+                            }
+                        }
+                    }
+                } else {
+                    try (InputStream is = Files.newInputStream(canonicalFile)) {
+                        byte[] buffer = new byte[8192];
+                        int bytesRead;
+                        while ((bytesRead = is.read(buffer)) != -1) {
+                            digest.update(buffer, 0, bytesRead);
+                        }
                     }
                 }
             }
@@ -1515,5 +1653,27 @@ public class Utils {
             }
         }
         return false;
+    }
+
+    public static String formatFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return fileName;
+        }
+
+        // Supprime l'extension
+        int dotIndex = fileName.lastIndexOf('.');
+        String nameWithoutExtension =
+                dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+
+        // Remplace _ et - par des espaces
+        return nameWithoutExtension.replaceAll("[_-]+", " ").trim();
+    }
+
+    public static String capitalizeFirstLetter(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+
+        return value.substring(0, 1).toUpperCase() + value.substring(1);
     }
 }

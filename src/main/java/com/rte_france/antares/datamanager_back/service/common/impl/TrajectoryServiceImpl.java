@@ -1631,7 +1631,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
                 .orElse("UNKNOWN_USER");
-        String checksum = calculateDirectoryChecksum(trajectoryFilePath);
+        String checksum = "";
+        if (P2G_CAPACITY_COST.name().equals(type)) {
+            Map<String, List<String>> filesWithSheets = Map.of(
+                    "P2G_capacity.xlsx", List.of("parameters", horizon),
+                    "P2G_costs.xlsx", List.of("costs")
+            );
+            checksum = calculateDirectoryChecksumWithSpecificSheets(trajectoryFilePath, filesWithSheets);
+        } else {
+            checksum = calculateDirectoryChecksum(trajectoryFilePath); 
+        }
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .fileName(trajectoryToUse)

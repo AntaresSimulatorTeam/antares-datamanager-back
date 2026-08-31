@@ -3949,6 +3949,99 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void shouldCreateNewTrajectoryWhenP2GCapacityCostType() throws Exception {
+        Path base = tempDir.resolve("p2g");
+        Path traj = base.resolve("p2g_traj");
+        Files.createDirectories(traj);
+
+        String type = TrajectoryType.P2G_CAPACITY_COST.name();
+        String fileName = "p2g_traj";
+        String horizon = "2030";
+        String area = null;
+        String tech = null;
+
+        Map<String, List<String>> expectedFilesWithSheets = Map.of(
+                "P2G_capacity.xlsx", List.of("parameters", horizon),
+                "P2G_costs.xlsx", List.of("costs")
+        );
+
+        when(userService.getCurrentUserDetails())
+                .thenReturn(UserInfoDto.builder().nni("NNI123").build());
+
+        try (var mockedStatic = mockStatic(Utils.class)) {
+            mockedStatic.when(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(traj, expectedFilesWithSheets))
+                    .thenReturn("p2gChecksum123");
+            mockedStatic.when(() -> Utils.civilToChevalHorizon(horizon)).thenReturn("2029-2030");
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    fileName, type, horizon, area, tech
+            )).thenReturn(Optional.empty());
+
+            TrajectoryEntity result = trajectoryService.buildDirectoryTrajectory(
+                    type, fileName, traj, horizon, area, tech
+            );
+
+            assertEquals(1, result.getVersion());
+            assertEquals("p2gChecksum123", result.getChecksum());
+            assertEquals("NNI123", result.getCreatedBy());
+            assertEquals(fileName, result.getFileName());
+            mockedStatic.verify(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(traj, expectedFilesWithSheets));
+            mockedStatic.verify(() -> Utils.calculateDirectoryChecksum(any()), never());
+        }
+    }
+
+    @Test
+    void shouldThrowExceptionWhenChecksumIsSameForP2GCapacityCost() throws Exception {
+        Path base = tempDir.resolve("p2g");
+        Path traj = base.resolve("p2g_traj");
+        Files.createDirectories(traj);
+
+        String type = TrajectoryType.P2G_CAPACITY_COST.name();
+        String fileName = "p2g_traj";
+        String horizon = "2030";
+        String area = null;
+        String tech = null;
+        String checkSum = "p2gChecksum123";
+
+        Map<String, List<String>> expectedFilesWithSheets = Map.of(
+                "P2G_capacity.xlsx", List.of("parameters", horizon),
+                "P2G_costs.xlsx", List.of("costs")
+        );
+
+        TrajectoryEntity existing = TrajectoryEntity.builder()
+                .version(2)
+                .checksum(checkSum)
+                .fileName(fileName)
+                .horizon(horizon)
+                .build();
+
+        when(userService.getCurrentUserDetails())
+                .thenReturn(UserInfoDto.builder().nni("NNI123").build());
+
+        try (var mockedStatic = mockStatic(Utils.class, CALLS_REAL_METHODS)) {
+            mockedStatic.when(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(traj, expectedFilesWithSheets))
+                    .thenReturn(checkSum);
+            mockedStatic.when(() -> Utils.civilToChevalHorizon(horizon)).thenReturn("2029-2030");
+
+            when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                    fileName, type, horizon, area, tech
+            )).thenReturn(Optional.of(existing));
+
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    trajectoryService.buildDirectoryTrajectory(
+                            type, fileName, traj, horizon, area, tech
+                    )
+            );
+
+            assertNotNull(exception);
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals("File already processed with same content {0}", exception.getMessage());
+            assertEquals(List.of(traj.getFileName().toString()), exception.getErrorMessageArguments());
+            mockedStatic.verify(() -> Utils.calculateDirectoryChecksumWithSpecificSheets(traj, expectedFilesWithSheets));
+            mockedStatic.verify(() -> Utils.calculateDirectoryChecksum(any()), never());
+        }
+    }
+
+    @Test
         void shouldUseUnknownUserWhenUserIsNull() throws Exception {
             Path base = tempDir.resolve("hydro");
             Path traj = base.resolve("BP_23");
