@@ -42,7 +42,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "P2G_capacity.xlsx",
             "P2G_costs.xlsx"
     };
-    private static final String capacity = "capacity";
+    private static final String CAPACITY = "capacity";
     private static final String SHEET_PARAMETERS = "parameters";
     private static final String SHEET_COSTS = "costs";
     private static final Set<String> REQUIRED_PARAMETERS_NAMES = Set.of(
@@ -100,7 +100,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                 null
         );
         
-        try (InputStream capacityInputStream = Files.newInputStream(files.get(capacity));
+        try (InputStream capacityInputStream = Files.newInputStream(files.get(CAPACITY));
              Workbook capacityWorkbook = WorkbookFactory.create(capacityInputStream);
              InputStream costsInputStream = Files.newInputStream(files.get(SHEET_COSTS));
              Workbook costsWorkbook = WorkbookFactory.create(costsInputStream)) {
@@ -164,7 +164,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             if (!Files.exists(filePath)) {
                 missingFiles.add(fileName);
             } else {
-                String type = fileName.contains("capacity") ? capacity : SHEET_COSTS;
+                String type = fileName.contains(CAPACITY) ? CAPACITY : SHEET_COSTS;
                 paths.put(type, filePath);
             }
         }

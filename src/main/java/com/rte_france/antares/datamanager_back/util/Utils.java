@@ -67,6 +67,8 @@ public class Utils {
 
     public static final String OTHERS_AREA = "OTHERS";
     public static final String ERROR_DIRECTORY_NULL = "Error processing file: directory path is null";
+    public static final String ERROR_DIRECTORY_NOT_EXIST = "Error processing file: directory does not exist or is not a directory";
+    public static final String ERROR_FILE_PATH_OUTSIDE = "Error processing file: file path is outside of the allowed directory";
 
     /**
      * Calculates and returns the SHA-256 checksum of a file.
@@ -1087,7 +1089,7 @@ public class Utils {
         Path trustedDirectory = directory.toAbsolutePath().normalize();
         if (!Files.isDirectory(trustedDirectory)) {
             throw TechnicalException.builder()
-                    .message("Error processing file: directory does not exist or is not a directory")
+                    .message(ERROR_DIRECTORY_NOT_EXIST)
                     .build();
         }
 
@@ -1105,7 +1107,7 @@ public class Utils {
                 Path canonicalFile = file.toRealPath();
                 if (!canonicalFile.startsWith(canonicalBaseDirectory)) {
                     throw TechnicalException.builder()
-                            .message("Error processing file: file path is outside of the allowed directory")
+                            .message(ERROR_FILE_PATH_OUTSIDE)
                             .build();
                 }
 
@@ -1176,7 +1178,7 @@ public class Utils {
         Path trustedDirectory = directory.toAbsolutePath().normalize();
         if (!Files.isDirectory(trustedDirectory)) {
             throw TechnicalException.builder()
-                    .message("Error processing file: directory does not exist or is not a directory")
+                    .message(ERROR_DIRECTORY_NOT_EXIST)
                     .build();
         }
 
@@ -1195,7 +1197,7 @@ public class Utils {
         Path canonicalFile = filePath.toRealPath();
         if (!canonicalFile.startsWith(canonicalBaseDirectory)) {
             throw TechnicalException.builder()
-                    .message("Error processing file: file path is outside of the allowed directory")
+                    .message(ERROR_FILE_PATH_OUTSIDE)
                     .build();
         }
         return canonicalFile;
@@ -1254,7 +1256,7 @@ public class Utils {
         Path trustedDirectory = directory.toAbsolutePath().normalize();
         if (!Files.isDirectory(trustedDirectory)) {
             throw TechnicalException.builder()
-                    .message("Error processing file: directory does not exist or is not a directory")
+                    .message(ERROR_DIRECTORY_NOT_EXIST)
                     .build();
         }
 
@@ -1279,7 +1281,7 @@ public class Utils {
                 Path canonicalFile = filePath.toRealPath();
                 if (!canonicalFile.startsWith(canonicalBaseDirectory)) {
                     throw TechnicalException.builder()
-                            .message("Error processing file: file path is outside of the allowed directory")
+                            .message(ERROR_FILE_PATH_OUTSIDE)
                             .build();
                 }
 
