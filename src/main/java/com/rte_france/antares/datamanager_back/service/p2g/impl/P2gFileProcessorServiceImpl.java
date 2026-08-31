@@ -277,41 +277,43 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         Map<String, Double> capacityMap = new HashMap<>();
         FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
         for (Row row : sheet) {
-            if (isRowEmpty(row)|| row.getRowNum() == 0) continue;
+            if (isRowEmpty(row) || row.getRowNum() == 0) {
+                continue;
+            }
+
             String areaName = Objects.toString(getCellValue(row, 2, evaluator), null);
             if (studyAreas.contains(areaName)) {
                 areaNames.add(areaName);
-            } else {
-                continue;
-            }
-            for (Map.Entry<String, Integer> column : NUMERIC_COLUMN_NAMES.entrySet()) {
-                Cell capacityCell = row.getCell(column.getValue());
-                if (!isNumericCellWithFormula(capacityCell, evaluator)) {
-                    columnsNonNumeric.add(column.getKey());
-                    throw BusinessException.builder()
-                            .errorMessageArguments(List.of(String.join(", ", columnsNonNumeric), trajectory.getFileName()))
-                            .message("Column value {0} must be numeric in horizon tab in P2G Capacity trajectory {1}")
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                } else {
-                    FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
-                    Double numVal = formulaAndValue.getNumericValue();
-                    capacityMap.put(column.getKey(), numVal);
+
+                for (Map.Entry<String, Integer> column : NUMERIC_COLUMN_NAMES.entrySet()) {
+                    Cell capacityCell = row.getCell(column.getValue());
+                    if (!isNumericCellWithFormula(capacityCell, evaluator)) {
+                        columnsNonNumeric.add(column.getKey());
+                        throw BusinessException.builder()
+                                .errorMessageArguments(List.of(String.join(", ", columnsNonNumeric), trajectory.getFileName()))
+                                .message("Column value {0} must be numeric in horizon tab in P2G Capacity trajectory {1}")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    } else {
+                        FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
+                        Double numVal = formulaAndValue.getNumericValue();
+                        capacityMap.put(column.getKey(), numVal);
+                    }
                 }
+
+                P2GCapacityEntity capacityEntity = P2GCapacityEntity.builder()
+                        .area(areaName)
+                        .baseFatalBand(capacityMap.get("P2G_fatalband"))
+                        .baseEff(capacityMap.get("P2G_base_eff"))
+                        .baseCapacity(capacityMap.get("To_Links_p2G_base (P2G base + fatal)"))
+                        .margCapacity(capacityMap.get("To_Links_p2G_marg"))
+                        .methanationCapacity(capacityMap.get("P2G_methanation"))
+                        .asserviCapacity(capacityMap.get("P2G_asservi"))
+                        .trajectory(trajectory)
+                        .build();
+
+                capacities.add(capacityEntity);
             }
-
-            P2GCapacityEntity capacityEntity = P2GCapacityEntity.builder()
-                    .area(areaName)
-                    .baseFatalBand(capacityMap.get("P2G_fatalband"))
-                    .baseEff(capacityMap.get("P2G_base_eff"))
-                    .baseCapacity(capacityMap.get("To_Links_p2G_base (P2G base + fatal)"))
-                    .margCapacity(capacityMap.get("To_Links_p2G_marg"))
-                    .methanationCapacity(capacityMap.get("P2G_methanation"))
-                    .asserviCapacity(capacityMap.get("P2G_asservi"))
-                    .trajectory(trajectory)
-                    .build();
-
-            capacities.add(capacityEntity);
         }
 
         if (areaNames.isEmpty()) {
