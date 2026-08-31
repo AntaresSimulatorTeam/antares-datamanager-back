@@ -1,18 +1,13 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -25,7 +20,6 @@ import static org.mockito.Mockito.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class P2GControllerTest {
 
@@ -73,7 +67,6 @@ public class P2GControllerTest {
 
     @Test
     void postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
-        String area = "FR";
         // trajectoryToUse > 40 chars
         String trajectoryToUse = "FE_Liv60" + "a".repeat(35) + ".xls";
         String horizon = "2025-2026";
@@ -93,7 +86,6 @@ public class P2GControllerTest {
 
     @Test
     void postWithInvalidHorizon_should_returnBadRequest() throws Exception {
-        String area = "FR";
         String trajectoryToUse = "FE_Liv60_test.xls";
         String invalidHorizon = "20252026"; // does not match ^\\d{4}-\\d{4}$
 
