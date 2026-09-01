@@ -43,12 +43,12 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @SuppressWarnings("java:S2083")
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException {
-        checkIfHorizonExist(path, horizon, TrajectoryType.AREA.name());
-        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon, TrajectoryType.AREA.name());
+    public TrajectoryEntity processAreaFile(Path path, String horizon, TrajectoryType trajectoryType) throws IOException {
+        checkIfHorizonExist(path, horizon, trajectoryType.name());
+        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon, trajectoryType.name());
         AreasValidator.validateAreaColumns(path, horizon);
-        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), TrajectoryType.AREA.name());
-        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, TrajectoryType.AREA.name());
+        String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name());
+        Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, trajectoryType.name());
 
         String createdBy = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
@@ -59,12 +59,12 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, TrajectoryType.AREA, null, null, null), buildAreaConfigList(path, horizon));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, trajectoryType, null, null, null), buildAreaConfigList(path, horizon));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
         trajectory.setAreaConfigEntities(areaConfigEntities);
-        trajectory.setType(TrajectoryType.AREA.name());
+        trajectory.setType(trajectory.getType());
         areaConfigEntities.forEach(areaConfig -> areaConfig.setTrajectory(trajectory));
         areaConfigRepository.saveAll(areaConfigEntities);
         return trajectoryRepository.save(trajectory);

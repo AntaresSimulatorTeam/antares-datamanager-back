@@ -112,6 +112,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final HydroCoherenceCheckService hydroCoherenceCheckService;
 
     private static final String AREAS_PREFIX = "areas_";
+    private static final String AREAS_ME_FE_PREFIX = "fe_areas_";
+    private static final String AREAS_ME_XFE_PREFIX = "xfe_areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
     private static final String COMMON_PREFIX = "common_param_";
@@ -243,7 +245,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
         return switch (trajectoryType) {
-            case AREA -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon);
+            case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
@@ -1091,6 +1093,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         return switch (trajectoryType) {
             case AREA -> isXlsx && fileName.startsWith(AREAS_PREFIX);
+            case AREA_ME -> isXlsx && (fileName.startsWith(AREAS_ME_FE_PREFIX) || fileName.startsWith(AREAS_ME_XFE_PREFIX));
             case LINK -> isXlsx && fileName.startsWith(LINKS_PREFIX);
             case NUCLEAR_FR_TALON -> isXlsx && fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> isXlsx && fileName.startsWith(NUCLEAR_EPR_PREFIX);
@@ -1098,13 +1101,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case ADEQUACY_PATCH -> isXlsx;
             default -> isXlsx; // for all other types, only accept .xlsx files
         };
-
     }
 
 
     public String getDirectoryByTrajectoryType(TrajectoryType trajectoryType, String area, String technology) throws IOException {
         return switch (trajectoryType) {
             case AREA -> antaresDataManagerProperties.getAreaDirectory();
+            case AREA_ME -> antaresDataManagerProperties.getAreaMeDirectory();
             case LINK -> antaresDataManagerProperties.getLinkDirectory();
             case LOAD -> antaresDataManagerProperties.getLoadDirectory();
             case THERMAL_CAPACITY -> getThermalCapacityDirectory(area);

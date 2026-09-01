@@ -16,6 +16,9 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.area.directory}")
     public String areaDirectory;
 
+    @Value("${antares.datamanager.area.me.directory}")
+    public String areaMeDirectory;
+
     @Value("${antares.datamanager.link.directory}")
     public String linkDirectory;
 
