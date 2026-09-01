@@ -133,7 +133,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.processTrajectory(TrajectoryType.AREA, "testFile", "2023-2024", 1);
 
-        verify(areaFileProcessorService, times(1)).processAreaFile(any(), any());
+        verify(areaFileProcessorService, times(1)).processAreaFile(any(), any(), any());
     }
 
     @Test

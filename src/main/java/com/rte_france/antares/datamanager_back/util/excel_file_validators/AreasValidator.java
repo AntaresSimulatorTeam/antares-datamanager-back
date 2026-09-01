@@ -21,7 +21,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 
 public class AreasValidator {
 
-    private static final int AREAS_MAX_LENGTH = 10;
+    private static final int AREAS_MAX_LENGTH = 20;
     private static final int DISTRICT_MAX_LENGTH = 20;
 
     private AreasValidator() {

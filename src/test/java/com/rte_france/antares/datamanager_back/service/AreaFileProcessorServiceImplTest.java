@@ -69,7 +69,7 @@ class AreaFileProcessorServiceImplTest {
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
                     .thenReturn(Optional.of(trajectoryEntity));
 
-            areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
+            areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
 
             verify(trajectoryRepository, times(1)).save(any());
             verify(areaConfigRepository, times(1)).saveAll(any());
@@ -88,7 +88,7 @@ class AreaFileProcessorServiceImplTest {
         when(areaRepository.findAreaByNameIgnoreCase(anyString()))
                 .thenReturn(Optional.of(areaEntity));
 
-        areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
+        areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
 
         verify(trajectoryRepository, times(1)).save(any());
         verify(areaConfigRepository, times(1)).saveAll(any());
@@ -100,7 +100,7 @@ class AreaFileProcessorServiceImplTest {
             when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
 
-            areaFileProcessorService.processAreaFile(tempFile, "2030-2031");
+            areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
 
             verify(trajectoryRepository, times(1)).save(any());
             verify(areaConfigRepository, times(1)).saveAll(any());

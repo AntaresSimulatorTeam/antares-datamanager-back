@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.dto;
 
 public enum TrajectoryType {
     AREA,
+    AREA_ME,
     LINK,
     LOAD,
     THERMAL_CAPACITY,

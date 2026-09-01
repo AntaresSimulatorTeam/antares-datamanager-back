@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.area_link;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 
@@ -9,7 +10,7 @@ import java.util.List;
 
 public interface AreaFileProcessorService {
 
-     TrajectoryEntity processAreaFile(Path path, String horizon) throws IOException;
+     TrajectoryEntity processAreaFile(Path path, String horizon, TrajectoryType trajectoryType) throws IOException;
 
      TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities);
 
