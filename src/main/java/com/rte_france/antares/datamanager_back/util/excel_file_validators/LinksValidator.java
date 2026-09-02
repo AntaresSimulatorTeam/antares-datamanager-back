@@ -29,14 +29,33 @@ public class LinksValidator {
      * @param horizon  sheet in file to be read
      */
     public static void linksDuplicateAndCellsValuesChecks(Path path, ExcelFileType fileType, String horizon) {
+        linksDuplicateAndCellsValuesChecks(path, fileType, horizon, TrajectoryType.LINK);
+    }
+
+    /**
+     * @param path     trajectory to be added to the database
+     * @param fileType Links
+     * @param horizon  sheet in file to be read
+     * @param trajectoryType trajectory type (LINK or LINK_ME)
+     */
+    public static void linksDuplicateAndCellsValuesChecks(Path path, ExcelFileType fileType, String horizon, TrajectoryType trajectoryType) {
+        String sheetName = horizon;
+        
+        if (TrajectoryType.LINK_ME == trajectoryType) {
+            String[] parts = horizon.split("-");
+            if (parts.length == 2) {
+                sheetName = parts[1];
+            }
+        }
+        
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheet(horizon);
+            Sheet sheet = workbook.getSheet(sheetName);
             if (fileType == ExcelFileType.LINKS) {
-                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), horizon, true, TrajectoryType.LINK.name());
-                checkColumnsRules(sheet, horizon, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()),TrajectoryType.LINK.name());
-                checkBooleanInParametersSheet(workbook, horizon, 2, "HVDC");
+                checkForDuplicateValues(sheet, LinksColumns.NAME.getDisplayName(), sheetName, true, trajectoryType.name());
+                checkColumnsRules(sheet, sheetName, LinksColumns.getNumericColumnNames(), LinksColumns.getBooleanColumnNames(), Collections.singletonList(LinksColumns.NAME.getDisplayName()), trajectoryType.name());
+                checkBooleanInParametersSheet(workbook, sheetName, 2, "HVDC");
             }
         } catch (IOException e) {
             throw TechnicalException.builder()

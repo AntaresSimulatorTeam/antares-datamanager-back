@@ -22,6 +22,9 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.link.directory}")
     public String linkDirectory;
 
+    @Value("${antares.datamanager.link.me.directory}")
+    public String linkMeDirectory;
+
     @Value("${antares.datamanager.thermal.cost.directory}")
     public String thermalCostDirectory;
 
