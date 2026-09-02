@@ -61,6 +61,9 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<LinkEntity> linkEntities;
 
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<LinkMeEntity> linkMeEntities;
+
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<ThermalClusterCapacityEntity> thermalClusterCapacities;

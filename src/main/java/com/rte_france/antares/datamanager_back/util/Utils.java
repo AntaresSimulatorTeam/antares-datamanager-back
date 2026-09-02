@@ -438,12 +438,21 @@ public class Utils {
     }
 
     public void checkIfHorizonExist(Path path, String horizon, String trajectoryType) {
+        String sheetName = horizon;
+        
+        if (AREA_ME.name().equals(trajectoryType)) {
+            String[] parts = horizon.split("-");
+            if (parts.length == 2) {
+                sheetName = parts[1];
+            }
+        }
+        
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            if (workbook.getSheet(horizon) == null) {
+            if (workbook.getSheet(sheetName) == null) {
                 throw BusinessException.builder()
                         .message("Horizon {0} does not exist in the {1} trajectory")
-                        .errorMessageArguments(List.of(horizon, trajectoryType))
+                        .errorMessageArguments(List.of(sheetName, trajectoryType))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -451,7 +460,7 @@ public class Utils {
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("could not check if horizon exist : {0}")
-                    .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
+                    .errorMessageArguments(List.of(sheetName, path.getFileName().toString()))
                     .cause(e.getCause())
                     .build();
         }
@@ -533,7 +542,7 @@ public class Utils {
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
-            case STS ->
+            case STS, AREA_ME, LINK_ME ->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);

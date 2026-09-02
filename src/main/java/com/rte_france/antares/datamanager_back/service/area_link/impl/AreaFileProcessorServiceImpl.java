@@ -59,7 +59,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, trajectoryType, null, null, null), buildAreaConfigList(path, horizon));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, trajectoryType, null, null, null), buildAreaConfigList(path, horizon, trajectoryType));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
@@ -70,11 +70,20 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
-    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon) {
+    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon, TrajectoryType trajectoryType) {
+        String sheetName = horizon;
+        
+        if (TrajectoryType.AREA_ME == trajectoryType) {
+            String[] parts = horizon.split("-");
+            if (parts.length == 2) {
+                sheetName = parts[1];
+            }
+        }
+        
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheet(horizon);
+            Sheet sheet = workbook.getSheet(sheetName);
             List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
             Row header = sheet.getRow(0);
             for (Row row : sheet) {

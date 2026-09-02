@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.area_link;
 
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
