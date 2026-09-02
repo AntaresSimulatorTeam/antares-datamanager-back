@@ -145,4 +145,4 @@ databaseChangeLog:
   - include:
       file: classpath*:db/changelog/1.1.0/V69-create-p2g-table.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V69-create-link-me-table.sql
+      file: classpath*:db/changelog/1.1.0/V70-create-link-me-table.sql
