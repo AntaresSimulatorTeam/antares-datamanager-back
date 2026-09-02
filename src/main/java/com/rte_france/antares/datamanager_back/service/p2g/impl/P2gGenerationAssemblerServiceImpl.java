@@ -180,8 +180,9 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         if (!missing.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(area, String.join(", ", missing)))
-                    .message("P2G asservi is defined for area {0} but RES load factor coverage is missing for: {1}. "
-                            + "Link RES trajectories covering these technologies for this area before generating the study.")
+                    .message("P2G asservi is defined for area {0} but RES data is missing for: {1} at this area. "
+                            + "Check that both a load-factor trajectory and an installed power trajectory are linked "
+                            + "for these technologies.")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
