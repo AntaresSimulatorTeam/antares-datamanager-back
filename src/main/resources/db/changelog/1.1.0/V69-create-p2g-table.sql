@@ -1,6 +1,6 @@
 -- liquibase formatted sql
 
--- changeset metienne:V68-create-p2g-table
+-- changeset metienne:V69-create-p2g-table
 CREATE TABLE p2g_capacity
 (
     id                    INTEGER PRIMARY KEY,
