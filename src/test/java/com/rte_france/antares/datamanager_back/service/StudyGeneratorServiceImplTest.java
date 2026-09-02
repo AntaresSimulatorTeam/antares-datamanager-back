@@ -1170,7 +1170,7 @@ class StudyGeneratorServiceImplTest {
                         Map.of("AT", new P2gClusterGenerationDTO.Link(20.0, null)),
                         new P2gClusterGenerationDTO.AsserviParameters(0.5, 1.2, 0.9))
         );
-        when(p2gGenerationAssemblerService.assembleP2g(eq(study), eq(p2gCapacityCostTraj), eq(p2gMarketModulationTraj))).thenReturn(p2gDto);
+        when(p2gGenerationAssemblerService.assembleP2g(study, p2gCapacityCostTraj, p2gMarketModulationTraj)).thenReturn(p2gDto);
 
         studyGeneratorService.buildJsonForStudyGeneration(1);
 

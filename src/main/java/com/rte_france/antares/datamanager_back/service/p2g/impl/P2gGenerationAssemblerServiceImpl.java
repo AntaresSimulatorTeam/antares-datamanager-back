@@ -88,13 +88,22 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         List<P2GCapacityEntity> capacities = p2gCapacityRepository.findByTrajectoryId(capacityCostTrajectory.getId());
         List<P2GCostEntity> costs = p2gCostRepository.findByTrajectoryId(capacityCostTrajectory.getId());
         List<P2GParametersEntity> parameters = p2gParametersRepository.findByTrajectoryId(capacityCostTrajectory.getId());
+        String trajectoryName = capacityCostTrajectory.getFileName();
 
         Map<String, P2GCostEntity> costsByType = costs.stream()
-                .collect(Collectors.toMap(P2GCostEntity::getType, Function.identity()));
+                .collect(Collectors.toMap(P2GCostEntity::getType, Function.identity(), (first, duplicate) -> {
+                    throw TechnicalException.builder()
+                            .errorMessageArguments(List.of(first.getType(), trajectoryName))
+                            .message("Duplicate P2G cost entry found for type {0} in trajectory {1}")
+                            .build();
+                }));
 
         return new P2gRawData(capacities, costsByType, parameters);
     }
 
+    // for sonar: ToDoubleFunc can't replace Function because we need a nullable double
+    // and ToDouble returns primitive
+    @SuppressWarnings("java:S4276")
     private P2gClusterGenerationDTO buildCluster(
             List<P2GCapacityEntity> capacities,
             P2GCostEntity cost,
@@ -118,8 +127,8 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             }
         }
 
-        P2gPropertiesGenerationDTO properties = new P2gPropertiesGenerationDTO(nominalCapacity, cost.getCost());
-        return new P2gClusterGenerationDTO(properties, cost.getModulation(), links, parameters);
+        P2gPropertiesGenerationDTO clusterProperties = new P2gPropertiesGenerationDTO(nominalCapacity, cost.getCost());
+        return new P2gClusterGenerationDTO(clusterProperties, cost.getModulation(), links, parameters);
     }
 
     private P2gClusterGenerationDTO.AsserviParameters buildAsserviParameters(List<P2GParametersEntity> parameters, String trajectoryName) {

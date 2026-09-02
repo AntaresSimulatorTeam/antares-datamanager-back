@@ -153,6 +153,25 @@ class P2gGenerationAssemblerServiceImplTest {
                 });
     }
 
+    @Test
+    void assembleP2g_shouldThrowTechnicalException_whenDuplicateCostEntryForType() {
+        when(p2gCostRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                cost("Base", "H2", 78.0),
+                cost("Base", "H2", 80.0),
+                cost("Marginal", "Gaz", 78.0),
+                cost("Methanation", "H2", 78.0),
+                cost("Asservi", "H2", 78.0)
+        ));
+
+        assertThatThrownBy(() -> assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory))
+                .isInstanceOf(TechnicalException.class)
+                .satisfies(ex -> {
+                    TechnicalException te = (TechnicalException) ex;
+                    assertThat(te.getMessage()).contains("Duplicate P2G cost entry found for type {0} in trajectory {1}");
+                    assertThat(te.getErrorMessageArguments()).containsExactly("Base", "P2G_traj");
+                });
+    }
+
     private static TrajectoryEntity trajectory(Integer id, String fileName) {
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setId(id);
