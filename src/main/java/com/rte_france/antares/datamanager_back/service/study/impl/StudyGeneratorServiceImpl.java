@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabili
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNames;
+import com.rte_france.antares.datamanager_back.service.p2g.P2gGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
@@ -73,6 +74,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
     private final SettingsToJsonService settingsToJsonService;
     private final ScenarioBuilderToJsonService scenarioBuilderToJsonService;
+    private final P2gGenerationAssemblerService p2gGenerationAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
@@ -154,7 +156,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                              Optional<TrajectoryEntity> nuclearTalonTrajectory,
                                              Optional<TrajectoryEntity> settingsTrajectory,
                                              Optional<TrajectoryEntity> flowbasedTrajectory,
-                                             Optional<TrajectoryEntity> scenarioBuilderTrajectory) {}
+                                             Optional<TrajectoryEntity> scenarioBuilderTrajectory,
+                                             Optional<TrajectoryEntity> p2gCapacityCostTrajectory,
+                                             Optional<TrajectoryEntity> p2gMarketModulationTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -166,6 +170,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> settingsTraj = Optional.empty();
         Optional<TrajectoryEntity> flowbasedTraj = Optional.empty();
         Optional<TrajectoryEntity> scenarioBuilderTraj = Optional.empty();
+        Optional<TrajectoryEntity> p2gCapacityCostTraj = Optional.empty();
+        Optional<TrajectoryEntity> p2gMarketModulationTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -200,6 +206,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 case FLOWBASED -> flowbasedTraj = Optional.of(trajectory);
+                case P2G_CAPACITY_COST -> p2gCapacityCostTraj = Optional.of(trajectory);
+                case P2G_MARKET_MODULATION -> p2gMarketModulationTraj = Optional.of(trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -207,7 +215,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj,
+                p2gCapacityCostTraj, p2gMarketModulationTraj);
     }
 
     private Map<String, Object> buildScenarioBuilderDataMap(TrajectoryEntity trajectory) {
@@ -254,6 +263,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
         innerGeneratorMap.put("flowbased", flowbasedMap);
+
+        dispatchResult.p2gCapacityCostTrajectory().ifPresent(capacityCostTraj ->
+                innerGeneratorMap.put("p2g", p2gGenerationAssemblerService.assembleP2g(
+                        study, capacityCostTraj, dispatchResult.p2gMarketModulationTrajectory().orElse(null))));
 
         Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps);
         if (!bindingConstraints.isEmpty()) {

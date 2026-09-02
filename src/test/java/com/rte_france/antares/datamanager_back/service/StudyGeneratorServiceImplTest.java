@@ -7,6 +7,10 @@ import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.P2gGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.P2gClusterGenerationDTO;
+import com.rte_france.antares.datamanager_back.dto.P2gPropertiesGenerationDTO;
+import com.rte_france.antares.datamanager_back.service.p2g.P2gGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -145,6 +149,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
+
+    @Mock
+    private P2gGenerationAssemblerService p2gGenerationAssemblerService;
 
     private final Set<TrajectoryEntity> trajectoryEntityList = new LinkedHashSet<>();
 
@@ -1134,6 +1141,74 @@ class StudyGeneratorServiceImplTest {
 
         assertThat(studyMap).doesNotContainKey("binding_constraints");
         assertThat(areas).doesNotContainKey("y_nuc_modulation");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeP2g_whenP2gCapacityCostTrajectoryPresent() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var p2gCapacityCostTraj = TrajectoryEntity.builder().type("P2G_CAPACITY_COST").id(10).fileName("p2g_traj").build();
+        var p2gMarketModulationTraj = TrajectoryEntity.builder().type("P2G_MARKET_MODULATION").id(11).fileName("FE60_liv_same").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, p2gCapacityCostTraj, p2gMarketModulationTraj)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Collections.emptyMap());
+
+        var p2gDto = new P2gGenerationDTO(
+                "FE60_liv_same/MB_MC_modulation_FE60_liv_same_2027.csv",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0), "H2",
+                        Map.of("AT", new P2gClusterGenerationDTO.Link(90.0, 2.0)), null),
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0), "Gaz",
+                        Map.of("AT", new P2gClusterGenerationDTO.Link(50.0, null)), null),
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(30.0, 78.0), "H2",
+                        Map.of("AT", new P2gClusterGenerationDTO.Link(30.0, null)), null),
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(20.0, 78.0), "H2",
+                        Map.of("AT", new P2gClusterGenerationDTO.Link(20.0, null)),
+                        new P2gClusterGenerationDTO.AsserviParameters(0.5, 1.2, 0.9))
+        );
+        when(p2gGenerationAssemblerService.assembleP2g(eq(study), eq(p2gCapacityCostTraj), eq(p2gMarketModulationTraj))).thenReturn(p2gDto);
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("p2g");
+        Map<String, Object> p2g = mapper.convertValue(studyMap.get("p2g"), new TypeReference<>() {});
+        assertThat(p2g).containsKeys("market_modulation", "base", "marg", "methanation", "asservi");
+
+        Map<String, Object> base = mapper.convertValue(p2g.get("base"), new TypeReference<>() {});
+        Map<String, Object> baseLinks = mapper.convertValue(base.get("links"), new TypeReference<>() {});
+        Map<String, Object> baseAt = mapper.convertValue(baseLinks.get("AT"), new TypeReference<>() {});
+        assertThat(baseAt).containsEntry("fatal_band", 2.0);
+
+        Map<String, Object> marg = mapper.convertValue(p2g.get("marg"), new TypeReference<>() {});
+        Map<String, Object> margLinks = mapper.convertValue(marg.get("links"), new TypeReference<>() {});
+        Map<String, Object> margAt = mapper.convertValue(margLinks.get("AT"), new TypeReference<>() {});
+        assertThat(margAt).doesNotContainKey("fatal_band");
+
+        Map<String, Object> asservi = mapper.convertValue(p2g.get("asservi"), new TypeReference<>() {});
+        assertThat(asservi).containsKey("parameters");
+        assertThat(base).doesNotContainKey("parameters");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldNotIncludeP2g_whenNoP2gTrajectory() throws Exception {
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).doesNotContainKey("p2g");
+        verifyNoInteractions(p2gGenerationAssemblerService);
     }
 
     @Test

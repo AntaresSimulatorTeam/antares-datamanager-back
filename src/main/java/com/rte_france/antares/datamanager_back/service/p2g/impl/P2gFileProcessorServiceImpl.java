@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityE
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCostEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParametersEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.p2g.P2gFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,8 +76,6 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "Asservi",
             "Methanation"
     );
-
-    private static final String MODULATION_PREFIX = "MB_MC_modulation";
 
     @Override
     public TrajectoryEntity processCapacityP2gFile(
@@ -413,7 +412,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(TrajectoryType.P2G_MARKET_MODULATION, null, null);
         Path trajectoryFilePath = validateAndResolveTrajectoryPath(directoryPath, trajectoryToUse);
         String horizonYear = horizon.split("-")[1];
-        String modulationFileName = MODULATION_PREFIX+"_"+trajectoryToUse+"_"+horizonYear+".csv";
+        String modulationFileName = P2gFilePrefixes.MODULATION_PREFIX+"_"+trajectoryToUse+"_"+horizonYear+".csv";
         
         Path modulationFilePath = trajectoryFilePath.resolve(modulationFileName);
         
