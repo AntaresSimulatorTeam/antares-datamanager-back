@@ -48,32 +48,32 @@ class AreaFileProcessorServiceImplTest {
     private Path tempFile;
 
 
-        @BeforeEach
-        public void setup() throws IOException {
-            MockitoAnnotations.openMocks(this);
+    @BeforeEach
+    public void setup() throws IOException {
+        MockitoAnnotations.openMocks(this);
 
-            tempFile = CreateExcelTestUtil.createExcelFile( tempDir,"TestFile.xlsx","2030-2031",
-                    List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
-                    List.of(
-                            List.of("Area1", "district1", 1.2, 30.2, 3, 4, 1, 2, 3)
-                    )
-            );
-        }
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "TestFile.xlsx", "2030-2031",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "district1", 1.2, 30.2, 3, 4, 1, 2, 3)
+                )
+        );
+    }
 
-        @Test
-        void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
-            when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-            var trajectoryEntity = mock(TrajectoryEntity.class);
-            trajectoryEntity.setType(TrajectoryType.AREA.name());
-            trajectoryEntity.setFileName(tempFile.toString());
-            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                    .thenReturn(Optional.of(trajectoryEntity));
+    @Test
+    void processAreaFile_whenTrajectoryExistsAndVersionIsValid() throws IOException {
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        var trajectoryEntity = mock(TrajectoryEntity.class);
+        trajectoryEntity.setType(TrajectoryType.AREA.name());
+        trajectoryEntity.setFileName(tempFile.toString());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
+                .thenReturn(Optional.of(trajectoryEntity));
 
-            areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
+        areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
 
-            verify(trajectoryRepository, times(1)).save(any());
-            verify(areaConfigRepository, times(1)).saveAll(any());
-        }
+        verify(trajectoryRepository, times(1)).save(any());
+        verify(areaConfigRepository, times(1)).saveAll(any());
+    }
 
     @Test
     void processAreaFile_whenAreaExistsInBDD() throws IOException {
@@ -95,14 +95,31 @@ class AreaFileProcessorServiceImplTest {
         verify(areaConfigRepository, times(1)).saveAll(any());
     }
 
-        @Test
-        void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
-            when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
+    @Test
+    void processAreaFile_whenTrajectoryDoesNotExist() throws IOException {
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
 
-            areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
+        areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);
 
-            verify(trajectoryRepository, times(1)).save(any());
-            verify(areaConfigRepository, times(1)).saveAll(any());
-        }
+        verify(trajectoryRepository, times(1)).save(any());
+        verify(areaConfigRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void processAreaFile_whenTrajectoryTypeIsAREA_ME() throws IOException {
+        Path tempFileAreaMe = CreateExcelTestUtil.createExcelFile(tempDir, "TestFileAreaMe.xlsx", "2031",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "district1", 1.2, 30.2, 3, 4, 1, 2, 3)
+                )
+        );
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any())).thenReturn(Optional.empty());
+
+        areaFileProcessorService.processAreaFile(tempFileAreaMe, "2030-2031", TrajectoryType.AREA_ME);
+
+        verify(trajectoryRepository, times(1)).save(any());
+        verify(areaConfigRepository, times(1)).saveAll(any());
+    }
 }

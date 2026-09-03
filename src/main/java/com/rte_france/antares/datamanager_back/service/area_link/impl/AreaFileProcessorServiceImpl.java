@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.AREA_ME;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -44,9 +45,17 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     @ExecutionTime
     @Transactional
     public TrajectoryEntity processAreaFile(Path path, String horizon, TrajectoryType trajectoryType) throws IOException {
-        checkIfHorizonExist(path, horizon, trajectoryType.name());
-        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, horizon, trajectoryType.name());
-        AreasValidator.validateAreaColumns(path, horizon);
+        String updatedHorizon = horizon;
+
+        if (AREA_ME.equals(trajectoryType)) {
+            String[] parts = horizon.split("-");
+            if (parts.length == 2) {
+                updatedHorizon = parts[1];
+            }
+        }
+        checkIfHorizonExist(path, updatedHorizon, trajectoryType.name());
+        ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, updatedHorizon, trajectoryType.name());
+        AreasValidator.validateAreaColumns(path, updatedHorizon);
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name());
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, trajectoryType.name());
 
@@ -59,7 +68,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
             version = trajectoryEntity.get().getVersion();
         }
 
-        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, trajectoryType, null, null, null), buildAreaConfigList(path, horizon, trajectoryType));
+        return saveTrajectory(buildTrajectory(path, version, horizon, createdBy, trajectoryType, null, null, null), buildAreaConfigList(path, updatedHorizon));
     }
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<AreaConfigEntity> areaConfigEntities) {
@@ -70,20 +79,12 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
-    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon, TrajectoryType trajectoryType) {
-        String sheetName = horizon;
-        
-        if (TrajectoryType.AREA_ME == trajectoryType) {
-            String[] parts = horizon.split("-");
-            if (parts.length == 2) {
-                sheetName = parts[1];
-            }
-        }
-        
+    private List<AreaConfigEntity> buildAreaConfigList(Path path, String horizon) {
+
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
-            Sheet sheet = workbook.getSheet(sheetName);
+            Sheet sheet = workbook.getSheet(horizon);
             List<AreaConfigEntity> areaConfigEntities = new ArrayList<>();
             Row header = sheet.getRow(0);
             for (Row row : sheet) {

@@ -93,6 +93,7 @@ class LinksValidatorTest {
 
         Assertions.assertTrue(exception.getMessage().contains("Invalid column"));
     }
+
     @Test
     void testLinksFileIsOK() throws IOException {
         String horizon = "2035-2036";
@@ -168,7 +169,7 @@ class LinksValidatorTest {
                         "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
                 List.of(
                         List.of("ES-FR", "A", "B", 150, 175, 300, 400, 250, 275, 500, 60.0, 75.0, 1, 1, 1, 1),
-                        List.of("ES-IT", 110, 210,"C", 185, 310, 410, 260, 285, 510, 65.0, 80.0, 2, 1, 1, 1)
+                        List.of("ES-IT", 110, 210, "C", 185, 310, 410, 260, 285, 510, 65.0, 80.0, 2, 1, 1, 1)
                 )
         );
 
@@ -200,7 +201,7 @@ class LinksValidatorTest {
                         "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect", "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
                 List.of(
                         List.of("ES-FR", -100, -300, 150, 175, 300, 400, 250, 275, 500, 60.0, 75.0, 1, 1, 1, 1),
-                        List.of("ES-IT", 110, 210,20, 185, 310, -410, 260, 285, 510, 65.0, 80.0, 2, 1, 1, 1)
+                        List.of("ES-IT", 110, 210, 20, 185, 310, -410, 260, 285, 510, 65.0, 80.0, 2, 1, 1, 1)
                 )
         );
 
@@ -310,7 +311,6 @@ class LinksValidatorTest {
         );
 
 
-
         List<String> warnings = LinksValidator.checkLinksAlphabeticalOrder(tempFile, "2030-2031", "Name", areasSavedForScenario);
 
         assertEquals(3, warnings.size());
@@ -321,7 +321,7 @@ class LinksValidatorTest {
     void shouldFailWhenInvalidBooleanValuesArePresentInLinks() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidBooleanLinks.xlsx", "2030-2031",
                 List.of("Name", "Winter_HP_Direct_MW", "Flowbased_perimeter", "HVDC_MW_direct",
-                         "HVDC_MW_Indirect", "HVDC_nb_direct"),
+                        "HVDC_MW_Indirect", "HVDC_nb_direct"),
                 List.of(
                         List.of("Link1-Link2", 100, "True", 50.0, 25.0, 2),
                         List.of("Link2-Link3", 200, "FalseBad", 75.0, 30.0, 1)
@@ -427,6 +427,7 @@ class LinksValidatorTest {
                 () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
         );
     }
+
     @Test
     void shouldNotFailWhenHvdcColumnsAreEmpty() throws IOException {
         String horizon = "2030-2031";
@@ -492,6 +493,7 @@ class LinksValidatorTest {
         assertTrue(exception.getMessage().contains("Waiting for Numeric Value"));
         assertTrue(exception.getErrorMessageArguments().contains("Winter_HP_Direct_MW"));
     }
+
     @Test
     void shouldFailWhenFlowbasedPerimeterIsEmpty() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyFlowbased.xlsx", "2037-2038",
@@ -511,6 +513,7 @@ class LinksValidatorTest {
 
         assertTrue(exception.getMessage().contains("Empty values found"));
     }
+
     @Test
     void shouldFailWhenFlowbasedPerimeterIsInvalid() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidFlowbased.xlsx", "2037-2038",
@@ -529,5 +532,31 @@ class LinksValidatorTest {
                 LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, "2037-2038"));
 
         assertTrue(exception.getMessage().contains("Waiting for boolean value"));
+    }
+
+    @Test
+    void testLinksFileIsOK_withLINK_ME_trajectoryType() throws IOException {
+        String horizon = "2035-2036";
+        List<String> sheetNames = List.of("2036", "parameters");
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(tempDir, "TestFile.xlsx", sheetNames,
+                List.of(
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                                "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect"),
+                        List.of() // parameters sheet (empty for this test)
+                ),
+                List.of(
+                        List.of(
+                                List.of("Area1-Area2", 100, 200, 150, 175, 300, 400, 250, 275, "TRUE", 50.0, 25.0, 2, 1, 1, 1)
+                        ),
+                        List.of() // parameters sheet rows (empty for this test)
+                )
+        );
+
+        assertDoesNotThrow(() -> LinksValidator.linksDuplicateAndCellsValuesChecks(tempFile, ExcelFileType.LINKS, horizon, TrajectoryType.LINK_ME));
     }
 }

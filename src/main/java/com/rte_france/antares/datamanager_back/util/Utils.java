@@ -438,21 +438,12 @@ public class Utils {
     }
 
     public void checkIfHorizonExist(Path path, String horizon, String trajectoryType) {
-        String sheetName = horizon;
-        
-        if (AREA_ME.name().equals(trajectoryType)) {
-            String[] parts = horizon.split("-");
-            if (parts.length == 2) {
-                sheetName = parts[1];
-            }
-        }
-        
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            if (workbook.getSheet(sheetName) == null) {
+            if (workbook.getSheet(horizon) == null) {
                 throw BusinessException.builder()
                         .message("Horizon {0} does not exist in the {1} trajectory")
-                        .errorMessageArguments(List.of(sheetName, trajectoryType))
+                        .errorMessageArguments(List.of(horizon, trajectoryType))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -460,7 +451,7 @@ public class Utils {
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("could not check if horizon exist : {0}")
-                    .errorMessageArguments(List.of(sheetName, path.getFileName().toString()))
+                    .errorMessageArguments(List.of(horizon, path.getFileName().toString()))
                     .cause(e.getCause())
                     .build();
         }
