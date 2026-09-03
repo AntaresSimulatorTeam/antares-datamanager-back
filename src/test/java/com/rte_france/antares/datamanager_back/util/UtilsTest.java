@@ -249,6 +249,32 @@ class UtilsTest {
     }
 
     @Test
+    void checkIfHorizonExist_shouldThrowBusinessException_whenHorizonDoesNotExist_withAREA_ME() throws IOException {
+        // Given
+        var tempFile = Files.createFile(tempDir.resolve("testFile.xlsx"));
+        try (var workbook = new XSSFWorkbook()) {
+            workbook.createSheet("2040");
+            try (var fos = new FileOutputStream(tempFile.toFile())) {
+                workbook.write(fos);
+            }
+        }
+
+        String horizon = "2030-2031";
+        String trajectoryType = TrajectoryType.AREA_ME.name();
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> Utils.checkIfHorizonExist(tempFile, horizon, trajectoryType));
+
+        assertAll(
+                () -> assertEquals("Horizon {0} does not exist in the {1} trajectory",
+                        exception.getMessage()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+
+        );
+    }
+
+    @Test
     void computeLinkChecksum_changesWhenParametersSheetChanges() throws IOException {
 
         var horizon = "2030-2031";
