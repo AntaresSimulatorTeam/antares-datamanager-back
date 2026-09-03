@@ -76,7 +76,7 @@ public class LinkMeProcessorServiceImpl {
      * @return the resolved file path
      * @throws IOException if path construction fails
      */
-    private Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
+    public Path getTrajectoryFilePath(String trajectoryToUse) throws IOException {
         Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
                 .resolve(antaresDataManagerProperties.getLinkMeDirectory())
@@ -172,7 +172,7 @@ public class LinkMeProcessorServiceImpl {
     /**
      * Rule 3: Verify sheet exists in Excel file
      */
-    private void verifySheetExists(Path path, String sheetName, String trajectoryName) {
+    public void verifySheetExists(Path path, String sheetName, String trajectoryName) {
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
@@ -198,7 +198,7 @@ public class LinkMeProcessorServiceImpl {
     /**
      * Rule 5: Check if file already processed with same checksum
      */
-    private void checkForDuplicateChecksum(String trajectoryName, String horizon, String checksum) {
+    public void checkForDuplicateChecksum(String trajectoryName, String horizon, String checksum) {
         Optional<TrajectoryEntity> existingTrajectory = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                         trajectoryName, horizon, TrajectoryType.LINK_ME.name()
