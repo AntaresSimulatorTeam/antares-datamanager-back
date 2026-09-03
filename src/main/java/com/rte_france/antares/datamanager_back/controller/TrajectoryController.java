@@ -61,7 +61,7 @@ public class TrajectoryController {
     }
 
 
-    @Operation(summary = "import Trajectory file to database ")
+    @Operation(summary = "import Trajectory [area , area multi energy, link, link multi energy] file to database ")
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
                                                           @RequestParam("trajectoryToUse") @ValidTrajectoryName

@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
@@ -37,7 +38,6 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -49,7 +49,6 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.HYDRO_TYPES;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
-import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -63,6 +62,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
+
+    private final LinkMeProcessorServiceImpl linkMeProcessorServiceImpl;
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
@@ -112,8 +113,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final HydroCoherenceCheckService hydroCoherenceCheckService;
 
     private static final String AREAS_PREFIX = "areas_";
-    private static final String AREAS_ME_FE_PREFIX = "fe_areas_";
-    private static final String AREAS_ME_XFE_PREFIX = "xfe_areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
     private static final String COMMON_PREFIX = "common_param_";
@@ -247,11 +246,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return switch (trajectoryType) {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
+            case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
     }
-
 
     /**
      * Processes a trajectory file based on the given type, file name, horizon, and study ID.
@@ -549,6 +548,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case RES_ZONAL_DISTRIBUTION -> fileName.startsWith(RES_ZONAL_DISTRIBUTION_PREFIX);
             case RES_TECHNOLOGY_DISTRIBUTION ->
                     fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
+            case LINK -> fileName.startsWith(LINKS_PREFIX);
+            case AREA_ME, LINK_ME -> true;
             case NUCLEAR_FR_TALON -> fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> fileName.startsWith(NUCLEAR_EPR_PREFIX);
             case NUCLEAR_FR_TS_SMR -> fileName.startsWith(NUCLEAR_SMR_PREFIX);
@@ -1095,7 +1096,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         return switch (trajectoryType) {
             case AREA -> isXlsx && fileName.startsWith(AREAS_PREFIX);
-            case AREA_ME -> isXlsx && (fileName.startsWith(AREAS_ME_FE_PREFIX) || fileName.startsWith(AREAS_ME_XFE_PREFIX));
+            case AREA_ME, LINK_ME -> isXlsx;
             case LINK -> isXlsx && fileName.startsWith(LINKS_PREFIX);
             case NUCLEAR_FR_TALON -> isXlsx && fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> isXlsx && fileName.startsWith(NUCLEAR_EPR_PREFIX);
@@ -1111,6 +1112,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA -> antaresDataManagerProperties.getAreaDirectory();
             case AREA_ME -> antaresDataManagerProperties.getAreaMeDirectory();
             case LINK -> antaresDataManagerProperties.getLinkDirectory();
+            case LINK_ME -> antaresDataManagerProperties.getLinkMeDirectory();
             case LOAD -> antaresDataManagerProperties.getLoadDirectory();
             case THERMAL_CAPACITY -> getThermalCapacityDirectory(area);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER,

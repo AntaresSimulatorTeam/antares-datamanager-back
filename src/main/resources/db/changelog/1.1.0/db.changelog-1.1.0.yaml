@@ -144,3 +144,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V68-alter_area_name_column_length.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V69-create-p2g-table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V70-create-link-me-table.sql
