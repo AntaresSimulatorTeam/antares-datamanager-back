@@ -33,6 +33,7 @@ import org.mockito.*;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -4635,6 +4636,96 @@ class TrajectoryServiceImplTest {
         // Verify old link was deleted and new one was created
         verify(studyTrajectoryRepository, times(1)).delete(oldLink);
         verify(studyTrajectoryRepository, times(1)).save(any(StudyTrajectoryEntity.class));
+    }
+
+    @Test
+    void matchesPrefix_returnsTrue_whenTrajectoryTypeIsLINK_andFileNameStartsWithLinksPrefix() throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Given
+        Path tempFile = tempDir.resolve("links_test.xlsx");
+        Files.createFile(tempFile);
+
+        // When - call private method using reflection
+        var method = TrajectoryServiceImpl.class.getDeclaredMethod("matchesPrefix", Path.class, TrajectoryType.class, String.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(trajectoryService, tempFile, TrajectoryType.LINK, null, null);
+
+        // Then
+        assertTrue(result);
+    }
+
+    @Test
+    void matchesPrefix_returnsFalse_whenTrajectoryTypeIsLINK_andFileNameDoesNotStartWithLinksPrefix() throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Given
+        Path tempFile = tempDir.resolve("areas_test.xlsx");
+        Files.createFile(tempFile);
+
+        // When - call private method using reflection
+        var method = TrajectoryServiceImpl.class.getDeclaredMethod("matchesPrefix", Path.class, TrajectoryType.class, String.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(trajectoryService, tempFile, TrajectoryType.LINK, null, null);
+
+        // Then
+        assertFalse(result);
+    }
+
+    @Test
+    void matchesPrefix_returnsTrue_whenTrajectoryTypeIsAREA_ME() throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Given
+        Path tempFile = tempDir.resolve("any_file.xlsx");
+        Files.createFile(tempFile);
+
+        // When - call private method using reflection
+        var method = TrajectoryServiceImpl.class.getDeclaredMethod("matchesPrefix", Path.class, TrajectoryType.class, String.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(trajectoryService, tempFile, TrajectoryType.AREA_ME, null, null);
+
+        // Then
+        assertTrue(result);
+    }
+
+    @Test
+    void matchesPrefix_returnsTrueForAnyFileName_whenTrajectoryTypeIsAREA_ME() throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Given
+        Path tempFile = tempDir.resolve("random_name_12345.xlsx");
+        Files.createFile(tempFile);
+
+        // When - call private method using reflection
+        var method = TrajectoryServiceImpl.class.getDeclaredMethod("matchesPrefix", Path.class, TrajectoryType.class, String.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(trajectoryService, tempFile, TrajectoryType.AREA_ME, null, null);
+
+        // Then
+        assertTrue(result);
+    }
+
+    @Test
+    void matchesPrefix_returnsTrue_whenTrajectoryTypeIsLINK_ME() throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Given
+        Path tempFile = tempDir.resolve("any_file.xlsx");
+        Files.createFile(tempFile);
+
+        // When - call private method using reflection
+        var method = TrajectoryServiceImpl.class.getDeclaredMethod("matchesPrefix", Path.class, TrajectoryType.class, String.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(trajectoryService, tempFile, TrajectoryType.LINK_ME, null, null);
+
+        // Then
+        assertTrue(result);
+    }
+
+    @Test
+    void matchesPrefix_returnsTrueForAnyFileName_whenTrajectoryTypeIsLINK_ME() throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Given
+        Path tempFile = tempDir.resolve("random_name_12345.xlsx");
+        Files.createFile(tempFile);
+
+        // When - call private method using reflection
+        var method = TrajectoryServiceImpl.class.getDeclaredMethod("matchesPrefix", Path.class, TrajectoryType.class, String.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(trajectoryService, tempFile, TrajectoryType.LINK_ME, null, null);
+
+        // Then
+        assertTrue(result);
     }
 }
 
