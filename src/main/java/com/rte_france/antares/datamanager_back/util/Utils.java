@@ -154,11 +154,11 @@ public class Utils {
         return TrajectoryEntity.builder()
                 .fileName(getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name()))// file name without extension
                 .fileSize(Files.size(path))
+                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .creationDate(LocalDateTime.now())
                 .createdBy(createdBy)
                 .version(versionTrajectory == 0 ? 1 : versionTrajectory + 1)
                 .checksum(checksum)
-                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .horizon(civilToChevalHorizon(horizon))
                 .area(area)
                 .technology(Optional.ofNullable(technology).map(t -> StringUtils.lowerCase(t, Locale.ROOT)).orElse(null))
