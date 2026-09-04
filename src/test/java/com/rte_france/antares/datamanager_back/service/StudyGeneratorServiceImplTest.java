@@ -25,6 +25,8 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabili
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.adequacy.impl.AdequacySettingsAssemblerServiceImpl;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyServiceImpl;
 import com.rte_france.antares.datamanager_back.service.study.impl.*;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -91,6 +93,9 @@ class StudyGeneratorServiceImplTest {
 
     @Mock
     private ScenarioBuilderToJsonService scenarioBuilderToJsonService;
+
+    @Mock
+    private MultiEnergyService multiEnergyService;
 
     @Mock
     private AdequacySettingsToJsonService adequacySettingsToJsonService;
@@ -270,6 +275,9 @@ class StudyGeneratorServiceImplTest {
 
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(hydroToJsonService).buildHydroDataMap(anyString(), anyMap());
+
+        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1)))
+                .when(multiEnergyService).buildMultiEnergyMap(any(), any());
     }
 
     @Test
@@ -1357,5 +1365,71 @@ class StudyGeneratorServiceImplTest {
         assertThat(settings).containsKey("scenariobuilder");
         Map<String, Object> scenariobuilder = mapper.convertValue(settings.get("scenariobuilder"), new TypeReference<>() {});
         assertThat(scenariobuilder).containsEntry("links", List.of("nl/z_p2h_pachybride"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeMeSection_whenAreaMeTrajectoryPresent() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+
+        var areaMeEntity = AreaEntity.builder().name("area_me").build();
+        var areaMeConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(4000.0).spilledEnergyCost(200.0).build();
+        var areaMeTrajectory = TrajectoryEntity.builder().type("AREA_ME").areaConfigEntities(List.of(areaMeConfig)).fileName("area_me.xlsx").build();
+
+        AdequacyModeEntity adequacyModeAreaMe = AdequacyModeEntity.builder().area("area_me").mode("outside").build();
+        TrajectoryEntity adequacyTrajectory = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adq.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeAreaMe, AdequacyModeEntity.builder().area("FR").mode("inside").build()))
+                .adequacySettingsEntities(Collections.emptyList())
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, areaMeTrajectory, adequacyTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("ME");
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        assertThat(meMap).containsKey("area_me");
+
+        Map<String, Object> areaMeData = mapper.convertValue(meMap.get("area_me"), new TypeReference<>() {});
+        assertThat(areaMeData).containsEntry("ui", "AreaUI class as JSON");
+        assertThat(areaMeData).containsKey("properties");
+
+        Map<String, Object> properties = mapper.convertValue(areaMeData.get("properties"), new TypeReference<>() {});
+        assertThat(properties)
+                .containsEntry("energy_cost_unsupplied", 4000.0)
+                .containsEntry("energy_cost_spilled", 200.0)
+                .containsEntry("adequacy_patch_mode", "outside");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldNotIncludeMeSection_whenAreaMeTrajectoryAbsent() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).doesNotContainKey("ME");
     }
 }
