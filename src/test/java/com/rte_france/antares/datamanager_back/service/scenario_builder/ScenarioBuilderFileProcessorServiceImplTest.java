@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.scenario_builder;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.AntaresErrorCode;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ScenarioBuilderRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -226,6 +227,64 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("folder not found"));
+    }
+
+    @Test
+    void processScenarioBuilderFile_trajectoryNameTooLong_shouldThrowBusinessException() {
+        String longTrajectoryName = "scenario_builder_very_long_name_exceeding_forty_characters_limit";
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                scenarioBuilderFileProcessorService.processScenarioBuilderFile(
+                        longTrajectoryName, "2023-2024", null)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals(AntaresErrorCode.INVALID_TRAJECTORY_NAME, exception.getAntaresErrorCode());
+        assertEquals("Trajectory name cannot exceed 40 characters", exception.getMessage());
+    }
+
+    @Test
+    void processScenarioBuilderFile_noDataStartingFromRow2_onlyHeader_shouldThrowBusinessException() throws IOException {
+        Path emptyDataFile = tempDir.resolve("nas/trajectories/settings/scenario_builder/scenario_builder_empty.xlsx");
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fos = new FileOutputStream(emptyDataFile.toFile())) {
+            Sheet sheet = workbook.createSheet("Sheet1");
+            Row row = sheet.createRow(0);
+            row.createCell(0).setCellValue("[Default Rules]");
+            workbook.write(fos);
+        }
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                scenarioBuilderFileProcessorService.processScenarioBuilderFile(
+                        "scenario_builder_empty", "2023-2024", null)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("No data in ScenarioBuilder trajectory {0}", exception.getMessage());
+        assertTrue(exception.getErrorMessageArguments().contains("scenario_builder_empty"));
+    }
+
+    @Test
+    void processScenarioBuilderFile_noDataStartingFromRow2_blankRows_shouldThrowBusinessException() throws IOException {
+        Path blankDataFile = tempDir.resolve("nas/trajectories/settings/scenario_builder/scenario_builder_blank.xlsx");
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fos = new FileOutputStream(blankDataFile.toFile())) {
+            Sheet sheet = workbook.createSheet("Sheet1");
+            Row row0 = sheet.createRow(0);
+            row0.createCell(0).setCellValue("[Default Rules]");
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue("   ");
+            workbook.write(fos);
+        }
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                scenarioBuilderFileProcessorService.processScenarioBuilderFile(
+                        "scenario_builder_blank", "2023-2024", null)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("No data in ScenarioBuilder trajectory {0}", exception.getMessage());
+        assertTrue(exception.getErrorMessageArguments().contains("scenario_builder_blank"));
     }
 
     @Test
