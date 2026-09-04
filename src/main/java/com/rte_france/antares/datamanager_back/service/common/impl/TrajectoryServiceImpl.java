@@ -697,23 +697,50 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .scenarioId(studyId)
                 .build();
 
-        var requiresCmUnlink = isRemovingLastDsrWithTimeSeries(studyId, List.of(trajectoryId));
-        var cmTrajectories = requiresCmUnlink
-                ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
-                : List.<TrajectoryEntity>of();
-
         var studyTrajectory = studyTrajectoryRepository.findById(key)
                 .orElseThrow(() -> BusinessException.builder()
                         .message("Link not found")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
-        studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
-        studyTrajectoryRepository.delete(studyTrajectory);
-
-        if (requiresCmUnlink) {
-            cmTrajectories.forEach(cm -> processCmTrajectoryUnlinking(cm, studyId));
+        // First delete associated LINK_ME trajectories if this is AREA_ME
+        if (studyTrajectory.getTrajectory().getType().equals(AREA_ME.name())) {
+            unlinkLinkMeTrajectoriesToAreaMe(studyId);
         }
+        else
+        {
+            // Then delete the main link
+            var requiresCmUnlink = isRemovingLastDsrWithTimeSeries(studyId, List.of(trajectoryId));
+            var cmTrajectories = requiresCmUnlink
+                    ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
+                    : List.<TrajectoryEntity>of();
+
+            studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
+            studyTrajectoryRepository.delete(studyTrajectory);
+
+            // Handle CM unlink if needed
+            if (requiresCmUnlink) {
+                cmTrajectories.forEach(cm -> processCmTrajectoryUnlinking(cm, studyId));
+            }
+        }
+    }
+
+    /**
+     * Unlinks all LINK_ME trajectories from a study when AREA_ME is removed.
+     * Retrieves all trajectories linked to the study and removes those of type LINK_ME.
+     *
+     */
+    public void unlinkLinkMeTrajectoriesToAreaMe(Integer studyId) {
+        // Get all trajectories linked to the study
+        var allStudyTrajectories = studyTrajectoryRepository.findById_ScenarioId(studyId);
+
+        // Filter and unlink ONLY LINK_ME trajectories
+        allStudyTrajectories.stream()
+                .filter(st -> TrajectoryType.LINK_ME.name().equals(st.getTrajectory().getType()) || AREA_ME.name().equals(st.getTrajectory().getType()))
+                .forEach(studyTrajectory -> {
+                    studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
+                    studyTrajectoryRepository.delete(studyTrajectory);
+                });
     }
 
     private boolean isRemovingLastDsrWithTimeSeries(Integer studyId, List<Integer> trajectoryIdsToRemove) {
@@ -1398,7 +1425,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    private void validateAreaTrajectoryDeletion(Integer trajectoryId, Integer studyId) {
+    public void validateAreaTrajectoryDeletion(Integer trajectoryId, Integer studyId) {
         var trajectory = trajectoryRepository.findById(trajectoryId)
                 .orElseThrow(() -> BusinessException.builder()
                         .message("Trajectory not found")
