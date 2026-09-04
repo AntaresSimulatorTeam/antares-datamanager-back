@@ -15,6 +15,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(SpringExtension.class)
@@ -53,6 +54,32 @@ class ScenarioBuilderControllerTest {
                         .param("horizon", "2023")
                         .param("studyId", "1"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testUploadScenarioBuilderTrajectoryNameTooLong() throws Exception {
+        String longTrajectory = "scenario_builder_this_trajectory_name_is_way_too_long_exceeding_forty_characters";
+
+        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
+                        .param("trajectoryToUse", longTrajectory)
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.antaresErrorMessage")
+                        .value("Trajectory name cannot exceed 40 characters"))
+                .andExpect(jsonPath("$.type").value("BUSINESS"));
+    }
+
+    @Test
+    void testUploadScenarioBuilderTrajectoryOnlySpaces() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
+                        .param("trajectoryToUse", "   ")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.antaresErrorMessage")
+                        .value("The name of the trajectory cannot contain only spaces"))
+                .andExpect(jsonPath("$.type").value("BUSINESS"));
     }
 
 
