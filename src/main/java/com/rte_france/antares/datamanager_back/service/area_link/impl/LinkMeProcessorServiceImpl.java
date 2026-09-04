@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -125,7 +127,7 @@ public class LinkMeProcessorServiceImpl {
 
         // Rule 8: Create trajectory entity
         String createdBy = userService.getCurrentUserDetails().getNni();
-        TrajectoryEntity trajectory = createTrajectoryEntity(trajectoryName, horizon, createdBy, checksum);
+        TrajectoryEntity trajectory = createTrajectoryEntity(path, trajectoryName, horizon, createdBy, checksum);
 
         // Rule 9: Save trajectory and associated LINK_ME entities
         TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
@@ -473,7 +475,7 @@ public class LinkMeProcessorServiceImpl {
     /**
      * Rule 8: Create trajectory entity with metadata
      */
-    private TrajectoryEntity createTrajectoryEntity(String trajectoryName, String horizon, String createdBy, String checksum) {
+    private TrajectoryEntity createTrajectoryEntity(Path path, String trajectoryName, String horizon, String createdBy, String checksum) throws IOException {
         Optional<TrajectoryEntity> existingTrajectory = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                         trajectoryName, horizon, TrajectoryType.LINK_ME.name()
@@ -492,6 +494,8 @@ public class LinkMeProcessorServiceImpl {
                 .version(version)
                 .createdBy(createdBy)
                 .creationDate(LocalDateTime.now())
+                .fileSize(Files.size(path))
+                .lastModificationContentDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(path).toMillis()), ZoneId.systemDefault()))
                 .build();
     }
 
