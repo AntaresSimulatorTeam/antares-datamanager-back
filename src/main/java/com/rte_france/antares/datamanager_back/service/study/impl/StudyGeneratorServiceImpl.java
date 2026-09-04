@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblerService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
@@ -73,6 +74,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
     private final SettingsToJsonService settingsToJsonService;
     private final ScenarioBuilderToJsonService scenarioBuilderToJsonService;
+    private final MultiEnergyService multiEnergyService;
 
     private static final String PROPERTIES = "properties";
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
@@ -154,7 +156,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                              Optional<TrajectoryEntity> nuclearTalonTrajectory,
                                              Optional<TrajectoryEntity> settingsTrajectory,
                                              Optional<TrajectoryEntity> flowbasedTrajectory,
-                                             Optional<TrajectoryEntity> scenarioBuilderTrajectory) {}
+                                             Optional<TrajectoryEntity> scenarioBuilderTrajectory,
+                                             Optional<TrajectoryEntity> areaMeTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -166,6 +169,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> settingsTraj = Optional.empty();
         Optional<TrajectoryEntity> flowbasedTraj = Optional.empty();
         Optional<TrajectoryEntity> scenarioBuilderTraj = Optional.empty();
+        Optional<TrajectoryEntity> areaMeTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -173,7 +177,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             switch (trajectoryType) {
                 case AREA -> buildAreasDataMap(study, trajectory, areasMap, thermalClusterProps, nuclearAvailability);
+                case AREA_ME -> areaMeTraj = Optional.of(trajectory);
                 case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
+                case LINK_ME, P2G_CAPACITY_COST, P2G_MARKET_MODULATION ->
+                        log.warn("Multi energy trajectory {} handled separately", trajectory.getFileName());
                 case SETTINGS -> settingsTraj = Optional.of(trajectory);
                 case SCENARIO_BUILDER -> scenarioBuilderTraj = Optional.of(trajectory);
                 case ADEQUACY_PATCH -> log.warn("Adequacy patch trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
@@ -207,7 +214,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj, areaMeTraj);
     }
 
     private Map<String, Object> buildScenarioBuilderDataMap(TrajectoryEntity trajectory) {
@@ -258,6 +265,14 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps);
         if (!bindingConstraints.isEmpty()) {
             innerGeneratorMap.put("binding_constraints", bindingConstraints);
+        }
+
+        Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.areaMeTrajectory();
+        if (areaMeTrajectory.isPresent()) {
+            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(study, areaMeTrajectory.get());
+            if (meMap != null && !meMap.isEmpty()) {
+                innerGeneratorMap.put("ME", meMap);
+            }
         }
         return innerGeneratorMap;
     }
