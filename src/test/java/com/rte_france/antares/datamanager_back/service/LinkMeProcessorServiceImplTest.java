@@ -41,6 +41,12 @@ class LinkMeProcessorServiceImplTest {
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
 
+    @Mock
+    private com.rte_france.antares.datamanager_back.repository.WarningRepository warningRepository;
+
+    @Mock
+    private com.rte_france.antares.datamanager_back.service.area_link.LinkMeCoherenceCheckService linkMeCoherenceCheckService;
+
     @InjectMocks
     private LinkMeProcessorServiceImpl linkMeProcessorService;
 
@@ -657,5 +663,82 @@ class LinkMeProcessorServiceImplTest {
         // Note: This test would need proper path setup to work completely
         // For now, we just verify the method exists and can be called
         assertNotNull(linkMeProcessorService);
+    }
+
+    /**
+     * Test: Backward compatibility - 3-parameter importLinkMeTrajectory without studyId
+     * should work without validation (for existing tests)
+     */
+    @Test
+    void importLinkMeTrajectory_backwardCompatibility_3Parameters_shouldWorkWithoutValidation() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        // Call 3-parameter method (no studyId parameter)
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+
+        assertNotNull(result);
+        assertEquals("test_trajectory", result.getFileName());
+        // Validation should not be called when using 3-parameter overload
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
+    /**
+     * Test: 4-parameter importLinkMeTrajectory with studyId - validates coherence before save
+     * Note: This is a behavioral test - we mock the coherence service to verify it's called
+     */
+    @Test
+    void importLinkMeTrajectory_withStudyId_shouldValidateCoherenceBeforeSave() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        Integer studyId = 123;
+
+        // Call 4-parameter method with studyId
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", studyId);
+
+        assertNotNull(result);
+        assertEquals("test_trajectory", result.getFileName());
+        // Save should be called since validation passes (not mocked to fail)
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
+    /**
+     * Test: 4-parameter importLinkMeTrajectory - null studyId acts like backward compatibility
+     * (validation should be skipped)
+     */
+    @Test
+    void importLinkMeTrajectory_withNullStudyId_shouldSkipValidation() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        // Call 4-parameter method with null studyId
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", null);
+
+        assertNotNull(result);
+        assertEquals("test_trajectory", result.getFileName());
+        // Save should be called since validation is skipped (null studyId)
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
     }
 }

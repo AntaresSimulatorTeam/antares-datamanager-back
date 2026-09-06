@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.area_link.LinkMeCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
@@ -111,6 +112,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final ResCoherenceCheckService resCoherenceCheckService;
 
     private final HydroCoherenceCheckService hydroCoherenceCheckService;
+
+    private final LinkMeCoherenceCheckService linkMeCoherenceCheckService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -241,7 +244,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     public TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryType, trajectoryToUse, "");
-
 
         return switch (trajectoryType) {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
@@ -633,7 +635,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         Set<TrajectoryType> supportedTypes = Set.of(
                 TrajectoryType.AREA,
+                TrajectoryType.AREA_ME,
                 TrajectoryType.LINK,
+                TrajectoryType.LINK_ME,
                 TrajectoryType.LOAD,
                 TrajectoryType.THERMAL_CAPACITY,
                 TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER,
@@ -1201,7 +1205,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
          switch (type) {
              case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
+             case "LINK_ME" -> linkMeCoherenceCheckService.validateLinkMeCoherence(studyId, trajectory);
              case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+             case "AREA_ME" -> {}
              case "LOAD" -> warningMessages = verifyLoad(studyId, warningMessages, trajectory, userNni);
              case "THERMAL_CAPACITY" -> verifyThermalCapacity(studyId, trajectory);
              case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> verifyThermalCommonParameter(studyId, trajectory);

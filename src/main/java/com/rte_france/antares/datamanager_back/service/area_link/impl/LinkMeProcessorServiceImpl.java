@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.area_link.LinkMeCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class LinkMeProcessorServiceImpl {
     private final WarningRepository warningRepository;
     private final UserService userService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final LinkMeCoherenceCheckService linkMeCoherenceCheckService;
 
     private static final int MAX_TRAJECTORY_NAME_LENGTH = 40;
 
@@ -69,7 +71,7 @@ public class LinkMeProcessorServiceImpl {
     @Transactional
     public TrajectoryEntity processLinkMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        return importLinkMeTrajectory(trajectoryFilePath, horizon, trajectoryToUse);
+        return importLinkMeTrajectory(trajectoryFilePath, horizon, trajectoryToUse, studyId);
     }
 
     /**
@@ -96,15 +98,27 @@ public class LinkMeProcessorServiceImpl {
     }
 
     /**
-     * Imports a LINK_ME trajectory file.
+     * Imports a LINK_ME trajectory file (backward compatible version without coherence validation).
      * @param path path to the LINK_ME file
      * @param horizon horizon in format YYYY-YYYY+1 (e.g., 2023-2024)
      * @param trajectoryName trajectory name (directory name)
      * @return the imported trajectory entity
      */
+    public TrajectoryEntity importLinkMeTrajectory(Path path, String horizon, String trajectoryName) throws IOException {
+        return importLinkMeTrajectory(path, horizon, trajectoryName, null);
+    }
+
+    /**
+     * Imports a LINK_ME trajectory file.
+     * @param path path to the LINK_ME file
+     * @param horizon horizon in format YYYY-YYYY+1 (e.g., 2023-2024)
+     * @param trajectoryName trajectory name (directory name)
+     * @param studyId the ID of the study for coherence validation
+     * @return the imported trajectory entity
+     */
     @ExecutionTime
     @Transactional
-    public TrajectoryEntity importLinkMeTrajectory(Path path, String horizon, String trajectoryName) throws IOException {
+    public TrajectoryEntity importLinkMeTrajectory(Path path, String horizon, String trajectoryName, Integer studyId) throws IOException {
         log.info("Importing LINK_ME trajectory: {} with horizon: {}", trajectoryName, horizon);
 
         // Rule 1: Extract sheet name (YYYY from YYYY-YYYY+1)
@@ -128,12 +142,16 @@ public class LinkMeProcessorServiceImpl {
         // Rule 8: Create trajectory entity
         String createdBy = userService.getCurrentUserDetails().getNni();
         TrajectoryEntity trajectory = createTrajectoryEntity(path, trajectoryName, horizon, createdBy, checksum);
+        trajectory.setLinkMeEntities(linkMeEntities);
+        // Rule 8.5: Validate LINK_ME coherence with study's AREA/AREA_ME trajectories BEFORE saving
+        validateLinkMeCoherence(studyId, trajectory);
 
         // Rule 9: Save trajectory and associated LINK_ME entities
         TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
         saveLinkMeEntities(savedTrajectory, linkMeEntities);
 
         log.info("Successfully imported LINK_ME trajectory: {} with {} links", trajectoryName, linkMeEntities.size());
+        
         return savedTrajectory;
     }
 
@@ -567,5 +585,22 @@ public class LinkMeProcessorServiceImpl {
      */
     private boolean isRowEmpty(Cell cell) {
         return isCellEmpty(cell);
+    }
+
+    /**
+     * Validates LINK_ME trajectory coherence with study's AREA and AREA_ME trajectories.
+     *
+     * Business Rules:
+     * - All areas in nodeFrom column must exist in AREA or AREA_ME trajectory
+     * - All areas in nodeTo column must exist in AREA_ME trajectory only
+     *
+     * @param studyId the ID of the study
+     * @param trajectory the LINK_ME trajectory to validate
+     * @throws BusinessException if validation fails
+     */
+    private void validateLinkMeCoherence(Integer studyId, TrajectoryEntity trajectory) throws BusinessException {
+        if (studyId != null) {
+            linkMeCoherenceCheckService.validateLinkMeCoherence(studyId, trajectory);
+        }
     }
 }
