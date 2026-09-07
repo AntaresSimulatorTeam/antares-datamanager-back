@@ -1869,6 +1869,7 @@ class TrajectoryServiceImplTest {
         Files.createFile(traj1Dir.resolve("IdTypDays.csv"));
         Files.createFile(traj1Dir.resolve("second_member.txt"));
         Files.createFile(traj1Dir.resolve("weight.txt"));
+        Files.createFile(traj1Dir.resolve("ts.txt"));
 
         when(antaresDataManagerProperties.getFlowbasedDirectory()).thenReturn(basePath.toString());
         
