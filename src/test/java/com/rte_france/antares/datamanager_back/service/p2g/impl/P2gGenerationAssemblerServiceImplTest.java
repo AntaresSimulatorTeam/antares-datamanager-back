@@ -98,37 +98,49 @@ class P2gGenerationAssemblerServiceImplTest {
         ).toString();
         assertThat(dto.marketModulation()).isEqualTo(expectedPath);
 
+        assertBaseCluster(dto);
+        assertMargCluster(dto);
+        assertMethanationCluster(dto);
+        assertAsserviCluster(dto);
+    }
+
+    private static void assertBaseCluster(P2gGenerationDTO dto) {
         assertThat(dto.base().properties().nominalCapacity()).isEqualTo(140.0);
         assertThat(dto.base().properties().cost()).isEqualTo(78.0);
+        assertThat(dto.base().properties().adequacyPatchMode()).isNull();
         assertThat(dto.base().modulation()).isEqualTo("H2");
         assertThat(dto.base().links()).hasSize(2);
         assertThat(dto.base().links().get("AT").capacity()).isEqualTo(90.0);
         assertThat(dto.base().links().get("AT").fatalBand()).isEqualTo(2.0);
         assertThat(dto.base().links().get("BE").capacity()).isEqualTo(35.0);
         assertThat(dto.base().links().get("BE").fatalBand()).isEqualTo(1.0);
+        assertThat(dto.base().parameters()).isNull();
+    }
 
+    private static void assertMargCluster(P2gGenerationDTO dto) {
         assertThat(dto.marg().properties().nominalCapacity()).isEqualTo(50.0);
+        assertThat(dto.marg().properties().adequacyPatchMode()).isNull();
         assertThat(dto.marg().modulation()).isEqualTo("Gaz");
         assertThat(dto.marg().links()).hasSize(1);
         assertThat(dto.marg().links().get("AT").capacity()).isEqualTo(50.0);
         assertThat(dto.marg().links().get("AT").fatalBand()).isNull();
         assertThat(dto.marg().links()).doesNotContainKey("BE");
+    }
 
+    private static void assertMethanationCluster(P2gGenerationDTO dto) {
         assertThat(dto.methanation().properties().nominalCapacity()).isEqualTo(40.0);
+        assertThat(dto.methanation().properties().adequacyPatchMode()).isNull();
         assertThat(dto.methanation().links()).hasSize(2);
+    }
 
+    private static void assertAsserviCluster(P2gGenerationDTO dto) {
         assertThat(dto.asservi().properties().nominalCapacity()).isEqualTo(20.0);
+        assertThat(dto.asservi().properties().adequacyPatchMode()).isNull();
         assertThat(dto.asservi().links()).hasSize(1);
         assertThat(dto.asservi().links()).doesNotContainKey("BE");
         assertThat(dto.asservi().parameters().fcElectrolyseur()).isEqualTo(0.5);
         assertThat(dto.asservi().parameters().facteurSurdimensionEnr()).isEqualTo(1.2);
         assertThat(dto.asservi().parameters().partPvMix()).isEqualTo(0.9);
-        assertThat(dto.base().parameters()).isNull();
-
-        assertThat(dto.base().properties().adequacyPatchMode()).isNull();
-        assertThat(dto.marg().properties().adequacyPatchMode()).isNull();
-        assertThat(dto.methanation().properties().adequacyPatchMode()).isNull();
-        assertThat(dto.asservi().properties().adequacyPatchMode()).isNull();
     }
 
     @Test

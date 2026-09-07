@@ -51,6 +51,21 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
     private static final String ZONE_METHANATION = "z_p2g_methanation";
     private static final String ZONE_ASSERVI = "z_p2g_asservi";
 
+    private record ZoneCapacityColumns(
+            Function<P2GCapacityEntity, Double> nominalCapacityColumn,
+            Function<P2GCapacityEntity, Double> linkCapacityColumn,
+            boolean includeFatalBand
+    ) {}
+
+    private static final ZoneCapacityColumns BASE_COLUMNS =
+            new ZoneCapacityColumns(P2GCapacityEntity::getBaseEff, P2GCapacityEntity::getBaseCapacity, true);
+    private static final ZoneCapacityColumns MARG_COLUMNS =
+            new ZoneCapacityColumns(P2GCapacityEntity::getMargCapacity, P2GCapacityEntity::getMargCapacity, false);
+    private static final ZoneCapacityColumns METHANATION_COLUMNS =
+            new ZoneCapacityColumns(P2GCapacityEntity::getMethanationCapacity, P2GCapacityEntity::getMethanationCapacity, false);
+    private static final ZoneCapacityColumns ASSERVI_COLUMNS =
+            new ZoneCapacityColumns(P2GCapacityEntity::getAsserviCapacity, P2GCapacityEntity::getAsserviCapacity, false);
+
     private final P2GCapacityRepository p2gCapacityRepository;
     private final P2GCostRepository p2gCostRepository;
     private final P2GParametersRepository p2gParametersRepository;
@@ -81,16 +96,16 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
         P2gClusterGenerationDTO base = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_BASE, trajectoryName),
-                P2GCapacityEntity::getBaseEff, P2GCapacityEntity::getBaseCapacity, true, null,
+                BASE_COLUMNS, null,
                 adequacySettingsAssemblerService.resolveMode(ZONE_BASE, adequacyTrajectory, adequacyModeByArea));
         P2gClusterGenerationDTO marg = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_MARGINAL, trajectoryName),
-                P2GCapacityEntity::getMargCapacity, P2GCapacityEntity::getMargCapacity, false, null,
+                MARG_COLUMNS, null,
                 adequacySettingsAssemblerService.resolveMode(ZONE_MARG, adequacyTrajectory, adequacyModeByArea));
         P2gClusterGenerationDTO methanation = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_METHANATION, trajectoryName),
-                P2GCapacityEntity::getMethanationCapacity, P2GCapacityEntity::getMethanationCapacity, false, null,
+                METHANATION_COLUMNS, null,
                 adequacySettingsAssemblerService.resolveMode(ZONE_METHANATION, adequacyTrajectory, adequacyModeByArea));
         P2gClusterGenerationDTO asservi = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_ASSERVI, trajectoryName),
-                P2GCapacityEntity::getAsserviCapacity, P2GCapacityEntity::getAsserviCapacity, false, asserviParameters,
+                ASSERVI_COLUMNS, asserviParameters,
                 adequacySettingsAssemblerService.resolveMode(ZONE_ASSERVI, adequacyTrajectory, adequacyModeByArea));
 
         String marketModulation = resolveMarketModulationPath(study, marketModulationTrajectory);
@@ -121,23 +136,21 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
     private P2gClusterGenerationDTO buildCluster(
             List<P2GCapacityEntity> capacities,
             P2GCostEntity cost,
-            Function<P2GCapacityEntity, Double> nominalCapacityColumn,
-            Function<P2GCapacityEntity, Double> linkCapacityColumn,
-            boolean includeFatalBand,
+            ZoneCapacityColumns columns,
             P2gClusterGenerationDTO.AsserviParameters parameters,
             String adequacyPatchMode
     ) {
         double nominalCapacity = capacities.stream()
-                .map(nominalCapacityColumn)
+                .map(columns.nominalCapacityColumn())
                 .filter(Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
                 .sum();
 
         Map<String, P2gClusterGenerationDTO.Link> links = new LinkedHashMap<>();
         for (P2GCapacityEntity capacity : capacities) {
-            Double linkCapacity = linkCapacityColumn.apply(capacity);
+            Double linkCapacity = columns.linkCapacityColumn().apply(capacity);
             if (linkCapacity != null) {
-                Double fatalBand = includeFatalBand ? capacity.getBaseFatalBand() : null;
+                Double fatalBand = columns.includeFatalBand() ? capacity.getBaseFatalBand() : null;
                 links.put(capacity.getArea(), new P2gClusterGenerationDTO.Link(linkCapacity, fatalBand));
             }
         }
