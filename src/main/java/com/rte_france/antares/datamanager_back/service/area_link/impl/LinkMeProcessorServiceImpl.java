@@ -97,16 +97,6 @@ public class LinkMeProcessorServiceImpl {
         return trajectoryFilePath;
     }
 
-    /**
-     * Imports a LINK_ME trajectory file (backward compatible version without coherence validation).
-     * @param path path to the LINK_ME file
-     * @param horizon horizon in format YYYY-YYYY+1 (e.g., 2023-2024)
-     * @param trajectoryName trajectory name (directory name)
-     * @return the imported trajectory entity
-     */
-    public TrajectoryEntity importLinkMeTrajectory(Path path, String horizon, String trajectoryName) throws IOException {
-        return importLinkMeTrajectory(path, horizon, trajectoryName, null);
-    }
 
     /**
      * Imports a LINK_ME trajectory file.
@@ -116,8 +106,6 @@ public class LinkMeProcessorServiceImpl {
      * @param studyId the ID of the study for coherence validation
      * @return the imported trajectory entity
      */
-    @ExecutionTime
-    @Transactional
     public TrajectoryEntity importLinkMeTrajectory(Path path, String horizon, String trajectoryName, Integer studyId) throws IOException {
         log.info("Importing LINK_ME trajectory: {} with horizon: {}", trajectoryName, horizon);
 

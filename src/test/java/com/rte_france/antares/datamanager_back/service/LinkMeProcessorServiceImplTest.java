@@ -83,7 +83,7 @@ class LinkMeProcessorServiceImplTest {
                 )
         );
 
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         assertNotNull(result);
         assertEquals("test_trajectory", result.getFileName());
@@ -109,7 +109,7 @@ class LinkMeProcessorServiceImplTest {
 
         String longName = "a".repeat(41);
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", longName)
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", longName,1)
         );
 
         assertEquals("Trajectory name cannot exceed 40 characters", exception.getMessage());
@@ -129,7 +129,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2022-2023", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2022-2023", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("Missing horizon"));
@@ -166,7 +166,7 @@ class LinkMeProcessorServiceImplTest {
         // when the actual checksum happens to match. For a more reliable test,
         // the duplicate detection should only trigger if checksums match.
         // This test verifies the behavior when duplicate content is detected.
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         // If the checksum differs, a new version should be created
         assertNotNull(result);
@@ -188,7 +188,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("nodeFrom column must be filled in"));
@@ -210,7 +210,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("nodeTo column must be filled in"));
@@ -232,7 +232,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("nodeFrom cannot exceed 60 characters"));
@@ -254,7 +254,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("nodeTo cannot exceed 60 characters"));
@@ -276,7 +276,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("Column Direct_MW must be numeric or 'infinite'"));
@@ -298,7 +298,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("Column Indirect_MW must be numeric or 'infinite'"));
@@ -320,7 +320,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("Column Hurdle Costs Direct must be numeric"));
@@ -342,7 +342,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("Column Hurdle Costs Indirect must be numeric"));
@@ -365,7 +365,7 @@ class LinkMeProcessorServiceImplTest {
                 )
         );
 
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         assertNotNull(result);
         verify(linkMeRepository, times(1)).saveAll(argThat(list -> ((List<?>) list).size() == 2)); // Should save 2 links, not 3
@@ -399,7 +399,7 @@ class LinkMeProcessorServiceImplTest {
                 "test_trajectory", "2023-2024", TrajectoryType.LINK_ME.name()))
                 .thenReturn(Optional.of(existingTrajectory));
 
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         assertNotNull(result);
         assertEquals(3, result.getVersion());
@@ -421,7 +421,7 @@ class LinkMeProcessorServiceImplTest {
                 )
         );
 
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         assertNotNull(result);
         verify(linkMeRepository, times(1)).saveAll(any());
@@ -443,7 +443,7 @@ class LinkMeProcessorServiceImplTest {
                 )
         );
 
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         assertNotNull(result);
         verify(linkMeRepository, times(1)).saveAll(any());
@@ -463,7 +463,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "",1)
         );
 
         assertEquals("Trajectory name cannot be empty", exception.getMessage());
@@ -484,7 +484,7 @@ class LinkMeProcessorServiceImplTest {
 
         // Use a horizon with a single part (no dash) to trigger format validation
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2024", "test_trajectory")
+                () -> linkMeProcessorService.importLinkMeTrajectory(tempFile, "2024", "test_trajectory",1)
         );
 
         assertTrue(exception.getMessage().contains("Invalid horizon format"));
@@ -682,7 +682,7 @@ class LinkMeProcessorServiceImplTest {
         );
 
         // Call 3-parameter method (no studyId parameter)
-        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory");
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory",1);
 
         assertNotNull(result);
         assertEquals("test_trajectory", result.getFileName());
