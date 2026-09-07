@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCostEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParametersEntity;
+import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
@@ -45,10 +46,16 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
     private static final String TYPE_METHANATION = "Methanation";
     private static final String TYPE_ASSERVI = "Asservi";
 
+    private static final String ZONE_BASE = "z_p2g_base";
+    private static final String ZONE_MARG = "z_p2g_marg";
+    private static final String ZONE_METHANATION = "z_p2g_methanation";
+    private static final String ZONE_ASSERVI = "z_p2g_asservi";
+
     private final P2GCapacityRepository p2gCapacityRepository;
     private final P2GCostRepository p2gCostRepository;
     private final P2GParametersRepository p2gParametersRepository;
     private final ResGenerationAssemblerService resGenerationAssemblerService;
+    private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final AntaresDataManagerProperties properties;
 
     private record P2gRawData(List<P2GCapacityEntity> capacities, Map<String, P2GCostEntity> costsByType,
@@ -70,14 +77,21 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
 
         P2gClusterGenerationDTO.AsserviParameters asserviParameters = buildAsserviParameters(data.parameters(), trajectoryName);
 
+        TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
+        Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
+
         P2gClusterGenerationDTO base = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_BASE, trajectoryName),
-                P2GCapacityEntity::getBaseEff, P2GCapacityEntity::getBaseCapacity, true, null);
+                P2GCapacityEntity::getBaseEff, P2GCapacityEntity::getBaseCapacity, true, null,
+                adequacySettingsAssemblerService.resolveMode(ZONE_BASE, adequacyTrajectory, adequacyModeByArea));
         P2gClusterGenerationDTO marg = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_MARGINAL, trajectoryName),
-                P2GCapacityEntity::getMargCapacity, P2GCapacityEntity::getMargCapacity, false, null);
+                P2GCapacityEntity::getMargCapacity, P2GCapacityEntity::getMargCapacity, false, null,
+                adequacySettingsAssemblerService.resolveMode(ZONE_MARG, adequacyTrajectory, adequacyModeByArea));
         P2gClusterGenerationDTO methanation = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_METHANATION, trajectoryName),
-                P2GCapacityEntity::getMethanationCapacity, P2GCapacityEntity::getMethanationCapacity, false, null);
+                P2GCapacityEntity::getMethanationCapacity, P2GCapacityEntity::getMethanationCapacity, false, null,
+                adequacySettingsAssemblerService.resolveMode(ZONE_METHANATION, adequacyTrajectory, adequacyModeByArea));
         P2gClusterGenerationDTO asservi = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_ASSERVI, trajectoryName),
-                P2GCapacityEntity::getAsserviCapacity, P2GCapacityEntity::getAsserviCapacity, false, asserviParameters);
+                P2GCapacityEntity::getAsserviCapacity, P2GCapacityEntity::getAsserviCapacity, false, asserviParameters,
+                adequacySettingsAssemblerService.resolveMode(ZONE_ASSERVI, adequacyTrajectory, adequacyModeByArea));
 
         String marketModulation = resolveMarketModulationPath(study, marketModulationTrajectory);
 
@@ -110,7 +124,8 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             Function<P2GCapacityEntity, Double> nominalCapacityColumn,
             Function<P2GCapacityEntity, Double> linkCapacityColumn,
             boolean includeFatalBand,
-            P2gClusterGenerationDTO.AsserviParameters parameters
+            P2gClusterGenerationDTO.AsserviParameters parameters,
+            String adequacyPatchMode
     ) {
         double nominalCapacity = capacities.stream()
                 .map(nominalCapacityColumn)
@@ -127,7 +142,7 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             }
         }
 
-        P2gPropertiesGenerationDTO clusterProperties = new P2gPropertiesGenerationDTO(nominalCapacity, cost.getCost());
+        P2gPropertiesGenerationDTO clusterProperties = new P2gPropertiesGenerationDTO(nominalCapacity, cost.getCost(), adequacyPatchMode);
         return new P2gClusterGenerationDTO(clusterProperties, cost.getModulation(), links, parameters);
     }
 
