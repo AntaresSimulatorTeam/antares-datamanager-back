@@ -397,8 +397,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             String areaName = areaEntry.getKey();
             if (areaEntry.getValue() instanceof Map<?, ?> rawAreaData) {
                 Map<String, Object> propertiesMap = getPropertiesMap((Map<String, Object>) rawAreaData);
-                propertiesMap.put(ADEQUACY_PATCH_MODE,
-                        adequacySettingsAssemblerService.resolveMode(areaName, adequacyTrajectory, adequacyModeByArea));
+                adequacySettingsAssemblerService.resolveMode(areaName, adequacyTrajectory, adequacyModeByArea)
+                        .ifPresent(mode -> propertiesMap.put(ADEQUACY_PATCH_MODE, mode));
             }
         }
     }
@@ -429,7 +429,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> areaProperties = new HashMap<>();
         areaProperties.put("energy_cost_unsupplied", areaDTO.getUnsuppliedEnergyCost());
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
-        areaProperties.put(ADEQUACY_PATCH_MODE, null);
         areaMap.put(PROPERTIES, areaProperties);
 
         Map<String, ThermalClusterGenerationDto> allClusters = context.getClusterPropsByArea().get(areaDTO.getName());

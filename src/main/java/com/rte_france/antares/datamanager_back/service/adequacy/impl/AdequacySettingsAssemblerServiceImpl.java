@@ -55,9 +55,9 @@ public class AdequacySettingsAssemblerServiceImpl implements AdequacySettingsAss
     }
 
     @Override
-    public String resolveMode(String entityName, TrajectoryEntity adequacyTrajectory, Map<String, String> adequacyModeByArea) {
+    public Optional<String> resolveMode(String entityName, TrajectoryEntity adequacyTrajectory, Map<String, String> adequacyModeByArea) {
         if (adequacyTrajectory == null) {
-            return null;
+            return Optional.empty();
         }
         String matchingKey = adequacyModeByArea.keySet().stream()
                 .filter(key -> key.equalsIgnoreCase(entityName))
@@ -70,6 +70,6 @@ public class AdequacySettingsAssemblerServiceImpl implements AdequacySettingsAss
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return adequacyModeByArea.get(matchingKey);
+        return Optional.ofNullable(adequacyModeByArea.get(matchingKey));
     }
 }

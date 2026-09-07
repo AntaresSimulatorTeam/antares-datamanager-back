@@ -97,16 +97,16 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
 
         P2gClusterGenerationDTO base = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_BASE, trajectoryName),
                 BASE_COLUMNS, null,
-                adequacySettingsAssemblerService.resolveMode(ZONE_BASE, adequacyTrajectory, adequacyModeByArea));
+                adequacySettingsAssemblerService.resolveMode(ZONE_BASE, adequacyTrajectory, adequacyModeByArea).orElse(null));
         P2gClusterGenerationDTO marg = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_MARGINAL, trajectoryName),
                 MARG_COLUMNS, null,
-                adequacySettingsAssemblerService.resolveMode(ZONE_MARG, adequacyTrajectory, adequacyModeByArea));
+                adequacySettingsAssemblerService.resolveMode(ZONE_MARG, adequacyTrajectory, adequacyModeByArea).orElse(null));
         P2gClusterGenerationDTO methanation = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_METHANATION, trajectoryName),
                 METHANATION_COLUMNS, null,
-                adequacySettingsAssemblerService.resolveMode(ZONE_METHANATION, adequacyTrajectory, adequacyModeByArea));
+                adequacySettingsAssemblerService.resolveMode(ZONE_METHANATION, adequacyTrajectory, adequacyModeByArea).orElse(null));
         P2gClusterGenerationDTO asservi = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_ASSERVI, trajectoryName),
                 ASSERVI_COLUMNS, asserviParameters,
-                adequacySettingsAssemblerService.resolveMode(ZONE_ASSERVI, adequacyTrajectory, adequacyModeByArea));
+                adequacySettingsAssemblerService.resolveMode(ZONE_ASSERVI, adequacyTrajectory, adequacyModeByArea).orElse(null));
 
         String marketModulation = resolveMarketModulationPath(study, marketModulationTrajectory);
 
