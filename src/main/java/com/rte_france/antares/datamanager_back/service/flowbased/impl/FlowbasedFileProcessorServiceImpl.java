@@ -41,7 +41,8 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
             "Flowbased_nodes_links.xlsx",
             "IdTypDays.csv",
             "second_member.txt",
-            "weight.txt"
+            "weight.txt",
+            "ts.txt",
     };
 
     @Override
