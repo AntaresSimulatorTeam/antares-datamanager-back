@@ -15,6 +15,6 @@ public interface AdequacySettingsAssemblerService {
 
     Optional<TrajectoryEntity> findAdequacyTrajectory(StudyEntity studyEntity);
 
-    // returns null if adequacyTrajectory is null and throws BusinessException if linked but entityName has no matching row
-    String resolveMode(String entityName, TrajectoryEntity adequacyTrajectory, Map<String, String> adequacyModeByArea);
+    // empty if adequacyTrajectory is null; throws BusinessException if linked but entityName has no matching row
+    Optional<String> resolveMode(String entityName, TrajectoryEntity adequacyTrajectory, Map<String, String> adequacyModeByArea);
 }

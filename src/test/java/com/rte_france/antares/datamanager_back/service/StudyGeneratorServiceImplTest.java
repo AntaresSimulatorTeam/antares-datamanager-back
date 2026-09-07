@@ -1167,7 +1167,7 @@ class StudyGeneratorServiceImplTest {
                 "FE60_liv_same/MB_MC_modulation_FE60_liv_same_2027.csv",
                 new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0, "inside"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(90.0, 2.0)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0, "outside"), "Gaz",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0, null), "Gaz",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(50.0, null)), null),
                 new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(30.0, 78.0, "virtual"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(30.0, null)), null),
@@ -1198,6 +1198,8 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> margLinks = mapper.convertValue(marg.get("links"), new TypeReference<>() {});
         Map<String, Object> margAt = mapper.convertValue(margLinks.get("AT"), new TypeReference<>() {});
         assertThat(margAt).doesNotContainKey("fatal_band");
+        Map<String, Object> margProperties = mapper.convertValue(marg.get("properties"), new TypeReference<>() {});
+        assertThat(margProperties).doesNotContainKey("adequacy_patch_mode");
 
         Map<String, Object> asservi = mapper.convertValue(p2g.get("asservi"), new TypeReference<>() {});
         assertThat(asservi).containsKey("parameters");
