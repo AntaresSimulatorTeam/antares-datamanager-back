@@ -4,5 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record P2gPropertiesGenerationDTO(
         @JsonProperty("nominal_capacity") Double nominalCapacity,
-        Double cost
+        Double cost,
+        @JsonProperty("adequacy_patch_mode") String adequacyPatchMode
 ) {}

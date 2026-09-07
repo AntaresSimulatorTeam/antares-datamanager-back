@@ -14,6 +14,8 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCostEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParametersEntity;
+import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
+import com.rte_france.antares.datamanager_back.service.adequacy.impl.AdequacySettingsAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,9 +28,12 @@ import org.mockito.quality.Strictness;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +44,7 @@ class P2gGenerationAssemblerServiceImplTest {
     @Mock private P2GCostRepository p2gCostRepository;
     @Mock private P2GParametersRepository p2gParametersRepository;
     @Mock private ResGenerationAssemblerService resGenerationAssemblerService;
+    @Mock private AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     @Mock private AntaresDataManagerProperties properties;
 
     private P2gGenerationAssemblerServiceImpl assembler;
@@ -51,7 +57,12 @@ class P2gGenerationAssemblerServiceImplTest {
     @BeforeEach
     void setUp() {
         assembler = new P2gGenerationAssemblerServiceImpl(
-                p2gCapacityRepository, p2gCostRepository, p2gParametersRepository, resGenerationAssemblerService, properties);
+                p2gCapacityRepository, p2gCostRepository, p2gParametersRepository, resGenerationAssemblerService,
+                adequacySettingsAssemblerService, properties);
+
+        lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl()
+                        .resolveMode(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
+                .when(adequacySettingsAssemblerService).resolveMode(any(), any(), any());
 
         when(properties.getP2gMarketModulationDirectory()).thenReturn("thermal/economic parameters/market_bid_marg_cost_modulation");
 
@@ -113,6 +124,49 @@ class P2gGenerationAssemblerServiceImplTest {
         assertThat(dto.asservi().parameters().facteurSurdimensionEnr()).isEqualTo(1.2);
         assertThat(dto.asservi().parameters().partPvMix()).isEqualTo(0.9);
         assertThat(dto.base().parameters()).isNull();
+
+        assertThat(dto.base().properties().adequacyPatchMode()).isNull();
+        assertThat(dto.marg().properties().adequacyPatchMode()).isNull();
+        assertThat(dto.methanation().properties().adequacyPatchMode()).isNull();
+        assertThat(dto.asservi().properties().adequacyPatchMode()).isNull();
+    }
+
+    @Test
+    void assembleP2g_shouldSetAdequacyPatchMode_whenAdequacyTrajectoryLinkedAndZonesConfigured() {
+        TrajectoryEntity adequacyTrajectory = trajectory(3, "adequacy_traj");
+        when(adequacySettingsAssemblerService.findAdequacyTrajectory(study)).thenReturn(Optional.of(adequacyTrajectory));
+        when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)).thenReturn(Map.of(
+                "z_p2g_base", "inside",
+                "z_p2g_marg", "outside",
+                "z_p2g_methanation", "virtual",
+                "z_p2g_asservi", "inside"
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        assertThat(dto.base().properties().adequacyPatchMode()).isEqualTo("inside");
+        assertThat(dto.marg().properties().adequacyPatchMode()).isEqualTo("outside");
+        assertThat(dto.methanation().properties().adequacyPatchMode()).isEqualTo("virtual");
+        assertThat(dto.asservi().properties().adequacyPatchMode()).isEqualTo("inside");
+    }
+
+    @Test
+    void assembleP2g_shouldThrowBusinessException_whenAdequacyTrajectoryLinkedButZoneMissing() {
+        TrajectoryEntity adequacyTrajectory = trajectory(3, "adequacy_traj");
+        when(adequacySettingsAssemblerService.findAdequacyTrajectory(study)).thenReturn(Optional.of(adequacyTrajectory));
+        when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)).thenReturn(Map.of(
+                "z_p2g_marg", "outside",
+                "z_p2g_methanation", "virtual",
+                "z_p2g_asservi", "inside"
+        ));
+
+        assertThatThrownBy(() -> assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Area: {0} is not present in the list of areas for adequacy configuration");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("z_p2g_base", "adequacy_traj");
+                });
     }
 
     @Test

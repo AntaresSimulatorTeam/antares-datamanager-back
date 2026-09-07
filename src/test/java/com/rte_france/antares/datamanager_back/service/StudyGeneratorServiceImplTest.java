@@ -245,6 +245,11 @@ class StudyGeneratorServiceImplTest {
                 .when(adequacySettingsAssemblerService).assembleAdequacySettings(any());
         lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().assembleAdequacyModeByArea(inv.getArgument(0)))
                 .when(adequacySettingsAssemblerService).assembleAdequacyModeByArea(any());
+        lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().findAdequacyTrajectory(inv.getArgument(0)))
+                .when(adequacySettingsAssemblerService).findAdequacyTrajectory(any());
+        lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl()
+                        .resolveMode(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
+                .when(adequacySettingsAssemblerService).resolveMode(any(), any(), any());
 
         // Delegate Adequacy Settings transformation to real implementation by default
         lenient().doAnswer(inv -> new AdequacySettingsToJsonService().buildAdequacySettingsMap(inv.getArgument(0)))
@@ -1160,13 +1165,13 @@ class StudyGeneratorServiceImplTest {
 
         var p2gDto = new P2gGenerationDTO(
                 "FE60_liv_same/MB_MC_modulation_FE60_liv_same_2027.csv",
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0), "H2",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0, "inside"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(90.0, 2.0)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0), "Gaz",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0, "outside"), "Gaz",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(50.0, null)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(30.0, 78.0), "H2",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(30.0, 78.0, "virtual"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(30.0, null)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(20.0, 78.0), "H2",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(20.0, 78.0, "inside"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(20.0, null)),
                         new P2gClusterGenerationDTO.AsserviParameters(0.5, 1.2, 0.9))
         );
@@ -1186,6 +1191,8 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> baseLinks = mapper.convertValue(base.get("links"), new TypeReference<>() {});
         Map<String, Object> baseAt = mapper.convertValue(baseLinks.get("AT"), new TypeReference<>() {});
         assertThat(baseAt).containsEntry("fatal_band", 2.0);
+        Map<String, Object> baseProperties = mapper.convertValue(base.get("properties"), new TypeReference<>() {});
+        assertThat(baseProperties).containsEntry("adequacy_patch_mode", "inside");
 
         Map<String, Object> marg = mapper.convertValue(p2g.get("marg"), new TypeReference<>() {});
         Map<String, Object> margLinks = mapper.convertValue(marg.get("links"), new TypeReference<>() {});
