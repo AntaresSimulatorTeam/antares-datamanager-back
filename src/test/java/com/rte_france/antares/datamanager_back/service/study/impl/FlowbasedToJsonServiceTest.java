@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -297,5 +296,93 @@ class FlowbasedToJsonServiceTest {
         // Then
         assertEquals("/flowbased/myStudy/input", result.get("ts_path"));
 
+    }
+
+    @Test
+    void shouldNotAddNullCapacitiesForNonInfiniteLink() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setId(1);
+        trajectory.setFileName("study###file");
+
+        FlowbasedLinkCapacityEntity link = new FlowbasedLinkCapacityEntity();
+        link.setName("FR-BE - Interco");
+        link.setType(FlowbasedLinkCapacityType.ENABLED);
+        // Only some values set, others left null
+        link.setWinterHPDirectMW(100);
+        link.setSummerHCIndirectMW(30);
+
+        when(flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedVirtualNodesRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(List.of(link));
+
+        when(antaresDataManagerProperties.getFlowbasedDirectory())
+                .thenReturn("/flowbased");
+
+        // When
+        Map<String, Object> result = flowbasedToJsonService.buildFlowbasedMap(trajectory, false);
+
+        // Then
+        List<Map<String, Object>> links =
+                (List<Map<String, Object>>) result.get("links");
+
+        Map<String, Object> linkMap = links.get(0);
+
+        assertEquals("FR-BE - Interco", linkMap.get("name"));
+        assertEquals(FlowbasedLinkCapacityType.ENABLED, linkMap.get("transmission_capacities"));
+
+        // Present values
+        assertEquals(100, linkMap.get("winter_HP_direct_MW"));
+        assertEquals(30, linkMap.get("summer_HC_indirect_MW"));
+
+        // Null values must not be present in the map
+        assertFalse(linkMap.containsKey("winter_HP_indirect_MW"));
+        assertFalse(linkMap.containsKey("winter_HC_direct_MW"));
+        assertFalse(linkMap.containsKey("winter_HC_indirect_MW"));
+        assertFalse(linkMap.containsKey("summer_HP_direct_MW"));
+        assertFalse(linkMap.containsKey("summer_HP_indirect_MW"));
+        assertFalse(linkMap.containsKey("summer_HC_direct_MW"));
+    }
+
+    @Test
+    void shouldNotAddNullFieldsInTypeDaysMap() {
+        // Given
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setId(1);
+        trajectory.setFileName("study###file");
+
+        FlowbasedTypeDayEntity typeDay = new FlowbasedTypeDayEntity();
+        typeDay.setIdTypeDay(1);
+        // clustering and classDay are left null
+
+        when(flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(List.of(typeDay));
+
+        when(flowbasedVirtualNodesRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(1))
+                .thenReturn(Collections.emptyList());
+
+        when(antaresDataManagerProperties.getFlowbasedDirectory())
+                .thenReturn("/flowbased");
+
+        // When
+        Map<String, Object> result = flowbasedToJsonService.buildFlowbasedMap(trajectory, true);
+
+        // Then
+        List<Map<String, Object>> typeDays =
+                (List<Map<String, Object>>) result.get("type_days");
+
+        Map<String, Object> typeDayMap = typeDays.get(0);
+
+        assertEquals(1, typeDayMap.get("id_type_day"));
+        assertFalse(typeDayMap.containsKey("clustering"));
+        assertFalse(typeDayMap.containsKey("class_day"));
     }
 }

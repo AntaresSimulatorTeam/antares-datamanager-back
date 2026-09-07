@@ -4727,6 +4727,250 @@ class TrajectoryServiceImplTest {
         // Then
         assertTrue(result);
     }
+
+    @Test
+    void unlinkTrajectoryFromStudy_whenTrajectoryTypeIsNotAreaMe_doesNotCascadeDeleteLinkMe() {
+        // Given - Testing that when type is DSR (not AREA_ME), LINK_ME trajectories are NOT deleted
+        Integer dsrTrajectoryId = 5;
+        Integer linkMeTrajectory1 = 2;
+        Integer studyId = 100;
+
+        // Create DSR trajectory (the one being deleted - NOT AREA_ME)
+        TrajectoryEntity dsrTrajectory = TrajectoryEntity.builder()
+                .id(dsrTrajectoryId)
+                .type(TrajectoryType.DSR.name())
+                .scenarioEntities(new HashSet<>())
+                .build();
+
+        // Create LINK_ME trajectory that should NOT be deleted
+        TrajectoryEntity linkMeT1 = TrajectoryEntity.builder()
+                .id(linkMeTrajectory1)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+
+        // Create study
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>(Set.of(dsrTrajectory, linkMeT1)))
+                .build();
+        dsrTrajectory.getScenarioEntities().add(study);
+
+        // Create StudyTrajectoryEntity for the DSR trajectory being deleted
+        StudyTrajectoryKey dsrKey = StudyTrajectoryKey.builder()
+                .trajectoryId(dsrTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity dsrEntity = StudyTrajectoryEntity.builder()
+                .id(dsrKey)
+                .studyEntity(study)
+                .trajectory(dsrTrajectory)
+                .build();
+
+        // When
+        when(trajectoryRepository.findById(dsrTrajectoryId)).thenReturn(Optional.of(dsrTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(dsrTrajectory, linkMeT1));
+        when(studyTrajectoryRepository.findById(dsrKey)).thenReturn(Optional.of(dsrEntity));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId))
+                .thenReturn(List.of(dsrTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
+                .thenReturn(List.of());
+
+        trajectoryService.unlinkTrajectoryFromStudy(dsrTrajectoryId, studyId);
+
+        // Then
+        // Verify that ONLY the DSR trajectory is deleted
+        verify(studyTrajectoryRepository, times(1)).delete(dsrEntity);
+
+        // Verify delete was called only 1 time (DSR only, NOT LINK_ME)
+        verify(studyTrajectoryRepository, times(1)).delete(any());
+
+        // Verify findById_ScenarioId was NOT called (because type != AREA_ME, so unlinkLinkMeTrajectoriesToAreaMe not called)
+        verify(studyTrajectoryRepository, never()).findById_ScenarioId(studyId);
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_whenAreaMeHasNoLinkMe_onlyDeletesAreaMe() {
+        // Given - Testing AREA_ME deletion when there are NO LINK_ME trajectories
+        Integer areaTrajectoryId = 1;
+        Integer dsrTrajectory = 4;
+        Integer studyId = 100;
+
+        // Create AREA_ME trajectory (the one being deleted)
+        TrajectoryEntity areaTrajectory = TrajectoryEntity.builder()
+                .id(areaTrajectoryId)
+                .type(TrajectoryType.AREA_ME.name())
+                .scenarioEntities(new HashSet<>())
+                .build();
+
+        // Create DSR trajectory (should NOT be unlinked)
+        TrajectoryEntity dsrT = TrajectoryEntity.builder()
+                .id(dsrTrajectory)
+                .type(TrajectoryType.DSR.name())
+                .build();
+
+        // Create study
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>(Set.of(areaTrajectory, dsrT)))
+                .build();
+        areaTrajectory.getScenarioEntities().add(study);
+
+        // Create StudyTrajectoryEntity for AREA_ME
+        StudyTrajectoryKey areaKey = StudyTrajectoryKey.builder()
+                .trajectoryId(areaTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity areaEntity = StudyTrajectoryEntity.builder()
+                .id(areaKey)
+                .studyEntity(study)
+                .trajectory(areaTrajectory)
+                .build();
+
+        // Create StudyTrajectoryEntity for DSR
+        StudyTrajectoryKey dsrKey = StudyTrajectoryKey.builder()
+                .trajectoryId(dsrTrajectory)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity dsrEntity = StudyTrajectoryEntity.builder()
+                .id(dsrKey)
+                .studyEntity(study)
+                .trajectory(dsrT)
+                .build();
+
+        // When
+        when(trajectoryRepository.findById(areaTrajectoryId)).thenReturn(Optional.of(areaTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(areaTrajectory, dsrT));
+        when(studyTrajectoryRepository.findById(areaKey)).thenReturn(Optional.of(areaEntity));
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+                .thenReturn(List.of(areaEntity, dsrEntity));  // No LINK_ME trajectories
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId))
+                .thenReturn(List.of(dsrT));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
+                .thenReturn(List.of());
+
+        trajectoryService.unlinkTrajectoryFromStudy(areaTrajectoryId, studyId);
+
+        // Then
+        // Verify findById_ScenarioId was called once (for unlinkLinkMeTrajectoriesToAreaMe)
+        verify(studyTrajectoryRepository, times(1)).findById_ScenarioId(studyId);
+
+        // Verify only AREA_ME is deleted (no LINK_ME to delete)
+        verify(studyTrajectoryRepository, times(1)).delete(areaEntity);
+
+        // Verify DSR is NOT deleted
+        verify(studyTrajectoryRepository, never()).delete(dsrEntity);
+
+        // Verify delete was called only 1 time (AREA_ME only)
+        verify(studyTrajectoryRepository, times(1)).delete(any());
+    }
+
+    @Test
+    void unlinkTrajectoryFromStudy_whenAreaMeHasMultipleLinkMe_deletesAllLinkMe() {
+        // Given - Testing AREA_ME deletion with multiple LINK_ME trajectories
+        Integer areaTrajectoryId = 1;
+        Integer linkMeTrajectory1 = 2;
+        Integer linkMeTrajectory2 = 3;
+        Integer linkMeTrajectory3 = 6;
+        Integer studyId = 100;
+
+        // Create AREA_ME trajectory
+        TrajectoryEntity areaTrajectory = TrajectoryEntity.builder()
+                .id(areaTrajectoryId)
+                .type(TrajectoryType.AREA_ME.name())
+                .scenarioEntities(new HashSet<>())
+                .build();
+
+        // Create multiple LINK_ME trajectories
+        TrajectoryEntity linkMeT1 = TrajectoryEntity.builder()
+                .id(linkMeTrajectory1)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+        TrajectoryEntity linkMeT2 = TrajectoryEntity.builder()
+                .id(linkMeTrajectory2)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+        TrajectoryEntity linkMeT3 = TrajectoryEntity.builder()
+                .id(linkMeTrajectory3)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+
+        // Create study
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>(Set.of(areaTrajectory, linkMeT1, linkMeT2, linkMeT3)))
+                .build();
+        areaTrajectory.getScenarioEntities().add(study);
+
+        // Create StudyTrajectoryEntity for AREA_ME
+        StudyTrajectoryKey areaKey = StudyTrajectoryKey.builder()
+                .trajectoryId(areaTrajectoryId)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity areaEntity = StudyTrajectoryEntity.builder()
+                .id(areaKey)
+                .studyEntity(study)
+                .trajectory(areaTrajectory)
+                .build();
+
+        // Create StudyTrajectoryEntities for LINK_ME trajectories
+        StudyTrajectoryKey linkMeKey1 = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeTrajectory1)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity linkMeEntity1 = StudyTrajectoryEntity.builder()
+                .id(linkMeKey1)
+                .studyEntity(study)
+                .trajectory(linkMeT1)
+                .build();
+
+        StudyTrajectoryKey linkMeKey2 = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeTrajectory2)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity linkMeEntity2 = StudyTrajectoryEntity.builder()
+                .id(linkMeKey2)
+                .studyEntity(study)
+                .trajectory(linkMeT2)
+                .build();
+
+        StudyTrajectoryKey linkMeKey3 = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeTrajectory3)
+                .scenarioId(studyId)
+                .build();
+        StudyTrajectoryEntity linkMeEntity3 = StudyTrajectoryEntity.builder()
+                .id(linkMeKey3)
+                .studyEntity(study)
+                .trajectory(linkMeT3)
+                .build();
+
+        // When
+        when(trajectoryRepository.findById(areaTrajectoryId)).thenReturn(Optional.of(areaTrajectory));
+        when(trajectoryRepository.findByTypeAndStudyId(null, studyId)).thenReturn(List.of(areaTrajectory, linkMeT1, linkMeT2, linkMeT3));
+        when(studyTrajectoryRepository.findById(areaKey)).thenReturn(Optional.of(areaEntity));
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+               .thenReturn(List.of(areaEntity, linkMeEntity1, linkMeEntity2, linkMeEntity3));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR.name(), studyId))
+                .thenReturn(List.of());
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId))
+               .thenReturn(List.of());
+
+        trajectoryService.unlinkTrajectoryFromStudy(areaTrajectoryId, studyId);
+
+        // Then
+        // Verify all LINK_ME trajectories are deleted
+        verify(studyTrajectoryRepository, times(1)).delete(linkMeEntity1);
+        verify(studyTrajectoryRepository, times(1)).delete(linkMeEntity2);
+        verify(studyTrajectoryRepository, times(1)).delete(linkMeEntity3);
+
+        // Verify AREA_ME is deleted
+        verify(studyTrajectoryRepository, times(1)).delete(areaEntity);
+
+        // Verify delete was called 4 times (3 LINK_ME + 1 AREA_ME)
+        verify(studyTrajectoryRepository, times(4)).delete(any());
+
+        // Verify findById_ScenarioId was called once for cascade delete
+        verify(studyTrajectoryRepository, times(1)).findById_ScenarioId(studyId);
+    }
 }
 
 
