@@ -407,7 +407,8 @@ class FlowbasedFileProcessorServiceImplTest {
                 "Flowbased_nodes_links.xlsx",
                 "IdTypDays.csv",
                 "second_member.txt",
-                "weight.txt"
+                "weight.txt",
+                "ts.txt"
         };
 
         for (String fileName : requiredFiles) {
@@ -427,7 +428,8 @@ class FlowbasedFileProcessorServiceImplTest {
                 "Flowbased_nodes_links.xlsx",
                 "IdTypDays.csv",
                 "second_member.txt",
-                "weight.txt"
+                "weight.txt",
+                "ts.txt"
         };
 
         var excludeSet = java.util.Set.of(excludeFiles);
