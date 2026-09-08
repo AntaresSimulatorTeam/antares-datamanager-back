@@ -157,7 +157,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                              Optional<TrajectoryEntity> settingsTrajectory,
                                              Optional<TrajectoryEntity> flowbasedTrajectory,
                                              Optional<TrajectoryEntity> scenarioBuilderTrajectory,
-                                             Optional<TrajectoryEntity> areaMeTrajectory) {}
+                                             Optional<TrajectoryEntity> areaMeTrajectory,
+                                             Optional<TrajectoryEntity> linkMeTrajectory) {}
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -170,6 +171,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> flowbasedTraj = Optional.empty();
         Optional<TrajectoryEntity> scenarioBuilderTraj = Optional.empty();
         Optional<TrajectoryEntity> areaMeTraj = Optional.empty();
+        Optional<TrajectoryEntity> linkMeTraj = Optional.empty();
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -179,7 +181,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case AREA -> buildAreasDataMap(study, trajectory, areasMap, thermalClusterProps, nuclearAvailability);
                 case AREA_ME -> areaMeTraj = Optional.of(trajectory);
                 case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
-                case LINK_ME, P2G_CAPACITY_COST, P2G_MARKET_MODULATION ->
+                case LINK_ME -> linkMeTraj = Optional.of(trajectory);
+                case P2G_CAPACITY_COST, P2G_MARKET_MODULATION ->
                         log.warn("Multi energy trajectory {} handled separately", trajectory.getFileName());
                 case SETTINGS -> settingsTraj = Optional.of(trajectory);
                 case SCENARIO_BUILDER -> scenarioBuilderTraj = Optional.of(trajectory);
@@ -214,7 +217,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj, areaMeTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj, areaMeTraj, linkMeTraj);
     }
 
     private Map<String, Object> buildScenarioBuilderDataMap(TrajectoryEntity trajectory) {
@@ -225,7 +228,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                          Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> areasMap = dispatchResult.areasMap();
-        Map<String, Object> innerGeneratorMap = new TreeMap<>();
+        Map<String, Object> innerGeneratorMap = new LinkedHashMap<>();
         innerGeneratorMap.put("version", "9.3");
 
         // Build settings from parameters (general, optimization, advanced, seeds) if settings trajectory is available
@@ -268,8 +271,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
 
         Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.areaMeTrajectory();
-        if (areaMeTrajectory.isPresent()) {
-            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(study, areaMeTrajectory.get());
+        Optional<TrajectoryEntity> linkMeTrajectory = dispatchResult.linkMeTrajectory();
+        if (areaMeTrajectory.isPresent() || linkMeTrajectory.isPresent()) {
+            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(study, areaMeTrajectory.orElse(null), linkMeTrajectory.orElse(null));
             if (meMap != null && !meMap.isEmpty()) {
                 innerGeneratorMap.put("ME", meMap);
             }

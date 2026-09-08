@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.multi_energy;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
@@ -34,6 +35,7 @@ class MultiEnergyServiceImplTest {
 
     private StudyEntity studyEntity;
     private TrajectoryEntity areaMeTrajectory;
+    private TrajectoryEntity linkMeTrajectory;
 
     @BeforeEach
     void setUp() {
@@ -59,10 +61,25 @@ class MultiEnergyServiceImplTest {
                 .areaConfigEntities(List.of(areaConfigEntity))
                 .build();
 
+        LinkMeEntity linkMeEntity = LinkMeEntity.builder()
+                .nodeFrom("ME")
+                .nodeTo("FR")
+                .directMw(1200.0)
+                .indirectMw(1300.0)
+                .hurdleCostsDirect(0.1)
+                .hurdleCostsIndirect(0.3)
+                .build();
+
+        linkMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.LINK_ME.name())
+                .fileName("link_me.xlsx")
+                .linkMeEntities(List.of(linkMeEntity))
+                .build();
+
         studyEntity = StudyEntity.builder()
                 .id(1)
                 .name("testStudy")
-                .trajectories(Set.of(areaMeTrajectory))
+                .trajectories(Set.of(areaMeTrajectory, linkMeTrajectory))
                 .build();
     }
 
@@ -79,7 +96,11 @@ class MultiEnergyServiceImplTest {
         assertThat(result).isNotNull().containsKey("area_me");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> areaData = (Map<String, Object>) result.get("area_me");
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        assertThat(areas).isNotNull().containsKey("area_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaData = (Map<String, Object>) areas.get("area_me");
         assertThat(areaData).containsEntry("ui", "AreaUI class as JSON");
         assertThat(areaData).containsKey("properties");
 
@@ -104,7 +125,11 @@ class MultiEnergyServiceImplTest {
         assertThat(result).isNotNull().containsKey("area_me");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> areaData = (Map<String, Object>) result.get("area_me");
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        assertThat(areas).isNotNull().containsKey("area_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaData = (Map<String, Object>) areas.get("area_me");
         @SuppressWarnings("unchecked")
         Map<String, Object> properties = (Map<String, Object>) areaData.get("properties");
 
@@ -114,18 +139,6 @@ class MultiEnergyServiceImplTest {
                 .containsEntry("adequacy_patch_mode", null);
     }
 
-    @Test
-    void buildMultiEnergyMap_withStudyOverload_shouldFindAreaMeTrajectoryAndBuildMap() {
-        // Given
-        when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
-                .thenReturn(Map.of("area_me", "outside"));
-
-        // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity);
-
-        // Then
-        assertThat(result).isNotNull().containsKey("area_me");
-    }
 
     @Test
     void buildMultiEnergyMap_whenTrajectoryOrConfigsNull_shouldReturnEmptyMap() {
@@ -137,10 +150,11 @@ class MultiEnergyServiceImplTest {
                 .build();
         assertThat(multiEnergyService.buildMultiEnergyMap(studyEntity, emptyTrajectory)).isEmpty();
 
-        assertThat(multiEnergyService.buildMultiEnergyMap(null)).isEmpty();
-
-        StudyEntity studyWithoutTrajectories = StudyEntity.builder().id(2).name("empty").trajectories(null).build();
-        assertThat(multiEnergyService.buildMultiEnergyMap(studyWithoutTrajectories)).isEmpty();
+        TrajectoryEntity emptyLinkMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.LINK_ME.name())
+                .linkMeEntities(null)
+                .build();
+        assertThat(multiEnergyService.buildMultiEnergyMap(studyEntity, emptyLinkMeTrajectory)).isEmpty();
     }
 
     @Test
@@ -173,10 +187,14 @@ class MultiEnergyServiceImplTest {
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, multipleAreaMeTrajectory);
 
         // Then
-        assertThat(result).hasSize(2).containsKeys("AREA1_ME", "AREA2_ME");
+        assertThat(result).isNotNull().containsKey("area_me");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> area1Data = (Map<String, Object>) result.get("AREA1_ME");
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        assertThat(areas).hasSize(2).containsKeys("AREA1_ME", "AREA2_ME");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1Data = (Map<String, Object>) areas.get("AREA1_ME");
         @SuppressWarnings("unchecked")
         Map<String, Object> area1Props = (Map<String, Object>) area1Data.get("properties");
         assertThat(area1Props)
@@ -185,12 +203,96 @@ class MultiEnergyServiceImplTest {
                 .containsEntry("adequacy_patch_mode", "inside");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> area2Data = (Map<String, Object>) result.get("AREA2_ME");
+        Map<String, Object> area2Data = (Map<String, Object>) areas.get("AREA2_ME");
         @SuppressWarnings("unchecked")
         Map<String, Object> area2Props = (Map<String, Object>) area2Data.get("properties");
         assertThat(area2Props)
                 .containsEntry("energy_cost_unsupplied", 5000.0)
                 .containsEntry("energy_cost_spilled", 300.0)
                 .containsEntry("adequacy_patch_mode", "outside");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withLinkMeTrajectory_shouldReturnLinksMeStructure() {
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, linkMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("links_me").doesNotContainKey("area_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> linksMe = (Map<String, Object>) result.get("links_me");
+        assertThat(linksMe).isNotNull().containsKey("ME/FR");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> linkEntry = (Map<String, Object>) linksMe.get("ME/FR");
+        assertThat(linkEntry)
+                .containsEntry("directMw", 1200.0)
+                .containsEntry("indirectMw", 1300.0)
+                .containsEntry("hurdleCostDirect", 0.1)
+                .containsEntry("hurdleCostIndirect", 0.3);
+    }
+
+    @Test
+    void buildMultiEnergyMap_withLinkMeTrajectoryPassedToSingleArgMethod_shouldReturnLinksMeStructure() {
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, linkMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("links_me").doesNotContainKey("area_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> linksMe = (Map<String, Object>) result.get("links_me");
+        assertThat(linksMe).isNotNull().containsKey("ME/FR");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withBothAreaMeAndLinkMe_shouldReturnBothSections() {
+        // Given
+        when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
+                .thenReturn(Map.of("area_me", "inside"));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory, linkMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKeys("area_me", "links_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        assertThat(areas).containsKey("area_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> linksMe = (Map<String, Object>) result.get("links_me");
+        assertThat(linksMe).containsKey("ME/FR");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withInvalidLinkMeEntities_shouldSkipInvalidEntries() {
+        // Given
+        LinkMeEntity invalidLink1 = LinkMeEntity.builder().nodeFrom(null).nodeTo("FR").build();
+        LinkMeEntity invalidLink2 = LinkMeEntity.builder().nodeFrom("ME").nodeTo(null).build();
+        LinkMeEntity validLink = LinkMeEntity.builder()
+                .nodeFrom("ME")
+                .nodeTo("DE")
+                .directMw(500.0)
+                .indirectMw(600.0)
+                .hurdleCostsDirect(0.05)
+                .hurdleCostsIndirect(0.05)
+                .build();
+
+        TrajectoryEntity trajWithInvalidLinks = TrajectoryEntity.builder()
+                .type(TrajectoryType.LINK_ME.name())
+                .linkMeEntities(List.of(invalidLink1, invalidLink2, validLink))
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, trajWithInvalidLinks);
+
+        // Then
+        assertThat(result).containsKey("links_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> linksMe = (Map<String, Object>) result.get("links_me");
+        assertThat(linksMe).hasSize(1).containsKey("ME/DE");
     }
 }
