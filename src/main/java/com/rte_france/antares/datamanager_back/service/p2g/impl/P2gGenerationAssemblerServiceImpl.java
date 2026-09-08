@@ -50,6 +50,8 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
     private static final String ZONE_MARG = "z_p2g_marg";
     private static final String ZONE_METHANATION = "z_p2g_methanation";
     private static final String ZONE_ASSERVI = "z_p2g_asservi";
+    private static final String energyCostSpilled = "0.0";
+    private static final String energyCostUnsupplied = "4000.0";
 
     private record ZoneCapacityColumns(
             Function<P2GCapacityEntity, Double> nominalCapacityColumn,
@@ -155,7 +157,7 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             }
         }
 
-        P2gPropertiesGenerationDTO clusterProperties = new P2gPropertiesGenerationDTO(nominalCapacity, cost.getCost(), adequacyPatchMode);
+        P2gPropertiesGenerationDTO clusterProperties = new P2gPropertiesGenerationDTO(nominalCapacity, cost.getCost(), adequacyPatchMode, energyCostSpilled, energyCostUnsupplied);
         return new P2gClusterGenerationDTO(clusterProperties, cost.getModulation(), links, parameters);
     }
 

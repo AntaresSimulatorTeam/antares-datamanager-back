@@ -1165,13 +1165,13 @@ class StudyGeneratorServiceImplTest {
 
         var p2gDto = new P2gGenerationDTO(
                 "FE60_liv_same/MB_MC_modulation_FE60_liv_same_2027.csv",
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0, "inside"), "H2",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0, "inside", "4000.0", "0.0"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(90.0, 2.0)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0, null), "Gaz",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0, null, "4000.0", "0.0"), "Gaz",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(50.0, null)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(30.0, 78.0, "virtual"), "H2",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(30.0, 78.0, "virtual", "4000.0", "0.0"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(30.0, null)), null),
-                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(20.0, 78.0, "inside"), "H2",
+                new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(20.0, 78.0, "inside", "4000.0", "0.0"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(20.0, null)),
                         new P2gClusterGenerationDTO.AsserviParameters(0.5, 1.2, 0.9))
         );
