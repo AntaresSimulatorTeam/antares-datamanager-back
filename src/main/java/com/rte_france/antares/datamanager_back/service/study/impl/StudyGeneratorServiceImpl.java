@@ -141,9 +141,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         dispatchResult.trajectoryOfType(TrajectoryType.NUCLEAR_FR_MODULATION).ifPresent(traj ->
                 dispatchResult.areasMap().put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps, nuclearAvailability)));
 
-        Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(study, dispatchResult, thermalClusterProps);
-
         assembleAdequacyModeForStudyAreas(study, dispatchResult.areasMap());
+
+        Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(study, dispatchResult, thermalClusterProps);
 
         Map<String, Object> jsonForGenerator = new TreeMap<>();
         jsonForGenerator.put(study.getName(), innerGeneratorMap);
@@ -160,13 +160,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
      * they are encountered
      */
     private record TrajectoryDispatchResult(Map<String, Object> areasMap, Map<String, Object> linksMap,
-                                             Optional<TrajectoryEntity> nuclearModulationTrajectory,
-                                             Optional<TrajectoryEntity> nuclearTalonTrajectory,
-                                             Optional<TrajectoryEntity> settingsTrajectory,
-                                             Optional<TrajectoryEntity> flowbasedTrajectory,
-                                             Optional<TrajectoryEntity> scenarioBuilderTrajectory,
-                                             Optional<TrajectoryEntity> areaMeTrajectory,
-                                             Optional<TrajectoryEntity> linkMeTrajectory) {}
                                              Map<TrajectoryType, TrajectoryEntity> singleTrajectoryByType) {
 
         Optional<TrajectoryEntity> trajectoryOfType(TrajectoryType type) {
@@ -179,13 +172,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                                            NuclearAvailabilityAssemblyResult nuclearAvailability) {
         Map<String, Object> areasMap = new TreeMap<>();
         Map<String, Object> linksMap = new TreeMap<>();
-        Optional<TrajectoryEntity> nuclearModulationTraj = Optional.empty();
-        Optional<TrajectoryEntity> nuclearTalonTraj = Optional.empty();
-        Optional<TrajectoryEntity> settingsTraj = Optional.empty();
-        Optional<TrajectoryEntity> flowbasedTraj = Optional.empty();
-        Optional<TrajectoryEntity> scenarioBuilderTraj = Optional.empty();
-        Optional<TrajectoryEntity> areaMeTraj = Optional.empty();
-        Optional<TrajectoryEntity> linkMeTraj = Optional.empty();
         Map<TrajectoryType, TrajectoryEntity> singleTrajectoryByType = new EnumMap<>(TrajectoryType.class);
 
         for (TrajectoryEntity trajectory : trajectories) {
@@ -194,13 +180,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             switch (trajectoryType) {
                 case AREA -> buildAreasDataMap(study, trajectory, areasMap, thermalClusterProps, nuclearAvailability);
-                case AREA_ME -> areaMeTraj = Optional.of(trajectory);
                 case LINK -> linksToJsonService.buildLinksDataMap(trajectory, linksMap, study);
-                case LINK_ME -> linkMeTraj = Optional.of(trajectory);
-                case P2G_CAPACITY_COST, P2G_MARKET_MODULATION ->
-                        log.warn("Multi energy trajectory {} handled separately", trajectory.getFileName());
-                case SETTINGS -> settingsTraj = Optional.of(trajectory);
-                case SCENARIO_BUILDER -> scenarioBuilderTraj = Optional.of(trajectory);
                 case ADEQUACY_PATCH -> log.warn("Adequacy patch trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
                 case LOAD ->
                         log.warn("Load trajectory type is managed in AREA  trajectory: {}", trajectory.getFileName());
@@ -223,7 +203,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
-                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION -> singleTrajectoryByType.put(trajectoryType, trajectory);
+                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME -> singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -288,8 +268,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             innerGeneratorMap.put("binding_constraints", bindingConstraints);
         }
 
-        Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.areaMeTrajectory();
-        Optional<TrajectoryEntity> linkMeTrajectory = dispatchResult.linkMeTrajectory();
+        Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.AREA_ME);
+        Optional<TrajectoryEntity> linkMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
         if (areaMeTrajectory.isPresent() || linkMeTrajectory.isPresent()) {
             Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(study, areaMeTrajectory.orElse(null), linkMeTrajectory.orElse(null));
             if (meMap != null && !meMap.isEmpty()) {

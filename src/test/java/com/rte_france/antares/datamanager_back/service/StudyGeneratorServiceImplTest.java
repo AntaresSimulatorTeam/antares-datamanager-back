@@ -252,7 +252,6 @@ class StudyGeneratorServiceImplTest {
                 .when(adequacySettingsAssemblerService).assembleAdequacyModeByArea(any());
         lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().findAdequacyTrajectory(inv.getArgument(0)))
                 .when(adequacySettingsAssemblerService).findAdequacyTrajectory(any());
-        lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl().resolveMode(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
         lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl()
                         .resolveMode(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
                 .when(adequacySettingsAssemblerService).resolveMode(any(), any(), any());
