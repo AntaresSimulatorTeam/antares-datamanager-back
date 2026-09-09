@@ -428,8 +428,8 @@ class StudyGeneratorServiceImplTest {
     @Test
     void buildJsonForStudyGeneration_shouldIncludeLoadFilesByArea_withOthersArea() throws Exception {
         // Prépare un TrajectoryEntity LOAD avec area OTHERS et deux fichiers
-        LoadEntity load1 = LoadEntity.builder().outPutFileName("load_fr_2030-2031.txt").build();
-        LoadEntity load2 = LoadEntity.builder().outPutFileName("load_de_2030-2031.txt").build();
+        LoadEntity load1 = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build();
+        LoadEntity load2 = LoadEntity.builder().fileName("load_de_2030-2031.txt").build();
 
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder().type("LOAD").area("OTHERS").build();
         loadTrajectory.addLoadEntity(load1);
@@ -474,7 +474,7 @@ class StudyGeneratorServiceImplTest {
     @Test
     void buildJsonForStudyGeneration_shouldIncludeLoadFilesByArea_withExplicitArea() throws Exception {
         // Prépare un TrajectoryEntity LOAD avec area explicite
-        LoadEntity load1 = LoadEntity.builder().outPutFileName("load_fr_2030-2031.txt").build();
+        LoadEntity load1 = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build();
 
         TrajectoryEntity loadTrajectory = TrajectoryEntity.builder().type("LOAD").area("FR").loadEntities(Set.of(load1)).build();
 

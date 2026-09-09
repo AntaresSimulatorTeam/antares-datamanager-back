@@ -26,9 +26,6 @@ public class LoadEntity {
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
-    @Column(name = "output_file_name")
-    private String outPutFileName;
-
     @Column(name = "area")
     private String area;
 

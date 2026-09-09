@@ -43,6 +43,9 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.load.directory}")
     public String loadDirectory;
 
+    @Value("${antares.datamanager.load.me.directory}")
+    public String loadMeDirectory;
+
     @Value("${antares.datamanager.sts.directory}")
     public String stsDirectory;
 

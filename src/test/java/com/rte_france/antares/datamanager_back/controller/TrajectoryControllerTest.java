@@ -374,4 +374,43 @@ class TrajectoryControllerTest {
                         .value("Trajectory name cannot exceed 40 characters"))
                 .andExpect(jsonPath("$.type").value("BUSINESS"));
     }
+
+    @Test
+    void uploadLoadMeTrajectory_returnsCreatedTrajectory() throws Exception {
+        when(trajectoryServiceImpl.processLoadMeTrajectory(any(), any(), any()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory/load-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        Mockito.verify(trajectoryServiceImpl, Mockito.times(1))
+                .processLoadMeTrajectory(any(), any(), any());
+    }
+
+    @Test
+    void uploadLoadMeTrajectory_returnsBadRequestForInvalidHorizon() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/load-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void uploadLoadMeTrajectory_returnsBadRequestForMissingParams() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/load-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
 }

@@ -1459,8 +1459,8 @@ class TrajectoryServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.getLoadEntities().size());
-        assertNull(result.getLoadEntities().iterator().next().getOutPutFileName(),
-                "Should be null because .arrow is generated later"
+        assertEquals("load1", result.getLoadEntities().iterator().next().getFileName(),
+                "Should contain the load file name"
         );
         verify(nasFileService, never()).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
     }
@@ -4971,6 +4971,672 @@ class TrajectoryServiceImplTest {
 
         // Verify findById_ScenarioId was called once for cascade delete
         verify(studyTrajectoryRepository, times(1)).findById_ScenarioId(studyId);
+    }
+
+    /**
+     * Test: unlinkLinkMeTrajectoriesToAreaMe directly - no trajectories to unlink
+     */
+    @Test
+    void unlinkLinkMeTrajectoriesToAreaMe_withNoTrajectories_handlesGracefully() {
+        // Given
+        Integer studyId = 100;
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+                .thenReturn(List.of());
+
+        // When
+        trajectoryService.unlinkLinkMeTrajectoriesToAreaMe(studyId);
+
+        // Then
+        verify(studyTrajectoryRepository, times(1)).findById_ScenarioId(studyId);
+        verify(studyTrajectoryRepository, never()).delete(any());
+    }
+
+    /**
+     * Test: unlinkLinkMeTrajectoriesToAreaMe directly - only LINK_ME trajectories
+     */
+    @Test
+    void unlinkLinkMeTrajectoriesToAreaMe_withOnlyLinkMeTrajectories_deletesAll() {
+        // Given
+        Integer studyId = 100;
+        Integer linkMeId1 = 1;
+        Integer linkMeId2 = 2;
+
+        TrajectoryEntity linkMeT1 = TrajectoryEntity.builder()
+                .id(linkMeId1)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+
+        TrajectoryEntity linkMeT2 = TrajectoryEntity.builder()
+                .id(linkMeId2)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>(Set.of(linkMeT1, linkMeT2)))
+                .build();
+
+        StudyTrajectoryKey key1 = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeId1)
+                .scenarioId(studyId)
+                .build();
+
+        StudyTrajectoryKey key2 = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeId2)
+                .scenarioId(studyId)
+                .build();
+
+        StudyTrajectoryEntity entity1 = StudyTrajectoryEntity.builder()
+                .id(key1)
+                .studyEntity(study)
+                .trajectory(linkMeT1)
+                .build();
+
+        StudyTrajectoryEntity entity2 = StudyTrajectoryEntity.builder()
+                .id(key2)
+                .studyEntity(study)
+                .trajectory(linkMeT2)
+                .build();
+
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+                .thenReturn(List.of(entity1, entity2));
+
+        // When
+        trajectoryService.unlinkLinkMeTrajectoriesToAreaMe(studyId);
+
+        // Then
+        verify(studyTrajectoryRepository, times(1)).delete(entity1);
+        verify(studyTrajectoryRepository, times(1)).delete(entity2);
+        verify(studyTrajectoryRepository, times(2)).delete(any());
+    }
+
+    /**
+     * Test: unlinkLinkMeTrajectoriesToAreaMe directly - mixed trajectory types
+     */
+    @Test
+    void unlinkLinkMeTrajectoriesToAreaMe_withMixedTypes_deletesOnlyLinkMeAndAreaMe() {
+        // Given
+        Integer studyId = 100;
+        Integer linkMeId = 1;
+        Integer areaId = 2;
+        Integer dsrId = 3;
+
+        TrajectoryEntity linkMeT = TrajectoryEntity.builder()
+                .id(linkMeId)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+
+        TrajectoryEntity areaT = TrajectoryEntity.builder()
+                .id(areaId)
+                .type(TrajectoryType.AREA_ME.name())
+                .build();
+
+        TrajectoryEntity dsrT = TrajectoryEntity.builder()
+                .id(dsrId)
+                .type(TrajectoryType.DSR.name())
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>(Set.of(linkMeT, areaT, dsrT)))
+                .build();
+
+        StudyTrajectoryKey linkMeKey = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeId)
+                .scenarioId(studyId)
+                .build();
+
+        StudyTrajectoryKey areaKey = StudyTrajectoryKey.builder()
+                .trajectoryId(areaId)
+                .scenarioId(studyId)
+                .build();
+
+        StudyTrajectoryKey dsrKey = StudyTrajectoryKey.builder()
+                .trajectoryId(dsrId)
+                .scenarioId(studyId)
+                .build();
+
+        StudyTrajectoryEntity linkMeEntity = StudyTrajectoryEntity.builder()
+                .id(linkMeKey)
+                .studyEntity(study)
+                .trajectory(linkMeT)
+                .build();
+
+        StudyTrajectoryEntity areaEntity = StudyTrajectoryEntity.builder()
+                .id(areaKey)
+                .studyEntity(study)
+                .trajectory(areaT)
+                .build();
+
+        StudyTrajectoryEntity dsrEntity = StudyTrajectoryEntity.builder()
+                .id(dsrKey)
+                .studyEntity(study)
+                .trajectory(dsrT)
+                .build();
+
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+                .thenReturn(List.of(linkMeEntity, areaEntity, dsrEntity));
+
+        // When
+        trajectoryService.unlinkLinkMeTrajectoriesToAreaMe(studyId);
+
+        // Then
+        // Only LINK_ME and AREA_ME should be deleted
+        verify(studyTrajectoryRepository, times(1)).delete(linkMeEntity);
+        verify(studyTrajectoryRepository, times(1)).delete(areaEntity);
+        verify(studyTrajectoryRepository, never()).delete(dsrEntity);
+        verify(studyTrajectoryRepository, times(2)).delete(any());
+    }
+
+    /**
+     * Test: unlinkLinkMeTrajectoriesToAreaMe - removeTrajectoryEntity is called
+     */
+    @Test
+    void unlinkLinkMeTrajectoriesToAreaMe_callsRemoveTrajectoryEntityOnStudy() {
+        // Given
+        Integer studyId = 100;
+        Integer linkMeId = 1;
+
+        TrajectoryEntity linkMeT = TrajectoryEntity.builder()
+                .id(linkMeId)
+                .type(TrajectoryType.LINK_ME.name())
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>(Set.of(linkMeT)))
+                .build();
+
+        StudyTrajectoryKey key = StudyTrajectoryKey.builder()
+                .trajectoryId(linkMeId)
+                .scenarioId(studyId)
+                .build();
+
+        StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder()
+                .id(key)
+                .studyEntity(study)
+                .trajectory(linkMeT)
+                .build();
+
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+                .thenReturn(List.of(entity));
+
+        // When
+        trajectoryService.unlinkLinkMeTrajectoriesToAreaMe(studyId);
+
+        // Then
+        verify(studyTrajectoryRepository, times(1)).delete(entity);
+        assertTrue(study.getTrajectories().isEmpty() || !study.getTrajectories().contains(linkMeT));
+    }
+
+    /**
+     * Test: unlinkLinkMeTrajectoriesToAreaMe - handles large number of trajectories
+     */
+    @Test
+    void unlinkLinkMeTrajectoriesToAreaMe_withManyTrajectories_deletesAllLinkMeAndAreaMe() {
+        // Given
+        Integer studyId = 100;
+        List<StudyTrajectoryEntity> trajectories = new ArrayList<>();
+        StudyEntity study = StudyEntity.builder()
+                .id(studyId)
+                .trajectories(new HashSet<>())
+                .build();
+
+        // Create 10 LINK_ME and 5 other type trajectories
+        for (int i = 0; i < 10; i++) {
+            TrajectoryEntity linkMeT = TrajectoryEntity.builder()
+                    .id(i)
+                    .type(TrajectoryType.LINK_ME.name())
+                    .build();
+            study.getTrajectories().add(linkMeT);
+
+            StudyTrajectoryKey key = StudyTrajectoryKey.builder()
+                    .trajectoryId(i)
+                    .scenarioId(studyId)
+                    .build();
+
+            StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder()
+                    .id(key)
+                    .studyEntity(study)
+                    .trajectory(linkMeT)
+                    .build();
+            trajectories.add(entity);
+        }
+
+        // Add 5 DSR trajectories
+        for (int i = 10; i < 15; i++) {
+            TrajectoryEntity dsrT = TrajectoryEntity.builder()
+                    .id(i)
+                    .type(TrajectoryType.DSR.name())
+                    .build();
+            study.getTrajectories().add(dsrT);
+
+            StudyTrajectoryKey key = StudyTrajectoryKey.builder()
+                    .trajectoryId(i)
+                    .scenarioId(studyId)
+                    .build();
+
+            StudyTrajectoryEntity entity = StudyTrajectoryEntity.builder()
+                    .id(key)
+                    .studyEntity(study)
+                    .trajectory(dsrT)
+                    .build();
+            trajectories.add(entity);
+        }
+
+        when(studyTrajectoryRepository.findById_ScenarioId(studyId))
+                .thenReturn(trajectories);
+
+        // When
+        trajectoryService.unlinkLinkMeTrajectoriesToAreaMe(studyId);
+
+        // Then
+        // Only 10 LINK_ME trajectories should be deleted, not the 5 DSR
+        verify(studyTrajectoryRepository, times(10)).delete(any());
+    }
+
+    // ==================== LoadMe Trajectory Service Tests ====================
+
+    @Test
+    void processLoadMeTrajectory_savesTrajectoryAndProcessesLoadMeFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        String trajectoryToUse = "testLoadMeTrajectory";
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        // Create test directory and files with correct pattern: load_<area>_<horizon>.csv
+        Path loadMeDir = tempDir.resolve("load_me");
+        Files.createDirectories(loadMeDir);
+        Path trajDir = loadMeDir.resolve(trajectoryToUse);
+        Files.createDirectories(trajDir);
+        // Create dummy load files with correct names
+        Files.createFile(trajDir.resolve("load_fr_2030-2031.csv"));
+        Files.createFile(trajDir.resolve("load_de_2030-2031.csv"));
+
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .type(TrajectoryType.LOAD_ME.name())
+                .version(1)
+                .loadEntities(new HashSet<>())
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
+        when(loadRepository.findByFileNameAndTrajectoryFileName(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+
+        // When
+        TrajectoryEntity result = trajectoryService.processLoadMeTrajectory(trajectoryToUse, horizon, studyId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.getVersion());
+        assertEquals(trajectoryToUse, result.getFileName());
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processLoadMeTrajectory_throwsExceptionWhenTrajectoryNameIsNull() {
+        // Given
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processLoadMeTrajectory(null, horizon, studyId));
+
+        assertEquals("Trajectory name and horizon must not be null", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void processLoadMeTrajectory_throwsExceptionWhenHorizonIsNull() {
+        // Given
+        String trajectoryToUse = "testLoadMeTrajectory";
+        Integer studyId = 1;
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processLoadMeTrajectory(trajectoryToUse, null, studyId));
+
+        assertEquals("Trajectory name and horizon must not be null", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void processLoadMeTrajectory_throwsExceptionWhenUserNotFound() {
+        // Given
+        String trajectoryToUse = "testLoadMeTrajectory";
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        when(userService.getCurrentUserDetails()).thenReturn(null);
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processLoadMeTrajectory(trajectoryToUse, horizon, studyId));
+
+        assertEquals("User NNI could not be determined", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void processLoadMeTrajectory_throwsExceptionWhenSameContentAlreadyProcessed(@TempDir Path tempDir) throws IOException {
+        // Given
+        String trajectoryToUse = "testLoadMeTrajectory";
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        // Create test directory and files
+        Path loadMeDir = tempDir.resolve("load_me");
+        Files.createDirectories(loadMeDir);
+        Path trajDir = loadMeDir.resolve(trajectoryToUse);
+        Files.createDirectories(trajDir);
+        Files.createFile(trajDir.resolve("load_fr_2030-2031.csv"));
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .type(TrajectoryType.LOAD_ME.name())
+                .version(1)
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        try (var utilsMock = mockStatic(Utils.class)) {
+            utilsMock.when(() -> Utils.isSameTrajectory(any(Path.class), any(TrajectoryEntity.class))).thenReturn(true);
+
+            // When & Then
+            BusinessException exception = assertThrows(BusinessException.class, () ->
+                    trajectoryService.processLoadMeTrajectory(trajectoryToUse, horizon, studyId));
+
+            assertEquals("File already processed with same content {0}", exception.getMessage());
+            assertEquals(List.of(trajectoryToUse), exception.getErrorMessageArguments());
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        }
+    }
+
+    @Test
+    void processLoadMeTrajectory_incrementsVersionForDifferentContent(@TempDir Path tempDir) throws IOException {
+        // Given
+        String trajectoryToUse = "testLoadMeTrajectory";
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        // Create test directory and files
+        Path loadMeDir = tempDir.resolve("load_me");
+        Files.createDirectories(loadMeDir);
+        Path trajDir = loadMeDir.resolve(trajectoryToUse);
+        Files.createDirectories(trajDir);
+        Files.createFile(trajDir.resolve("load_fr_2030-2031.csv"));
+
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .type(TrajectoryType.LOAD_ME.name())
+                .version(2)
+                .build();
+
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .type(TrajectoryType.LOAD_ME.name())
+                .version(3)
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name()))
+                .thenReturn(Optional.of(existingTrajectory));
+        when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
+
+        try (var utilsMock = mockStatic(Utils.class)) {
+            utilsMock.when(() -> Utils.isSameTrajectory(any(Path.class), any(TrajectoryEntity.class))).thenReturn(false);
+
+            // When
+            TrajectoryEntity result = trajectoryService.processLoadMeTrajectory(trajectoryToUse, horizon, studyId);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(3, result.getVersion());
+            verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+        }
+    }
+
+    // Tests for buildAndSaveLoadMeTrajectory, validateLoadMeAreasAgainstAreaMeForTrajectory,
+    // validateLoadMeAreasAgainstAreaMe methods
+
+    @Test
+    void buildAndSaveLoadMeTrajectory_savesLoadEntitiesSuccessfully(@TempDir Path tempDir) throws IOException {
+        // Given
+        String horizon = "2030-2031";
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("testLoadMe")
+                .horizon(horizon)
+                .type(TrajectoryType.LOAD_ME.name())
+                .version(1)
+                .loadEntities(new HashSet<>())
+                .build();
+
+        // Create test CSV files with correct pattern: load_<area>_<horizon>.csv
+        Path loadMeDir = tempDir.resolve("load_me");
+        Files.createDirectories(loadMeDir);
+        Path trajDir = loadMeDir.resolve("testLoadMe");
+        Files.createDirectories(trajDir);
+        Files.createFile(trajDir.resolve("load_fr_2030-2031.csv"));
+        Files.createFile(trajDir.resolve("load_de_2030-2031.csv"));
+        Files.createFile(trajDir.resolve("load_it_2030-2031.csv"));
+
+        // Mock the area config entities for AREA_ME validation
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        AreaConfigEntity areaConfigDe = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("DE").build())
+                .build();
+
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr, areaConfigDe))
+                .build();
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
+        when(loadRepository.findByFileNameAndTrajectoryFileName(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenReturn(loadMeTrajectory);
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), 1))
+                .thenReturn(List.of(areaMeTrajectory));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+
+        // When
+        TrajectoryEntity result = trajectoryService.processLoadMeTrajectory("testLoadMe", horizon, 1);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("testLoadMe", result.getFileName());
+        assertEquals(horizon, result.getHorizon());
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void buildAndSaveLoadMeTrajectory_throwsExceptionWhenNoValidFilesFound(@TempDir Path tempDir) throws IOException {
+        // Given
+        String horizon = "2030-2031";
+
+        // Create the load_me directory structure but with wrong pattern/horizon files
+        Path loadMeDir = tempDir.resolve("load_me");
+        Files.createDirectories(loadMeDir);
+        Path trajDir = loadMeDir.resolve("testLoadMe");
+        Files.createDirectories(trajDir);
+        Files.createFile(trajDir.resolve("invalid_file.csv"));
+        Files.createFile(trajDir.resolve("load_fr_2020-2021.csv"));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.processLoadMeTrajectory("testLoadMe", horizon, 1));
+
+        assertEquals("No valid load files found in the trajectory path for horizon: {0}", exception.getMessage());
+        assertEquals(List.of(horizon), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    void validateLoadMeAreasAgainstAreaMeForTrajectory_validatesSuccessfully() {
+        // Given
+        Integer studyId = 1;
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("testLoadMe")
+                .type(TrajectoryType.LOAD_ME.name())
+                .loadEntities(Set.of(
+                        LoadEntity.builder().fileName("load_fr_2030-2031.csv").area("FR").build(),
+                        LoadEntity.builder().fileName("load_de_2030-2031.csv").area("DE").build()
+                ))
+                .build();
+
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        AreaConfigEntity areaConfigDe = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("DE").build())
+                .build();
+
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr, areaConfigDe))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        // When - no exception should be thrown
+        assertDoesNotThrow(() ->
+                trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
+    }
+
+    @Test
+    void validateLoadMeAreasAgainstAreaMeForTrajectory_throwsExceptionWhenNoMatchingArea() {
+        // Given
+        Integer studyId = 1;
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("testLoadMe")
+                .type(TrajectoryType.LOAD_ME.name())
+                .loadEntities(Set.of(
+                        LoadEntity.builder().fileName("load_es_2030-2031.csv").area("ES").build()
+                ))
+                .build();
+
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
+
+        assertEquals("No area from the AREAS_ME trajectory is present in LOAD_ME trajectory {0}", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void validateLoadMeAreasAgainstAreaMeForTrajectory_skipsWhenNoLoadEntities() {
+        // Given
+        Integer studyId = 1;
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("testLoadMe")
+                .type(TrajectoryType.LOAD_ME.name())
+                .loadEntities(new HashSet<>())
+                .build();
+
+        // When - should not throw exception
+        assertDoesNotThrow(() ->
+                trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
+    }
+
+    @Test
+    void validateLoadMeAreasAgainstAreaMe_matchesAreaWithMixedCase() {
+        // Given
+        String trajectoryToUse = "testLoadMe";
+        String horizon = "2030-2031";
+        Integer studyId = 1;
+
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        AreaConfigEntity areaConfigDe = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("DE").build())
+                .build();
+
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr, areaConfigDe))
+                .build();
+
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryToUse)
+                .horizon(horizon)
+                .type(TrajectoryType.LOAD_ME.name())
+                .version(1)
+                .loadEntities(Set.of(
+                        LoadEntity.builder().fileName("load_fr_2030-2031.csv").area("fr").build()
+                ))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        // When - should not throw exception due to case-insensitive matching
+        assertDoesNotThrow(() ->
+                trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
     }
 }
 
