@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,13 +16,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -88,6 +87,8 @@ class MultiEnergyServiceImplTest {
         // Given
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
                 .thenReturn(Map.of("area_me", "outside"));
+        when(adequacySettingsAssemblerService.resolveMode(eq("area_me"), any(), any()))
+                .thenReturn(Optional.of("outside"));
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory);
@@ -135,8 +136,7 @@ class MultiEnergyServiceImplTest {
 
         assertThat(properties)
                 .containsEntry("energy_cost_unsupplied", 4000.0)
-                .containsEntry("energy_cost_spilled", 200.0)
-                .containsEntry("adequacy_patch_mode", null);
+                .containsEntry("energy_cost_spilled", 200.0);
     }
 
 
@@ -179,9 +179,21 @@ class MultiEnergyServiceImplTest {
                 .type(TrajectoryType.AREA_ME.name())
                 .areaConfigEntities(List.of(config1, config2))
                 .build();
+        AdequacyModeEntity adequacyModeAreaMe = AdequacyModeEntity.builder().area("area1_me").mode("inside").build();
+        TrajectoryEntity adequacyTrajectory = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adq.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeAreaMe, AdequacyModeEntity.builder().area("AREA1_ME").mode("inside").build()))
+                .adequacySettingsEntities(Collections.emptyList())
+                .build();
 
+        when(adequacySettingsAssemblerService.findAdequacyTrajectory(any())).thenReturn(Optional.of(adequacyTrajectory));
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
                 .thenReturn(Map.of("AREA1_ME", "inside", "AREA2_ME", "outside"));
+        when(adequacySettingsAssemblerService.resolveMode(eq("AREA1_ME"), any(), any()))
+                .thenReturn(Optional.of("inside"));
+        when(adequacySettingsAssemblerService.resolveMode(eq("AREA2_ME"), any(), any()))
+                .thenReturn(Optional.of("outside"));
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, multipleAreaMeTrajectory);
@@ -251,6 +263,8 @@ class MultiEnergyServiceImplTest {
         // Given
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
                 .thenReturn(Map.of("area_me", "inside"));
+        when(adequacySettingsAssemblerService.resolveMode(eq("area_me"), any(), any()))
+                .thenReturn(Optional.of("inside"));
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory, linkMeTrajectory);

@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettings
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -68,7 +69,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         if (areaMeTrajectory == null || areaMeTrajectory.getAreaConfigEntities() == null) {
             return Collections.emptyMap();
         }
-
+        TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
         Map<String, String> adequacyModeByArea = study != null
                 ? adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)
                 : Collections.emptyMap();
@@ -88,8 +89,11 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             propertiesMap.put(ENERGY_COST_UNSUPPLIED, areaConfig.getUnsuppliedEnergyCost());
             propertiesMap.put(ENERGY_COST_SPILLED, areaConfig.getSpilledEnergyCost());
 
-            String adequacyMode = findAdequacyMode(areaName, adequacyModeByArea);
-            propertiesMap.put(ADEQUACY_PATCH_MODE, adequacyMode);
+            String adequacyMode = adequacySettingsAssemblerService.resolveMode(areaName, adequacyTrajectory, adequacyModeByArea).orElse(null);
+            if (StringUtils.isNotBlank(adequacyMode)) {
+                propertiesMap.put(ADEQUACY_PATCH_MODE, adequacyMode);
+            }
+
 
             areaEntryMap.put(PROPERTIES, propertiesMap);
             areaEntryMap.put(UI, AREA_UI_PLACEHOLDER);
@@ -126,15 +130,5 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         return linksMap;
     }
 
-    private String findAdequacyMode(String areaName, Map<String, String> adequacyModeByArea) {
-        if (adequacyModeByArea == null || adequacyModeByArea.isEmpty()) {
-            return null;
-        }
-        return adequacyModeByArea.entrySet().stream()
-                .filter(entry -> entry.getKey().equalsIgnoreCase(areaName))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(null);
-    }
 
 }

@@ -139,9 +139,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         dispatchResult.nuclearModulationTrajectory().ifPresent(traj ->
                 dispatchResult.areasMap().put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps, nuclearAvailability)));
 
-        assembleAdequacyModeForStudyAreas(study, dispatchResult.areasMap());
-
         Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(study, dispatchResult, thermalClusterProps);
+
+        assembleAdequacyModeForStudyAreas(study, dispatchResult.areasMap());
 
         Map<String, Object> jsonForGenerator = new TreeMap<>();
         jsonForGenerator.put(study.getName(), innerGeneratorMap);
@@ -403,35 +403,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private void assembleAdequacyModeForStudyAreas(StudyEntity study, Map<String, Object> areasMap) throws BusinessException {
-        TrajectoryEntity adequacyTrajectory = study.getTrajectories() != null
-                ? study.getTrajectories().stream()
-                        .filter(t -> TrajectoryType.ADEQUACY_PATCH.name().equals(t.getType()))
-                        .findFirst()
-                        .orElse(null)
-                : null;
-
+        TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
         Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
         for (Map.Entry<String, Object> areaEntry : areasMap.entrySet()) {
             String areaName = areaEntry.getKey();
             if (areaEntry.getValue() instanceof Map<?, ?> rawAreaData) {
                 Map<String, Object> propertiesMap = getPropertiesMap((Map<String, Object>) rawAreaData);
-                if (adequacyTrajectory != null) {
-                    String matchingKey = adequacyModeByArea.keySet().stream()
-                            .filter(key -> key.equalsIgnoreCase(areaName))
-                            .findFirst()
-                            .orElse(null);
-                    if (matchingKey == null) {
-                        throw BusinessException.builder()
-                                .message("Area: {0} is not present in the list of areas for adequacy configuration , trajectory : {1}")
-                                .errorMessageArguments(List.of(areaName, adequacyTrajectory.getFileName()))
-                                .httpStatus(HttpStatus.BAD_REQUEST)
-                                .build();
-                    }
-                    propertiesMap.put(ADEQUACY_PATCH_MODE, adequacyModeByArea.get(matchingKey));
-                } else {
-                    propertiesMap.put(ADEQUACY_PATCH_MODE, null);
-                }
+                adequacySettingsAssemblerService.resolveMode(areaName, adequacyTrajectory, adequacyModeByArea)
+                        .ifPresent(mode -> propertiesMap.put(ADEQUACY_PATCH_MODE, mode));
             }
         }
     }
@@ -462,7 +442,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> areaProperties = new HashMap<>();
         areaProperties.put("energy_cost_unsupplied", areaDTO.getUnsuppliedEnergyCost());
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
-        areaProperties.put(ADEQUACY_PATCH_MODE, null);
         areaMap.put(PROPERTIES, areaProperties);
 
         Map<String, ThermalClusterGenerationDto> allClusters = context.getClusterPropsByArea().get(areaDTO.getName());
