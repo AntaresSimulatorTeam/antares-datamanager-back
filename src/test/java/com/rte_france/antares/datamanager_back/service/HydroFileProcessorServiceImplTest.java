@@ -1021,14 +1021,14 @@ class HydroFileProcessorServiceImplTest {
 
     @Test
     void isValueWithinInterval_returnsTrueWhenNotWithinInterval() {
-        assertFalse(HydroFileProcessorServiceImpl.isValueWithinInterval("3"));
-        assertFalse(HydroFileProcessorServiceImpl.isInteger("8"));
+        assertTrue(HydroFileProcessorServiceImpl.isValueWithinInterval("3"));
+        assertTrue(HydroFileProcessorServiceImpl.isValueWithinInterval("8"));
     }
 
     @Test
     void isValueWithinInterval_returnsFalseWhenNotWithinInterval() {
         assertFalse(HydroFileProcessorServiceImpl.isValueWithinInterval("0"));
-        assertFalse(HydroFileProcessorServiceImpl.isInteger("34"));
+        assertFalse(HydroFileProcessorServiceImpl.isValueWithinInterval("34"));
     }
 
     // -------------------------------------------------------------------------
