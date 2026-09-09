@@ -11,6 +11,7 @@ public class HydroMapper {
 
     public static HydroGenerationDTO mapToHydroGenerationDTO(HydroParametersEntity entity) {
         HydroPropertiesGenerationDTO properties = null;
+        var reservoirDate = entity.getInitializeReservoirDate() != null ? entity.getInitializeReservoirDate() - 1 : null;
         if (entity != null) {
             properties = HydroPropertiesGenerationDTO.builder()
                     .followLoadModulation(entity.getFollowLoad())
@@ -20,7 +21,7 @@ public class HydroMapper {
                     .reservoirManagement(entity.getReservoir())
                     .reservoirCapacity(entity.getReservoirCapacity())
                     .pumpingEfficiency(entity.getPumpingEfficiency())
-                    .initializeReservoirDate(entity.getInitializeReservoirDate())
+                    .initializeReservoirDate(reservoirDate)
                     .useWater(entity.getUseWater())
                     .build();
         }
