@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.scenario_builder.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
+import com.rte_france.antares.datamanager_back.exception.AntaresErrorCode;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ScenarioBuilderRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -39,7 +40,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
 
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String SCENARIO_BUILDER_FILE_SUFFIX = ".xlsx";
-
+    private static final int SB_FILE_NAME_MAX_SIZE= 40;
     private final TrajectoryRepository trajectoryRepository;
     private final ScenarioBuilderRepository scenarioBuilderRepository;
     private final TrajectoryServiceImpl trajectoryService;
@@ -69,6 +70,18 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
         String fileNameWithExt = trajectoryToUse.endsWith(SCENARIO_BUILDER_FILE_SUFFIX)
                 ? trajectoryToUse
                 : trajectoryToUse + SCENARIO_BUILDER_FILE_SUFFIX;
+
+        String rawNameWithoutExt = trajectoryToUse.endsWith(SCENARIO_BUILDER_FILE_SUFFIX)
+                ? trajectoryToUse.substring(0, trajectoryToUse.length() - SCENARIO_BUILDER_FILE_SUFFIX.length())
+                : trajectoryToUse;
+
+        if (rawNameWithoutExt.length() > SB_FILE_NAME_MAX_SIZE) {
+            throw BusinessException.builder()
+                    .antaresErrorCode(AntaresErrorCode.INVALID_TRAJECTORY_NAME)
+                    .message("Trajectory name cannot exceed 40 characters")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
 
         Path normalizedTrajectoryFolder = trajectoryFolder
                 .toAbsolutePath()
@@ -101,9 +114,9 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
 
         if (existingTrajectoryOpt.isEmpty()) {
             existingTrajectoryOpt = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                    trajectoryFileName,
-                    horizon,
-                    SCENARIO_BUILDER.name()
+                trajectoryFileName,
+                horizon,
+                SCENARIO_BUILDER.name()
             );
         }
 
@@ -121,6 +134,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
             }
         }
 
+        List<ScenarioBuilderEntity> entities = readScenarioBuilderFile(filePath, trajectoryToUse);
 
         UserInfoDto currentUserDetails =
                 userService != null ? userService.getCurrentUserDetails() : null;
@@ -146,7 +160,9 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
 
         TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
 
-        List<ScenarioBuilderEntity> entities = readScenarioBuilderFile(filePath, savedTrajectory);
+        for (ScenarioBuilderEntity entity : entities) {
+            entity.setTrajectory(savedTrajectory);
+        }
         scenarioBuilderRepository.saveAll(entities);
 
         if (studyId != null) {
@@ -159,7 +175,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
         return savedTrajectory;
     }
 
-    private List<ScenarioBuilderEntity> readScenarioBuilderFile(Path filePath, TrajectoryEntity trajectory) throws IOException {
+    private List<ScenarioBuilderEntity> readScenarioBuilderFile(Path filePath, String trajectoryName) throws IOException {
         List<ScenarioBuilderEntity> entities = new ArrayList<>();
         DataFormatter dataFormatter = new DataFormatter();
 
@@ -167,6 +183,14 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
+            if (!hasDataStartingFromRow2(sheet)) {
+                throw BusinessException.builder()
+                        .message("No data in ScenarioBuilder trajectory {0}")
+                        .errorMessageArguments(List.of(trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
             String currentCategory = "";
             for (Row row : sheet) {
                 if (row == null) continue;
@@ -185,12 +209,39 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                 ScenarioBuilderEntity entity = ScenarioBuilderEntity.builder()
                         .category(currentCategory)
                         .modulo(trimmed)
-                        .trajectory(trajectory)
                         .build();
                 entities.add(entity);
+            }
+
+            if (entities.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("No data in ScenarioBuilder trajectory {0}")
+                        .errorMessageArguments(List.of(trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         }
 
         return entities;
+    }
+
+    private boolean hasDataStartingFromRow2(Sheet sheet) {
+        if (sheet == null) {
+            return false;
+        }
+        DataFormatter dataFormatter = new DataFormatter();
+        for (Row row : sheet) {
+            if (row != null && row.getRowNum() >= 1) {
+                for (Cell cell : row) {
+                    if (cell != null) {
+                        String cellValue = dataFormatter.formatCellValue(cell);
+                        if (cellValue != null && !cellValue.trim().isEmpty()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

@@ -18,6 +18,7 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabili
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNames;
+import com.rte_france.antares.datamanager_back.service.p2g.P2gGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
@@ -75,6 +76,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final SettingsToJsonService settingsToJsonService;
     private final ScenarioBuilderToJsonService scenarioBuilderToJsonService;
     private final MultiEnergyService multiEnergyService;
+    private final P2gGenerationAssemblerService p2gGenerationAssemblerService;
 
     private static final String PROPERTIES = "properties";
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
@@ -136,7 +138,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         TrajectoryDispatchResult dispatchResult = dispatchTrajectories(study, trajectories, thermalClusterProps, nuclearAvailability);
 
         // y_nuc_modulation is a virtual node that only contains nuclear clusters
-        dispatchResult.nuclearModulationTrajectory().ifPresent(traj ->
+        dispatchResult.trajectoryOfType(TrajectoryType.NUCLEAR_FR_MODULATION).ifPresent(traj ->
                 dispatchResult.areasMap().put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps, nuclearAvailability)));
 
         Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(study, dispatchResult, thermalClusterProps);
@@ -151,6 +153,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return jsonForGenerator;
     }
 
+    /**
+     * {@code singleTrajectoryByType} holds trajectory types that are unique in the study and
+     * consumed later like (settings, flowbased, scenario builder, nuclear
+     * modulation/talon, P2G capacity-cost/market-modulation). Unlike AREA/LINK which are processed as
+     * they are encountered
+     */
     private record TrajectoryDispatchResult(Map<String, Object> areasMap, Map<String, Object> linksMap,
                                              Optional<TrajectoryEntity> nuclearModulationTrajectory,
                                              Optional<TrajectoryEntity> nuclearTalonTrajectory,
@@ -159,6 +167,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                              Optional<TrajectoryEntity> scenarioBuilderTrajectory,
                                              Optional<TrajectoryEntity> areaMeTrajectory,
                                              Optional<TrajectoryEntity> linkMeTrajectory) {}
+                                             Map<TrajectoryType, TrajectoryEntity> singleTrajectoryByType) {
+
+        Optional<TrajectoryEntity> trajectoryOfType(TrajectoryType type) {
+            return Optional.ofNullable(singleTrajectoryByType.get(type));
+        }
+    }
 
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
@@ -172,6 +186,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> scenarioBuilderTraj = Optional.empty();
         Optional<TrajectoryEntity> areaMeTraj = Optional.empty();
         Optional<TrajectoryEntity> linkMeTraj = Optional.empty();
+        Map<TrajectoryType, TrajectoryEntity> singleTrajectoryByType = new EnumMap<>(TrajectoryType.class);
 
         for (TrajectoryEntity trajectory : trajectories) {
             var trajectoryType = TrajectoryType.valueOf(trajectory.getType());
@@ -205,11 +220,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                         log.warn("HYDRO trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
                 case HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS ->
                         log.warn("HYDRO PSP trajectories are managed in AREA trajectory: {}", trajectory.getFileName());
-                case NUCLEAR_FR_MODULATION -> nuclearModulationTraj = Optional.of(trajectory);
-                case NUCLEAR_FR_TALON -> nuclearTalonTraj = Optional.of(trajectory);
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
-                case FLOWBASED -> flowbasedTraj = Optional.of(trajectory);
+                case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
+                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION -> singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -217,7 +231,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             }
         }
 
-        return new TrajectoryDispatchResult(areasMap, linksMap, nuclearModulationTraj, nuclearTalonTraj, settingsTraj, flowbasedTraj, scenarioBuilderTraj, areaMeTraj, linkMeTraj);
+        return new TrajectoryDispatchResult(areasMap, linksMap, singleTrajectoryByType);
     }
 
     private Map<String, Object> buildScenarioBuilderDataMap(TrajectoryEntity trajectory) {
@@ -233,7 +247,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         // Build settings from parameters (general, optimization, advanced, seeds) if settings trajectory is available
         Map<String, Object> settingsMap;
-        Optional<TrajectoryEntity> settingsTrajectory = dispatchResult.settingsTrajectory();
+        Optional<TrajectoryEntity> settingsTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.SETTINGS);
         if (settingsTrajectory.isPresent()) {
             settingsMap = settingsToJsonService.buildSettingsMap(settingsTrajectory.get().getId());
         } else {
@@ -241,13 +255,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
             settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
         }
-        Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.flowbasedTrajectory();
+        Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.FLOWBASED);
         Map<String, Object> flowbasedMap = new TreeMap<>();
         if (flowbasedTrajectory.isPresent()) {
             flowbasedMap = flowbasedToJsonService.buildFlowbasedMap(flowbasedTrajectory.get(), study.getRecalculate());
         }
 
-        Optional<TrajectoryEntity> scenarioBuilderTrajectory = dispatchResult.scenarioBuilderTrajectory();
+        Optional<TrajectoryEntity> scenarioBuilderTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.SCENARIO_BUILDER);
         if (scenarioBuilderTrajectory.isPresent()) {
             Map<String, Object> scenarioBuilderMap = buildScenarioBuilderDataMap(scenarioBuilderTrajectory.get());
             if (settingsMap == null) {
@@ -264,6 +278,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("areas", areasMap);
         innerGeneratorMap.put("links", dispatchResult.linksMap());
         innerGeneratorMap.put("flowbased", flowbasedMap);
+
+        dispatchResult.trajectoryOfType(TrajectoryType.P2G_CAPACITY_COST).ifPresent(capacityCostTraj ->
+                innerGeneratorMap.put("p2g", p2gGenerationAssemblerService.assembleP2g(
+                        study, capacityCostTraj, dispatchResult.trajectoryOfType(TrajectoryType.P2G_MARKET_MODULATION).orElse(null))));
 
         Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps);
         if (!bindingConstraints.isEmpty()) {
@@ -284,11 +302,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private Map<String, Object> buildBindingConstraintsMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                              Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> bindingConstraints = new LinkedHashMap<>();
-        dispatchResult.nuclearModulationTrajectory().ifPresent(traj ->
+        dispatchResult.trajectoryOfType(TrajectoryType.NUCLEAR_FR_MODULATION).ifPresent(traj ->
                 bindingConstraints.put("nuclear_modulation",
                         nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(
                                 study, traj, extractFrNuclearClusterNames(thermalClusterProps))));
-        dispatchResult.nuclearTalonTrajectory().ifPresent(traj ->
+        dispatchResult.trajectoryOfType(TrajectoryType.NUCLEAR_FR_TALON).ifPresent(traj ->
                 bindingConstraints.put("nuclear_talon",
                         nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(
                                 study, traj, extractFrNuclearClusterNames(thermalClusterProps))));
