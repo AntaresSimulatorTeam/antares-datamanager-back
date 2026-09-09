@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblerService;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearBindingConstraintAssemblerService;
@@ -74,6 +75,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private final NuclearAvailabilityAssemblerService nuclearAvailabilityAssemblerService;
     private final SettingsToJsonService settingsToJsonService;
     private final ScenarioBuilderToJsonService scenarioBuilderToJsonService;
+    private final MultiEnergyService multiEnergyService;
     private final P2gGenerationAssemblerService p2gGenerationAssemblerService;
 
     private static final String PROPERTIES = "properties";
@@ -201,7 +203,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
-                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION -> singleTrajectoryByType.put(trajectoryType, trajectory);
+                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME -> singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -220,7 +222,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                          Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> areasMap = dispatchResult.areasMap();
-        Map<String, Object> innerGeneratorMap = new TreeMap<>();
+        Map<String, Object> innerGeneratorMap = new LinkedHashMap<>();
         innerGeneratorMap.put("version", "9.3");
 
         // Build settings from parameters (general, optimization, advanced, seeds) if settings trajectory is available
@@ -264,6 +266,15 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps);
         if (!bindingConstraints.isEmpty()) {
             innerGeneratorMap.put("binding_constraints", bindingConstraints);
+        }
+
+        Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.AREA_ME);
+        Optional<TrajectoryEntity> linkMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
+        if (areaMeTrajectory.isPresent() || linkMeTrajectory.isPresent()) {
+            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(study, areaMeTrajectory.orElse(null), linkMeTrajectory.orElse(null));
+            if (meMap != null && !meMap.isEmpty()) {
+                innerGeneratorMap.put("ME", meMap);
+            }
         }
         return innerGeneratorMap;
     }
