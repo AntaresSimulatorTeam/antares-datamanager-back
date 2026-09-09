@@ -18,13 +18,16 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class LinkMeProcessorServiceImplTest {
@@ -740,5 +743,221 @@ class LinkMeProcessorServiceImplTest {
         assertEquals("test_trajectory", result.getFileName());
         // Save should be called since validation is skipped (null studyId)
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+    }
+
+    /**
+     * Test: File metadata (fileSize and lastModificationContentDate) are correctly captured
+     */
+    @Test
+    void importLinkMeTrajectory_capturesFileMetadata_fileSize() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        long expectedFileSize = Files.size(tempFile);
+
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+
+        assertNotNull(result);
+        assertEquals(expectedFileSize, result.getFileSize());
+        assertTrue(result.getFileSize() > 0, "File size should be greater than 0");
+    }
+
+    /**
+     * Test: File metadata - lastModificationContentDate is correctly set
+     */
+    @Test
+    void importLinkMeTrajectory_capturesFileMetadata_lastModificationDate() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        long fileModifiedTime = Files.getLastModifiedTime(tempFile).toMillis();
+        LocalDateTime expectedModificationDate = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(fileModifiedTime),
+                ZoneId.systemDefault()
+        );
+
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+
+        assertNotNull(result);
+        assertNotNull(result.getLastModificationContentDate());
+        // Check the dates are close (within 1 second to account for system precision)
+        assertTrue(Math.abs(result.getLastModificationContentDate().toEpochSecond(ZoneId.systemDefault().getRules().getOffset(Instant.now()))
+                - expectedModificationDate.toEpochSecond(ZoneId.systemDefault().getRules().getOffset(Instant.now()))) <= 1);
+    }
+
+    /**
+     * Test: CreationDate is set correctly
+     */
+    @Test
+    void importLinkMeTrajectory_setsCreationDateToCurrentTime() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        LocalDateTime beforeImport = LocalDateTime.now();
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+        LocalDateTime afterImport = LocalDateTime.now();
+
+        assertNotNull(result.getCreationDate());
+        assertTrue(result.getCreationDate().isAfter(beforeImport.minusSeconds(1)),
+                "Creation date should be after or equal to import start time");
+        assertTrue(result.getCreationDate().isBefore(afterImport.plusSeconds(1)),
+                "Creation date should be before or equal to import end time");
+    }
+
+    /**
+     * Test: Checksum is correctly calculated and stored
+     */
+    @Test
+    void importLinkMeTrajectory_storesCorrectChecksum() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+
+        assertNotNull(result.getChecksum());
+        assertFalse(result.getChecksum().isEmpty());
+        assertTrue(result.getChecksum().length() > 0);
+    }
+
+    /**
+     * Test: CreatedBy field is set from UserService
+     */
+    @Test
+    void importLinkMeTrajectory_setsCreatedByFromUserService() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        String expectedNni = "USER123";
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(expectedNni).build());
+
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+
+        assertEquals(expectedNni, result.getCreatedBy());
+    }
+
+    /**
+     * Test: Multiple LINK_ME entities are linked to trajectory
+     */
+    @Test
+    void importLinkMeTrajectory_linkMultipleLinkMeEntitiesToTrajectory() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0),
+                        List.of("NodeB", "NodeC", "infinite", 75.0, 12.0, 8.0),
+                        List.of("NodeC", "NodeD", 200.0, 100.0, 15.0, 10.0)
+                )
+        );
+
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+
+        assertNotNull(result);
+        assertEquals("test_trajectory", result.getFileName());
+        assertEquals("2023-2024", result.getHorizon());
+        assertEquals(TrajectoryType.LINK_ME.name(), result.getType());
+
+        // Verify linkMeRepository.saveAll was called
+        verify(linkMeRepository, times(1)).saveAll(any());
+    }
+
+    /**
+     * Test: Coherence validation is called when studyId is provided
+     */
+    @Test
+    void importLinkMeTrajectory_callsCoherenceValidationWithStudyId() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        Integer studyId = 999;
+        linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", studyId);
+
+        // Verify coherence check service was called
+        verify(linkMeCoherenceCheckService, times(1)).validateLinkMeCoherence(eq(studyId), any(TrajectoryEntity.class));
+    }
+
+    /**
+     * Test: Coherence validation is skipped when studyId is null
+     */
+    @Test
+    void importLinkMeTrajectory_skipsCoherenceValidationWhenStudyIdIsNull() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", null);
+
+        // Verify coherence check service was NOT called
+        verify(linkMeCoherenceCheckService, never()).validateLinkMeCoherence(any(), any());
+    }
+
+    /**
+     * Test: Trajectory type is always LINK_ME
+     */
+    @Test
+    void importLinkMeTrajectory_alwaysSetsTypeToLinkMe() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir,
+                "linkme_test.xlsx",
+                "2024",
+                List.of("nodeFrom", "nodeTo", "Direct_MW", "Indirect_MW", "Hurdle Costs Direct", "Hurdle Costs Indirect"),
+                List.of(
+                        List.of("NodeA", "NodeB", 100.0, 50.0, 10.5, 5.0)
+                )
+        );
+
+        TrajectoryEntity result = linkMeProcessorService.importLinkMeTrajectory(tempFile, "2023-2024", "test_trajectory", 1);
+
+        assertEquals(TrajectoryType.LINK_ME.name(), result.getType());
     }
 }

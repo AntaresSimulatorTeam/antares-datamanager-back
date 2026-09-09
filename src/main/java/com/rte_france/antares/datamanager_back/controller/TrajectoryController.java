@@ -91,6 +91,19 @@ public class TrajectoryController {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
+    @Operation(summary = "import Trajectory load ME to database ")
+    @PostMapping("/load-me")
+    public ResponseEntity<TrajectoryDTO> uploadLoadMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+                                                               @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                               @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                               @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processLoadMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
     @GetMapping
     public List<TrajectoryDTO> getTrajectoriesByStudyIdAndType(@RequestParam("studyId") Integer studyId,
                                                                @RequestParam(value = "trajectoryType", required = false) TrajectoryType trajectoryType) {

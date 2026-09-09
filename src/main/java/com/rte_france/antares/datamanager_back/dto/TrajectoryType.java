@@ -6,6 +6,7 @@ public enum TrajectoryType {
     LINK,
     LINK_ME,
     LOAD,
+    LOAD_ME,
     THERMAL_CAPACITY,
     THERMAL_TECHNICAL_SPECIFIC_PARAMETER ,//( area required : FR,AT....,OTHERS ) ,
     THERMAL_TECHNICAL_COMMON_PARAMETER ,

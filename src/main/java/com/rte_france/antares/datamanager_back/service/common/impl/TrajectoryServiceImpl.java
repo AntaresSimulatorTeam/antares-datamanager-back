@@ -14,9 +14,9 @@ import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcess
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkMeCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProcessorServiceImpl;
-import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
@@ -37,12 +37,14 @@ import org.springframework.util.CollectionUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -142,6 +144,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
+    }
+
+    @Override
+    @Transactional
+    public TrajectoryEntity processLoadMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return saveLoadMeTrajectoriesInDb(trajectoryToUse, horizon, studyId);
     }
 
 
@@ -537,8 +545,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
-            case LOAD, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
-                 HYDRO_TECHNICAL_PARAMETERS, HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
+            case LOAD, LOAD_ME, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
+                 HYDRO_TECHNICAL_PARAMETERS, HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION,
+                 NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
@@ -607,7 +616,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Set<TrajectoryType> singleLinkTypes = Set.of(
                 TrajectoryType.AREA,
                 TrajectoryType.LINK,
-                THERMAL_TECHNICAL_MODULATION_PARAMETER,
+                TrajectoryType.LOAD_ME,
+                TrajectoryType.AREA_ME,
+                TrajectoryType.LINK_ME,
+                TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER,
                 TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,
                 TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
                 TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER,
@@ -638,6 +650,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.AREA_ME,
                 TrajectoryType.LINK,
                 TrajectoryType.LINK_ME,
+                TrajectoryType.LOAD_ME,
                 TrajectoryType.LOAD,
                 TrajectoryType.THERMAL_CAPACITY,
                 TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER,
@@ -657,7 +670,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.HYDRO_PSP_SERIES,
                 TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
         );
-        if(supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
+        if (supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
         }
 
@@ -710,9 +723,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // First delete associated LINK_ME trajectories if this is AREA_ME
         if (studyTrajectory.getTrajectory().getType().equals(AREA_ME.name())) {
             unlinkLinkMeTrajectoriesToAreaMe(studyId);
-        }
-        else
-        {
+        } else {
             // Then delete the main link
             var requiresCmUnlink = isRemovingLastDsrWithTimeSeries(studyId, List.of(trajectoryId));
             var cmTrajectories = requiresCmUnlink
@@ -857,6 +868,50 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
     }
 
+    public TrajectoryEntity saveLoadMeTrajectoriesInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        if (trajectoryToUse == null || horizon == null) {
+            throw BusinessException.builder()
+                    .message("Trajectory name and horizon must not be null")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
+                .map(UserInfoDto::getNni)
+                .orElseThrow(() ->
+                        BusinessException.builder()
+                                .message("User NNI could not be determined")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build());
+
+        // Build and normalize the trajectory path
+        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse, TrajectoryType.LOAD_ME);
+
+        // Try to find an existing trajectory
+        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
+                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name());
+
+        if (existingTrajectoryOpt.isPresent()) {
+            TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
+            if (isSameTrajectory(trajectoryPath, existingTrajectory)) {
+                throw BusinessException.builder()
+                        .message("File already processed with same content {0}")
+                        .errorMessageArguments(List.of(trajectoryToUse))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            // Update version and save a new trajectory
+            TrajectoryEntity newTrajectory = buildNewLoadMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+            newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
+            return buildAndSaveLoadMeTrajectory(horizon, trajectoryPath, newTrajectory, studyId);
+        }
+
+        // No existing trajectory: create and save new
+        TrajectoryEntity newTrajectory = buildNewLoadMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+        return buildAndSaveLoadMeTrajectory(horizon, trajectoryPath, newTrajectory, studyId);
+    }
+
     private boolean isSameVersionOfOtherLoadTrajectory(TrajectoryEntity existingTrajectory, Integer studyId, Path trajectoryPath, String horizon) {
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
                 .map(a -> a.getName().toLowerCase())
@@ -892,6 +947,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String directoryByType = "";
         if (TrajectoryType.LOAD.equals(type)) {
             directoryByType = antaresDataManagerProperties.getLoadDirectory();
+        } else if (TrajectoryType.LOAD_ME.equals(type)) {
+            directoryByType = antaresDataManagerProperties.getLoadMeDirectory();
         } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
             directoryByType = antaresDataManagerProperties.getThermalModulationParameterDirectory();
         } else if (TrajectoryType.MISC_LOAD.equals(type)) {
@@ -983,6 +1040,158 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectoryRepository.save(loadTrajectory);
     }
 
+    private TrajectoryEntity buildNewLoadMeTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
+        return TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .fileSize(Files.size(trajectoryPath))
+                .createdBy(userNni)
+                .version(1)
+                .lastModificationContentDate(Files.getLastModifiedTime(trajectoryPath).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                .horizon(horizon)
+                .checksum("NA")
+                .type(TrajectoryType.LOAD_ME.name())
+                .creationDate(LocalDateTime.now())
+                .build();
+    }
+
+    private TrajectoryEntity buildAndSaveLoadMeTrajectory(String horizon, Path trajectoryPath, TrajectoryEntity loadMeTrajectory, Integer studyId) throws IOException {
+        Map<String, String> loadsFileWithAreas = getValidLoadMeFileNamesWithAreas(trajectoryPath, horizon);
+        if (loadsFileWithAreas.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(horizon))
+                    .message("No valid load files found in the trajectory path for horizon: {0}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Validate that at least one area from AREA_ME is present in LOAD_ME files
+        validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, loadMeTrajectory.getFileName(), studyId);
+
+        Set<LoadEntity> loadEntities = new HashSet<>();
+        for (Map.Entry<String, String> entry : loadsFileWithAreas.entrySet()) {
+            String loadFileName = entry.getKey();
+            String area = entry.getValue();
+
+            Optional<LoadEntity> existingLoad = loadRepository.findByFileNameAndTrajectoryFileName(loadFileName, loadMeTrajectory.getFileName());
+            LoadEntity loadEntity;
+            loadEntity = existingLoad.orElseGet(() -> {
+                return LoadEntity.builder()
+                        .fileName(loadFileName)
+                        .area(area)
+                        .build();
+            });
+
+            loadEntity.addTrajectoryEntity(loadMeTrajectory);
+            loadEntities.add(loadEntity);
+        }
+        loadMeTrajectory.setLoadEntities(loadEntities);
+        return trajectoryRepository.save(loadMeTrajectory);
+    }
+
+    private Map<String, String> getValidLoadMeFileNamesWithAreas(Path dir, String expectedHorizon) throws IOException {
+        // Pattern: load_<area>_<horizon>.csv
+        Pattern pattern = Pattern.compile("load_([a-zA-Z0-9_]+)_([0-9]{4}-[0-9]{4})\\.csv");
+        Map<String, String> loadsFileWithAreas = new LinkedHashMap<>();
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.csv")) {
+            for (Path file : stream) {
+                String fileName = file.getFileName().toString().toLowerCase();
+                Matcher matcher = pattern.matcher(fileName);
+                if (matcher.matches()) {
+                    String area = matcher.group(1);
+                    String horizon = matcher.group(2);
+                    if (horizon.equals(expectedHorizon)) {
+                        loadsFileWithAreas.put(fileName, area);
+                    }
+                }
+            }
+        }
+        return loadsFileWithAreas;
+    }
+
+    /**
+     * Validates LOAD_ME trajectory areas against AREA_ME trajectory areas during attach.
+     * Extracts areas from the LoadEntities of the trajectory being attached.
+     *
+     * @param studyId     the ID of the study
+     * @param trajectory  the LOAD_ME trajectory being attached with its LoadEntities
+     */
+    private void validateLoadMeAreasAgainstAreaMeForTrajectory(Integer studyId, TrajectoryEntity trajectory) {
+        // Extract areas from LoadEntities
+        if (trajectory.getLoadEntities() == null || trajectory.getLoadEntities().isEmpty()) {
+           log.debug("No load entities found in LOAD_ME trajectory: {}", trajectory.getFileName());
+           return;
+        }
+
+        Map<String, String> loadsFileWithAreas = new HashMap<>();
+        for (LoadEntity load : trajectory.getLoadEntities()) {
+           if (load.getArea() != null) {
+               loadsFileWithAreas.put(load.getFileName(), load.getArea());
+           }
+        }
+
+        if (loadsFileWithAreas.isEmpty()) {
+           log.debug("No valid areas found in LOAD_ME trajectory: {}", trajectory.getFileName());
+           return;
+        }
+
+        // Reuse existing validation logic
+        validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, trajectory.getFileName(), studyId);
+    }
+
+    private void validateLoadMeAreasAgainstAreaMe(Map<String, String> loadsFileWithAreas, String trajectoryName, Integer studyId) {
+        // Get AREA_ME trajectories for the study
+        List<TrajectoryEntity> areaMeTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId);
+
+        if (areaMeTrajectories.isEmpty()) {
+            // If no AREA_ME trajectory exists, skip validation
+            log.debug("No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.", studyId);
+            return;
+        }
+
+        // Extract area names from AREA_ME trajectory
+        Set<String> areaMeNames = extractAreaNamesFromAreaMe(areaMeTrajectories);
+
+        if (areaMeNames.isEmpty()) {
+            log.debug("No areas found in AREA_ME trajectory for study ID: {}", studyId);
+            return;
+        }
+
+        // Check if at least one area from LOAD_ME files exists in AREA_ME
+        Set<String> loadMeAreas = loadsFileWithAreas.values().stream()
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
+
+        boolean hasMatchingArea = loadMeAreas.stream()
+                .anyMatch(areaMeNames::contains);
+
+        if (!hasMatchingArea) {
+            String missingAreasStr = String.join(", ", loadMeAreas);
+            log.error("No area from AREA_ME trajectory is present in LOAD_ME trajectory");
+            throw BusinessException.builder()
+                    .message("No area from the AREAS_ME trajectory is present in LOAD_ME trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private Set<String> extractAreaNamesFromAreaMe(List<TrajectoryEntity> areaMeTrajectories) {
+        Set<String> areaNames = new HashSet<>();
+
+        for (TrajectoryEntity trajectory : areaMeTrajectories) {
+            // For AREA_ME trajectories, extract names from AreaConfigEntities
+            if (trajectory.getAreaConfigEntities() != null) {
+                trajectory.getAreaConfigEntities().stream()
+                        .map(ac -> ac.getArea().getName().toUpperCase())
+                        .forEach(areaNames::add);
+            }
+        }
+
+        return areaNames;
+    }
+
+
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -1058,12 +1267,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private boolean isRelevantNuclearDirectory(Path path) {
         return !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_EPR_FOLDER) && !path.getFileName().toString().equalsIgnoreCase(NUCLEAR_SMR_FOLDER);
-    } 
+    }
 
     public boolean isDirectoryTrajectory(Path path, TrajectoryType trajectoryType, String area) {
         return Files.isDirectory(path) &&
                 !isDirectoryEmpty(path) &&
                 (trajectoryType == TrajectoryType.LOAD
+                        || trajectoryType == TrajectoryType.LOAD_ME
                         || trajectoryType == RES_CAPACITY && isDefaultArea(area)
                         || trajectoryType == THERMAL_TECHNICAL_MODULATION_PARAMETER
                         || trajectoryType == TrajectoryType.MISC_LOAD
@@ -1117,7 +1327,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 })
                 .toList();
     }
-    
+
     /**
      * Checks if the file name matches the required prefix for the given TrajectoryType.
      */
@@ -1145,23 +1355,25 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> antaresDataManagerProperties.getLinkDirectory();
             case LINK_ME -> antaresDataManagerProperties.getLinkMeDirectory();
             case LOAD -> antaresDataManagerProperties.getLoadDirectory();
+            case LOAD_ME -> antaresDataManagerProperties.getLoadMeDirectory();
             case THERMAL_CAPACITY -> getThermalCapacityDirectory(area);
             case THERMAL_TECHNICAL_SPECIFIC_PARAMETER,
                  THERMAL_TECHNICAL_COMMON_PARAMETER -> antaresDataManagerProperties.getThermalParameterDirectory();
             case THERMAL_ECONOMIC_COST_PARAMETER -> antaresDataManagerProperties.getThermalCostDirectory();
             case THERMAL_ECONOMIC_PARAMETER -> antaresDataManagerProperties.getThermalEconomicDirectory();
-            case THERMAL_TECHNICAL_MODULATION_PARAMETER -> antaresDataManagerProperties.getThermalModulationParameterDirectory();
+            case THERMAL_TECHNICAL_MODULATION_PARAMETER ->
+                    antaresDataManagerProperties.getThermalModulationParameterDirectory();
             case DSR -> antaresDataManagerProperties.getDsrDirectory();
             case DSR_CAPACITY_MODULATION -> antaresDataManagerProperties.getDsrCapacityDirectory();
-            case STS ->
-                findChildDirectoryIgnoreCase(Path.of(antaresDataManagerProperties.getNasDirectory())
-                        .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
-                        .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
+            case STS -> findChildDirectoryIgnoreCase(Path.of(antaresDataManagerProperties.getNasDirectory())
+                    .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                    .resolve(antaresDataManagerProperties.getStsDirectory()), technology).resolve("clusters").toString();
             case MISC_CAPACITY -> antaresDataManagerProperties.getMiscCapacityDirectory();
             case MISC_LOAD -> antaresDataManagerProperties.getMiscLoadDirectory();
             case RES_CAPACITY -> getResCapacityDirectory(area);
             case RES_LOAD -> antaresDataManagerProperties.getResLoadDirectory();
-            case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION -> antaresDataManagerProperties.getResDistributionDirectory();
+            case RES_ZONAL_DISTRIBUTION, RES_TECHNOLOGY_DISTRIBUTION ->
+                    antaresDataManagerProperties.getResDistributionDirectory();
             case HYDRO_SERIES -> antaresDataManagerProperties.getHydroSeriesDirectory();
             case HYDRO_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getHydroParametersDirectory();
             case HYDRO_PSP_SERIES -> antaresDataManagerProperties.getPspSeriesDirectory();
@@ -1201,53 +1413,54 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
     public void checkTrajectoryCoherence(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
-         String type = trajectory.getType();
+        String type = trajectory.getType();
 
-         switch (type) {
-             case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
-             case "LINK_ME" -> linkMeCoherenceCheckService.validateLinkMeCoherence(studyId, trajectory);
-             case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
-             case "AREA_ME" -> {}
-             case "LOAD" -> warningMessages = verifyLoad(studyId, warningMessages, trajectory, userNni);
-             case "THERMAL_CAPACITY" -> verifyThermalCapacity(studyId, trajectory);
-             case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> verifyThermalCommonParameter(studyId, trajectory);
-             case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> verifyThermalSpecificParameter(studyId, trajectory);
-             case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
-             case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
-             case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
-             case "MISC_CAPACITY" -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
-             case "MISC_LOAD" -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
-             case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
-             case  "RES_TECHNOLOGY_DISTRIBUTION" -> {
-                 resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
-                 resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
-                 resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-             }
-             case "RES_CAPACITY" -> {
-                 resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
-                 resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
-             }
-             case "RES_LOAD" -> {
-                 resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
-                 resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
-             }
-              case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-               case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS", "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
-                   "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM", "NUCLEAR_FR_TS_SMR" ,
-                   "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER",
-                   "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION" ->
-                  // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
-                  log.info("No additional coherence check for Hydro trajectory type {} yet", type);
+        switch (type) {
+            case "LINK" -> checkLinkCoherence(studyId, warningMessages, trajectory, userNni);
+            case "LINK_ME" -> linkMeCoherenceCheckService.validateLinkMeCoherence(studyId, trajectory);
+            case "AREA" -> checkAreaCoherence(studyId, warningMessages, trajectory, userNni);
+            case "LOAD" -> warningMessages = verifyLoad(studyId, warningMessages, trajectory, userNni);
+            case "THERMAL_CAPACITY" -> verifyThermalCapacity(studyId, trajectory);
+            case "THERMAL_TECHNICAL_COMMON_PARAMETER" -> verifyThermalCommonParameter(studyId, trajectory);
+            case "THERMAL_TECHNICAL_SPECIFIC_PARAMETER" -> verifyThermalSpecificParameter(studyId, trajectory);
+            case "THERMAL_ECONOMIC_COST_PARAMETER" -> verifyThermalEconomicCostParameter(studyId, trajectory);
+            case "THERMAL_ECONOMIC_PARAMETER" -> verifyThermalEconomicParameter(studyId, trajectory);
+            case "THERMAL_TECHNICAL_MODULATION_PARAMETER" -> verifyParamModulation(studyId, trajectory);
+            case "MISC_CAPACITY" -> controlesMiscOnSelectInstalledPowerTrajectory(studyId, trajectory);
+            case "MISC_LOAD" -> controlesMiscOnSelectLoadFactorTrajectory(studyId, trajectory);
+            case "DSR_CAPACITY_MODULATION" -> verifyDsrCapacityModulation(studyId, trajectory);
+            case "RES_TECHNOLOGY_DISTRIBUTION" -> {
+                resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+                resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+                resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+            }
+            case "RES_CAPACITY" -> {
+                resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
+                resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+            }
+            case "RES_LOAD" -> {
+                resCoherenceCheckService.validateIPLoadFactorCoherence(studyId, trajectory);
+                resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
+            }
+            case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
+            case "LOAD_ME" -> validateLoadMeAreasAgainstAreaMeForTrajectory(studyId, trajectory);
+            case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS",
+                 "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
+                 "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
+                 "NUCLEAR_FR_TS_SMR",
+                 "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER", "AREA_ME" ->
+                // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
+                    log.info("No additional coherence check for Hydro trajectory type {} yet", type);
 
-              default -> throw TechnicalException.builder()
-                     .message("Trajectory type {0} is not supported")
-                     .errorMessageArguments(List.of(type))
-                     .build();
-         }
+            default -> throw TechnicalException.builder()
+                    .message("Trajectory type {0} is not supported")
+                    .errorMessageArguments(List.of(type))
+                    .build();
+        }
 
-         warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
-         warningRepository.saveAll(warningMessages);
-     }
+        warningMessages.forEach(warning -> warning.setTrajectory(trajectory));
+        warningRepository.saveAll(warningMessages);
+    }
 
     /**
      * Validates load factor trajectory on selection.
@@ -1345,8 +1558,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private void verifyThermalSpecificParameter(Integer studyId, TrajectoryEntity trajectory) {
         Set<String> specificClusters = trajectory.getThermalSpecificParameters().stream()
                 .map(param -> param.getCluster() + "/" +
-                       Optional.ofNullable(param.getArea()).orElse(""))
-               .collect(Collectors.toSet());
+                        Optional.ofNullable(param.getArea()).orElse(""))
+                .collect(Collectors.toSet());
         thermalControlService.checkMissingClusters(
                 studyId, trajectory.getHorizon(), specificClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectory.getArea());
     }
@@ -1675,7 +1888,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             );
             checksum = calculateDirectoryChecksumWithSpecificSheets(trajectoryFilePath, filesWithSheets);
         } else {
-            checksum = calculateDirectoryChecksum(trajectoryFilePath); 
+            checksum = calculateDirectoryChecksum(trajectoryFilePath);
         }
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
