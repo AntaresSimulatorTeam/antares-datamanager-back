@@ -406,7 +406,7 @@ class HydroGenerationAssemblerServiceImplTest {
         assertEquals(Boolean.TRUE, dto.getProperties().getReservoirManagement());
         assertEquals(new BigDecimal("5000"), dto.getProperties().getReservoirCapacity());
         assertEquals(new BigDecimal("90"), dto.getProperties().getPumpingEfficiency());
-        assertEquals(7, dto.getProperties().getInitializeReservoirDate());
+        assertEquals(6, dto.getProperties().getInitializeReservoirDate());
         assertEquals(Boolean.FALSE, dto.getProperties().getUseWater());
     }
 

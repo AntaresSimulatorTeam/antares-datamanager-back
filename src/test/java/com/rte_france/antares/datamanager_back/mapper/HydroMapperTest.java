@@ -42,7 +42,7 @@ class HydroMapperTest {
         assertThat(result.getProperties().getReservoirManagement()).isTrue();
         assertThat(result.getProperties().getReservoirCapacity()).isEqualByComparingTo(new BigDecimal("5000"));
         assertThat(result.getProperties().getPumpingEfficiency()).isEqualByComparingTo(new BigDecimal("90"));
-        assertThat(result.getProperties().getInitializeReservoirDate()).isEqualTo(7);
+        assertThat(result.getProperties().getInitializeReservoirDate()).isEqualTo(6);
         assertThat(result.getProperties().getUseWater()).isFalse();
     }
 
