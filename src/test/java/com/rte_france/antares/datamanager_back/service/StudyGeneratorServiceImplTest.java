@@ -288,9 +288,9 @@ class StudyGeneratorServiceImplTest {
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(hydroToJsonService).buildHydroDataMap(anyString(), anyMap());
 
-        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
+        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService, loadToJsonService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
                 .when(multiEnergyService).buildMultiEnergyMap(any(), any(), any());
-        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1)))
+        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService, loadToJsonService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(multiEnergyService).buildMultiEnergyMap(any(), any());
     }
 
@@ -1616,5 +1616,50 @@ class StudyGeneratorServiceImplTest {
         assertThat(studyMap).containsKey("ME");
         Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
         assertThat(meMap).containsKeys("area_me", "links_me");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeLoadsMe_whenLoadsPresentForAreaMe() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+
+        var areaMeEntity = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
+        var areaMeConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
+        var areaMeTrajectory = TrajectoryEntity.builder().type("AREA_ME").areaConfigEntities(List.of(areaMeConfig)).fileName("area_me.xlsx").build();
+
+        AdequacyModeEntity adequacyModeAreaMe = AdequacyModeEntity.builder().area("V_ME_H2_SHORT_FR").mode("inside").build();
+        TrajectoryEntity adequacyTrajectory = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adq.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeAreaMe, AdequacyModeEntity.builder().area("FR").mode("inside").build()))
+                .adequacySettingsEntities(Collections.emptyList())
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, areaMeTrajectory, adequacyTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study)).thenReturn(
+                Map.of("V_ME_H2_SHORT_FR", List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow"))
+        );
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("ME");
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        assertThat(meMap).containsKeys("area_me", "loads_me");
+
+        Map<String, Object> loadsMe = mapper.convertValue(meMap.get("loads_me"), new TypeReference<>() {});
+        assertThat(loadsMe).containsKey("loads_v_me_h2_short_fr");
+        assertThat(loadsMe.get("loads_v_me_h2_short_fr")).isEqualTo(
+                List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow")
+        );
     }
 }
