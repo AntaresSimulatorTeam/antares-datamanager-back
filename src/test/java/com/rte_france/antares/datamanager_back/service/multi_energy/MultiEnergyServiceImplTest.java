@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyServiceImpl;
+import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,9 @@ class MultiEnergyServiceImplTest {
 
     @Mock
     private AdequacySettingsAssemblerService adequacySettingsAssemblerService;
+
+    @Mock
+    private LoadToJsonService loadToJsonService;
 
     @InjectMocks
     private MultiEnergyServiceImpl multiEnergyService;
@@ -308,5 +312,92 @@ class MultiEnergyServiceImplTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> linksMe = (Map<String, Object>) result.get("links_me");
         assertThat(linksMe).hasSize(1).containsKey("ME/DE");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withLoads_shouldReturnLoadsMeStructure() {
+        // Given
+        AreaEntity areaMeEntity = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
+        AreaConfigEntity areaConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
+        TrajectoryEntity customAreaMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me.xlsx")
+                .areaConfigEntities(List.of(areaConfig))
+                .build();
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+                .thenReturn(Map.of("V_ME_H2_SHORT_FR", List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow")));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, customAreaMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKeys("area_me", "loads_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
+        assertThat(loadsMe).isNotNull().containsKey("loads_v_me_h2_short_fr");
+
+        @SuppressWarnings("unchecked")
+        List<String> arrowFiles = (List<String>) loadsMe.get("loads_v_me_h2_short_fr");
+        assertThat(arrowFiles).containsExactly("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withLoadsCaseInsensitive_shouldReturnLowercaseKey() {
+        // Given
+        AreaEntity areaMeEntity = AreaEntity.builder().name("v_me_h2_short_fr").build();
+        AreaConfigEntity areaConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
+        TrajectoryEntity customAreaMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me.xlsx")
+                .areaConfigEntities(List.of(areaConfig))
+                .build();
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+                .thenReturn(Map.of("V_ME_H2_SHORT_FR", List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow")));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, customAreaMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKeys("area_me", "loads_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
+        assertThat(loadsMe).containsKey("loads_v_me_h2_short_fr");
+    }
+
+    @Test
+    void buildMultiEnergyMap_whenLoadsEmpty_shouldNotReturnLoadsMe() {
+        // Given
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+                .thenReturn(Collections.emptyMap());
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("area_me").doesNotContainKey("loads_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withBothAreaMeLinkMeAndLoads_shouldReturnAllSections() {
+        // Given
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+                .thenReturn(Map.of("AREA_ME", List.of("load_area_me_2026-2027.txt.arrow")));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory, linkMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKeys("area_me", "loads_me", "links_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
+        assertThat(loadsMe).containsKey("loads_area_me");
+        @SuppressWarnings("unchecked")
+        List<String> files = (List<String>) loadsMe.get("loads_area_me");
+        assertThat(files).containsExactly("load_area_me_2026-2027.txt.arrow");
     }
 }
