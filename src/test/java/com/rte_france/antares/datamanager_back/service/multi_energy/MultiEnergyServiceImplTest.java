@@ -400,4 +400,36 @@ class MultiEnergyServiceImplTest {
         List<String> files = (List<String>) loadsMe.get("loads_area_me");
         assertThat(files).containsExactly("load_area_me_2026-2027.txt.arrow");
     }
+
+    @Test
+    void buildMultiEnergyMap_withLoadMeTrajectoryFiles_shouldMapLoadsMeCorrectly() {
+        // Given
+        AreaEntity area1 = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
+        AreaEntity area2 = AreaEntity.builder().name("V_ME_GAZ_SHORT_FR").build();
+
+        AreaConfigEntity config1 = AreaConfigEntity.builder().area(area1).unsuppliedEnergyCost(5000.0).spilledEnergyCost(100.0).build();
+        AreaConfigEntity config2 = AreaConfigEntity.builder().area(area2).unsuppliedEnergyCost(6000.0).spilledEnergyCost(200.0).build();
+
+        TrajectoryEntity customAreaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(config1, config2))
+                .build();
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+                .thenReturn(Map.of(
+                        "V_ME_H2_SHORT_FR", List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"),
+                        "V_ME_GAZ_SHORT_FR", List.of("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow")
+                ));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, customAreaMe);
+
+        // Then
+        assertThat(result).containsKey("loads_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
+        assertThat(loadsMe).containsKeys("loads_v_me_h2_short_fr", "loads_v_me_gaz_short_fr");
+        assertThat(loadsMe.get("loads_v_me_h2_short_fr")).isEqualTo(List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"));
+        assertThat(loadsMe.get("loads_v_me_gaz_short_fr")).isEqualTo(List.of("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow"));
+    }
 }
