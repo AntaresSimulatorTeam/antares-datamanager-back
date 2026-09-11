@@ -203,7 +203,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
-                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME -> singleTrajectoryByType.put(trajectoryType, trajectory);
+                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME, LOAD_ME -> singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
