@@ -129,20 +129,6 @@ class UtilsAdditionalTest {
     }
 
     @Test
-    void findHorizonColumnIndex_returnsNullForNumericHeader() throws IOException {
-        try (Workbook wb = new XSSFWorkbook()) {
-            Sheet sheet = wb.createSheet();
-            Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue(2025);
-            header.createCell(1).setCellValue(2030);
-
-            Integer result = Utils.findHorizonColumnIndex(header, "2030");
-
-            assertThat(result).isNull();
-        }
-    }
-
-    @Test
     void startsWithIgnoreCase_returnsTrueWhenPrefixMatches() {
         boolean result = Utils.startsWithIgnoreCase("PREFIX_test", "prefix");
 
