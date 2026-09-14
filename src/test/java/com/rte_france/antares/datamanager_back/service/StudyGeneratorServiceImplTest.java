@@ -288,9 +288,9 @@ class StudyGeneratorServiceImplTest {
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(hydroToJsonService).buildHydroDataMap(anyString(), anyMap());
 
-        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
+        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService, loadToJsonService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
                 .when(multiEnergyService).buildMultiEnergyMap(any(), any(), any());
-        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1)))
+        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService, loadToJsonService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(multiEnergyService).buildMultiEnergyMap(any(), any());
     }
 
@@ -1616,5 +1616,179 @@ class StudyGeneratorServiceImplTest {
         assertThat(studyMap).containsKey("ME");
         Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
         assertThat(meMap).containsKeys("area_me", "links_me");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeLoadsInAreaMe_whenLoadsPresentForAreaMe() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+
+        var areaMeEntity = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
+        var areaMeConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
+        var areaMeTrajectory = TrajectoryEntity.builder().type("AREA_ME").areaConfigEntities(List.of(areaMeConfig)).fileName("area_me.xlsx").build();
+
+        AdequacyModeEntity adequacyModeAreaMe = AdequacyModeEntity.builder().area("V_ME_H2_SHORT_FR").mode("inside").build();
+        TrajectoryEntity adequacyTrajectory = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adq.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeAreaMe, AdequacyModeEntity.builder().area("FR").mode("inside").build()))
+                .adequacySettingsEntities(Collections.emptyList())
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, areaMeTrajectory, adequacyTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(study)).thenReturn(
+                Map.of("V_ME_H2_SHORT_FR", List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow"))
+        );
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("ME");
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        assertThat(meMap).containsKey("area_me").doesNotContainKey("loads_me");
+
+        Map<String, Object> areaMe = mapper.convertValue(meMap.get("area_me"), new TypeReference<>() {});
+        Map<String, Object> areaData = mapper.convertValue(areaMe.get("V_ME_H2_SHORT_FR"), new TypeReference<>() {});
+        assertThat(areaData.get("loads")).isEqualTo(
+                List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow")
+        );
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeLoadsInAreaMe_whenLoadMeTrajectoryAttachedToStudy() throws Exception {
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+
+        var areaMeEntity = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
+        var areaMeConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
+        var areaMeTrajectory = TrajectoryEntity.builder().type("AREA_ME").areaConfigEntities(List.of(areaMeConfig)).fileName("area_me.xlsx").build();
+
+        var loadMeEntity = LoadEntity.builder()
+                .id(99)
+                .fileName("load_v_me_h2_short_fr_2026-2027.csv")
+                .area("V_ME_H2_SHORT_FR")
+                .build();
+        var loadMeTrajectory = TrajectoryEntity.builder()
+                .type("LOAD_ME")
+                .fileName("load_me_dataset")
+                .loadEntities(Set.of(loadMeEntity))
+                .build();
+
+        AdequacyModeEntity adequacyModeAreaMe = AdequacyModeEntity.builder().area("V_ME_H2_SHORT_FR").mode("inside").build();
+        TrajectoryEntity adequacyTrajectory = TrajectoryEntity.builder()
+                .type("ADEQUACY_PATCH")
+                .fileName("adq.xlsx")
+                .adequacyModeEntities(List.of(adequacyModeAreaMe, AdequacyModeEntity.builder().area("FR").mode("inside").build()))
+                .adequacySettingsEntities(Collections.emptyList())
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, areaMeTrajectory, loadMeTrajectory, adequacyTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(study)).thenReturn(
+                Map.of("V_ME_H2_SHORT_FR", List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid.arrow"))
+        );
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("ME");
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        assertThat(meMap).containsKey("area_me").doesNotContainKey("loads_me");
+
+        Map<String, Object> areaMe = mapper.convertValue(meMap.get("area_me"), new TypeReference<>() {});
+        Map<String, Object> areaData = mapper.convertValue(areaMe.get("V_ME_H2_SHORT_FR"), new TypeReference<>() {});
+        assertThat(areaData.get("loads")).isEqualTo(
+                List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid.arrow")
+        );
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldKeepLoadsMeSeparateFromStandardAreas() throws Exception {
+        var atEntity = AreaEntity.builder().name("AT").build();
+        var atConfig = AreaConfigEntity.builder().area(atEntity).unsuppliedEnergyCost(4000.0).spilledEnergyCost(0.0).build();
+        var beEntity = AreaEntity.builder().name("BE").build();
+        var beConfig = AreaConfigEntity.builder().area(beEntity).unsuppliedEnergyCost(4000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(atConfig, beConfig)).build();
+
+        var zP2gLongFrEntity = AreaEntity.builder().name("Z_P2G_LONG_FR").build();
+        var zP2gLongFrConfig = AreaConfigEntity.builder().area(zP2gLongFrEntity).unsuppliedEnergyCost(0.0).spilledEnergyCost(0.0).build();
+        var zMeConsoEntity = AreaEntity.builder().name("Z_ME_CONSOELEC").build();
+        var zMeConsoConfig = AreaConfigEntity.builder().area(zMeConsoEntity).unsuppliedEnergyCost(0.0).spilledEnergyCost(0.0).build();
+        var vMeH2LongIberEntity = AreaEntity.builder().name("V_ME_H2_LONG_IBER").build();
+        var vMeH2LongIberConfig = AreaConfigEntity.builder().area(vMeH2LongIberEntity).unsuppliedEnergyCost(0.0).spilledEnergyCost(0.0).build();
+
+        var areaMeTrajectory = TrajectoryEntity.builder()
+                .type("AREA_ME")
+                .areaConfigEntities(List.of(zP2gLongFrConfig, zMeConsoConfig, vMeH2LongIberConfig))
+                .fileName("area_me.xlsx")
+                .build();
+
+        var loadMeTrajectory = TrajectoryEntity.builder()
+                .type("LOAD_ME")
+                .fileName("load_me_dataset")
+                .loadEntities(Collections.emptySet())
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, areaMeTrajectory, loadMeTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study)).thenReturn(Collections.emptyMap());
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(study)).thenReturn(
+                new LinkedHashMap<>(Map.of(
+                        "V_ME_H2_LONG_IBER", List.of("load_v_me_h2_long_iber_2026-2027.csv.uuid3.arrow"),
+                        "Z_ME_CONSOELEC", List.of("load_z_me_consoelec_2026-2027.csv.uuid4.arrow")
+                ))
+        );
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        Map<String, Object> areas = mapper.convertValue(studyMap.get("areas"), new TypeReference<>() {});
+        assertThat(areas).containsKeys("AT", "BE");
+
+        Map<String, Object> atArea = mapper.convertValue(areas.get("AT"), new TypeReference<>() {});
+        assertThat(atArea.get("loads")).isEqualTo("No LOAD files for this area");
+
+        Map<String, Object> beArea = mapper.convertValue(areas.get("BE"), new TypeReference<>() {});
+        assertThat(beArea.get("loads")).isEqualTo("No LOAD files for this area");
+
+        assertThat(studyMap).containsKey("ME");
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        assertThat(meMap).containsKey("area_me").doesNotContainKey("loads_me");
+
+        Map<String, Object> areaMe = mapper.convertValue(meMap.get("area_me"), new TypeReference<>() {});
+        assertThat(areaMe).containsKeys("Z_P2G_LONG_FR", "Z_ME_CONSOELEC", "V_ME_H2_LONG_IBER");
+
+        Map<String, Object> zP2gLongFr = mapper.convertValue(areaMe.get("Z_P2G_LONG_FR"), new TypeReference<>() {});
+        assertThat(zP2gLongFr.get("loads")).isEqualTo("No LOAD files for this area");
+
+        Map<String, Object> zMeConso = mapper.convertValue(areaMe.get("Z_ME_CONSOELEC"), new TypeReference<>() {});
+        assertThat(zMeConso.get("loads")).isEqualTo(List.of("load_z_me_consoelec_2026-2027.csv.uuid4.arrow"));
+
+        Map<String, Object> vMeH2LongIber = mapper.convertValue(areaMe.get("V_ME_H2_LONG_IBER"), new TypeReference<>() {});
+        assertThat(vMeH2LongIber.get("loads")).isEqualTo(List.of("load_v_me_h2_long_iber_2026-2027.csv.uuid3.arrow"));
     }
 }

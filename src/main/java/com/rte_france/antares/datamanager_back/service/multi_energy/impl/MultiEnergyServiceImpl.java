@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
+import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -20,11 +21,14 @@ import java.util.*;
 public class MultiEnergyServiceImpl implements MultiEnergyService {
 
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
+    private final LoadToJsonService loadToJsonService;
 
     private static final String AREA_ME = "area_me";
     private static final String LINKS_ME = "links_me";
     private static final String PROPERTIES = "properties";
     private static final String UI = "ui";
+    private static final String LOADS = "loads";
+    private static final String NO_LOAD_FILES = "No LOAD files for this area";
     private static final String ENERGY_COST_UNSUPPLIED = "energy_cost_unsupplied";
     private static final String ENERGY_COST_SPILLED = "energy_cost_spilled";
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
@@ -74,6 +78,10 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                 ? adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)
                 : Collections.emptyMap();
 
+        Map<String, List<String>> loadFilesByArea = (study != null && loadToJsonService != null)
+                ? loadToJsonService.getListArrowLoadMeFilesFromStudy(study)
+                : Collections.emptyMap();
+
         Map<String, Object> areasMap = new LinkedHashMap<>();
 
         for (AreaConfigEntity areaConfig : areaMeTrajectory.getAreaConfigEntities()) {
@@ -94,14 +102,44 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                 propertiesMap.put(ADEQUACY_PATCH_MODE, adequacyMode);
             }
 
-
             areaEntryMap.put(PROPERTIES, propertiesMap);
             areaEntryMap.put(UI, AREA_UI_PLACEHOLDER);
+
+            List<String> loadFiles = findLoadFilesForArea(loadFilesByArea, areaName);
+            areaEntryMap.put(LOADS, (loadFiles != null && !loadFiles.isEmpty()) ? loadFiles : NO_LOAD_FILES);
 
             areasMap.put(areaName, areaEntryMap);
         }
 
         return areasMap;
+    }
+
+    private List<String> findLoadFilesForArea(Map<String, List<String>> loadFilesByArea, String areaName) {
+        if (loadFilesByArea == null || loadFilesByArea.isEmpty() || StringUtils.isBlank(areaName)) {
+            return Collections.emptyList();
+        }
+        if (loadFilesByArea.containsKey(areaName)) {
+            return loadFilesByArea.get(areaName);
+        }
+        if (loadFilesByArea.containsKey(areaName.toUpperCase(Locale.ROOT))) {
+            return loadFilesByArea.get(areaName.toUpperCase(Locale.ROOT));
+        }
+        for (Map.Entry<String, List<String>> entry : loadFilesByArea.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(areaName)) {
+                return entry.getValue();
+            }
+        }
+        String normalizedArea = areaName.toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, List<String>> entry : loadFilesByArea.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            String key = entry.getKey().toLowerCase(Locale.ROOT);
+            if (key.replaceFirst("^loads?_", "").equals(normalizedArea.replaceFirst("^loads?_", ""))) {
+                return entry.getValue();
+            }
+        }
+        return Collections.emptyList();
     }
 
     private Map<String, Object> buildLinksMeMap(TrajectoryEntity linkMeTrajectory) {
