@@ -27,17 +27,19 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class LoadToJsonService {
 
+    private static final Pattern DEFAULT_LOAD_PATTERN = Pattern.compile("_(.*?)[_\\.]");
+    private static final Pattern LOAD_ME_PATTERN = Pattern.compile("load_([a-zA-Z0-9_]+)_[0-9]{4}-[0-9]{4}\\.csv", Pattern.CASE_INSENSITIVE);
+
     private final NasFileService nasFileService;
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
-    public  Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
+    public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         log.info("Retrieve LOAD files for study = {}", studyEntity.getId());
-        Pattern pattern = Pattern.compile("_(.*?)[_\\.]");
         Map<Integer, String> arrowFileCache = new HashMap<>();
         Map<String, List<String>> result = studyEntity.getTrajectories().stream()
                 .filter(this::isLoadTrajectoryWithEntities)
-                .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), pattern, arrowFileCache))
+                .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), DEFAULT_LOAD_PATTERN, arrowFileCache))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
@@ -46,24 +48,35 @@ public class LoadToJsonService {
         return result;
     }
 
+    public Map<String, List<String>> getListArrowLoadMeFilesFromStudy(StudyEntity studyEntity) {
+        log.info("Retrieve LOAD_ME files for study = {}", studyEntity.getId());
+        Map<Integer, String> arrowFileCache = new HashMap<>();
+        Map<String, List<String>> result = studyEntity.getTrajectories().stream()
+                .filter(this::isLoadMeTrajectoryWithEntities)
+                .flatMap(trajectory -> processTrajectoryLoadMe(trajectory, arrowFileCache))
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
+        log.info("Number of LOAD_ME files by zone {}", result.size());
+        return result;
+    }
+
     private boolean isLoadTrajectoryWithEntities(TrajectoryEntity trajectory) {
-        return (TrajectoryType.LOAD.name().equals(trajectory.getType()) || TrajectoryType.LOAD_ME.name().equals(trajectory.getType()))
+        return TrajectoryType.LOAD.name().equals(trajectory.getType())
                 && trajectory.getLoadEntities() != null
                 && !trajectory.getLoadEntities().isEmpty();
     }
 
-    private  Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern,
-                                                                        Map<Integer, String> arrowFileCache) {
+    private boolean isLoadMeTrajectoryWithEntities(TrajectoryEntity trajectory) {
+        return TrajectoryType.LOAD_ME.name().equals(trajectory.getType())
+                && trajectory.getLoadEntities() != null
+                && !trajectory.getLoadEntities().isEmpty();
+    }
+
+    private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern,
+                                                                      Map<Integer, String> arrowFileCache) {
         log.info("Load processing for trajectory= {} area={}", trajectory.getFileName(), trajectory.getArea());
-        if (TrajectoryType.LOAD_ME.name().equals(trajectory.getType())) {
-            return trajectory.getLoadEntities().stream()
-                    .map(loadEntity -> {
-                        String area = resolveLoadMeArea(loadEntity, pattern);
-                        return Map.entry(
-                                area.toUpperCase(Locale.ROOT),
-                                resolveOutputFileName(loadEntity, trajectory, arrowFileCache));
-                    });
-        }
         if ("OTHERS".equals(trajectory.getArea())) {
             return trajectory.getLoadEntities().stream()
                     .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
@@ -76,11 +89,23 @@ public class LoadToJsonService {
         }
     }
 
-    private String resolveLoadMeArea(LoadEntity loadEntity, Pattern pattern) {
+    private Stream<Map.Entry<String, String>> processTrajectoryLoadMe(TrajectoryEntity trajectory,
+                                                                      Map<Integer, String> arrowFileCache) {
+        log.info("Load_ME processing for trajectory= {}", trajectory.getFileName());
+        return trajectory.getLoadEntities().stream()
+                .map(loadEntity -> {
+                    String area = resolveLoadMeArea(loadEntity);
+                    return Map.entry(
+                            area.toUpperCase(Locale.ROOT),
+                            resolveOutputFileName(loadEntity, trajectory, arrowFileCache));
+                });
+    }
+
+    private String resolveLoadMeArea(LoadEntity loadEntity) {
         if (StringUtils.isNotBlank(loadEntity.getArea())) {
             return loadEntity.getArea();
         }
-        return extractAreaFromFileName(loadEntity.getFileName(), pattern);
+        return extractAreaFromFileName(loadEntity.getFileName(), LOAD_ME_PATTERN);
     }
 
     private  Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern,

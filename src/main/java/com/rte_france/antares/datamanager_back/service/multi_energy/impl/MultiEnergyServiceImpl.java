@@ -25,10 +25,10 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
 
     private static final String AREA_ME = "area_me";
     private static final String LINKS_ME = "links_me";
-    private static final String LOADS_ME = "loads_me";
-    private static final String LOADS_PREFIX = "loads_";
     private static final String PROPERTIES = "properties";
     private static final String UI = "ui";
+    private static final String LOADS = "loads";
+    private static final String NO_LOAD_FILES = "No LOAD files for this area";
     private static final String ENERGY_COST_UNSUPPLIED = "energy_cost_unsupplied";
     private static final String ENERGY_COST_SPILLED = "energy_cost_spilled";
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
@@ -61,11 +61,6 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             meMap.put(AREA_ME, areasMap);
         }
 
-        Map<String, Object> loadsMap = buildLoadsMeMap(study, areaMeTrajectory);
-        if (!loadsMap.isEmpty()) {
-            meMap.put(LOADS_ME, loadsMap);
-        }
-
         Map<String, Object> linksMap = buildLinksMeMap(linkMeTrajectory);
         if (!linksMap.isEmpty()) {
             meMap.put(LINKS_ME, linksMap);
@@ -81,6 +76,10 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
         Map<String, String> adequacyModeByArea = study != null
                 ? adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)
+                : Collections.emptyMap();
+
+        Map<String, List<String>> loadFilesByArea = (study != null && loadToJsonService != null)
+                ? loadToJsonService.getListArrowLoadMeFilesFromStudy(study)
                 : Collections.emptyMap();
 
         Map<String, Object> areasMap = new LinkedHashMap<>();
@@ -103,14 +102,44 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                 propertiesMap.put(ADEQUACY_PATCH_MODE, adequacyMode);
             }
 
-
             areaEntryMap.put(PROPERTIES, propertiesMap);
             areaEntryMap.put(UI, AREA_UI_PLACEHOLDER);
+
+            List<String> loadFiles = findLoadFilesForArea(loadFilesByArea, areaName);
+            areaEntryMap.put(LOADS, (loadFiles != null && !loadFiles.isEmpty()) ? loadFiles : NO_LOAD_FILES);
 
             areasMap.put(areaName, areaEntryMap);
         }
 
         return areasMap;
+    }
+
+    private List<String> findLoadFilesForArea(Map<String, List<String>> loadFilesByArea, String areaName) {
+        if (loadFilesByArea == null || loadFilesByArea.isEmpty() || StringUtils.isBlank(areaName)) {
+            return Collections.emptyList();
+        }
+        if (loadFilesByArea.containsKey(areaName)) {
+            return loadFilesByArea.get(areaName);
+        }
+        if (loadFilesByArea.containsKey(areaName.toUpperCase(Locale.ROOT))) {
+            return loadFilesByArea.get(areaName.toUpperCase(Locale.ROOT));
+        }
+        for (Map.Entry<String, List<String>> entry : loadFilesByArea.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(areaName)) {
+                return entry.getValue();
+            }
+        }
+        String normalizedArea = areaName.toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, List<String>> entry : loadFilesByArea.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            String key = entry.getKey().toLowerCase(Locale.ROOT);
+            if (key.replaceFirst("^loads?_", "").equals(normalizedArea.replaceFirst("^loads?_", ""))) {
+                return entry.getValue();
+            }
+        }
+        return Collections.emptyList();
     }
 
     private Map<String, Object> buildLinksMeMap(TrajectoryEntity linkMeTrajectory) {
@@ -137,51 +166,6 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         }
 
         return linksMap;
-    }
-
-    private Map<String, Object> buildLoadsMeMap(StudyEntity study, TrajectoryEntity areaMeTrajectory) {
-        if (study == null || study.getTrajectories() == null || areaMeTrajectory == null
-                || areaMeTrajectory.getAreaConfigEntities() == null || loadToJsonService == null) {
-            return Collections.emptyMap();
-        }
-
-        Map<String, List<String>> loadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
-        if (loadFilesByArea == null || loadFilesByArea.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        Map<String, Object> loadsMeMap = new LinkedHashMap<>();
-
-        for (AreaConfigEntity areaConfig : areaMeTrajectory.getAreaConfigEntities()) {
-            if (areaConfig.getArea() == null || StringUtils.isBlank(areaConfig.getArea().getName())) {
-                continue;
-            }
-
-            String areaName = areaConfig.getArea().getName();
-            List<String> loadFiles = findLoadFilesForArea(loadFilesByArea, areaName);
-
-            if (loadFiles != null && !loadFiles.isEmpty()) {
-                String key = LOADS_PREFIX + areaName.toLowerCase(Locale.ROOT);
-                loadsMeMap.put(key, loadFiles);
-            }
-        }
-
-        return loadsMeMap;
-    }
-
-    private List<String> findLoadFilesForArea(Map<String, List<String>> loadFilesByArea, String areaName) {
-        if (loadFilesByArea.containsKey(areaName)) {
-            return loadFilesByArea.get(areaName);
-        }
-        if (loadFilesByArea.containsKey(areaName.toUpperCase(Locale.ROOT))) {
-            return loadFilesByArea.get(areaName.toUpperCase(Locale.ROOT));
-        }
-        for (Map.Entry<String, List<String>> entry : loadFilesByArea.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(areaName)) {
-                return entry.getValue();
-            }
-        }
-        return Collections.emptyList();
     }
 
 

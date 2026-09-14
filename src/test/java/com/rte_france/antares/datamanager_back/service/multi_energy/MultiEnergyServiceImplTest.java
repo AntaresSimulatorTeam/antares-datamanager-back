@@ -314,7 +314,7 @@ class MultiEnergyServiceImplTest {
     }
 
     @Test
-    void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnEmptyLoadsMap() {
+    void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnNoLoadFiles() {
         // Given
         MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, null);
         AreaConfigEntity config = AreaConfigEntity.builder()
@@ -329,11 +329,16 @@ class MultiEnergyServiceImplTest {
         Map<String, Object> result = serviceWithoutLoadService.buildMultiEnergyMap(studyEntity, areaMe);
 
         // Then
-        assertThat(result).doesNotContainKey("loads_me");
+        assertThat(result).doesNotContainKey("loads_me").containsKey("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaMeMap = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1 = (Map<String, Object>) areaMeMap.get("AREA1");
+        assertThat(area1.get("loads")).isEqualTo("No LOAD files for this area");
     }
 
     @Test
-    void buildMultiEnergyMap_whenStudyTrajectoriesNull_shouldReturnEmptyLoadsMap() {
+    void buildMultiEnergyMap_whenStudyTrajectoriesNull_shouldReturnNoLoadFiles() {
         // Given
         StudyEntity studyWithNullTrajectories = StudyEntity.builder().id(1).name("test").trajectories(null).build();
         AreaConfigEntity config = AreaConfigEntity.builder()
@@ -348,11 +353,16 @@ class MultiEnergyServiceImplTest {
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyWithNullTrajectories, areaMe);
 
         // Then
-        assertThat(result).doesNotContainKey("loads_me");
+        assertThat(result).doesNotContainKey("loads_me").containsKey("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaMeMap = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1 = (Map<String, Object>) areaMeMap.get("AREA1");
+        assertThat(area1.get("loads")).isEqualTo("No LOAD files for this area");
     }
 
     @Test
-    void buildMultiEnergyMap_whenLoadFilesByAreaIsNull_shouldReturnEmptyLoadsMap() {
+    void buildMultiEnergyMap_whenLoadFilesByAreaIsNull_shouldReturnNoLoadFiles() {
         // Given
         AreaConfigEntity config = AreaConfigEntity.builder()
                 .area(AreaEntity.builder().name("AREA1").build())
@@ -362,50 +372,56 @@ class MultiEnergyServiceImplTest {
                 .areaConfigEntities(List.of(config))
                 .build();
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity)).thenReturn(null);
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity)).thenReturn(null);
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
 
         // Then
-        assertThat(result).doesNotContainKey("loads_me");
+        assertThat(result).doesNotContainKey("loads_me").containsKey("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaMeMap = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1 = (Map<String, Object>) areaMeMap.get("AREA1");
+        assertThat(area1.get("loads")).isEqualTo("No LOAD files for this area");
     }
 
     @Test
-    void buildMultiEnergyMap_withAreaConfigsHavingNullOrBlankNamesInLoads_shouldSkipThem() {
+    void buildMultiEnergyMap_withBlankKeysInLoads_shouldSkipThem() {
         // Given
-        AreaConfigEntity nullAreaConfig = AreaConfigEntity.builder().area(null).build();
-        AreaConfigEntity blankNameConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("  ").build()).build();
         AreaConfigEntity validConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("AREA_EXACT").build()).build();
 
         TrajectoryEntity areaMe = TrajectoryEntity.builder()
                 .type(TrajectoryType.AREA_ME.name())
-                .areaConfigEntities(List.of(nullAreaConfig, blankNameConfig, validConfig))
+                .areaConfigEntities(List.of(validConfig))
                 .build();
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
-                .thenReturn(Map.of("AREA_EXACT", List.of("file.arrow")));
+        Map<String, List<String>> loadFilesMap = new HashMap<>();
+        loadFilesMap.put(null, List.of("file.arrow"));
+        loadFilesMap.put("   ", List.of("file2.arrow"));
+        loadFilesMap.put("AREA_EXACT", List.of("file3.arrow"));
+
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
+                .thenReturn(loadFilesMap);
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
 
         // Then
-        assertThat(result).containsKey("loads_me");
+        assertThat(result).containsKey("area_me").doesNotContainKey("loads_me");
         @SuppressWarnings("unchecked")
-        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
-        assertThat(loadsMe).hasSize(1).containsKey("loads_area_exact");
+        Map<String, Object> areaMeMap = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaExact = (Map<String, Object>) areaMeMap.get("AREA_EXACT");
+        assertThat(areaExact.get("loads")).isEqualTo(List.of("file3.arrow"));
     }
 
     @Test
     void buildMultiEnergyMap_withLoadsCaseMatchingVariants_shouldMatchAllVariants() {
         // Given
-        // 1. Exact match: areaName is "exact_match", map has "exact_match"
         AreaConfigEntity exactConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("exact_match").build()).build();
-        // 2. Uppercase match: areaName is "upper_match", map has "UPPER_MATCH"
         AreaConfigEntity upperConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("upper_match").build()).build();
-        // 3. Mixed-case loop match: areaName is "MixEd_MatCh", map has "mIXeD_mATcH" (neither exact nor UPPER_MATCH "MIXED_MATCH")
         AreaConfigEntity mixedConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("MixEd_MatCh").build()).build();
-        // 4. No match: areaName is "no_match", map does not have it
         AreaConfigEntity noMatchConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("no_match").build()).build();
 
         TrajectoryEntity areaMe = TrajectoryEntity.builder()
@@ -419,24 +435,32 @@ class MultiEnergyServiceImplTest {
         loadFilesMap.put("mIXeD_mATcH", List.of("mixed.arrow"));
         loadFilesMap.put("other_area", List.of("other.arrow"));
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity)).thenReturn(loadFilesMap);
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity)).thenReturn(loadFilesMap);
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
 
         // Then
-        assertThat(result).containsKey("loads_me");
+        assertThat(result).containsKey("area_me").doesNotContainKey("loads_me");
         @SuppressWarnings("unchecked")
-        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
-        assertThat(loadsMe).hasSize(3)
-                .containsEntry("loads_exact_match", List.of("exact.arrow"))
-                .containsEntry("loads_upper_match", List.of("upper.arrow"))
-                .containsEntry("loads_mixed_match", List.of("mixed.arrow"))
-                .doesNotContainKey("loads_no_match");
+        Map<String, Object> areaMeMap = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> exactArea = (Map<String, Object>) areaMeMap.get("exact_match");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> upperArea = (Map<String, Object>) areaMeMap.get("upper_match");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> mixedArea = (Map<String, Object>) areaMeMap.get("MixEd_MatCh");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> noMatchArea = (Map<String, Object>) areaMeMap.get("no_match");
+
+        assertThat(exactArea.get("loads")).isEqualTo(List.of("exact.arrow"));
+        assertThat(upperArea.get("loads")).isEqualTo(List.of("upper.arrow"));
+        assertThat(mixedArea.get("loads")).isEqualTo(List.of("mixed.arrow"));
+        assertThat(noMatchArea.get("loads")).isEqualTo("No LOAD files for this area");
     }
 
     @Test
-    void buildMultiEnergyMap_withNullLoadFilesListInMap_shouldNotAddAreaToLoadsMe() {
+    void buildMultiEnergyMap_withNullLoadFilesListInMap_shouldReturnNoLoadFiles() {
         // Given
         AreaConfigEntity configWithNullList = AreaConfigEntity.builder()
                 .area(AreaEntity.builder().name("AREA_WITH_NULL_LIST").build())
@@ -454,13 +478,21 @@ class MultiEnergyServiceImplTest {
         loadFilesMap.put("AREA_WITH_NULL_LIST", null);
         loadFilesMap.put("AREA_WITH_EMPTY_LIST", Collections.emptyList());
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity)).thenReturn(loadFilesMap);
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity)).thenReturn(loadFilesMap);
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
 
         // Then
-        assertThat(result).doesNotContainKey("loads_me");
+        assertThat(result).containsKey("area_me").doesNotContainKey("loads_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaMeMap = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1 = (Map<String, Object>) areaMeMap.get("AREA_WITH_NULL_LIST");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area2 = (Map<String, Object>) areaMeMap.get("AREA_WITH_EMPTY_LIST");
+        assertThat(area1.get("loads")).isEqualTo("No LOAD files for this area");
+        assertThat(area2.get("loads")).isEqualTo("No LOAD files for this area");
     }
 
     @Test
@@ -617,7 +649,7 @@ class MultiEnergyServiceImplTest {
     }
 
     @Test
-    void buildMultiEnergyMap_withLoads_shouldReturnLoadsMeStructure() {
+    void buildMultiEnergyMap_withLoads_shouldReturnLoadsInsideAreaMeStructure() {
         // Given
         AreaEntity areaMeEntity = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
         AreaConfigEntity areaConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
@@ -627,26 +659,28 @@ class MultiEnergyServiceImplTest {
                 .areaConfigEntities(List.of(areaConfig))
                 .build();
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
                 .thenReturn(Map.of("V_ME_H2_SHORT_FR", List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow")));
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, customAreaMeTrajectory);
 
         // Then
-        assertThat(result).isNotNull().containsKeys("area_me", "loads_me");
+        assertThat(result).isNotNull().containsKey("area_me").doesNotContainKey("loads_me");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
-        assertThat(loadsMe).isNotNull().containsKey("loads_v_me_h2_short_fr");
+        Map<String, Object> areaMe = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaData = (Map<String, Object>) areaMe.get("V_ME_H2_SHORT_FR");
+        assertThat(areaData).isNotNull().containsKey("loads");
 
         @SuppressWarnings("unchecked")
-        List<String> arrowFiles = (List<String>) loadsMe.get("loads_v_me_h2_short_fr");
+        List<String> arrowFiles = (List<String>) areaData.get("loads");
         assertThat(arrowFiles).containsExactly("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow");
     }
 
     @Test
-    void buildMultiEnergyMap_withLoadsCaseInsensitive_shouldReturnLowercaseKey() {
+    void buildMultiEnergyMap_withLoadsCaseInsensitive_shouldMatchAreaLoads() {
         // Given
         AreaEntity areaMeEntity = AreaEntity.builder().name("v_me_h2_short_fr").build();
         AreaConfigEntity areaConfig = AreaConfigEntity.builder().area(areaMeEntity).unsuppliedEnergyCost(5376.0).spilledEnergyCost(0.0).build();
@@ -656,24 +690,26 @@ class MultiEnergyServiceImplTest {
                 .areaConfigEntities(List.of(areaConfig))
                 .build();
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
                 .thenReturn(Map.of("V_ME_H2_SHORT_FR", List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow")));
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, customAreaMeTrajectory);
 
         // Then
-        assertThat(result).isNotNull().containsKeys("area_me", "loads_me");
+        assertThat(result).isNotNull().containsKey("area_me").doesNotContainKey("loads_me");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
-        assertThat(loadsMe).containsKey("loads_v_me_h2_short_fr");
+        Map<String, Object> areaMe = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaData = (Map<String, Object>) areaMe.get("v_me_h2_short_fr");
+        assertThat(areaData.get("loads")).isEqualTo(List.of("load_V_ME_H2_SHORT_FR_2026-2027.txt.70bc925d-4887-463c-b9c6-2ac90ea44188.arrow"));
     }
 
     @Test
-    void buildMultiEnergyMap_whenLoadsEmpty_shouldNotReturnLoadsMe() {
+    void buildMultiEnergyMap_whenLoadsEmpty_shouldSetNoLoadFilesPlaceholderInAreaMe() {
         // Given
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
                 .thenReturn(Collections.emptyMap());
 
         // When
@@ -681,30 +717,34 @@ class MultiEnergyServiceImplTest {
 
         // Then
         assertThat(result).isNotNull().containsKey("area_me").doesNotContainKey("loads_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaMe = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaData = (Map<String, Object>) areaMe.get("area_me");
+        assertThat(areaData.get("loads")).isEqualTo("No LOAD files for this area");
     }
 
     @Test
-    void buildMultiEnergyMap_withBothAreaMeLinkMeAndLoads_shouldReturnAllSections() {
+    void buildMultiEnergyMap_withBothAreaMeLinkMeAndLoads_shouldReturnBothSectionsWithoutLoadsMeKey() {
         // Given
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
-                .thenReturn(Map.of("AREA_ME", List.of("load_area_me_2026-2027.txt.arrow")));
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
+                .thenReturn(Map.of("area_me", List.of("load_area_me_2026-2027.txt.arrow")));
 
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory, linkMeTrajectory);
 
         // Then
-        assertThat(result).isNotNull().containsKeys("area_me", "loads_me", "links_me");
+        assertThat(result).isNotNull().containsKeys("area_me", "links_me").doesNotContainKey("loads_me");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
-        assertThat(loadsMe).containsKey("loads_area_me");
+        Map<String, Object> areaMe = (Map<String, Object>) result.get("area_me");
         @SuppressWarnings("unchecked")
-        List<String> files = (List<String>) loadsMe.get("loads_area_me");
-        assertThat(files).containsExactly("load_area_me_2026-2027.txt.arrow");
+        Map<String, Object> areaData = (Map<String, Object>) areaMe.get("area_me");
+        assertThat(areaData.get("loads")).isEqualTo(List.of("load_area_me_2026-2027.txt.arrow"));
     }
 
     @Test
-    void buildMultiEnergyMap_withLoadMeTrajectoryFiles_shouldMapLoadsMeCorrectly() {
+    void buildMultiEnergyMap_withLoadMeTrajectoryFiles_shouldMapLoadsCorrectlyInsideEachArea() {
         // Given
         AreaEntity area1 = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
         AreaEntity area2 = AreaEntity.builder().name("V_ME_GAZ_SHORT_FR").build();
@@ -717,7 +757,7 @@ class MultiEnergyServiceImplTest {
                 .areaConfigEntities(List.of(config1, config2))
                 .build();
 
-        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
                 .thenReturn(Map.of(
                         "V_ME_H2_SHORT_FR", List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"),
                         "V_ME_GAZ_SHORT_FR", List.of("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow")
@@ -727,11 +767,15 @@ class MultiEnergyServiceImplTest {
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, customAreaMe);
 
         // Then
-        assertThat(result).containsKey("loads_me");
+        assertThat(result).containsKey("area_me").doesNotContainKey("loads_me");
         @SuppressWarnings("unchecked")
-        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
-        assertThat(loadsMe).containsKeys("loads_v_me_h2_short_fr", "loads_v_me_gaz_short_fr");
-        assertThat(loadsMe.get("loads_v_me_h2_short_fr")).isEqualTo(List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"));
-        assertThat(loadsMe.get("loads_v_me_gaz_short_fr")).isEqualTo(List.of("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow"));
+        Map<String, Object> areaMe = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1Data = (Map<String, Object>) areaMe.get("V_ME_H2_SHORT_FR");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area2Data = (Map<String, Object>) areaMe.get("V_ME_GAZ_SHORT_FR");
+
+        assertThat(area1Data.get("loads")).isEqualTo(List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"));
+        assertThat(area2Data.get("loads")).isEqualTo(List.of("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow"));
     }
 }
