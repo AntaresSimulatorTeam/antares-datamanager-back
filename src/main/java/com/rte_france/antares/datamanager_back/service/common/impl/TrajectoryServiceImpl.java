@@ -513,21 +513,24 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     /**
      * Finds trajectories by type from the NAS directory.
      *
-     * @param trajectoryType the type of the trajectory
+     * @param trajectoryType  the type of the trajectory
+     * @param area            the area (optional, may be null)
+     * @param technology      the technology (optional, may be null)
+     * @param fileNameContains filter criteria for file names (optional, may be null)
      * @return a list of FsTrajectoryDTO representing the trajectories
+     * @throws BusinessException if business validation fails
+     * @throws TechnicalException if technical error occurs
+     * @throws IOException if I/O error occurs
      */
     public List<FsTrajectoryDTO> findTrajectoriesByType(TrajectoryType trajectoryType, String area, String technology, String fileNameContains) throws BusinessException, TechnicalException, IOException {
         Path directory = normalizeAndValidateDirectory(trajectoryType, area, technology);
         try (var stream = Files.list(directory.normalize())) {
             return stream
-                    .filter(path -> (isDirectoryTrajectory(path, trajectoryType, area) ||
-                            (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area))))
+                    .filter(path -> isValidTrajectoryPath(path, trajectoryType, area, technology))
+                    .filter(path -> isLoadMeDirectoryValid(trajectoryType, path))
                     .flatMap(path -> getFsTrajectoryDTO(trajectoryType, path).stream())
                     .filter(dto -> fileNameMatches(dto, fileNameContains))
-                    .collect(Collectors.groupingBy(
-                            FsTrajectoryDTO::getFileName,
-                            Collectors.maxBy(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate))
-                    ))
+                    .collect(Collectors.groupingBy(FsTrajectoryDTO::getFileName, Collectors.maxBy(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate))))
                     .values().stream()
                     .flatMap(Optional::stream)
                     .sorted(Comparator.comparing(FsTrajectoryDTO::getLastModifiedDate).reversed())
@@ -538,6 +541,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
     }
 
+    /**
+     * Checks if the file name matches the expected prefix for the given trajectory type and technology.
+     */
     private boolean matchesPrefix(Path path, TrajectoryType trajectoryType, String technology, String area) {
         String fileName = path.getFileName().toString().toLowerCase();
         String technologyPrefix = (technology == null ? "" : technology.toLowerCase() + "_");
@@ -568,6 +574,26 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case SCENARIO_BUILDER -> fileName.startsWith(SCENARIO_BUILDER_PREFIX);
             default -> true;
         };
+    }
+
+    /**
+     * Validates if a path is a valid trajectory based on type and configuration.
+     * A path is valid if it's either a directory trajectory or a relevant file that matches the prefix.
+     */
+    private boolean isValidTrajectoryPath(Path path, TrajectoryType trajectoryType, String area, String technology) {
+        return (isDirectoryTrajectory(path, trajectoryType, area) ||
+                (isRelevantFile(path, trajectoryType) && matchesPrefix(path, trajectoryType, technology, area)));
+    }
+
+    /**
+     * Validates LOAD_ME specific requirements.
+     * LOAD_ME directories must contain at least one load_*.csv file.
+     */
+    private boolean isLoadMeDirectoryValid(TrajectoryType trajectoryType, Path path) {
+        if (trajectoryType == TrajectoryType.LOAD_ME && Files.isDirectory(path)) {
+            return hasLoadMeCsvFiles(path);
+        }
+        return true;
     }
 
 
@@ -1302,6 +1328,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } catch (IOException e) {
             log.debug("Error checking if directory is empty: {}", path, e);
             return true; // Consider directory as empty if we can't read it
+        }
+    }
+
+    /**
+     * Checks if a directory contains at least one load_*.csv file for LOAD_ME trajectories.
+     *
+     * @param path the directory path
+     * @return true if at least one load_*.csv file exists, false otherwise
+     */
+    private boolean hasLoadMeCsvFiles(Path path) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "load_*.csv")) {
+            return stream.iterator().hasNext();
+        } catch (IOException e) {
+            log.debug("Error checking for load_*.csv files in directory: {}", path, e);
+            return false;
         }
     }
 
