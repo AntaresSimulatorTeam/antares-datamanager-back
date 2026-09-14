@@ -5638,6 +5638,101 @@ class TrajectoryServiceImplTest {
         assertDoesNotThrow(() ->
                 trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
     }
+
+    @Test
+    void findTrajectoriesByType_returnsLoadMeDirectoriesWithCsvFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path loadMeDir = tempDir.resolve("load_me/");
+        Files.createDirectories(loadMeDir);
+
+        // Create a LOAD_ME directory with load_*.csv files
+        Path validLoadMeDir = loadMeDir.resolve("LoadMe_BP23_A_ref");
+        Files.createDirectory(validLoadMeDir);
+        Files.createFile(validLoadMeDir.resolve("load_FR_2030-2031.csv"));
+        Files.createFile(validLoadMeDir.resolve("load_DE_2030-2031.csv"));
+        Files.createFile(validLoadMeDir.resolve("other_file.txt"));
+
+        // Create another LOAD_ME directory without load_*.csv files (should be filtered out)
+        Path invalidLoadMeDir = loadMeDir.resolve("LoadMe_BP23_B_ref");
+        Files.createDirectory(invalidLoadMeDir);
+        Files.createFile(invalidLoadMeDir.resolve("some_file.xlsx"));
+        Files.createFile(invalidLoadMeDir.resolve("data.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LOAD_ME, null, null, null);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("LoadMe_BP23_A_ref", result.getFirst().getFileName());
+    }
+
+    @Test
+    void findTrajectoriesByType_filtersOutLoadMeDirectoriesWithoutCsvFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path loadMeDir = tempDir.resolve("load_me/");
+        Files.createDirectories(loadMeDir);
+
+        // Create multiple LOAD_ME directories without load_*.csv files
+        Path emptyDir1 = loadMeDir.resolve("LoadMe_BP23_Empty1");
+        Files.createDirectory(emptyDir1);
+        Files.createFile(emptyDir1.resolve("data.xlsx"));
+
+        Path emptyDir2 = loadMeDir.resolve("LoadMe_BP23_Empty2");
+        Files.createDirectory(emptyDir2);
+        Files.createFile(emptyDir2.resolve("config.txt"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LOAD_ME, null, null, null);
+
+        // Then
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    void findTrajectoriesByType_returnsMultipleLoadMeDirectoriesWithValidCsvFiles(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path loadMeDir = tempDir.resolve("load_me/");
+        Files.createDirectories(loadMeDir);
+
+        // Create multiple LOAD_ME directories with load_*.csv files
+        Path validDir1 = loadMeDir.resolve("LoadMe_BP23_A_ref");
+        Files.createDirectory(validDir1);
+        Files.createFile(validDir1.resolve("load_area1_2030.csv"));
+
+        Path validDir2 = loadMeDir.resolve("LoadMe_BP23_B_ref");
+        Files.createDirectory(validDir2);
+        Files.createFile(validDir2.resolve("load_area2_2030.csv"));
+        Files.createFile(validDir2.resolve("load_area3_2030.csv"));
+
+        // This one should be filtered out (no load_*.csv files)
+        Path invalidDir = loadMeDir.resolve("LoadMe_BP23_C_ref");
+        Files.createDirectory(invalidDir);
+        Files.createFile(invalidDir.resolve("other_data.csv"));
+
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("");
+        when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me/");
+
+        // When
+        List<FsTrajectoryDTO> result = trajectoryService.findTrajectoriesByType(TrajectoryType.LOAD_ME, null, null, null);
+
+        // Then
+        assertEquals(2, result.size());
+        Set<String> fileNames = result.stream()
+                .map(FsTrajectoryDTO::getFileName)
+                .collect(Collectors.toSet());
+        assertTrue(fileNames.contains("LoadMe_BP23_A_ref"));
+        assertTrue(fileNames.contains("LoadMe_BP23_B_ref"));
+        assertFalse(fileNames.contains("LoadMe_BP23_C_ref"));
+    }
 }
 
 
