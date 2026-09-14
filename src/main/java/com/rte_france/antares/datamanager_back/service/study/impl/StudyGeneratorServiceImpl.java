@@ -270,7 +270,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.AREA_ME);
         Optional<TrajectoryEntity> linkMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
-        if (areaMeTrajectory.isPresent() || linkMeTrajectory.isPresent()) {
+        Optional<TrajectoryEntity> loadMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.LOAD_ME);
+        if (areaMeTrajectory.isPresent() || linkMeTrajectory.isPresent() || loadMeTrajectory.isPresent()) {
             Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(study, areaMeTrajectory.orElse(null), linkMeTrajectory.orElse(null));
             if (meMap != null && !meMap.isEmpty()) {
                 innerGeneratorMap.put("ME", meMap);

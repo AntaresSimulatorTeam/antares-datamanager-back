@@ -48,7 +48,7 @@ class LoadToJsonServiceTest {
     }
 
     @Test
-    void getListArrowLoadFilesByAreaFromStudy_withLoadMeTrajectory_shouldReturnGroupedByArea() throws IOException {
+    void getListArrowLoadMeFilesFromStudy_withLoadMeTrajectory_shouldReturnGroupedByArea() throws IOException {
         // Given
         LoadEntity loadEntity1 = LoadEntity.builder()
                 .id(1)
@@ -80,7 +80,7 @@ class LoadToJsonServiceTest {
                 .thenReturn("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadMeFilesFromStudy(study);
 
         // Then
         assertThat(result).hasSize(2)
@@ -89,7 +89,35 @@ class LoadToJsonServiceTest {
     }
 
     @Test
-    void getListArrowLoadFilesByAreaFromStudy_withLoadMeTrajectoryNullArea_shouldExtractFromFileName() throws IOException {
+    void getListArrowLoadFilesByAreaFromStudy_withLoadMeTrajectory_shouldIgnoreLoadMe() {
+        // Given
+        LoadEntity loadEntity = LoadEntity.builder()
+                .id(1)
+                .fileName("load_v_me_h2_short_fr_2026-2027.csv")
+                .area("v_me_h2_short_fr")
+                .build();
+
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.LOAD_ME.name())
+                .fileName("load_me_dataset")
+                .loadEntities(Set.of(loadEntity))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(1)
+                .trajectories(Set.of(loadMeTrajectory))
+                .build();
+
+        // When
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getListArrowLoadMeFilesFromStudy_withLoadMeTrajectoryNullArea_shouldExtractFromFileName() throws IOException {
         // Given
         LoadEntity loadEntity = LoadEntity.builder()
                 .id(1)
@@ -113,11 +141,43 @@ class LoadToJsonServiceTest {
                 .thenReturn("load_fr_2026-2027.csv.uuid1.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadMeFilesFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
                 .containsKey("FR");
+    }
+
+    @Test
+    void getListArrowLoadMeFilesFromStudy_withLoadMeTrajectoryNullAreaAndMultiUnderscoreArea_shouldExtractFullAreaFromFileName() throws IOException {
+        // Given
+        LoadEntity loadEntity = LoadEntity.builder()
+                .id(1)
+                .fileName("load_v_me_h2_short_fr_2026-2027.csv")
+                .area(null)
+                .build();
+
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.LOAD_ME.name())
+                .fileName("load_me_dataset")
+                .loadEntities(Set.of(loadEntity))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(1)
+                .trajectories(Set.of(loadMeTrajectory))
+                .build();
+
+        when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean()))
+                .thenReturn("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow");
+
+        // When
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadMeFilesFromStudy(study);
+
+        // Then
+        assertThat(result).hasSize(1)
+                .containsEntry("V_ME_H2_SHORT_FR", List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"));
     }
 
     @Test
@@ -261,7 +321,7 @@ class LoadToJsonServiceTest {
     }
 
     @Test
-    void getListArrowLoadFilesByAreaFromStudy_withLoadMeTrajectoryBlankArea_shouldExtractFromFileName() throws IOException {
+    void getListArrowLoadMeFilesFromStudy_withLoadMeTrajectoryBlankArea_shouldExtractFromFileName() throws IOException {
         // Given
         LoadEntity loadEntity = LoadEntity.builder()
                 .id(1)
@@ -285,7 +345,7 @@ class LoadToJsonServiceTest {
                 .thenReturn("load_be_2026-2027.csv.uuid.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadMeFilesFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
@@ -293,7 +353,39 @@ class LoadToJsonServiceTest {
     }
 
     @Test
-    void getListArrowLoadFilesByAreaFromStudy_withLoadMeTrajectoryFileNameWithoutPattern_shouldFallbackToOthers() throws IOException {
+    void getListArrowLoadMeFilesFromStudy_withLoadMeTrajectoryBlankAreaAndMultiUnderscoreArea_shouldExtractFullAreaFromFileName() throws IOException {
+        // Given
+        LoadEntity loadEntity = LoadEntity.builder()
+                .id(1)
+                .fileName("load_v_me_h2_short_fr_2026-2027.csv")
+                .area("   ")
+                .build();
+
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.LOAD_ME.name())
+                .fileName("load_me_dataset")
+                .loadEntities(Set.of(loadEntity))
+                .build();
+
+        StudyEntity study = StudyEntity.builder()
+                .id(1)
+                .trajectories(Set.of(loadMeTrajectory))
+                .build();
+
+        when(nasFileService.readAndSaveMatrixToNas(any(), any(), any(), anyBoolean()))
+                .thenReturn("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow");
+
+        // When
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadMeFilesFromStudy(study);
+
+        // Then
+        assertThat(result).hasSize(1)
+                .containsEntry("V_ME_H2_SHORT_FR", List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"));
+    }
+
+    @Test
+    void getListArrowLoadMeFilesFromStudy_withLoadMeTrajectoryFileNameWithoutPattern_shouldFallbackToOthers() throws IOException {
         // Given
         LoadEntity loadEntity = LoadEntity.builder()
                 .id(1)
@@ -317,7 +409,7 @@ class LoadToJsonServiceTest {
                 .thenReturn("unmatchedfilename.uuid.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<String, List<String>> result = loadToJsonService.getListArrowLoadMeFilesFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
