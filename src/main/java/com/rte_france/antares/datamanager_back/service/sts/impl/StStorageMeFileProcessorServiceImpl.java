@@ -36,7 +36,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
-    private final AreaRepository areaRepository;
 
     private static final Integer SERIES_INDEX_ME = 10;
     private static final String EXCEL_EXTENSION = ".xlsx";
@@ -207,49 +206,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         return true;
     }
 
-    private boolean isNumericCell(Cell cell) {
-        if (cell == null) return false;
-        CellType t = cell.getCellType();
-        if (t == CellType.NUMERIC) return true;
-        if (t == CellType.FORMULA) {
-            CellType cachedType = cell.getCachedFormulaResultType();
-            return cachedType == CellType.NUMERIC;
-        }
-        return false;
-    }
-
-    private boolean isBooleanCell(Cell cell) {
-        if (cell == null) return false;
-        CellType t = cell.getCellType();
-        if (t == CellType.BOOLEAN) return true;
-        if (t == CellType.NUMERIC) {
-            double value = cell.getNumericCellValue();
-            return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
-        }
-        if (t == CellType.FORMULA) {
-            CellType cachedType = cell.getCachedFormulaResultType();
-            if (cachedType == CellType.BOOLEAN) return true;
-            if (cachedType == CellType.NUMERIC) {
-                double value = cell.getNumericCellValue();
-                return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
-            }
-            if (cachedType == CellType.STRING) {
-                return isBooleanStringValue(cell.getStringCellValue());
-            }
-            return false;
-        }
-        if (t == CellType.STRING) {
-            return isBooleanStringValue(cell.getStringCellValue());
-        }
-        return false;
-    }
-
-    private boolean isBooleanStringValue(String value) {
-        if (value == null) return false;
-        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
-        return "true".equals(normalized) || "false".equals(normalized) || "1".equals(normalized)
-                || "0".equals(normalized);
-    }
 
     private Boolean getBooleanCell(Row row, int idx) {
         Cell cell = row.getCell(idx);

@@ -34,21 +34,17 @@ class StStorageMeFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
     private AntaresDataManagerProperties properties;
     private UserService userService;
-    private AreaRepository areaRepository;
 
     @BeforeEach
     void setUp() {
         properties = mock(AntaresDataManagerProperties.class);
         trajectoryRepository = mock(TrajectoryRepository.class);
         userService = mock(UserService.class);
-        areaRepository = mock(AreaRepository.class);
 
         service = new StStorageMeFileProcessorServiceImpl(
                 properties,
                 trajectoryRepository,
-                userService,
-                areaRepository
-        );
+                userService);
 
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
         when(properties.getTrajectoryFilePath()).thenReturn("trajectories");
@@ -57,7 +53,6 @@ class StStorageMeFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(anyInt())).thenReturn(List.of(areaEntity));
 
         // Mock default return for repository to avoid NPE
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
