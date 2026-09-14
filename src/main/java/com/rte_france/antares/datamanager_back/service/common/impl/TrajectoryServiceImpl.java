@@ -619,6 +619,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.LOAD_ME,
                 TrajectoryType.AREA_ME,
                 TrajectoryType.LINK_ME,
+                TrajectoryType.STS_ME,
                 TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER,
                 TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER,
                 TrajectoryType.THERMAL_ECONOMIC_PARAMETER,
@@ -1389,6 +1390,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case SCENARIO_BUILDER -> antaresDataManagerProperties.getScenarioBuilderDirectory();
             case P2G_CAPACITY_COST -> antaresDataManagerProperties.getP2gDirectory();
             case P2G_MARKET_MODULATION -> antaresDataManagerProperties.getP2gMarketModulationDirectory();
+            case STS_ME -> antaresDataManagerProperties.getStsMeDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
