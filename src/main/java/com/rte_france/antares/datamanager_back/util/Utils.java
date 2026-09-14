@@ -533,7 +533,7 @@ public class Utils {
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
-            case STS, AREA_ME, LINK_ME ->
+            case STS, AREA_ME, LINK_ME , STS_ME ->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
@@ -1691,5 +1691,44 @@ public class Utils {
         }
 
         return value.substring(0, 1).toUpperCase() + value.substring(1);
+    }
+
+    /**
+     * Checks if a cell contains a boolean value (boolean, numeric 0/1, or string "true"/"false"/"0"/"1")
+     */
+    public static boolean isBooleanCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.BOOLEAN) return true;
+        if (t == CellType.NUMERIC) {
+            double value = cell.getNumericCellValue();
+            return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
+        }
+        if (t == CellType.FORMULA) {
+            CellType cachedType = cell.getCachedFormulaResultType();
+            if (cachedType == CellType.BOOLEAN) return true;
+            if (cachedType == CellType.NUMERIC) {
+                double value = cell.getNumericCellValue();
+                return Double.compare(value, 0d) == 0 || Double.compare(value, 1d) == 0;
+            }
+            if (cachedType == CellType.STRING) {
+                return isBooleanStringValue(cell.getStringCellValue());
+            }
+            return false;
+        }
+        if (t == CellType.STRING) {
+            return isBooleanStringValue(cell.getStringCellValue());
+        }
+        return false;
+    }
+
+    /**
+     * Checks if a string value represents a boolean ("true", "false", "0", "1")
+     */
+    public static boolean isBooleanStringValue(String value) {
+        if (value == null) return false;
+        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
+        return "true".equals(normalized) || "false".equals(normalized) || "1".equals(normalized)
+                || "0".equals(normalized);
     }
 }

@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.sts.StStorageMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,6 +30,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 public class StStorageController {
 
     private final StStorageFileProcessorService stStorageFileProcessorService;
+    private final StStorageMeFileProcessorService stStorageMeFileProcessorService;
 
     @Operation(summary = "import sts trajectory to database ")
     @PostMapping("/st-storage")
@@ -42,4 +44,17 @@ public class StStorageController {
                 (stStorageFileProcessorService.processStStorageFile(trajectoryToUse, horizon, studyId, isCivilYear, area, technology)),
                 HttpStatus.CREATED);
     }
+
+    @Operation(summary = "import sts-me trajectory to database ")
+    @PostMapping("/st-storage-me")
+    public ResponseEntity<TrajectoryDTO> uploadStStorageMeTrajectory(
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") @Parameter(description = "example of horizon : 2020-2021") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+
+        return new ResponseEntity<>(toTrajectoryDTO
+                (stStorageMeFileProcessorService.processStStorageMeFile(trajectoryToUse, horizon, studyId)),
+                HttpStatus.CREATED);
+    }
 }
+
