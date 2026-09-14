@@ -797,6 +797,22 @@ class HydroFileProcessorServiceImplTest {
     }
 
     @Test
+    void processTechnicalParametersFile_parameters_throwExceptionWhenInitializeReservoirDateOutOfBound() throws Exception {
+        Path dir = tempDir.resolve("params_happy");
+        Files.createDirectories(dir);
+        Path filePath = CreateExcelTestUtil.createExcelFile(dir, "hydroParameters_test.xlsx", HORIZON,
+                List.of("node", "inter.daily.breakdown", "intra.daily.modulation", "inter.monthly.breakdown",
+                        "initialize.reservoir.date", "pumping.efficiency",
+                        "reservoir", "reservoir.capacity", "follow.load", "use.water"),
+                List.of(List.of("FR", 2, 3, 4, 0, 6, true, 1000, false, true)));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> service.processTechnicalParametersFile(
+                new TechnicalParametersProcessingContext(filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_PARAMETERS, null, null)));
+
+        assertTrue(exception.getMessage().contains("{0} value must be between 1 and 12 in {1} trajectory {2}"));
+    }
+
+    @Test
     void processTechnicalParametersFile_throwsWhenAllRowsAreEmpty() throws Exception {
         Path dir = tempDir.resolve("empty_rows");
         Files.createDirectories(dir);
@@ -1001,6 +1017,18 @@ class HydroFileProcessorServiceImplTest {
         assertFalse(HydroFileProcessorServiceImpl.isInteger("abc"));
         assertFalse(HydroFileProcessorServiceImpl.isInteger(""));
         assertFalse(HydroFileProcessorServiceImpl.isInteger("1e5"));
+    }
+
+    @Test
+    void isValueWithinInterval_returnsTrueWhenNotWithinInterval() {
+        assertTrue(HydroFileProcessorServiceImpl.isValueWithinInterval("3"));
+        assertTrue(HydroFileProcessorServiceImpl.isValueWithinInterval("8"));
+    }
+
+    @Test
+    void isValueWithinInterval_returnsFalseWhenNotWithinInterval() {
+        assertFalse(HydroFileProcessorServiceImpl.isValueWithinInterval("0"));
+        assertFalse(HydroFileProcessorServiceImpl.isValueWithinInterval("34"));
     }
 
     // -------------------------------------------------------------------------

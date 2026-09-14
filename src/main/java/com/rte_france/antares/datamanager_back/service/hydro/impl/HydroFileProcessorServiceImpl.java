@@ -669,6 +669,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS, true, isPsp, numericValues);
         validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS, false, isPsp, booleanValues);
         validateIntegerColumns(context, REQUIRED_HYDRO_PARAMETERS_INTEGER_COLUMNS, isPsp, initializeReservoirDate);
+        validateInterval(context, isPsp, initializeReservoirDate);
 
         BigDecimal reservoirCapacityValue = parseDecimal(reservoirCapacity);
 
@@ -704,6 +705,16 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         try {
             Integer.parseInt(s);
             return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    public static boolean isValueWithinInterval(String s) {
+        if (s == null) return false;
+        try {
+            int number = Integer.parseInt(s);
+            return number >= 1 && number <= 12;
         } catch (NumberFormatException e) {
             return false;
         }
@@ -746,6 +757,17 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(columnsLabel, typeLabel, context.getTrajectoryToUse(), valuesLabel))
                     .message("{0} in the {1} trajectory {2} must be {3}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private void validateInterval(ResRowProcessingContext context, boolean isPsp, String initializeReservoirDate) {
+        if (!isValueWithinInterval(initializeReservoirDate)) {
+            String typeLabel = getTypeLabel(context.getTrajectoryType(), isPsp);
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(INITIALIZE_RESERVOIR_DATE_COLUMN, typeLabel, context.getTrajectoryToUse()))
+                    .message("{0} value must be between 1 and 12 in {1} trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
