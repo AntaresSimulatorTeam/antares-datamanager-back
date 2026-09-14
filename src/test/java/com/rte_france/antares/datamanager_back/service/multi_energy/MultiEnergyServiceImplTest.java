@@ -162,6 +162,308 @@ class MultiEnergyServiceImplTest {
     }
 
     @Test
+    void buildMultiEnergyMap_withNullTrajectory_shouldReturnEmptyMap() {
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null);
+
+        // Then
+        assertThat(result).isNotNull().isEmpty();
+    }
+
+    @Test
+    void buildMultiEnergyMap_withNullStudyAndNullTrajectories_shouldReturnEmptyMap() {
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(null, null, null);
+
+        // Then
+        assertThat(result).isNotNull().isEmpty();
+    }
+
+    @Test
+    void buildMultiEnergyMap_withStudyHavingNullIdAndName_shouldExecuteWithoutErrors() {
+        // Given
+        StudyEntity studyWithNulls = StudyEntity.builder().id(null).name(null).trajectories(null).build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyWithNulls, null, null);
+
+        // Then
+        assertThat(result).isNotNull().isEmpty();
+    }
+
+    @Test
+    void buildMultiEnergyMap_withTrajectoryHavingNullType_shouldDelegateToAreaMe() {
+        // Given
+        TrajectoryEntity trajWithNullType = TrajectoryEntity.builder()
+                .type(null)
+                .fileName("custom.xlsx")
+                .areaConfigEntities(null)
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, trajWithNullType);
+
+        // Then
+        assertThat(result).isNotNull().isEmpty();
+    }
+
+    @Test
+    void buildMultiEnergyMap_withNullStudyInBuildAreasMap_shouldAssembleWithEmptyAdequacyMap() {
+        // Given
+        AreaEntity areaEntity = AreaEntity.builder().name("area_null_study").build();
+        AreaConfigEntity config = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(100.0)
+                .spilledEnergyCost(50.0)
+                .build();
+        TrajectoryEntity traj = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(config))
+                .build();
+
+        when(adequacySettingsAssemblerService.findAdequacyTrajectory(null)).thenReturn(Optional.empty());
+        when(adequacySettingsAssemblerService.resolveMode(eq("area_null_study"), any(), eq(Collections.emptyMap())))
+                .thenReturn(Optional.empty());
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(null, traj, null);
+
+        // Then
+        assertThat(result).containsKey("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        assertThat(areas).containsKey("area_null_study");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withAreaConfigHavingNullAreaOrNullAreaName_shouldSkipThoseConfigs() {
+        // Given
+        AreaConfigEntity nullAreaConfig = AreaConfigEntity.builder().area(null).build();
+        AreaConfigEntity nullNameConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name(null).build()).build();
+        AreaConfigEntity validConfig = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("VALID_AREA").build())
+                .unsuppliedEnergyCost(100.0)
+                .spilledEnergyCost(20.0)
+                .build();
+
+        TrajectoryEntity traj = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(nullAreaConfig, nullNameConfig, validConfig))
+                .build();
+
+        when(adequacySettingsAssemblerService.findAdequacyTrajectory(studyEntity)).thenReturn(Optional.empty());
+        when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(studyEntity)).thenReturn(Collections.emptyMap());
+        when(adequacySettingsAssemblerService.resolveMode(eq("VALID_AREA"), any(), any())).thenReturn(Optional.empty());
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, traj);
+
+        // Then
+        assertThat(result).containsKey("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        assertThat(areas).hasSize(1).containsKey("VALID_AREA");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withBlankAdequacyMode_shouldNotIncludeAdequacyPatchMode() {
+        // Given
+        AreaEntity areaEntity = AreaEntity.builder().name("area_blank_adequacy").build();
+        AreaConfigEntity config = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(100.0)
+                .spilledEnergyCost(50.0)
+                .build();
+        TrajectoryEntity traj = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(config))
+                .build();
+
+        when(adequacySettingsAssemblerService.findAdequacyTrajectory(studyEntity)).thenReturn(Optional.empty());
+        when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(studyEntity)).thenReturn(Collections.emptyMap());
+        when(adequacySettingsAssemblerService.resolveMode(eq("area_blank_adequacy"), any(), any()))
+                .thenReturn(Optional.of("   "));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, traj);
+
+        // Then
+        assertThat(result).containsKey("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areas = (Map<String, Object>) result.get("area_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> areaData = (Map<String, Object>) areas.get("area_blank_adequacy");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> properties = (Map<String, Object>) areaData.get("properties");
+        assertThat(properties).doesNotContainKey("adequacy_patch_mode");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withLinkMeContainingNullLinkEntity_shouldSkipNullLinks() {
+        // Given
+        TrajectoryEntity trajWithNullLink = TrajectoryEntity.builder()
+                .type(TrajectoryType.LINK_ME.name())
+                .linkMeEntities(Collections.singletonList(null))
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, trajWithNullLink);
+
+        // Then
+        assertThat(result).doesNotContainKey("links_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnEmptyLoadsMap() {
+        // Given
+        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, null);
+        AreaConfigEntity config = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("AREA1").build())
+                .build();
+        TrajectoryEntity areaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(config))
+                .build();
+
+        // When
+        Map<String, Object> result = serviceWithoutLoadService.buildMultiEnergyMap(studyEntity, areaMe);
+
+        // Then
+        assertThat(result).doesNotContainKey("loads_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_whenStudyTrajectoriesNull_shouldReturnEmptyLoadsMap() {
+        // Given
+        StudyEntity studyWithNullTrajectories = StudyEntity.builder().id(1).name("test").trajectories(null).build();
+        AreaConfigEntity config = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("AREA1").build())
+                .build();
+        TrajectoryEntity areaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(config))
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyWithNullTrajectories, areaMe);
+
+        // Then
+        assertThat(result).doesNotContainKey("loads_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_whenLoadFilesByAreaIsNull_shouldReturnEmptyLoadsMap() {
+        // Given
+        AreaConfigEntity config = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("AREA1").build())
+                .build();
+        TrajectoryEntity areaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(config))
+                .build();
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity)).thenReturn(null);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
+
+        // Then
+        assertThat(result).doesNotContainKey("loads_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withAreaConfigsHavingNullOrBlankNamesInLoads_shouldSkipThem() {
+        // Given
+        AreaConfigEntity nullAreaConfig = AreaConfigEntity.builder().area(null).build();
+        AreaConfigEntity blankNameConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("  ").build()).build();
+        AreaConfigEntity validConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("AREA_EXACT").build()).build();
+
+        TrajectoryEntity areaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(nullAreaConfig, blankNameConfig, validConfig))
+                .build();
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity))
+                .thenReturn(Map.of("AREA_EXACT", List.of("file.arrow")));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
+
+        // Then
+        assertThat(result).containsKey("loads_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
+        assertThat(loadsMe).hasSize(1).containsKey("loads_area_exact");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withLoadsCaseMatchingVariants_shouldMatchAllVariants() {
+        // Given
+        // 1. Exact match: areaName is "exact_match", map has "exact_match"
+        AreaConfigEntity exactConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("exact_match").build()).build();
+        // 2. Uppercase match: areaName is "upper_match", map has "UPPER_MATCH"
+        AreaConfigEntity upperConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("upper_match").build()).build();
+        // 3. Mixed-case loop match: areaName is "MixEd_MatCh", map has "mIXeD_mATcH" (neither exact nor UPPER_MATCH "MIXED_MATCH")
+        AreaConfigEntity mixedConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("MixEd_MatCh").build()).build();
+        // 4. No match: areaName is "no_match", map does not have it
+        AreaConfigEntity noMatchConfig = AreaConfigEntity.builder().area(AreaEntity.builder().name("no_match").build()).build();
+
+        TrajectoryEntity areaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(exactConfig, upperConfig, mixedConfig, noMatchConfig))
+                .build();
+
+        Map<String, List<String>> loadFilesMap = new HashMap<>();
+        loadFilesMap.put("exact_match", List.of("exact.arrow"));
+        loadFilesMap.put("UPPER_MATCH", List.of("upper.arrow"));
+        loadFilesMap.put("mIXeD_mATcH", List.of("mixed.arrow"));
+        loadFilesMap.put("other_area", List.of("other.arrow"));
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity)).thenReturn(loadFilesMap);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
+
+        // Then
+        assertThat(result).containsKey("loads_me");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loadsMe = (Map<String, Object>) result.get("loads_me");
+        assertThat(loadsMe).hasSize(3)
+                .containsEntry("loads_exact_match", List.of("exact.arrow"))
+                .containsEntry("loads_upper_match", List.of("upper.arrow"))
+                .containsEntry("loads_mixed_match", List.of("mixed.arrow"))
+                .doesNotContainKey("loads_no_match");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withNullLoadFilesListInMap_shouldNotAddAreaToLoadsMe() {
+        // Given
+        AreaConfigEntity configWithNullList = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("AREA_WITH_NULL_LIST").build())
+                .build();
+        AreaConfigEntity configWithEmptyList = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("AREA_WITH_EMPTY_LIST").build())
+                .build();
+
+        TrajectoryEntity areaMe = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(configWithNullList, configWithEmptyList))
+                .build();
+
+        Map<String, List<String>> loadFilesMap = new HashMap<>();
+        loadFilesMap.put("AREA_WITH_NULL_LIST", null);
+        loadFilesMap.put("AREA_WITH_EMPTY_LIST", Collections.emptyList());
+
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity)).thenReturn(loadFilesMap);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMe);
+
+        // Then
+        assertThat(result).doesNotContainKey("loads_me");
+    }
+
+    @Test
     void buildMultiEnergyMap_multipleAreas_shouldReturnAllAreas() {
         // Given
         AreaEntity area1 = AreaEntity.builder().name("AREA1_ME").build();
