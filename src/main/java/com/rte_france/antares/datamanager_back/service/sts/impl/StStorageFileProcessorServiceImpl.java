@@ -50,7 +50,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
     private static final Integer SERIES_INDEX = 11;
     private static final Integer CONSTRAINTS_INDEX = 12;
-    private static final String ELECTRICAL_VEHICLE = "EV";
     private static final String SERIES_FILES = "series";
     private static final String CONSTRAINTS_FILES = "constraints";
     private static final String EXCEL_EXTENSION = ".xlsx";

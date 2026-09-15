@@ -190,7 +190,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private void validateBooleanRangeMe(Row row, String trajectoryFileName) {
-        for (int idx = 8; idx <= 11; idx++) {
+        for (int idx = 8; idx <= 10; idx++) {
             Cell cell = row.getCell(idx);
             if (!isBooleanCell(cell)) {
                 throw createValidationError("Columns initial_level_optim and Series must be boolean in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
