@@ -39,43 +39,65 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
 
-
-
     @Override
-    public Map<String, StsGenerationDTO> assembleStsProperties(StudyEntity studyEntity) {
-        List<StorageConstraintsContext> contexts = buildStorageConstraintsContext(studyEntity);
+    public Map<String, StsGenerationDTO> assembleStsProperties(
+            StudyEntity studyEntity) {
 
-        Set<String> allAreas = studyEntity.getTrajectories().stream()
+        TrajectoryEntity stsTrajectory = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.STS.name().equals(t.getType()))
-                .flatMap(t -> t.getStStorageEntities().stream()
-                        .filter(Objects::nonNull)
-                        .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
-                        .map(StStorageEntity::getArea)
-                        .filter(Objects::nonNull)
-                        .map(String::toUpperCase)
-                )
-                .collect(Collectors.toSet());
+                .findFirst()
+                .orElse(null);
 
+        return assembleStsProperties(studyEntity, stsTrajectory);
+    }
+    @Override
+    public Map<String, StsGenerationDTO> assembleStsMeProperties(
+            StudyEntity studyEntity,
+            TrajectoryEntity stsMeTrajectory) {
+
+        return assembleStsProperties(studyEntity, stsMeTrajectory);
+    }
+
+
+    public Map<String, StsGenerationDTO> assembleStsProperties(StudyEntity studyEntity, TrajectoryEntity stsTrajectory) {
+
+        if (!isStsTrajectoryWithEntities(stsTrajectory)) {
+            return Collections.emptyMap();
+        }
+
+        List<StorageConstraintsContext> contexts = buildStorageConstraintsContext(studyEntity);
+
+
+        Set<String> allAreas = stsTrajectory.getStStorageEntities().stream()
+                .filter(Objects::nonNull)
+                .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
+                .map(StStorageEntity::getArea)
+                .filter(Objects::nonNull)
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
         Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(contexts, allAreas, studyEntity.getHorizon());
         String horizon = studyEntity.getHorizon();
 
 
 
-        List<StStorageEntity> eligibleEntities = studyEntity.getTrajectories().stream()
-                .filter(Objects::nonNull)
-                .filter(t -> TrajectoryType.STS.name().equals(t.getType()))
-                .map(TrajectoryEntity::getStStorageEntities)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(sts -> {
-                    double injection = sts.getInjection() != null ? sts.getInjection().doubleValue() : 0.0;
-                    double withdrawal = sts.getWithdrawal() != null ? sts.getWithdrawal().doubleValue() : 0.0;
-                    double storage = sts.getStorage() != null ? sts.getStorage().doubleValue() : 0.0;
-                    return (injection + withdrawal + storage) > 0;
-                })
-                .toList();
+        List<StStorageEntity> eligibleEntities =
+                stsTrajectory.getStStorageEntities().stream()
+                        .filter(Objects::nonNull)
+                        .filter(sts -> {
+                            double injection = sts.getInjection() != null
+                                    ? sts.getInjection().doubleValue()
+                                    : 0.0;
+                            double withdrawal = sts.getWithdrawal() != null
+                                    ? sts.getWithdrawal().doubleValue()
+                                    : 0.0;
+                            double storage = sts.getStorage() != null
+                                    ? sts.getStorage().doubleValue()
+                                    : 0.0;
 
+                            return (injection + withdrawal + storage) > 0;
+                        })
+                        .toList();
 
         // Pre-compute constraint parameters on the main thread while the Hibernate session is active,
         Map<Integer, Map<String, StsConstraintParameterDTO>> constraintParamsById =
@@ -107,7 +129,13 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         (existing, replacement) -> existing
                 ));
     }
-
+    private boolean isStsTrajectoryWithEntities(TrajectoryEntity trajectory) {
+        return trajectory != null
+                && (TrajectoryType.STS.name().equals(trajectory.getType())
+                || TrajectoryType.STS_ME.name().equals(trajectory.getType()))
+                && trajectory.getStStorageEntities() != null
+                && !trajectory.getStStorageEntities().isEmpty();
+    }
 
     private Map<String, List<String>> createConstraintsTsFiles(
             List<StorageConstraintsContext> contexts,
@@ -266,16 +294,28 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             return Collections.emptyList();
         }
         Path tsDir = Path.of(stsEntity.getTsPath());
+        TrajectoryType trajectoryType = resolveTrajectoryType(stsEntity);
 
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
         List<String> saved = new ArrayList<>();
-        for (StsTsFile stsTsFile : StsTsFile.requiredFiles()) {
+        for (StsTsFile stsTsFile : StsTsFile.requiredFiles(trajectoryType)) {
             Path inputPath = stsTsFile.resolve(tsDir);
             TimeSeriesMatrix matrix = getRequiredSeriesMatrix(inputPath, horizon, matrixCache, stsEntity.getGroupe());
             saved.add(saveSeriesMatrix(inputPath, matrix, outputDir, bytesCache));
         }
 
         return saved;
+    }
+
+
+    private TrajectoryType resolveTrajectoryType(StStorageEntity stsEntity) {
+        if (stsEntity.getTrajectory() != null && stsEntity.getTrajectory().getType() != null) {
+            try {
+                return TrajectoryType.valueOf(stsEntity.getTrajectory().getType());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return TrajectoryType.STS;
     }
 
     private TimeSeriesMatrix getRequiredSeriesMatrix(

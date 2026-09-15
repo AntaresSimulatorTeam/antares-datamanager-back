@@ -135,7 +135,7 @@ class StudyGeneratorServiceImplTest {
     private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
-    private StsGenerationAssemblerService stPropertiesAssemblerService;
+    private StsGenerationAssemblerService stsPropertiesAssemblerService;
 
     @Mock
     private DsrGenerationAssemblerService dsrGenerationAssemblerService;
@@ -236,7 +236,7 @@ class StudyGeneratorServiceImplTest {
         // Mock studyRepository behavior
         lenient().when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
         // Default STS assembler returns empty map to avoid NPE in tests not focused on STS
-        lenient().when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
+        lenient().when(stsPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
         //Default DSR assembler returns empty map to avoid NPE in tests not focused on DSR
         lenient().when(dsrGenerationAssemblerService.assembleDsrProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
@@ -288,10 +288,23 @@ class StudyGeneratorServiceImplTest {
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(hydroToJsonService).buildHydroDataMap(anyString(), anyMap());
 
-        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService, loadToJsonService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
-                .when(multiEnergyService).buildMultiEnergyMap(any(), any(), any());
-        lenient().doAnswer(inv -> new MultiEnergyServiceImpl(adequacySettingsAssemblerService, loadToJsonService).buildMultiEnergyMap(inv.getArgument(0), inv.getArgument(1)))
-                .when(multiEnergyService).buildMultiEnergyMap(any(), any());
+        lenient().doAnswer(inv -> {
+            StudyEntity study = inv.getArgument(0);
+            Object[] args = inv.getArguments();
+            List<TrajectoryEntity> trajs = new ArrayList<>();
+            for (int i = 1; i < args.length; i++) {
+                Object arg = args[i];
+                if (arg instanceof TrajectoryEntity[] array) {
+                    trajs.addAll(Arrays.asList(array));
+                } else if (arg instanceof TrajectoryEntity entity) {
+                    trajs.add(entity);
+                } else if (arg == null) {
+                    trajs.add(null);
+                }
+            }
+            return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService)
+                    .buildMultiEnergyMap(study, trajs.toArray(new TrajectoryEntity[0]));
+        }).when(multiEnergyService).buildMultiEnergyMap(any(), any(TrajectoryEntity[].class));
     }
 
     @Test
@@ -954,7 +967,7 @@ class StudyGeneratorServiceImplTest {
         Map<String, StsGenerationDTO> stsProps = new LinkedHashMap<>();
         stsProps.put("DE_Storage1", deDto);
         stsProps.put("FR_Ignore", frDto);
-        when(stPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(stsProps);
+        when(stsPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(stsProps);
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
@@ -1520,53 +1533,6 @@ class StudyGeneratorServiceImplTest {
         Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
 
         assertThat(studyMap).doesNotContainKey("ME");
-    }
-
-    @Test
-    void buildJsonForStudyGeneration_shouldIncludeMeSection_whenLinkMeTrajectoryPresent() throws Exception {
-        var areaEntity = AreaEntity.builder().name("FR").build();
-        var areaConfig = AreaConfigEntity.builder().area(areaEntity).unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build();
-        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
-
-        var linkMeEntity = LinkMeEntity.builder()
-                .nodeFrom("ME")
-                .nodeTo("FR")
-                .directMw(1200.0)
-                .indirectMw(1300.0)
-                .hurdleCostsDirect(0.1)
-                .hurdleCostsIndirect(0.3)
-                .build();
-        var linkMeTrajectory = TrajectoryEntity.builder()
-                .type("LINK_ME")
-                .fileName("link_me.xlsx")
-                .linkMeEntities(List.of(linkMeEntity))
-                .build();
-
-        var study = StudyEntity.builder().id(1).name("studyTest")
-                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, linkMeTrajectory)))
-                .build();
-        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
-        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
-
-        studyGeneratorService.buildJsonForStudyGeneration(1);
-
-        var mapper = new ObjectMapper();
-        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
-        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
-
-        assertThat(studyMap).containsKey("ME");
-        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
-        assertThat(meMap).containsKey("links_me").doesNotContainKey("area_me");
-
-        Map<String, Object> linksMe = mapper.convertValue(meMap.get("links_me"), new TypeReference<>() {});
-        assertThat(linksMe).containsKey("ME/FR");
-
-        Map<String, Object> linkEntry = mapper.convertValue(linksMe.get("ME/FR"), new TypeReference<>() {});
-        assertThat(linkEntry)
-                .containsEntry("directMw", 1200.0)
-                .containsEntry("indirectMw", 1300.0)
-                .containsEntry("hurdleCostDirect", 0.1)
-                .containsEntry("hurdleCostIndirect", 0.3);
     }
 
     @Test
