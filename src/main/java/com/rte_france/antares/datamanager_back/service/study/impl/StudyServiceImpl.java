@@ -474,7 +474,8 @@ public class StudyServiceImpl implements StudyService {
                         .errorMessageArguments(List.of(dto.getProject()))
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
-        if (!Objects.equals(study.getProject().getId(), newProject.getId()) && studyExists(study.getName(), newProject.getName())) {
+        var newStudyName = dto.getName() + "_" + (Integer.parseInt(dto.getHorizon()));
+        if (!Objects.equals(study.getProject().getId(), newProject.getId()) && studyExists(newStudyName, newProject.getName())) {
             throw BusinessException.builder()
                     .message("A study with the same name already exists for the target project.")
                     .httpStatus(HttpStatus.CONFLICT)
