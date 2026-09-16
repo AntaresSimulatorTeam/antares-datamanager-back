@@ -58,7 +58,8 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
 
         if (!missingFiles.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Required files are missing: " + String.join(", ", missingFiles))
+                    .errorMessageArguments(List.of(String.join(", ", missingFiles), trajectoryFilePath.getFileName().toString()))
+                    .message("Required files are missing: {0} in Flowbased trajectory {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
