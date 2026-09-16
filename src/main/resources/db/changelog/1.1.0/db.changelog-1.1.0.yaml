@@ -150,3 +150,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V71-drop-output-file-name-alter-area-length.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V72-alter_area_column_trajectory_table.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V73-create-me-constraints-tables.sql

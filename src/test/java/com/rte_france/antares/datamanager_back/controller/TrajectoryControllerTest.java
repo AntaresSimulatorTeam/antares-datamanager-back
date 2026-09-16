@@ -413,4 +413,61 @@ class TrajectoryControllerTest {
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsCreatedTrajectory() throws Exception {
+        when(trajectoryServiceImpl.processConstraintMeTrajectory(any(), any(), any()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        Mockito.verify(trajectoryServiceImpl, Mockito.times(1))
+                .processConstraintMeTrajectory(any(), any(), any());
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsBadRequestForInvalidHorizon() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsBadRequestForMissingParams() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_withSpacesInFileName_returnsCreatedTrajectory() throws Exception {
+        when(trajectoryServiceImpl.processConstraintMeTrajectory(any(), any(), any()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "test file with spaces")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        Mockito.verify(trajectoryServiceImpl, Mockito.times(1))
+                .processConstraintMeTrajectory(any(), any(), any());
+    }
 }
