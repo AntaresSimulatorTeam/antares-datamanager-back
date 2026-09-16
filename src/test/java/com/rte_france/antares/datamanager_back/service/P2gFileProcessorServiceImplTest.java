@@ -237,7 +237,7 @@ public class P2gFileProcessorServiceImplTest {
 
         assertThatThrownBy(() -> service.processCapacityP2gFile("trajCapMissing", "2025-2026", 1, false))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Required files are missing")
+                .hasMessageContaining("Required files are missing: {0} in P2G trajectory {1}")
                 .hasFieldOrPropertyWithValue("httpStatus", HttpStatus.BAD_REQUEST);
     }
 

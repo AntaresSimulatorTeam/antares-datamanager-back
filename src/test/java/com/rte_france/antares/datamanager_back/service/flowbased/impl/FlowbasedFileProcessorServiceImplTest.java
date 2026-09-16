@@ -64,9 +64,7 @@ class FlowbasedFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> flowbasedFileProcessorService.validateRequiredFiles(tempDir));
 
-        assertTrue(exception.getMessage().contains("Required files are missing"));
-        assertTrue(exception.getMessage().contains("Flowbased_nodes_links.xlsx"));
-        assertTrue(exception.getMessage().contains("IdTypDays.csv"));
+        assertTrue(exception.getMessage().contains("Required files are missing: {0} in Flowbased trajectory {1}"));
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 
