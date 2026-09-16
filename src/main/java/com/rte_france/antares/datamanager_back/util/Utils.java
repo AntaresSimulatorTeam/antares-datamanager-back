@@ -535,6 +535,7 @@ public class Utils {
                     "NA";
             case STS, AREA_ME, LINK_ME , STS_ME ->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+            case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
@@ -557,6 +558,32 @@ public class Utils {
             Sheet perimetreSheet = wb.getSheet("perimetre");
             if (perimetreSheet != null) {
                 sb.append(hashWholeSheet(perimetreSheet));
+            }
+
+            return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
+        }
+    }
+
+    private static String computeConstraintMeChecksum(String filePath, String horizon) throws IOException {
+        try (InputStream in = Files.newInputStream(Path.of(filePath));
+             Workbook wb = WorkbookFactory.create(in)) {
+
+            StringBuilder sb = new StringBuilder();
+
+            Sheet listAreaDescSheet = wb.getSheet("listArea_desc");
+            if (listAreaDescSheet != null) {
+                sb.append(hashWholeSheet(listAreaDescSheet));
+            }
+
+            Sheet listClusterDescSheet = wb.getSheet("listCluster_desc");
+            if (listClusterDescSheet != null) {
+                sb.append(hashWholeSheet(listClusterDescSheet));
+            }
+
+            String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
+            Sheet horizonSheet = wb.getSheet(horizonYear);
+            if (horizonSheet != null) {
+                sb.append(hashWholeSheet(horizonSheet));
             }
 
             return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();

@@ -14,6 +14,8 @@ public interface TrajectoryService {
 
     TrajectoryEntity processLoadMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 
+    TrajectoryEntity processConstraintMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
     TrajectoryEntity processTrajectory(TrajectoryType trajectoryType, String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 
     TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException;

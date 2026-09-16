@@ -40,5 +40,6 @@ public enum TrajectoryType {
     SCENARIO_BUILDER,
     P2G_CAPACITY_COST,
     P2G_MARKET_MODULATION,
+    CONSTRAINT_ME,
     UNKNOWN
 }
