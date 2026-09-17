@@ -41,5 +41,6 @@ public enum TrajectoryType {
     P2G_CAPACITY_COST,
     P2G_MARKET_MODULATION,
     CONSTRAINT_ME,
+    EFFICIENCY_ME,
     UNKNOWN
 }

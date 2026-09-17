@@ -533,7 +533,7 @@ public class Utils {
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
-            case STS, AREA_ME, LINK_ME , STS_ME ->
+            case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME ->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case DSR ->

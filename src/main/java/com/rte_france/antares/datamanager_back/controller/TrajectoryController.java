@@ -117,6 +117,19 @@ public class TrajectoryController {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processConstraintMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
+    @Operation(summary = "import EFFICIENCY_ME trajectory file to database")
+    @PostMapping("/efficiency-me")
+    public ResponseEntity<TrajectoryDTO> uploadEfficiencyMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+                                                                     @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                                     @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                                     @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processEfficiencyMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
     @GetMapping
     public List<TrajectoryDTO> getTrajectoriesByStudyIdAndType(@RequestParam("studyId") Integer studyId,
                                                                @RequestParam(value = "trajectoryType", required = false) TrajectoryType trajectoryType) {
