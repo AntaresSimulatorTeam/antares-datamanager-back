@@ -1972,7 +1972,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .area(area)
                 .technology(technology)
                 .type(type)
-                .hasTimeSeries(true)
+                .hasTimeSeries(false)
                 .build();
 
         var existingTrajectory = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
