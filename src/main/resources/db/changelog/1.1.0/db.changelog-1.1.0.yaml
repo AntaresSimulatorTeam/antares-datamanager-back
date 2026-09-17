@@ -152,3 +152,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V72-alter_area_column_trajectory_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V73-create-me-constraints-tables.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V74-create-efficiency-me-table.sql

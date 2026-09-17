@@ -470,4 +470,30 @@ class TrajectoryControllerTest {
         Mockito.verify(trajectoryServiceImpl, Mockito.times(1))
                 .processConstraintMeTrajectory(any(), any(), any());
     }
+    // Tests for /efficiency-me endpoint
+    @Test
+    void uploadEfficiencyMeTrajectory_returnsCreatedTrajectory() throws Exception {
+        // Given
+        TrajectoryEntity trajectoryEntity = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("test_efficiency")
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .horizon("2023-2024")
+                .version(1)
+                .build();
+
+        when(trajectoryServiceImpl.processEfficiencyMeTrajectory("test_efficiency", "2023-2024", 1))
+                .thenReturn(trajectoryEntity);
+
+        // When & Then
+        this.mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .param("trajectoryToUse", "test_efficiency")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.trajectoryName").value("test_efficiency"))
+                .andExpect(jsonPath("$.type").value(TrajectoryType.EFFICIENCY_ME.name()));
+
+        verify(trajectoryServiceImpl, times(1)).processEfficiencyMeTrajectory("test_efficiency", "2023-2024", 1);
+    }
 }
