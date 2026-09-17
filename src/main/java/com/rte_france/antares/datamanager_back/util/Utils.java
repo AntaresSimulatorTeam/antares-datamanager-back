@@ -936,10 +936,15 @@ public class Utils {
     public boolean isNumericCell(Cell cell) {
         if (cell == null) return false;
         CellType t = cell.getCellType();
+        if (t == CellType.BLANK) return false;
         if (t == CellType.NUMERIC) return true;
         if (t == CellType.FORMULA) {
             CellType resType = cell.getCachedFormulaResultType();
-            return resType == CellType.NUMERIC;
+            if (resType == CellType.NUMERIC) return true;
+            if (resType == CellType.STRING) {
+                return isParsableAsDouble(cell.getStringCellValue());
+            }
+            return false;
         }
         if (t == CellType.STRING) {
             return isParsableAsDouble(cell.getStringCellValue());
