@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProc
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
@@ -120,6 +121,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final ConstraintMeFileProcessorService constraintMeFileProcessorService;
 
+    private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
+
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
@@ -159,6 +162,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processConstraintMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return constraintMeFileProcessorService.processConstraintMeFile(trajectoryToUse, horizon, studyId);
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processEfficiencyMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return efficiencyMeFileProcessorService.processEfficiencyMeFile(trajectoryToUse, horizon, studyId);
     }
 
 
@@ -575,7 +584,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case RES_TECHNOLOGY_DISTRIBUTION ->
                     fileName.startsWith(RES_TECHNOLOGY_DISTRIBUTION_PREFIX + technologyPrefix);
             case LINK -> fileName.startsWith(LINKS_PREFIX);
-            case AREA_ME, LINK_ME, CONSTRAINT_ME -> true;
+            case AREA_ME, LINK_ME, CONSTRAINT_ME, EFFICIENCY_ME -> true;
             case NUCLEAR_FR_TALON -> fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> fileName.startsWith(NUCLEAR_EPR_PREFIX);
             case NUCLEAR_FR_TS_SMR -> fileName.startsWith(NUCLEAR_SMR_PREFIX);
@@ -668,7 +677,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.SETTINGS,
                 TrajectoryType.FLOWBASED,
                 TrajectoryType.SCENARIO_BUILDER,
-                TrajectoryType.CONSTRAINT_ME
+                TrajectoryType.CONSTRAINT_ME,
+                TrajectoryType.EFFICIENCY_ME
         );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
@@ -1391,7 +1401,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         return switch (trajectoryType) {
             case AREA -> isXlsx && fileName.startsWith(AREAS_PREFIX);
-            case AREA_ME, LINK_ME, CONSTRAINT_ME -> isXlsx;
+            case AREA_ME, LINK_ME, CONSTRAINT_ME, EFFICIENCY_ME -> isXlsx;
             case LINK -> isXlsx && fileName.startsWith(LINKS_PREFIX);
             case NUCLEAR_FR_TALON -> isXlsx && fileName.startsWith(NUCLEAR_TALON_PREFIX);
             case NUCLEAR_FR_TS_ERP -> isXlsx && fileName.startsWith(NUCLEAR_EPR_PREFIX);
@@ -1445,6 +1455,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case P2G_MARKET_MODULATION -> antaresDataManagerProperties.getP2gMarketModulationDirectory();
             case STS_ME -> antaresDataManagerProperties.getStsMeDirectory();
             case CONSTRAINT_ME -> antaresDataManagerProperties.getConstraintMeDirectory();
+            case EFFICIENCY_ME -> antaresDataManagerProperties.getEfficiencyMeDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
