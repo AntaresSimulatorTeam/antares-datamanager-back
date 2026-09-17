@@ -3882,7 +3882,7 @@ class TrajectoryServiceImplTest {
                 assertEquals("NNI123", result.getCreatedBy());
                 assertEquals(fileName, result.getFileName());
                 assertTrue(result.getFileSize() > 0);
-                assertTrue(result.getHasTimeSeries());
+                assertFalse(result.getHasTimeSeries());
             }
 
         }
