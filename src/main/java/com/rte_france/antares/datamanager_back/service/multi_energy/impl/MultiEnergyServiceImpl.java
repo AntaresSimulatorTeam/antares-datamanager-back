@@ -167,6 +167,11 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                         ? loadToJsonService.getListArrowLoadMeFilesFromStudy(study)
                         : Collections.emptyMap();
 
+        var areaStsClusterGenerationDtoMap =
+                stPropertiesAssemblerService != null
+                        ? stPropertiesAssemblerService.assembleStsMeProperties(study, stsMeTrajectory)
+                        : Collections.<String, com.rte_france.antares.datamanager_back.dto.StsGenerationDTO>emptyMap();
+
         Map<String, Object> areasMap = new LinkedHashMap<>();
 
         for (AreaConfigEntity areaConfig :
@@ -211,7 +216,6 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                     loadFiles != null && !loadFiles.isEmpty()
                             ? loadFiles
                             : NO_LOAD_FILES);
-            var areaStsClusterGenerationDtoMap= stPropertiesAssemblerService.assembleStsMeProperties(study, stsMeTrajectory);
             Map<String, Object> stsMap = stsToJsonService.stsMeMapGenerator(areaName, areaStsClusterGenerationDtoMap);
 
             areaEntryMap.put(

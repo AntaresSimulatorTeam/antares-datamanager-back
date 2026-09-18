@@ -24,7 +24,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MultiEnergyServiceImplTest {
@@ -819,5 +819,39 @@ class MultiEnergyServiceImplTest {
 
         // Then
         assertThat(result).isNotNull().containsKeys("area_me", "links_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withMultipleAreas_shouldCallAssembleStsMePropertiesOnlyOnce() {
+        // Given
+        AreaEntity area1 = AreaEntity.builder().name("AREA_1").build();
+        AreaEntity area2 = AreaEntity.builder().name("AREA_2").build();
+        AreaEntity area3 = AreaEntity.builder().name("AREA_3").build();
+
+        AreaConfigEntity config1 = AreaConfigEntity.builder().area(area1).build();
+        AreaConfigEntity config2 = AreaConfigEntity.builder().area(area2).build();
+        AreaConfigEntity config3 = AreaConfigEntity.builder().area(area3).build();
+
+        TrajectoryEntity multiAreaTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me.xlsx")
+                .areaConfigEntities(List.of(config1, config2, config3))
+                .build();
+
+        TrajectoryEntity stsMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name())
+                .fileName("sts_me.xlsx")
+                .build();
+
+        when(stsPropertiesAssemblerService.assembleStsMeProperties(studyEntity, stsMeTrajectory))
+                .thenReturn(Map.of("AREA_1_cluster", com.rte_france.antares.datamanager_back.dto.StsGenerationDTO.builder().build()));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, multiAreaTrajectory, stsMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("area_me");
+        verify(stsPropertiesAssemblerService, times(1)).assembleStsMeProperties(studyEntity, stsMeTrajectory);
+        verify(stsToJsonService, times(3)).stsMeMapGenerator(any(), any());
     }
 }
