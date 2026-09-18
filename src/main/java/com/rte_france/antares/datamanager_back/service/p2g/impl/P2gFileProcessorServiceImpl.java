@@ -170,7 +170,8 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
 
         if (!missingFiles.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Required files are missing: " + String.join(", ", missingFiles))
+                    .errorMessageArguments(List.of(String.join(", ", missingFiles), trajectoryFilePath.getFileName().toString()))
+                    .message("Required files are missing: {0} in P2G trajectory {1}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -222,7 +223,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
             String parameterName = Objects.toString(getCellValue(row, 0, evaluator), null);
             Cell parameterCell = row.getCell(yearColIndex);
-            if (REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
+            if (parameterName != null && REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
                 requiredParameters.add(parameterName);
             }
             if (!isNumericCell(parameterCell)) {

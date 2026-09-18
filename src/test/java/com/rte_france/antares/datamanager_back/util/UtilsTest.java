@@ -665,6 +665,14 @@ class UtilsTest {
         }
 
         @Test
+        void testBlankCell() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.BLANK);
+
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
         void testNumericCell() {
             Cell cell = mock(Cell.class);
             when(cell.getCellType()).thenReturn(CellType.NUMERIC);
@@ -686,6 +694,36 @@ class UtilsTest {
             Cell cell = mock(Cell.class);
             when(cell.getCellType()).thenReturn(CellType.FORMULA);
             when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("abc");
+
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testFormulaStringNumericResult() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn(" 123.45 ");
+
+            assertTrue(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testFormulaStringEmptyResult() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+            when(cell.getStringCellValue()).thenReturn("   ");
+
+            assertFalse(Utils.isNumericCell(cell));
+        }
+
+        @Test
+        void testFormulaBlankResult() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.FORMULA);
+            when(cell.getCachedFormulaResultType()).thenReturn(CellType.BLANK);
 
             assertFalse(Utils.isNumericCell(cell));
         }
@@ -728,6 +766,14 @@ class UtilsTest {
         @Test
         void testIsNumericCellWithFormula_NullCell() {
             assertFalse(Utils.isNumericCellWithFormula(null, null));
+        }
+
+        @Test
+        void testIsNumericCellWithFormula_BlankCell() {
+            Cell cell = mock(Cell.class);
+            when(cell.getCellType()).thenReturn(CellType.BLANK);
+
+            assertFalse(Utils.isNumericCellWithFormula(cell, null));
         }
 
         @Test

@@ -159,4 +159,10 @@ public class AntaresDataManagerProperties {
     
     @Value("${antares.datamanager.p2g.market.modulation.directory}")
     public String p2gMarketModulationDirectory;
+
+    @Value("${antares.datamanager.constraint.me.directory}")
+    public String constraintMeDirectory;
+
+    @Value("${antares.datamanager.efficiency.me.directory}")
+    public String efficiencyMeDirectory;
 }

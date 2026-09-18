@@ -399,7 +399,7 @@ class StudyServiceImplTest {
         when(projectRepository.findByName("New")).thenReturn(Optional.of(newProject));
         when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "New")).thenReturn(true);
 
-        var dto = StudyDTO.builder().project("New").build();
+        var dto = StudyDTO.builder().name("MyStudy").horizon("2030").project("New").build();
         var ex = assertThrows(BusinessException.class,
                 () -> studyServiceImpl.updateStudy(1, dto));
 
@@ -445,7 +445,7 @@ class StudyServiceImplTest {
         when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "NewProject")).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
-        var dto = StudyDTO.builder().project("NewProject").build();
+        var dto = StudyDTO.builder().name("MyStudy").project("NewProject").horizon("2030").build();
 
         StudyDTO result = studyServiceImpl.updateStudy(1, dto);
 
@@ -576,8 +576,8 @@ class StudyServiceImplTest {
         when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
         when(studyRepository.existsByNameAndProjectName("MyStudy_2030", "NewProject")).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
-
-        var dto = StudyDTO.builder().project("NewProject").build();
+        
+        var dto = StudyDTO.builder().name("MyStudy").project("NewProject").horizon("2030").build();
 
         StudyDTO result = studyServiceImpl.updateStudy(1, dto);
 
