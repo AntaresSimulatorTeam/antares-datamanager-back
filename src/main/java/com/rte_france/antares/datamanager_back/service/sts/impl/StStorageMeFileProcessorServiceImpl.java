@@ -3,10 +3,10 @@ package com.rte_france.antares.datamanager_back.service.sts.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,9 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
@@ -36,12 +38,15 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
+    private final WarningRepository warningRepository;
+    private final StudyRepository studyRepository;
 
     private static final Integer SERIES_INDEX_ME = 10;
     private static final String EXCEL_EXTENSION = ".xlsx";
     private static final int NODE_MAX_LENGTH = 60;
     private static final int NAME_MAX_LENGTH = 40;
     private static final int GROUP_MAX_LENGTH = 20;
+    private static final String[] REQUIRED_FILES = {"lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
 
     @Transactional
     @Override
@@ -49,8 +54,50 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse);
 
-        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, studyId);
-        return saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon);
+        Map<String, List<String>> missingFilesMeKeysMap = new LinkedHashMap<>();
+        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, studyId, missingFilesMeKeysMap);
+        List<String> areasMeInStorage = stStorageEntityList.stream()
+                .map(StStorageEntity::getArea)
+                .toList();
+
+        StudyEntity study = (studyId != null && studyRepository != null) ? studyRepository.findById(studyId).orElse(null) : null;
+        if (study != null && study.getTrajectories() != null) {
+            List<String> areasMeInStudy = study.getTrajectories().stream()
+                    .filter(t -> TrajectoryType.AREA_ME.name().equals(t.getType()))
+                    .filter(t -> t.getAreaConfigEntities() != null)
+                    .flatMap(t -> t.getAreaConfigEntities().stream())
+                    .map(AreaConfigEntity::getArea)
+                    .filter(Objects::nonNull)
+                    .map(AreaEntity::getName)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            Set<String> areasStudyUpperCase = areasMeInStudy.stream()
+                    .map(String::toUpperCase)
+                    .collect(Collectors.toSet());
+
+            String unexpectedAreas = areasMeInStorage.stream()
+                    .map(String::toUpperCase)
+                    .filter(area -> !areasStudyUpperCase.contains(area))
+                    .collect(Collectors.joining(", "));
+
+            if (!unexpectedAreas.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Area(s): {0} in sts_me trajectory {1}, are not present in areas_me for study {2}")
+                        .errorMessageArguments(List.of(
+                                unexpectedAreas.toString(),
+                                trajectoryFilePath.getFileName().toString(),
+                                study.getName() != null ? study.getName() : String.valueOf(studyId)
+                        ))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+       }
+        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon);
+
+        saveMissingColumnWarning(study, savedTrajectory, missingFilesMeKeysMap);
+
+        return savedTrajectory;
     }
 
     private TrajectoryEntity saveTrajectoryImport(List<StStorageEntity> stStorageEntityList, Path trajectoryFilePath,
@@ -69,9 +116,10 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         return trajectoryRepository.save(trajectoryEntity);
     }
 
-    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Integer studyId) throws IOException {
+    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Integer studyId, Map<String, List<String>> missingFilesMeKeysMap) throws IOException {
         List<StStorageEntity> stStorageEntityList = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
+        Map<Path, Set<String>> headersCache = new HashMap<>();
 
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -99,7 +147,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                 validateMeInitialLevelRange(row, trajectoryFileName);
                 validateBooleanRangeMe(row, trajectoryFileName);
 
-                StStorageEntity stStorageEntity = mapRowToEntityMe(row, trajectoryFilePath, node, name, group);
+                StStorageEntity stStorageEntity = mapRowToEntityMe(row, trajectoryFilePath, node, name, group, horizonYear, headersCache, missingFilesMeKeysMap);
                 stStorageEntityList.add(stStorageEntity);
             }
         }
@@ -107,7 +155,8 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         return stStorageEntityList;
     }
 
-    private StStorageEntity mapRowToEntityMe(Row row, Path trajectoryFilePath, String node, String name, String group) throws IOException {
+    private StStorageEntity mapRowToEntityMe(Row row, Path trajectoryFilePath, String node, String name, String group,
+                                            String horizonYear, Map<Path, Set<String>> headersCache, Map<String, List<String>> missingFilesMeKeysMap) throws IOException {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         Boolean hasSeriesMe = getBooleanCell(row, SERIES_INDEX_ME);
@@ -119,6 +168,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                         List.of(String.join(", ", missingFiles), name));
             }
             stStorageEntity.setTsPath(seriesPath.toString());
+            checkMissingColumnsInMeSeries(seriesPath, horizonYear, node, name, headersCache, missingFilesMeKeysMap);
         }
 
         stStorageEntity.setArea(node);
@@ -135,6 +185,124 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         stStorageEntity.setSeries(hasSeriesMe);
         stStorageEntity.setConstraintsFlag(getBooleanCell(row, 11));
         return stStorageEntity;
+    }
+
+    private void checkMissingColumnsInMeSeries(Path seriesPath, String horizonYear, String node, String name,
+                                               Map<Path, Set<String>> headersCache, Map<String, List<String>> missingFilesMeKeysMap) {
+        String meKey = buildMeKey(node, name);
+        String meKeyLower = meKey.toLowerCase(Locale.ROOT);
+        List<String> headersMissingForFiles = new ArrayList<>();
+        for (String fileName : REQUIRED_FILES) {
+            Path filePath = seriesPath.resolve(fileName);
+            Set<String> headers = headersCache.computeIfAbsent(filePath, p -> readHeadersFromExcel(p, horizonYear));
+            if (!headers.contains(meKeyLower)) {
+                headersMissingForFiles.add(fileName);
+                missingFilesMeKeysMap.put(meKey, headersMissingForFiles );
+            }
+        }
+    }
+
+    private String buildMeKey(String node, String name) {
+        String area = node != null ? node.toUpperCase(Locale.ROOT) : "";
+        String clusterName = name != null ? name : "";
+        return area + "." + clusterName;
+    }
+
+    private Set<String> readHeadersFromExcel(Path filePath, String sheetName) {
+        if (!Files.exists(filePath)) {
+            return Collections.emptySet();
+        }
+        try {
+            if (Files.size(filePath) == 0) {
+                return Collections.emptySet();
+            }
+        } catch (IOException e) {
+            return Collections.emptySet();
+        }
+
+        try (InputStream inputStream = Files.newInputStream(filePath);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = workbook.getSheet(sheetName);
+            if (sheet == null) {
+                return Collections.emptySet();
+            }
+            Row headerRow = sheet.getRow(0);
+            if (headerRow == null) {
+                return Collections.emptySet();
+            }
+            Set<String> headers = new HashSet<>();
+            for (Cell cell : headerRow) {
+                if (cell != null) {
+                    String value = cell.getCellType() == CellType.STRING
+                            ? cell.getStringCellValue()
+                            : cell.toString();
+                    if (value != null && !value.isBlank()) {
+                        headers.add(value.trim().toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+            return headers;
+        } catch (Exception e) {
+            log.warn("Could not read headers from file {}: {}", filePath, e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    private void saveMissingColumnWarning(
+            StudyEntity study,
+            TrajectoryEntity trajectory,
+            Map<String, List<String>> missingFilesMeKeysMap) {
+
+        if (missingFilesMeKeysMap == null || missingFilesMeKeysMap.isEmpty()) {
+            return;
+        }
+
+        Integer studyId = study != null ? study.getId() : null;
+        Integer trajectoryId = trajectory != null ? trajectory.getId() : null;
+
+        String createdBy = (userService != null
+                && userService.getCurrentUserDetails() != null
+                && userService.getCurrentUserDetails().getNni() != null)
+                ? userService.getCurrentUserDetails().getNni()
+                : UNKNOWN_USER;
+
+        missingFilesMeKeysMap.forEach((meKey, missingFiles) -> {
+
+            String warningContent = "Missing " + meKey + " in file(s): " + String.join(", ", missingFiles)
+                    + ". Default time series will be used.";
+
+            log.warn(
+                    "Missing {} in file(s) {}. Default time series will be used.",
+                    meKey,
+                    String.join(", ", missingFiles)
+
+            );
+
+            if (studyId != null && trajectoryId != null) {
+                boolean warningExists = warningRepository
+                        .existsByWarningContentAndTrajectoryIdAndStudyId(
+                                warningContent,
+                                trajectoryId,
+                                studyId
+                        );
+
+                if (!warningExists) {
+                    WarningMessageEntity warning = WarningMessageEntity.builder()
+                            .warningContent(warningContent)
+                            .warningLevel(WarningLevel.WARNING_LEVEL)
+                            .secondTrajectory(null)
+                            .warningCode(WarningCode.STS_ME_MISSING_COLUMNS)
+                            .study(study)
+                            .trajectory(trajectory)
+                            .creationDate(LocalDateTime.now())
+                            .createdBy(createdBy)
+                            .isAck(false)
+                            .build();
+
+                    warningRepository.save(warning);
+                }
+            }
+        });
     }
 
     private Path buildStsOptionalFilesPathMe(Path trajectoryFilePath) {
