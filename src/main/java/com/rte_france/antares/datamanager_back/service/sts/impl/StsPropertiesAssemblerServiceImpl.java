@@ -66,7 +66,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     .findFirst()
                     .orElse(null);
         }
-        assert stsMeTrajectory != null;
+        Objects.requireNonNull(stsMeTrajectory, "STS ME trajectory must not be null");
 
 
         if (!isStsTrajectoryWithEntities(stsMeTrajectory)) {
@@ -105,9 +105,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .collect(Collectors.toSet());
 
         String studyHorizon = studyEntity != null ? studyEntity.getHorizon() : null;
-        final String horizon = isMe
-                ? (studyHorizon != null && studyHorizon.contains("-") ? studyHorizon.split("-")[1] : studyHorizon)
-                : studyHorizon;
+
+        String horizon = isMe ? getMeHorizon(studyHorizon) : studyHorizon;
 
         Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(contexts, allAreas, horizon);
 
@@ -160,6 +159,14 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         },
                         (existing, replacement) -> existing
                 ));
+    }
+
+    private String getMeHorizon(String studyHorizon) {
+        if (studyHorizon == null || !studyHorizon.contains("-")) {
+            return studyHorizon;
+        }
+
+        return studyHorizon.split("-")[1];
     }
     private boolean isStsTrajectoryWithEntities(TrajectoryEntity trajectory) {
         return trajectory != null
@@ -349,12 +356,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     }
 
     private TrajectoryType resolveTrajectoryType(StStorageEntity stsEntity) {
-        if (stsEntity.getTrajectory() != null && stsEntity.getTrajectory().getType() != null) {
-            try {
+        if (stsEntity.getTrajectory() != null && stsEntity.getTrajectory().getType() != null)
                 return TrajectoryType.valueOf(stsEntity.getTrajectory().getType());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
         return TrajectoryType.STS;
     }
 

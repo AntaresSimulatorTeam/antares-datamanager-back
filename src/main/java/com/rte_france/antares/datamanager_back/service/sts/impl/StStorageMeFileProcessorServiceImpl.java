@@ -55,7 +55,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse);
 
         Map<String, List<String>> missingFilesMeKeysMap = new LinkedHashMap<>();
-        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, studyId, missingFilesMeKeysMap);
+        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap);
         List<String> areasMeInStorage = stStorageEntityList.stream()
                 .map(StStorageEntity::getArea)
                 .toList();
@@ -85,7 +85,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                 throw BusinessException.builder()
                         .message("Area(s): {0} in sts_me trajectory {1}, are not present in areas_me for study {2}")
                         .errorMessageArguments(List.of(
-                                unexpectedAreas.toString(),
+                                unexpectedAreas,
                                 trajectoryFilePath.getFileName().toString(),
                                 study.getName() != null ? study.getName() : String.valueOf(studyId)
                         ))
@@ -116,7 +116,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         return trajectoryRepository.save(trajectoryEntity);
     }
 
-    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Integer studyId, Map<String, List<String>> missingFilesMeKeysMap) throws IOException {
+    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap) throws IOException{
         List<StStorageEntity> stStorageEntityList = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         Map<Path, Set<String>> headersCache = new HashMap<>();
