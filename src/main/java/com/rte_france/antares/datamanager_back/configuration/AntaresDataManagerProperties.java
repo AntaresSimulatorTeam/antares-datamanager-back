@@ -162,4 +162,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.constraint.me.directory}")
     public String constraintMeDirectory;
+
+    @Value("${antares.datamanager.efficiency.me.directory}")
+    public String efficiencyMeDirectory;
 }
