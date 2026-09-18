@@ -25,6 +25,14 @@ public class StsToJsonService {
 
 
     public Map<String, Object> stsMapGenerator(String areaName, Map<String, StsGenerationDTO> stsClusterProps) {
+        return generateStsMap(areaName, stsClusterProps, false);
+    }
+
+    // New method specifically for STS_ME
+    public Map<String, Object> stsMeMapGenerator(String areaName, Map<String, StsGenerationDTO> stsClusterProps) {
+        return generateStsMap(areaName, stsClusterProps, true);
+    }
+    public Map<String, Object> generateStsMap(String areaName, Map<String, StsGenerationDTO> stsClusterProps, boolean isMe) {
         if (stsClusterProps == null || stsClusterProps.isEmpty()) {
             log.info("stsMapGenerator: missing stsClusterProps for area ={}", areaName);
             return Collections.emptyMap();
@@ -39,12 +47,18 @@ public class StsToJsonService {
                     StsGenerationDTO dto = e.getValue();
 
                     Map<String, Object> propertiesMap = PROPERTIES_MAPPER.convertValue(dto, new TypeReference<>() {});
-                    Map<String, Object> seriesMap = SERIES_MAPPER.convertValue(dto, new TypeReference<>() {});
                     Map<String, Object> constraintsMap = buildConstraintsMap(dto);
 
                     Map<String, Object> clusterData = new LinkedHashMap<>();
                     clusterData.put(PROPERTIES, propertiesMap);
-                    clusterData.put(SERIES_TS, seriesMap);
+
+                    if (isMe) {
+                        clusterData.put(SERIES_TS, dto.getStsTsList() != null ? dto.getStsTsList() : Collections.emptyList());
+                    } else {
+                        Map<String, Object> seriesMap = SERIES_MAPPER.convertValue(dto, new TypeReference<>() {});
+                        clusterData.put(SERIES_TS, seriesMap);
+                    }
+
                     clusterData.putAll(constraintsMap);
 
                     stsClusterName.put(clusterName, clusterData);

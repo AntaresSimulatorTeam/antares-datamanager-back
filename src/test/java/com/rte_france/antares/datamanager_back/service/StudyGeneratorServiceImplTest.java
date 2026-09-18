@@ -302,7 +302,7 @@ class StudyGeneratorServiceImplTest {
                     trajs.add(null);
                 }
             }
-            return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService)
+            return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService)
                     .buildMultiEnergyMap(study, trajs.toArray(new TrajectoryEntity[0]));
         }).when(multiEnergyService).buildMultiEnergyMap(any(), any(TrajectoryEntity[].class));
     }

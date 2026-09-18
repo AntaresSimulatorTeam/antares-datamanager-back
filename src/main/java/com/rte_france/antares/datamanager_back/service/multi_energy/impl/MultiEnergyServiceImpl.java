@@ -212,7 +212,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                             ? loadFiles
                             : NO_LOAD_FILES);
             var areaStsClusterGenerationDtoMap= stPropertiesAssemblerService.assembleStsMeProperties(study, stsMeTrajectory);
-            Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaName, areaStsClusterGenerationDtoMap);
+            Map<String, Object> stsMap = stsToJsonService.stsMeMapGenerator(areaName, areaStsClusterGenerationDtoMap);
 
             areaEntryMap.put(
                     STS_ME,

@@ -1,18 +1,20 @@
 package com.rte_france.antares.datamanager_back.service.sts.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -20,6 +22,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -34,17 +37,23 @@ class StStorageMeFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
     private AntaresDataManagerProperties properties;
     private UserService userService;
+    private WarningRepository warningRepository;
+    private StudyRepository studyRepository;
 
     @BeforeEach
     void setUp() {
         properties = mock(AntaresDataManagerProperties.class);
         trajectoryRepository = mock(TrajectoryRepository.class);
         userService = mock(UserService.class);
+        warningRepository = mock(WarningRepository.class);
+        studyRepository = mock(StudyRepository.class);
 
         service = new StStorageMeFileProcessorServiceImpl(
                 properties,
                 trajectoryRepository,
-                userService);
+                userService,
+                warningRepository,
+                studyRepository);
 
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
         when(properties.getTrajectoryFilePath()).thenReturn("trajectories");
@@ -836,6 +845,171 @@ class StStorageMeFileProcessorServiceImplTest {
             }
         }
         return file;
+    }
+
+    @Test
+    void shouldSaveMissingColumnWarningWhenSeriesFileIsMissingMeKeyColumn() throws IOException {
+        Path xlsx = createMeWorkbookWithSeries();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        Path seriesDir = tempDir
+                .resolve("trajectories")
+                .resolve("ME/st_storage_ME/series")
+                .resolve("me_test");
+        Files.createDirectories(seriesDir);
+
+        // Create 3 files with matching column and 1 file missing the column
+        createExcelWithHeaders(seriesDir.resolve("lower_curve.xlsx"), "2030", List.of("FR.cluster1", "other.cluster"));
+        createExcelWithHeaders(seriesDir.resolve("Pmax_injection.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("Pmax_soutirage.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("upper_curve.xlsx"), "2030", List.of("other.cluster"));
+
+        StudyEntity study = createStudyWithMeAreas("FR");
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), any(), eq(1))).thenReturn(false);
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setHorizon("2030");
+        trajectory.setId(10);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+
+        ArgumentCaptor<WarningMessageEntity> warningCaptor = ArgumentCaptor.forClass(WarningMessageEntity.class);
+        verify(warningRepository).save(warningCaptor.capture());
+        WarningMessageEntity savedWarning = warningCaptor.getValue();
+        assertThat(savedWarning.getWarningContent()).isEqualTo(
+                "Missing FR.cluster1 in file(s): upper_curve.xlsx. Default time series will be used."
+        );
+        assertThat(savedWarning.getWarningCode()).isEqualTo(WarningCode.STS_ME_MISSING_COLUMNS);
+        assertThat(savedWarning.getWarningLevel()).isEqualTo(WarningLevel.WARNING_LEVEL);
+        assertThat(savedWarning.getTrajectory()).isEqualTo(trajectory);
+        assertThat(savedWarning.getStudy()).isEqualTo(study);
+    }
+
+    @Test
+    void shouldNotSaveWarningWhenAllRequiredColumnsArePresent() throws IOException {
+        Path xlsx = createMeWorkbookWithSeries();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        Path seriesDir = tempDir
+                .resolve("trajectories")
+                .resolve("ME/st_storage_ME/series")
+                .resolve("me_test");
+        Files.createDirectories(seriesDir);
+
+        // Create all 4 files with matching column
+        createExcelWithHeaders(seriesDir.resolve("lower_curve.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("Pmax_injection.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("Pmax_soutirage.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("upper_curve.xlsx"), "2030", List.of("FR.cluster1"));
+
+        StudyEntity study = createStudyWithMeAreas("FR");
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setHorizon("2030");
+        trajectory.setId(10);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+        verify(warningRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldNotSaveDuplicateWarningWhenWarningAlreadyExists() throws IOException {
+        Path xlsx = createMeWorkbookWithSeries();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        Path seriesDir = tempDir
+                .resolve("trajectories")
+                .resolve("ME/st_storage_ME/series")
+                .resolve("me_test");
+        Files.createDirectories(seriesDir);
+
+        createExcelWithHeaders(seriesDir.resolve("lower_curve.xlsx"), "2030", List.of("other.col"));
+        createExcelWithHeaders(seriesDir.resolve("Pmax_injection.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("Pmax_soutirage.xlsx"), "2030", List.of("FR.cluster1"));
+        createExcelWithHeaders(seriesDir.resolve("upper_curve.xlsx"), "2030", List.of("FR.cluster1"));
+
+        StudyEntity study = createStudyWithMeAreas("FR");
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), any(), eq(1))).thenReturn(true);
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setHorizon("2030");
+        trajectory.setId(10);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+        verify(warningRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowBusinessExceptionWhenStorageAreaIsNotPresentInStudyAreasMe() throws IOException {
+        Path xlsx = createValidMeWorkbook();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        // Study with areas that do not include "FR"
+        StudyEntity study = createStudyWithMeAreas("BE", "DE");
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        assertThatThrownBy(() ->
+                service.processStStorageMeFile("me_test", "2029-2030", 1)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Area(s): {0} in sts_me trajectory {1}, are not present in areas_me for study {2}");
+    }
+
+    @Test
+    void shouldSuccessfullyProcessWhenStorageAreaIsPresentInStudyAreasMe() throws IOException {
+        Path xlsx = createValidMeWorkbook();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        StudyEntity study = createStudyWithMeAreas("FR", "BE");
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setHorizon("2030");
+        trajectory.setId(10);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+    }
+
+    private StudyEntity createStudyWithMeAreas(String... areaNames) {
+        List<AreaConfigEntity> areaConfigs = java.util.Arrays.stream(areaNames)
+                .map(name -> AreaConfigEntity.builder().area(AreaEntity.builder().name(name).build()).build())
+                .toList();
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(areaConfigs)
+                .build();
+        return StudyEntity.builder()
+                .id(1)
+                .name("test_study")
+                .trajectories(new java.util.LinkedHashSet<>(List.of(areaMeTrajectory)))
+                .build();
+    }
+
+    private void createExcelWithHeaders(Path filePath, String sheetName, List<String> headers) throws IOException {
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet(sheetName);
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.size(); i++) {
+                headerRow.createCell(i).setCellValue(headers.get(i));
+            }
+            try (OutputStream os = Files.newOutputStream(filePath)) {
+                wb.write(os);
+            }
+        }
     }
 
     private void placeInMeClusters(Path file, String fileName) throws IOException {
