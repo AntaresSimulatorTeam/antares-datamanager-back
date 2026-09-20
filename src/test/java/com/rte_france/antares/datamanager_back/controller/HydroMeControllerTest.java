@@ -1,0 +1,202 @@
+package com.rte_france.antares.datamanager_back.controller;
+
+import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ExtendWith(SpringExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class HydroMeControllerTest {
+    private static final String TRAJECTORY_NAME = "hydro_me_test";
+    private static final String HORIZON = "2020-2021";
+    private static final Integer STUDY_ID = 1;
+    
+    @Autowired
+    protected WebApplicationContext wac;
+
+    private MockMvc mockMvc;
+
+    @MockBean
+    private HydroMeFileProcessorService hydroMeFileProcessorService;
+
+    @BeforeEach
+    void setup() {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_returns201_andCallsService() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(123);
+        entity.setFileName(TRAJECTORY_NAME);
+        entity.setType(TrajectoryType.HYDRO_CAPACITY_ME.name());
+        entity.setVersion(1);
+        entity.setHorizon(HORIZON);
+
+        when(hydroMeFileProcessorService.processHydroCapacityMeFile(
+                TRAJECTORY_NAME,
+                HORIZON,
+                STUDY_ID
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", TRAJECTORY_NAME)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(123))
+                .andExpect(jsonPath("$.trajectoryName").value(TRAJECTORY_NAME))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.horizon").value(HORIZON));
+
+        verify(hydroMeFileProcessorService, times(1))
+                .processHydroCapacityMeFile(TRAJECTORY_NAME, HORIZON, STUDY_ID);
+        verifyNoMoreInteractions(hydroMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_whenTrajectoryNameTooLong_returns400_andDoesNotCallService() throws Exception {
+        String tooLongName = "x".repeat(41);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", tooLongName)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_whenHorizonInvalid_returns400_andDoesNotCallService() throws Exception {
+        String invalidHorizon = "2020-21";
+
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", TRAJECTORY_NAME)
+                        .param("horizon", invalidHorizon)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_whenHorizonMissingSecondPart_returns400_andDoesNotCallService() throws Exception {
+        String invalidHorizon = "2020";
+
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", TRAJECTORY_NAME)
+                        .param("horizon", invalidHorizon)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_whenStudyIdNotProvided_returns400_andDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", TRAJECTORY_NAME)
+                        .param("horizon", HORIZON))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_whenTrajectoryNameNotProvided_returns400_andDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_withValidHorizonFormats_returns201() throws Exception {
+        String[] validHorizons = {"2020-2021", "2025-2026", "2030-2031"};
+        
+        for (String horizon : validHorizons) {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(123);
+            entity.setFileName(TRAJECTORY_NAME);
+            entity.setType(TrajectoryType.HYDRO_CAPACITY_ME.name());
+            entity.setVersion(1);
+            entity.setHorizon(horizon);
+
+            when(hydroMeFileProcessorService.processHydroCapacityMeFile(
+                    TRAJECTORY_NAME,
+                    horizon,
+                    STUDY_ID
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", TRAJECTORY_NAME)
+                            .param("horizon", horizon)
+                            .param("studyId", STUDY_ID.toString()))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.horizon").value(horizon));
+
+            verify(hydroMeFileProcessorService, times(1))
+                    .processHydroCapacityMeFile(TRAJECTORY_NAME, horizon, STUDY_ID);
+        }
+    }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_withMultipleStudyIds_returns201() throws Exception {
+        Integer[] studyIds = {1, 42, 999};
+        
+        for (Integer studyId : studyIds) {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(studyId * 100);
+            entity.setFileName(TRAJECTORY_NAME);
+            entity.setType(TrajectoryType.HYDRO_CAPACITY_ME.name());
+            entity.setVersion(1);
+            entity.setHorizon(HORIZON);
+
+            when(hydroMeFileProcessorService.processHydroCapacityMeFile(
+                    TRAJECTORY_NAME,
+                    HORIZON,
+                    studyId
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", TRAJECTORY_NAME)
+                            .param("horizon", HORIZON)
+                            .param("studyId", studyId.toString()))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id").value(studyId * 100));
+
+            verify(hydroMeFileProcessorService, times(1))
+                    .processHydroCapacityMeFile(TRAJECTORY_NAME, HORIZON, studyId);
+        }
+    }
+}
