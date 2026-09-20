@@ -287,6 +287,104 @@ class StsToJsonServiceTest {
         assertEquals(List.of("daily_min_fr.csv.arrow"), cluster.get("stsConstraintsSeriesList"));
     }
 
+    @Test
+    void stsMeMapGenerator_ShouldReturnEmptyMapWhenInputIsNull() {
+        Map<String, Object> result = stsToJsonService.stsMeMapGenerator("FR", null);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void stsMeMapGenerator_ShouldReturnEmptyMapWhenInputIsEmpty() {
+        Map<String, Object> result = stsToJsonService.stsMeMapGenerator("FR", Collections.emptyMap());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void stsMeMapGenerator_ShouldDirectlyMapSeriesAsList() {
+        StsGenerationDTO dto = StsGenerationDTO.builder()
+                .enabled(true)
+                .groupe("other1")
+                .injection(245)
+                .withdrawal(571.0)
+                .storage(5710.0)
+                .efficiencyInjection(0.999)
+                .efficiencyWithdrawal(0.999)
+                .initialLevel(0.5)
+                .initialLevelOptim(false)
+                .stsTsList(List.of(
+                        "lower_curve.xlsx.d9b195f7-c039-4fe3-afe5-c45ddd5d87ee.arrow",
+                        "Pmax_injection.xlsx.dc4edafc-6353-4fc0-81bb-c5dd1d52d3f5.arrow"
+                ))
+                .build();
+
+        Map<String, Object> result = stsToJsonService.stsMeMapGenerator("FR", Map.of("FR_V_ME_H2", dto));
+
+        assertEquals(1, result.size());
+        assertTrue(result.containsKey("FR_V_ME_H2"));
+
+        Map<String, Object> cluster = asMap(result.get("FR_V_ME_H2"));
+        assertNotNull(cluster.get("properties"));
+
+        Object seriesObj = cluster.get("series");
+        assertInstanceOf(List.class, seriesObj);
+        assertEquals(List.of(
+                "lower_curve.xlsx.d9b195f7-c039-4fe3-afe5-c45ddd5d87ee.arrow",
+                "Pmax_injection.xlsx.dc4edafc-6353-4fc0-81bb-c5dd1d52d3f5.arrow"
+        ), seriesObj);
+    }
+
+    @Test
+    void stsMeMapGenerator_ShouldProvideEmptyListWhenStsTsListIsNull() {
+        StsGenerationDTO dto = StsGenerationDTO.builder()
+                .enabled(true)
+                .groupe("other1")
+                .injection(100)
+                .stsTsList(null)
+                .build();
+
+        Map<String, Object> result = stsToJsonService.stsMeMapGenerator("FR", Map.of("FR_cluster", dto));
+
+        Map<String, Object> cluster = asMap(result.get("FR_cluster"));
+        assertEquals(Collections.emptyList(), cluster.get("series"));
+    }
+
+    @Test
+    void generateStsMap_ShouldHandleCaseInsensitiveAreaFiltering() {
+        StsGenerationDTO dto = StsGenerationDTO.builder()
+                .enabled(true)
+                .injection(50)
+                .build();
+
+        Map<String, Object> result = stsToJsonService.generateStsMap("fr", Map.of("FR_cluster1", dto, "BE_cluster2", dto), false);
+
+        assertEquals(1, result.size());
+        assertTrue(result.containsKey("FR_cluster1"));
+        assertFalse(result.containsKey("BE_cluster2"));
+    }
+
+    @Test
+    void stsMapGenerator_ShouldKeepNonEmptyParametersWhenSeriesAreEmpty() {
+        StsConstraintParameterDTO param = StsConstraintParameterDTO.builder()
+                .variable("injection")
+                .operator("greater")
+                .enabled("true")
+                .hours(List.of(List.of(1, 2, 3)))
+                .build();
+
+        StsGenerationDTO dto = StsGenerationDTO.builder()
+                .enabled(true)
+                .constraintParameters(Map.of("param1", param))
+                .stsConstraintsSeriesList(Collections.emptyList())
+                .build();
+
+        Map<String, Object> result = stsToJsonService.stsMapGenerator("FR", Map.of("FR_S3", dto));
+        Map<String, Object> cluster = asMap(result.get("FR_S3"));
+
+        assertNotNull(cluster);
+        assertTrue(cluster.containsKey("constraintParameters"));
+        assertFalse(cluster.containsKey("stsConstraintsSeriesList"));
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object value) {
         assertInstanceOf(Map.class, value);

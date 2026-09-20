@@ -223,7 +223,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             if (row.getRowNum() == 0 || isRowEmpty(row)) continue;
             String parameterName = Objects.toString(getCellValue(row, 0, evaluator), null);
             Cell parameterCell = row.getCell(yearColIndex);
-            if (REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
+            if (parameterName != null && REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
                 requiredParameters.add(parameterName);
             }
             if (!isNumericCell(parameterCell)) {

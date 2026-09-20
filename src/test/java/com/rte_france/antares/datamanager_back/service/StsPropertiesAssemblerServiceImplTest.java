@@ -5,14 +5,19 @@ import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.WarningCode;
+import com.rte_france.antares.datamanager_back.repository.model.WarningLevel;
+import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.sts.impl.StsPropertiesAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
+import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -21,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -1011,5 +1017,236 @@ class StsPropertiesAssemblerServiceImplTest {
         assertEquals(2, result.size());
         assertThat(result.get("FR_cluster_1").getStsConstraintsSeriesList()).containsExactly("file1.arrow");
         assertThat(result.get("FR_cluster_2").getStsConstraintsSeriesList()).containsExactly("file2.arrow");
+    }
+
+    @Test
+    void assembleStsMeProperties_ShouldExtractMatchingColumnsAndSaveArrowFiles() throws Exception {
+        Path tsDir = tempDir.resolve("sts_me_series");
+        Files.createDirectories(tsDir);
+        for (StsTsFile file : StsTsFile.requiredFiles(TrajectoryType.STS_ME)) {
+            Files.createFile(tsDir.resolve(file.fileName()));
+        }
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name())
+                .build();
+
+        StStorageEntity stStorage = StStorageEntity.builder()
+                .area("v_me_h2_short_fr")
+                .name("st_storage")
+                .groupe("other1")
+                .injection(new BigDecimal("245"))
+                .withdrawal(new BigDecimal("571"))
+                .storage(new BigDecimal("5710"))
+                .efficiencyInjection(new BigDecimal("0.999"))
+                .efficiencyWithdrawal(new BigDecimal("0.999"))
+                .initialLevel(new BigDecimal("0.5"))
+                .initialLevelOptim(false)
+                .enabled(true)
+                .tsPath(tsDir.toString())
+                .trajectory(trajectory)
+                .build();
+
+        trajectory.setStStorageEntities(List.of(stStorage));
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("other_area.other_name", new double[]{9.0}),
+                new TimeSeriesMatrixColumn("v_me_h2_short_fr.st_storage", new double[]{1.0, 2.0, 3.0})
+        ));
+
+        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+                .thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenAnswer(inv -> {
+            TimeSeriesMatrix m = inv.getArgument(0);
+            assertThat(m.columns()).hasSize(1);
+            assertThat(m.columns().getFirst().name()).isEqualTo("v_me_h2_short_fr.st_storage");
+            return new byte[]{1, 2, 3};
+        });
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output")))
+                .thenAnswer(inv -> inv.getArgument(1) + ".uuid.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsMeProperties(study, trajectory);
+
+        assertThat(result).containsKey("V_ME_H2_SHORT_FR_st_storage");
+        StsGenerationDTO dto = result.get("V_ME_H2_SHORT_FR_st_storage");
+        assertThat(dto.getStsTsList()).containsExactly(
+                "lower_curve.xlsx.uuid.arrow",
+                "Pmax_injection.xlsx.uuid.arrow",
+                "Pmax_soutirage.xlsx.uuid.arrow",
+                "upper_curve.xlsx.uuid.arrow"
+        );
+    }
+
+    @Test
+    void assembleStsMeProperties_ShouldUseDefaultTimeSeriesWhenRequiredColumnMissing() throws Exception {
+        Path tsDir = tempDir.resolve("sts_me_series_missing");
+        Files.createDirectories(tsDir);
+        for (StsTsFile file : StsTsFile.requiredFiles(TrajectoryType.STS_ME)) {
+            Files.createFile(tsDir.resolve(file.fileName()));
+        }
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.STS_ME.name())
+                .build();
+
+        StStorageEntity stStorage = StStorageEntity.builder()
+                .area("v_me_h2_short_fr")
+                .name("st_storage")
+                .groupe("other1")
+                .injection(new BigDecimal("245"))
+                .tsPath(tsDir.toString())
+                .trajectory(trajectory)
+                .build();
+
+        trajectory.setStStorageEntities(List.of(stStorage));
+
+        StudyEntity study = StudyEntity.builder()
+                .id(1)
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrixWithoutMatchingColumn = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("other_area.other_name", new double[]{9.0})
+        ));
+
+        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+                .thenReturn(matrixWithoutMatchingColumn);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsMeProperties(study, trajectory);
+
+        assertThat(result).containsKey("V_ME_H2_SHORT_FR_st_storage");
+        StsGenerationDTO dto = result.get("V_ME_H2_SHORT_FR_st_storage");
+        assertThat(dto.getStsTsList()).isEmpty();
+    }
+
+    @Test
+    void assembleStsMeProperties_PartialMissingColumns_ShouldSaveExtracted() throws Exception {
+        Path tsDir = tempDir.resolve("sts_me_series_partial");
+        Files.createDirectories(tsDir);
+        for (StsTsFile file : StsTsFile.requiredFiles(TrajectoryType.STS_ME)) {
+            Files.createFile(tsDir.resolve(file.fileName()));
+        }
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(20)
+                .type(TrajectoryType.STS_ME.name())
+                .build();
+
+        StStorageEntity stStorage = StStorageEntity.builder()
+                .area("v_me_h2_short_fr")
+                .name("st_storage")
+                .groupe("other1")
+                .injection(new BigDecimal("245"))
+                .tsPath(tsDir.toString())
+                .trajectory(trajectory)
+                .build();
+
+        trajectory.setStStorageEntities(List.of(stStorage));
+
+        StudyEntity study = StudyEntity.builder()
+                .id(2)
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrixWithMatch = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("v_me_h2_short_fr.st_storage", new double[]{1.0, 2.0})
+        ));
+        TimeSeriesMatrix matrixWithoutMatch = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("other_area.other_name", new double[]{9.0})
+        ));
+
+        // Return matrix without match only for upper_curve.xlsx
+        when(nasFileService.readMatrix(eq(tsDir.resolve("upper_curve.xlsx")), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+                .thenReturn(matrixWithoutMatch);
+        when(nasFileService.readMatrix(argThat(p -> p != null && !p.endsWith("upper_curve.xlsx")), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+                .thenReturn(matrixWithMatch);
+
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output")))
+                .thenAnswer(inv -> inv.getArgument(1) + ".uuid.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsMeProperties(study, trajectory);
+
+        assertThat(result).containsKey("V_ME_H2_SHORT_FR_st_storage");
+        StsGenerationDTO dto = result.get("V_ME_H2_SHORT_FR_st_storage");
+        assertThat(dto.getStsTsList()).containsExactly(
+                "lower_curve.xlsx.uuid.arrow",
+                "Pmax_injection.xlsx.uuid.arrow",
+                "Pmax_soutirage.xlsx.uuid.arrow"
+        );
+    }
+
+    @Test
+    void assembleStsMeProperties_MultipleClustersInSameTrajectory_ShouldExtractRespectiveColumns() throws Exception {
+        Path tsDir = tempDir.resolve("sts_me_series_multiple");
+        Files.createDirectories(tsDir);
+        for (StsTsFile file : StsTsFile.requiredFiles(TrajectoryType.STS_ME)) {
+            Files.createFile(tsDir.resolve(file.fileName()));
+        }
+
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name())
+                .build();
+
+        StStorageEntity stStorage1 = StStorageEntity.builder()
+                .area("v_me_h2_short_fr")
+                .name("st_storage1")
+                .groupe("group1")
+                .injection(new BigDecimal("100"))
+                .tsPath(tsDir.toString())
+                .trajectory(trajectory)
+                .build();
+
+        StStorageEntity stStorage2 = StStorageEntity.builder()
+                .area("v_me_power_fr")
+                .name("st_storage2")
+                .groupe("group2")
+                .injection(new BigDecimal("200"))
+                .tsPath(tsDir.toString())
+                .trajectory(trajectory)
+                .build();
+
+        trajectory.setStStorageEntities(List.of(stStorage1, stStorage2));
+
+        StudyEntity study = StudyEntity.builder()
+                .horizon("2029-2030")
+                .trajectories(Set.of(trajectory))
+                .build();
+
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("v_me_h2_short_fr.st_storage1", new double[]{1.0}),
+                new TimeSeriesMatrixColumn("V_ME_POWER_FR.st_storage2", new double[]{2.0})
+        ));
+
+        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+                .thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenAnswer(inv -> {
+            TimeSeriesMatrix m = inv.getArgument(0);
+            assertThat(m.columns()).hasSize(1);
+            return new byte[]{1};
+        });
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output")))
+                .thenAnswer(inv -> inv.getArgument(1) + ".uuid.arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsMeProperties(study, trajectory);
+
+        assertThat(result).containsKeys("V_ME_H2_SHORT_FR_st_storage1", "V_ME_POWER_FR_st_storage2");
+        assertThat(result.get("V_ME_H2_SHORT_FR_st_storage1").getStsTsList()).hasSize(4);
+        assertThat(result.get("V_ME_POWER_FR_st_storage2").getStsTsList()).hasSize(4);
     }
 }

@@ -8,22 +8,13 @@ import java.util.Map;
 public interface MultiEnergyService {
 
     /**
-     * Builds the Multi-Energy (ME) JSON data map for an AREA_ME or LINK_ME trajectory in a study.
+     * Builds the Multi-Energy (ME) JSON data map for the given ME trajectories.
      *
      * @param study the study entity
-     * @param areaMeTrajectory the AREA_ME or LINK_ME trajectory entity
+     * @param trajectories the ME trajectories to process
      * @return the ME data map
      */
-    Map<String, Object> buildMultiEnergyMap(StudyEntity study, TrajectoryEntity areaMeTrajectory);
-
-    /**
-     * Builds the Multi-Energy (ME) JSON data map for AREA_ME and LINK_ME trajectories in a study.
-     *
-     * @param study the study entity
-     * @param areaMeTrajectory the AREA_ME trajectory entity (optional, can be null)
-     * @param linkMeTrajectory the LINK_ME trajectory entity (optional, can be null)
-     * @return the ME data map
-     */
-    Map<String, Object> buildMultiEnergyMap(StudyEntity study, TrajectoryEntity areaMeTrajectory, TrajectoryEntity linkMeTrajectory);
-
+    Map<String, Object> buildMultiEnergyMap(
+            StudyEntity study,
+            TrajectoryEntity... trajectories);
 }

@@ -9,7 +9,9 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyServiceImpl;
+import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
+import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +24,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MultiEnergyServiceImplTest {
@@ -32,6 +34,13 @@ class MultiEnergyServiceImplTest {
 
     @Mock
     private LoadToJsonService loadToJsonService;
+
+    @Mock
+    private StsGenerationAssemblerService stsPropertiesAssemblerService;
+
+    @Mock
+    private StsToJsonService stsToJsonService;
+
 
     @InjectMocks
     private MultiEnergyServiceImpl multiEnergyService;
@@ -316,7 +325,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnNoLoadFiles() {
         // Given
-        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, null);
+        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService);
         AreaConfigEntity config = AreaConfigEntity.builder()
                 .area(AreaEntity.builder().name("AREA1").build())
                 .build();
@@ -777,5 +786,72 @@ class MultiEnergyServiceImplTest {
 
         assertThat(area1Data.get("loads")).isEqualTo(List.of("load_v_me_h2_short_fr_2026-2027.csv.uuid1.arrow"));
         assertThat(area2Data.get("loads")).isEqualTo(List.of("load_v_me_gaz_short_fr_2026-2027.csv.uuid2.arrow"));
+    }
+
+    @Test
+    void buildMultiEnergyMap_withStsMeTrajectory_shouldDispatchProperly() {
+        // Given
+        TrajectoryEntity stsMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name())
+                .fileName("sts_me.xlsx")
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, stsMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().isEmpty();
+    }
+
+    @Test
+    void buildMultiEnergyMap_withAreaMeLinkMeAndStsMe_shouldReturnExpectedSections() {
+        // Given
+        TrajectoryEntity stsMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name())
+                .fileName("sts_me.xlsx")
+                .build();
+
+        when(loadToJsonService.getListArrowLoadMeFilesFromStudy(studyEntity))
+                .thenReturn(Collections.emptyMap());
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, areaMeTrajectory, linkMeTrajectory, stsMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKeys("area_me", "links_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withMultipleAreas_shouldCallAssembleStsMePropertiesOnlyOnce() {
+        // Given
+        AreaEntity area1 = AreaEntity.builder().name("AREA_1").build();
+        AreaEntity area2 = AreaEntity.builder().name("AREA_2").build();
+        AreaEntity area3 = AreaEntity.builder().name("AREA_3").build();
+
+        AreaConfigEntity config1 = AreaConfigEntity.builder().area(area1).build();
+        AreaConfigEntity config2 = AreaConfigEntity.builder().area(area2).build();
+        AreaConfigEntity config3 = AreaConfigEntity.builder().area(area3).build();
+
+        TrajectoryEntity multiAreaTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me.xlsx")
+                .areaConfigEntities(List.of(config1, config2, config3))
+                .build();
+
+        TrajectoryEntity stsMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name())
+                .fileName("sts_me.xlsx")
+                .build();
+
+        when(stsPropertiesAssemblerService.assembleStsMeProperties(studyEntity, stsMeTrajectory))
+                .thenReturn(Map.of("AREA_1_cluster", com.rte_france.antares.datamanager_back.dto.StsGenerationDTO.builder().build()));
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, multiAreaTrajectory, stsMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("area_me");
+        verify(stsPropertiesAssemblerService, times(1)).assembleStsMeProperties(studyEntity, stsMeTrajectory);
+        verify(stsToJsonService, times(3)).stsMeMapGenerator(any(), any());
     }
 }
